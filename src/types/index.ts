@@ -187,7 +187,11 @@ export interface NotificationItem {
 export interface CallSession {
   active: boolean;
   type: 'audio' | 'video';
-  status: 'ringing' | 'connected' | 'ended';
+  status: 'ringing' | 'connecting' | 'connected' | 'ended';
+  sessionId?: string;
+  roomName?: string;
+  participantIds?: string[];
+  callerId?: string;
   peerUser?: User;
   targetChannel?: Channel;
   isMuted: boolean;
@@ -195,4 +199,17 @@ export interface CallSession {
   isScreenSharing: boolean;
   durationSeconds: number;
   isMinimized: boolean;
+}
+
+export interface IncomingCall {
+  id: string;
+  room_name: string;
+  conversation_id: string | null;
+  channel_id: string | null;
+  caller_id: string;
+  participant_ids: string[];
+  declined_by: string[];
+  call_type: 'audio' | 'video';
+  status: 'ringing' | 'active' | 'ended';
+  caller?: User;
 }

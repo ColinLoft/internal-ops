@@ -8,6 +8,7 @@ import {
   CalendarEvent,
   NotificationItem,
   CallSession,
+  IncomingCall,
   Attachment,
   Poll,
   UserStatus,
@@ -52,6 +53,8 @@ interface WorkspaceContextType {
   unreadNotificationCount: number;
   soundEnabled: boolean;
   callSession: CallSession;
+  incomingCall: IncomingCall | null;
+  callError: string;
   
   // Modals state
   activeProfileModalUser: User | null;
@@ -111,8 +114,12 @@ interface WorkspaceContextType {
   toggleSound: () => void;
   
   // Calling
-  startCall: (type: 'audio' | 'video', peerUser?: User, channel?: Channel) => void;
+  startCall: (type: 'audio' | 'video', peerUser?: User, channel?: Channel) => Promise<void>;
   endCall: () => void;
+  acceptIncomingCall: () => void;
+  dismissIncomingCall: () => void;
+  setCallError: (error: string) => void;
+  setCallConnected: (sessionId: string) => void;
   toggleCallMute: () => void;
   toggleCallCamera: () => void;
   toggleCallScreenShare: () => void;
@@ -427,6 +434,79 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     durationSeconds: 0,
     isMinimized: false,
   });
+  const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
+  const [callError, setCallError] = useState('');
+  const [dismissedCallIds, setDismissedCallIds] = useState<string[]>([]);
+  const callStartInProgressRef = React.useRef(false);
+  const lastRingingCallIdRef = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!currentUser.id) return;
+    let active = true;
+
+    const handleCallRow = (rawRow: Record<string, unknown>) => {
+      const row = rawRow as unknown as IncomingCall;
+      if (!row.id || !row.participant_ids?.includes(currentUser.id)) return;
+
+      if (row.id === callSession.sessionId && row.status === 'ended') {
+        setCallSession((previous) => ({ ...previous, active: false, status: 'ended', isScreenSharing: false }));
+        return;
+      }
+      if (row.status === 'ended') {
+        setIncomingCall((previous) => previous?.id === row.id ? null : previous);
+        return;
+      }
+      if (
+        row.caller_id === currentUser.id
+        || row.declined_by?.includes(currentUser.id)
+        || dismissedCallIds.includes(row.id)
+        || (callSession.active && callSession.sessionId !== row.id)
+      ) return;
+
+      if (lastRingingCallIdRef.current !== row.id) {
+        lastRingingCallIdRef.current = row.id;
+        sounds.playRingTone();
+      }
+      setIncomingCall({
+        ...row,
+        caller: users.find((user) => user.id === row.caller_id),
+      });
+    };
+
+    const loadIncomingCalls = async () => {
+      const since = new Date(Date.now() - 15 * 60_000).toISOString();
+      const { data, error } = await supabase
+        .from('call_sessions')
+        .select('*')
+        .in('status', ['ringing', 'active'])
+        .contains('participant_ids', [currentUser.id])
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (error) {
+        console.error('Unable to load incoming calls:', error);
+        return;
+      }
+      if (active && data?.[0]) handleCallRow(data[0]);
+    };
+
+    void loadIncomingCalls();
+    const channel = supabase
+      .channel(`call-sessions:${currentUser.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'call_sessions' }, (payload) => {
+        if (payload.new && Object.keys(payload.new).length) handleCallRow(payload.new as Record<string, unknown>);
+      })
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('Call signaling subscription failed:', error);
+        }
+      });
+
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [currentUser.id, users, callSession.active, callSession.sessionId, dismissedCallIds]);
 
   // Call timer
   useEffect(() => {
@@ -1301,30 +1381,160 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   // Calls
-  const startCall = (type: 'audio' | 'video', peerUser?: User, channel?: Channel) => {
-    sounds.playRingTone();
-    setCallSession({
-      active: true,
-      type,
-      status: 'connected',
-      peerUser: peerUser || users.find((u) => u.id !== currentUser.id),
-      targetChannel: channel,
-      isMuted: false,
-      isCameraOff: false,
-      isScreenSharing: false,
-      durationSeconds: 0,
-      isMinimized: false,
-    });
+  const startCall = async (type: 'audio' | 'video', peerUser?: User, channel?: Channel) => {
+    setCallError('');
+    if (callSession.active) {
+      setCallError('You are already in a call.');
+      return;
+    }
+    if (!currentUser.id) {
+      setCallError('Sign in before starting a call.');
+      return;
+    }
+
+    const isChannelCall = Boolean(channel) || (!peerUser && activeTab === 'channels');
+    const targetChannel = channel || (isChannelCall ? channels.find((item) => item.id === activeChannelId) : undefined);
+    const conversation = conversations.find((item) => item.id === activeConversationId);
+    const participants = isChannelCall && targetChannel
+      ? [...new Set([currentUser.id, ...targetChannel.members])]
+      : peerUser
+        ? conversation?.participants.includes(peerUser.id)
+          ? [...new Set([currentUser.id, ...conversation.participants])]
+          : [currentUser.id, peerUser.id]
+        : conversation
+          ? [...new Set([currentUser.id, ...conversation.participants])]
+          : [];
+
+    if (!targetChannel && !peerUser && !conversation) {
+      setCallError('Open a direct message or channel before starting a call.');
+      return;
+    }
+    if (participants.length > 8) {
+      setCallError('Calls currently support up to 8 people. Start a smaller group call.');
+      return;
+    }
+    if (participants.length < 2) {
+      setCallError('Add at least one teammate to this conversation before starting a call.');
+      return;
+    }
+    if (callStartInProgressRef.current) {
+      setCallError('Your call is already starting.');
+      return;
+    }
+
+    const sessionId = crypto.randomUUID();
+    const row = {
+      id: sessionId,
+      room_name: sessionId,
+      conversation_id: targetChannel ? null : conversation?.id || null,
+      channel_id: targetChannel?.id || null,
+      caller_id: currentUser.id,
+      participant_ids: participants,
+      call_type: type,
+      status: 'ringing',
+    };
+    callStartInProgressRef.current = true;
+    try {
+      const { error } = await supabase.from('call_sessions').insert(row);
+      if (error) {
+        setCallError(`Could not start the call: ${error.message}`);
+        return;
+      }
+
+      sounds.playRingTone();
+      setIncomingCall(null);
+      setCallSession({
+        active: true,
+        type,
+        status: 'connecting',
+        sessionId,
+        roomName: sessionId,
+        participantIds: participants,
+        callerId: currentUser.id,
+        peerUser: peerUser || users.find((user) => participants.includes(user.id) && user.id !== currentUser.id),
+        targetChannel,
+        isMuted: false,
+        isCameraOff: false,
+        isScreenSharing: false,
+        durationSeconds: 0,
+        isMinimized: false,
+      });
+    } finally {
+      callStartInProgressRef.current = false;
+    }
   };
 
   const endCall = () => {
     sounds.playCallEnd();
+    const endedSession = callSession.sessionId;
+    if (endedSession && callSession.callerId === currentUser.id) {
+      void supabase
+        .from('call_sessions')
+        .update({ status: 'ended', ended_at: new Date().toISOString() })
+        .eq('id', endedSession)
+        .then(({ error }) => {
+          if (error) setCallError(`Call ended locally, but could not notify other participants: ${error.message}`);
+        });
+    }
     setCallSession((prev) => ({
       ...prev,
       active: false,
       status: 'ended',
       isScreenSharing: false,
     }));
+  };
+
+  const acceptIncomingCall = () => {
+    if (!incomingCall) return;
+    setCallError('');
+    sounds.playRingTone();
+    setCallSession({
+      active: true,
+      type: incomingCall.call_type,
+      status: 'connecting',
+      sessionId: incomingCall.id,
+      roomName: incomingCall.room_name,
+      participantIds: incomingCall.participant_ids,
+      callerId: incomingCall.caller_id,
+      peerUser: incomingCall.caller,
+      targetChannel: incomingCall.channel_id
+        ? channels.find((channel) => channel.id === incomingCall.channel_id)
+        : undefined,
+      isMuted: false,
+      isCameraOff: false,
+      isScreenSharing: false,
+      durationSeconds: 0,
+      isMinimized: false,
+    });
+    setIncomingCall(null);
+  };
+
+  const dismissIncomingCall = () => {
+    if (!incomingCall) return;
+    const declinedCall = incomingCall;
+    setDismissedCallIds((previous) => [...new Set([...previous, declinedCall.id])]);
+    setIncomingCall(null);
+    void supabase.functions.invoke('livekit-token', {
+      body: { action: 'decline-call', sessionId: declinedCall.id },
+    }).then(({ error }) => {
+      if (error) console.error('Unable to decline call on the server:', error);
+    });
+  };
+
+  const setCallConnected = (sessionId: string) => {
+    setCallSession((previous) =>
+      previous.sessionId === sessionId ? { ...previous, status: 'connected' } : previous
+    );
+    if (callSession.callerId === currentUser.id) {
+      void supabase
+        .from('call_sessions')
+        .update({ status: 'active' })
+        .eq('id', sessionId)
+        .eq('caller_id', currentUser.id)
+        .then(({ error }) => {
+          if (error) setCallError(`Connected, but could not update call status: ${error.message}`);
+        });
+    }
   };
 
   const toggleCallMute = () => {
@@ -1367,6 +1577,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         unreadNotificationCount,
         soundEnabled,
         callSession,
+        incomingCall,
+        callError,
         activeProfileModalUser,
         isProfileSettingsOpen,
         isWorkspaceSettingsOpen,
@@ -1403,6 +1615,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         toggleSound,
         startCall,
         endCall,
+        acceptIncomingCall,
+        dismissIncomingCall,
+        setCallError,
+        setCallConnected,
         toggleCallMute,
         toggleCallCamera,
         toggleCallScreenShare,

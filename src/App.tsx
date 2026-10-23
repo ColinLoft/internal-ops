@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext';
 import { Rail } from './components/navigation/Rail';
 import { TopBar } from './components/navigation/TopBar';
@@ -8,7 +8,6 @@ import { ChatFeed } from './components/chat/ChatFeed';
 import { ThreadPanel } from './components/chat/ThreadPanel';
 import { RightDrawer } from './components/chat/RightDrawer';
 import { CalendarView } from './components/calendar/CalendarView';
-import { CallOverlay } from './components/call/CallOverlay';
 import { AdminPage } from './components/admin/AdminPage';
 
 // Auth & Modals
@@ -24,12 +23,18 @@ import { AddEventModal } from './components/modals/AddEventModal';
 import { AddTeammateModal } from './components/modals/AddTeammateModal';
 import { InviteReadyModal } from './components/modals/InviteReadyModal';
 
+const CallOverlay = lazy(async () => ({
+  default: (await import('./components/call/CallOverlay')).CallOverlay,
+}));
+
 const WorkspaceShell: React.FC = () => {
   const {
     isAuthenticated,
     isAuthLoading,
     requiresPasswordSetup,
     activeTab,
+    callSession,
+    incomingCall,
     activeThreadMessageId,
     isRightDrawerOpen,
     isAddTeammateOpen,
@@ -89,7 +94,11 @@ const WorkspaceShell: React.FC = () => {
       </div>
 
       {/* Floating In-App Voice & Video Call Overlay */}
-      <CallOverlay />
+      {(callSession.active || incomingCall) && (
+        <Suspense fallback={null}>
+          <CallOverlay />
+        </Suspense>
+      )}
 
       {/* Modals & Dialogs */}
       <ProfileModal />

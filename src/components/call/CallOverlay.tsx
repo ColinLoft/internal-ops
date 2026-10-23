@@ -1,4 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ConnectionState,
+  Participant,
+  Room,
+  RoomEvent,
+  Track,
+} from 'livekit-client';
 import {
   Mic,
   MicOff,
@@ -10,13 +17,84 @@ import {
   Maximize2,
   Minimize2,
   Users,
-  Sparkles,
+  X,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { supabase } from '../../lib/supabase';
+
+interface ParticipantMedia {
+  identity: string;
+  name: string;
+  speaking: boolean;
+  camera?: Track;
+  screen?: Track;
+  audio: Track[];
+}
+
+const readFunctionError = async (error: Error) => {
+  if ('context' in error && error.context instanceof Response) {
+    const responseBody: unknown = await error.context.clone().json().catch(() => null);
+    if (responseBody && typeof responseBody === 'object' && 'error' in responseBody
+      && typeof responseBody.error === 'string') return responseBody.error;
+  }
+  return error.message;
+};
+
+const AttachedVideo: React.FC<{ track?: Track; className?: string; muted?: boolean }> = ({
+  track,
+  className = '',
+  muted = false,
+}) => {
+  const elementRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (!track || !elementRef.current) return;
+    const element = track.attach(elementRef.current);
+    element.play().catch(() => undefined);
+    return () => {
+      track.detach(element);
+    };
+  }, [track]);
+
+  return <video ref={elementRef} autoPlay playsInline muted={muted} className={className} />;
+};
+
+const AttachedAudio: React.FC<{ track: Track }> = ({ track }) => {
+  const elementRef = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    if (!elementRef.current) return;
+    const element = track.attach(elementRef.current);
+    element.play().catch(() => undefined);
+    return () => {
+      track.detach(element);
+    };
+  }, [track]);
+  return <audio ref={elementRef} autoPlay />;
+};
+
+const participantMedia = (participant: Participant): ParticipantMedia => {
+  const publications = participant.getTrackPublications();
+  return {
+    identity: participant.identity,
+    name: participant.name || participant.identity,
+    speaking: participant.isSpeaking,
+    camera: publications.find((publication) => publication.source === Track.Source.Camera)?.track,
+    screen: publications.find((publication) => publication.source === Track.Source.ScreenShare)?.track,
+    audio: publications
+      .filter((publication) => publication.kind === Track.Kind.Audio)
+      .map((publication) => publication.track)
+      .filter((track): track is Track => Boolean(track)),
+  };
+};
 
 export const CallOverlay: React.FC = () => {
   const {
     callSession,
+    incomingCall,
+    callError,
+    setCallError,
+    setCallConnected,
+    acceptIncomingCall,
+    dismissIncomingCall,
     endCall,
     toggleCallMute,
     toggleCallCamera,
@@ -26,354 +104,316 @@ export const CallOverlay: React.FC = () => {
     workspaceSettings,
   } = useWorkspace();
 
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const screenVideoRef = useRef<HTMLVideoElement>(null);
+  const [room, setRoom] = useState<Room | null>(null);
+  const [remoteMedia, setRemoteMedia] = useState<ParticipantMedia[]>([]);
+  const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.Disconnected);
+  const [isScreenShareBusy, setIsScreenShareBusy] = useState(false);
+  const [audioPlaybackBlocked, setAudioPlaybackBlocked] = useState(false);
+  const screenSharingRef = useRef(callSession.isScreenSharing);
 
-  // Capture the selected local devices for the active call.
   useEffect(() => {
-    let stream: MediaStream | null = null;
-    if (callSession.active) {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const audio: MediaTrackConstraints = {
+    if (!callSession.active || !callSession.sessionId) {
+      setRoom(null);
+      setRemoteMedia([]);
+      setConnectionState(ConnectionState.Disconnected);
+      return;
+    }
+
+    let mounted = true;
+    const liveKitRoom = new Room({
+      adaptiveStream: true,
+      dynacast: true,
+    });
+    const refreshMedia = () => {
+      if (!mounted) return;
+      setRemoteMedia(Array.from(liveKitRoom.remoteParticipants.values(), participantMedia));
+    };
+
+    liveKitRoom
+      .on(RoomEvent.TrackSubscribed, refreshMedia)
+      .on(RoomEvent.TrackUnsubscribed, refreshMedia)
+      .on(RoomEvent.TrackPublished, refreshMedia)
+      .on(RoomEvent.TrackUnpublished, refreshMedia)
+      .on(RoomEvent.ParticipantConnected, refreshMedia)
+      .on(RoomEvent.ParticipantDisconnected, refreshMedia)
+      .on(RoomEvent.ActiveSpeakersChanged, refreshMedia)
+      .on(RoomEvent.ConnectionStateChanged, (state) => {
+        if (mounted) setConnectionState(state);
+      })
+      .on(RoomEvent.AudioPlaybackStatusChanged, (canPlayAudio) => {
+        if (mounted) setAudioPlaybackBlocked(!canPlayAudio);
+      })
+      .on(RoomEvent.Disconnected, () => {
+        if (mounted && callSession.active) {
+          setCallError('The call connection was lost. Check your network and rejoin.');
+        }
+      })
+      .on(RoomEvent.LocalTrackUnpublished, (publication) => {
+        if (publication.source === Track.Source.ScreenShare && mounted && screenSharingRef.current) {
+          screenSharingRef.current = false;
+          toggleCallScreenShare();
+          refreshMedia();
+        }
+      });
+
+    setRoom(liveKitRoom);
+    setConnectionState(ConnectionState.Connecting);
+    setAudioPlaybackBlocked(false);
+
+    const connect = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('livekit-token', {
+          body: { sessionId: callSession.sessionId },
+        });
+        if (error) throw new Error(await readFunctionError(error));
+        if (!data?.serverUrl || !data?.token) throw new Error('The call service did not return a connection token.');
+
+        await liveKitRoom.connect(data.serverUrl, data.token, {
+          autoSubscribe: true,
+          maxRetries: 3,
+        });
+        if (!mounted) {
+          await liveKitRoom.disconnect();
+          return;
+        }
+
+        const audioOptions = {
           noiseSuppression: workspaceSettings.noiseSuppression,
-          ...(workspaceSettings.microphoneDeviceId
-            ? { deviceId: { exact: workspaceSettings.microphoneDeviceId } }
-            : {}),
+          echoCancellation: true,
+          autoGainControl: true,
+          ...(workspaceSettings.microphoneDeviceId ? { deviceId: workspaceSettings.microphoneDeviceId } : {}),
         };
-        const video: MediaTrackConstraints | boolean = callSession.type === 'video'
-          ? {
-              ...(workspaceSettings.cameraDeviceId
-                ? { deviceId: { exact: workspaceSettings.cameraDeviceId } }
-                : {}),
+        await liveKitRoom.localParticipant.setMicrophoneEnabled(!callSession.isMuted, audioOptions);
+        if (callSession.type === 'video' && !callSession.isCameraOff) {
+          try {
+            await liveKitRoom.localParticipant.setCameraEnabled(true, {
+              ...(workspaceSettings.cameraDeviceId ? { deviceId: workspaceSettings.cameraDeviceId } : {}),
+              resolution: { width: 1280, height: 720, frameRate: 24 },
+            });
+          } catch (error) {
+            if (mounted) {
+              setCallError(error instanceof Error
+                ? `Camera unavailable; continuing with audio: ${error.message}`
+                : 'Camera unavailable; continuing with audio.');
             }
-          : false;
-
-        navigator.mediaDevices.getUserMedia({ video, audio })
-          .then((s) => {
-            stream = s;
-            setLocalStream(s);
-            if (localVideoRef.current) {
-              localVideoRef.current.srcObject = s;
-            }
-          })
-          .catch((err) => console.warn('Selected call devices are unavailable or permission was denied:', err));
-      }
-    } else {
-      if (localStream) {
-        localStream.getTracks().forEach((track) => track.stop());
-        setLocalStream(null);
-      }
-    }
-
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+          }
+        }
+        if (!mounted) {
+          await liveKitRoom.disconnect();
+          return;
+        }
+        setCallConnected(callSession.sessionId);
+        refreshMedia();
+      } catch (error) {
+        if (mounted) {
+          setCallError(error instanceof Error ? error.message : 'Unable to connect to the call.');
+          endCall();
+        }
       }
     };
-  }, [
-    callSession.active,
-    callSession.type,
-    workspaceSettings.microphoneDeviceId,
-    workspaceSettings.cameraDeviceId,
-    workspaceSettings.noiseSuppression,
-  ]);
 
-  useEffect(() => {
-    localStream?.getVideoTracks().forEach((track) => {
-      track.enabled = !callSession.isCameraOff;
-    });
-  }, [localStream, callSession.isCameraOff]);
-
-  useEffect(() => {
-    localStream?.getAudioTracks().forEach((track) => {
-      track.enabled = !callSession.isMuted;
-    });
-  }, [localStream, callSession.isMuted]);
-
-  // Handle real screen sharing via getDisplayMedia
-  useEffect(() => {
-    let sStream: MediaStream | null = null;
-    if (callSession.active && callSession.isScreenSharing) {
-      if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
-        navigator.mediaDevices
-          .getDisplayMedia({ video: true })
-          .then((s) => {
-            sStream = s;
-            setScreenStream(s);
-            if (screenVideoRef.current) {
-              screenVideoRef.current.srcObject = s;
-            }
-            s.getVideoTracks()[0].onended = () => {
-              toggleCallScreenShare();
-            };
-          })
-          .catch((err) => {
-            console.warn('Screen share cancelled or not allowed:', err);
-            toggleCallScreenShare();
-          });
-      }
-    } else {
-      if (screenStream) {
-        screenStream.getTracks().forEach((track) => track.stop());
-        setScreenStream(null);
-      }
-    }
-
+    void connect();
     return () => {
-      if (sStream) {
-        sStream.getTracks().forEach((track) => track.stop());
-      }
+      mounted = false;
+      void liveKitRoom.disconnect();
     };
-  }, [callSession.isScreenSharing]);
+  }, [callSession.active, callSession.sessionId, callSession.type]);
 
-  if (!callSession.active) return null;
+  useEffect(() => {
+    if (!room || connectionState !== ConnectionState.Connected) return;
+    void room.localParticipant.setMicrophoneEnabled(!callSession.isMuted).catch((error: unknown) => {
+      setCallError(error instanceof Error ? `Microphone could not be changed: ${error.message}` : 'Microphone could not be changed.');
+    });
+  }, [room, connectionState, callSession.isMuted, setCallError]);
+
+  useEffect(() => {
+    if (!room || connectionState !== ConnectionState.Connected) return;
+    void room.localParticipant.setCameraEnabled(!callSession.isCameraOff && callSession.type === 'video').catch((error: unknown) => {
+      setCallError(error instanceof Error ? `Camera could not be changed: ${error.message}` : 'Camera could not be changed.');
+    });
+  }, [room, connectionState, callSession.isCameraOff, callSession.type, setCallError]);
+
+  const localCameraTrack = room?.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+  const localScreenTrack = room?.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track;
+  const sharedScreen = remoteMedia.find((participant) => participant.screen);
+
+  const handleScreenShare = async () => {
+    if (!room || isScreenShareBusy) return;
+    setIsScreenShareBusy(true);
+    try {
+      await room.localParticipant.setScreenShareEnabled(!screenSharingRef.current, {
+        audio: false,
+        selfBrowserSurface: 'exclude',
+        surfaceSwitching: 'include',
+        contentHint: 'motion',
+        resolution: { width: 1920, height: 1080, frameRate: 15 },
+      });
+      if (room.localParticipant.isScreenShareEnabled && !screenSharingRef.current) {
+        screenSharingRef.current = true;
+        toggleCallScreenShare();
+      }
+    } catch (error) {
+      setCallError(error instanceof Error ? `Screen sharing failed: ${error.message}` : 'Screen sharing failed.');
+    } finally {
+      setIsScreenShareBusy(false);
+    }
+  };
+
+  const enableAudioPlayback = async () => {
+    if (!room) return;
+    try {
+      await room.startAudio();
+      setAudioPlaybackBlocked(false);
+    } catch (error) {
+      setCallError(error instanceof Error ? `Audio playback could not be enabled: ${error.message}` : 'Audio playback could not be enabled.');
+    }
+  };
 
   const minutes = Math.floor(callSession.durationSeconds / 60);
   const seconds = (callSession.durationSeconds % 60).toString().padStart(2, '0');
-  const peer = callSession.peerUser;
 
-  // Minimized Picture-in-Picture Pill
-  if (callSession.isMinimized) {
-    return (
-      <div className="fixed bottom-6 right-6 z-50 bg-slate-900/95 backdrop-blur-2xl text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center gap-3 animate-in slide-in-from-bottom duration-200">
-        <div className="relative">
-          <img
-            src={peer?.avatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100'}
-            alt="peer"
-            className="w-10 h-10 rounded-xl object-cover border border-brand-500 shadow-sm"
-          />
-          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-slate-900 animate-pulse" />
-        </div>
-
-        <div className="min-w-0 pr-2">
-          <h5 className="text-xs font-bold truncate max-w-[120px]">
-            {callSession.targetChannel ? `#${callSession.targetChannel.name}` : peer?.name}
-          </h5>
-          <p className="text-[10px] text-emerald-400 font-mono font-semibold">
-            {minutes}:{seconds}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-1.5 border-l border-slate-700 pl-2">
-          <button
-            onClick={toggleCallMute}
-            className={`p-2 rounded-xl transition-colors ${
-              callSession.isMuted ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
-            }`}
-            title={callSession.isMuted ? 'Unmute' : 'Mute'}
-          >
-            {callSession.isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-          </button>
-
-          <button
-            onClick={toggleCallMinimize}
-            className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl transition-colors"
-            title="Expand Call Window"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-          </button>
-
-          <button
-            onClick={endCall}
-            className="p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-md transition-colors"
-            title="End Call"
-          >
-            <PhoneOff className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Expanded Floating In-App Window
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-[440px] sm:w-[520px] bg-slate-900/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-slate-700/80 overflow-hidden flex flex-col text-white animate-in zoom-in-95 duration-200">
-      {/* Call Header */}
-      <div className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
-        <div className="flex items-center gap-2.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-          <div>
-            <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-              <span>{callSession.type === 'video' ? 'Live Video Room' : 'Encrypted Voice Call'}</span>
-              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-800/80">
-                {minutes}:{seconds}
-              </span>
-            </h4>
-            <p className="text-[11px] text-slate-400">
-              {callSession.targetChannel
-                ? `#${callSession.targetChannel.name} • Non-Profit Team Call`
-                : `${peer?.name} (${peer?.role})`}
-            </p>
+    <>
+      {callError && (
+        <div role="alert" className="fixed right-5 top-20 z-[70] flex max-w-md items-start gap-3 rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm text-rose-700 shadow-xl">
+          <p className="flex-1">{callError}</p>
+          <button type="button" onClick={() => setCallError('')} aria-label="Dismiss call error"><X className="h-4 w-4" /></button>
+        </div>
+      )}
+
+      {incomingCall && !callSession.active && (
+        <div className="fixed bottom-6 right-6 z-[65] w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-slate-700 bg-slate-900 p-4 text-white shadow-2xl">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
+              {incomingCall.call_type === 'video' ? <VideoIcon className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold">{incomingCall.caller?.name || 'A teammate'} is calling</p>
+              <p className="text-xs text-slate-400">{incomingCall.channel_id ? 'Channel call' : 'Direct/group call'}</p>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <button type="button" onClick={dismissIncomingCall} className="rounded-xl bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-600">Not now</button>
+            <button type="button" onClick={acceptIncomingCall} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-500">Join call</button>
           </div>
         </div>
+      )}
 
-        <div className="flex items-center gap-1">
-          <button
-            onClick={toggleCallMinimize}
-            className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
-            title="Minimize to Picture-in-Picture"
-          >
-            <Minimize2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Main Video & Audio Area */}
-      <div className="p-4 bg-slate-950/90 relative min-h-[260px] flex items-center justify-center">
-        {callSession.isScreenSharing ? (
-          /* Screen Sharing View */
-          <div className="w-full h-64 bg-slate-900 rounded-2xl overflow-hidden relative border border-brand-500/50 shadow-inner flex flex-col">
-            <div className="absolute top-3 left-3 z-10 bg-brand-600/90 backdrop-blur-md px-2.5 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm">
-              <Monitor className="w-3.5 h-3.5" /> Presenting Screen Live
-            </div>
-            {screenStream ? (
-              <video
-                ref={screenVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-contain bg-black"
-              />
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-4">
-                <Monitor className="w-12 h-12 text-brand-400 mb-2 animate-bounce" />
-                <p className="text-xs font-bold text-white">Live Presentation Feed Active</p>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Broadcasting your selected window or document with low latency
+      {callSession.active && (
+        <div className={`fixed ${callSession.isMinimized ? 'bottom-6 right-6 w-[min(25rem,calc(100vw-2rem))]' : 'inset-3 sm:inset-6'} z-50 flex flex-col overflow-hidden rounded-3xl border border-slate-700 bg-slate-950 text-white shadow-2xl`}>
+          <header className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-4 py-3 sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className={`h-2.5 w-2.5 rounded-full ${connectionState === ConnectionState.Connected ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
+              <div className="min-w-0">
+                <h2 className="truncate text-sm font-bold">
+                  {callSession.targetChannel ? `#${callSession.targetChannel.name}` : callSession.peerUser?.name || 'Team call'}
+                </h2>
+                <p className="text-[11px] text-slate-400">
+                  {connectionState === ConnectionState.Connected ? `${minutes}:${seconds}` : 'Connecting to secure call…'}
+                  {' · '}{callSession.type === 'video' ? 'Video call' : 'Voice call'}
                 </p>
               </div>
-            )}
-          </div>
-        ) : callSession.type === 'video' ? (
-          /* 2-Person Video Call Grid */
-          <div className="w-full grid grid-cols-2 gap-3 h-64">
-            {/* Peer Video Card */}
-            <div className="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 flex items-center justify-center shadow-md">
-              <img
-                src={peer?.avatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300'}
-                alt={peer?.name}
-                className="w-full h-full object-cover opacity-90"
-              />
-              <div className="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-md px-2 py-0.5 rounded-lg text-[10px] font-bold text-white">
-                {peer?.name || 'Teammate'}
+            </div>
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={toggleCallMinimize} title={callSession.isMinimized ? 'Expand call' : 'Minimize call'} className="rounded-lg p-2 text-slate-300 hover:bg-slate-800">
+                {callSession.isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+              </button>
+              <button type="button" onClick={endCall} title="Leave call" className="rounded-lg p-2 text-slate-300 hover:bg-rose-600 hover:text-white">
+                <PhoneOff className="h-4 w-4" />
+              </button>
+            </div>
+          </header>
+
+          {!callSession.isMinimized && (
+            <>
+              <section className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3 sm:p-5">
+                {audioPlaybackBlocked && (
+                  <button
+                    type="button"
+                    onClick={() => void enableAudioPlayback()}
+                    className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950"
+                  >
+                    Enable call audio
+                  </button>
+                )}
+                {sharedScreen?.screen && (
+                  <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-black">
+                    <AttachedVideo track={sharedScreen.screen} className="h-full max-h-full w-full object-contain" />
+                    <span className="absolute left-3 top-3 rounded-lg bg-black/70 px-2 py-1 text-xs font-semibold">{sharedScreen.name} is sharing their screen</span>
+                  </div>
+                )}
+                {localScreenTrack && (
+                  <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-black">
+                    <AttachedVideo track={localScreenTrack} muted className="h-full max-h-full w-full object-contain" />
+                    <span className="absolute left-3 top-3 rounded-lg bg-black/70 px-2 py-1 text-xs font-semibold">You are sharing your screen</span>
+                  </div>
+                )}
+                {!sharedScreen && !localScreenTrack && (
+                  <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {remoteMedia.map((participant) => (
+                      <div key={participant.identity} className={`relative min-h-40 overflow-hidden rounded-2xl border bg-slate-900 ${participant.speaking ? 'border-emerald-400' : 'border-slate-800'}`}>
+                        {participant.camera ? (
+                          <AttachedVideo track={participant.camera} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full min-h-40 items-center justify-center text-4xl font-bold text-slate-500">
+                            {participant.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="absolute bottom-2 left-2 rounded-lg bg-black/65 px-2 py-1 text-xs">{participant.name}</span>
+                      </div>
+                    ))}
+                    <div className="relative min-h-40 overflow-hidden rounded-2xl border border-brand-500/70 bg-slate-900">
+                      {localCameraTrack && !callSession.isCameraOff && workspaceSettings.showCameraPreview ? (
+                        <AttachedVideo track={localCameraTrack} muted className="h-full w-full scale-x-[-1] object-cover" />
+                      ) : (
+                        <div className="flex h-full min-h-40 items-center justify-center text-4xl font-bold text-brand-300">
+                          {currentUser.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="absolute bottom-2 left-2 rounded-lg bg-black/65 px-2 py-1 text-xs">You{callSession.isMuted ? ' · muted' : ''}</span>
+                    </div>
+                    {remoteMedia.length === 0 && connectionState === ConnectionState.Connected && (
+                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-slate-950/80 px-4 py-2 text-center text-xs text-slate-400">
+                        <Users className="mx-auto mb-1 h-4 w-4" />
+                        Waiting for teammates to join
+                      </div>
+                    )}
+                  </div>
+                )}
+                {remoteMedia.flatMap((participant) =>
+                  participant.audio.map((track) => <AttachedAudio key={track.sid} track={track} />)
+                )}
+              </section>
+
+              <footer className="flex items-center justify-center gap-3 border-t border-slate-800 bg-slate-900 px-4 py-4">
+                <button type="button" onClick={toggleCallMute} aria-label={callSession.isMuted ? 'Unmute microphone' : 'Mute microphone'} className={`rounded-xl p-3 ${callSession.isMuted ? 'bg-rose-600' : 'bg-slate-800 hover:bg-slate-700'}`}>
+                  {callSession.isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                </button>
+                <button type="button" onClick={toggleCallCamera} aria-label={callSession.isCameraOff ? 'Turn camera on' : 'Turn camera off'} className={`rounded-xl p-3 ${callSession.isCameraOff ? 'bg-rose-600' : 'bg-slate-800 hover:bg-slate-700'}`}>
+                  {callSession.isCameraOff ? <VideoOff className="h-5 w-5" /> : <VideoIcon className="h-5 w-5" />}
+                </button>
+                <button type="button" onClick={() => void handleScreenShare()} disabled={isScreenShareBusy || connectionState !== ConnectionState.Connected} aria-label={callSession.isScreenSharing ? 'Stop sharing screen' : 'Share screen'} className={`rounded-xl p-3 disabled:opacity-50 ${callSession.isScreenSharing ? 'bg-brand-600' : 'bg-slate-800 hover:bg-slate-700'}`}>
+                  {callSession.isScreenSharing ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
+                </button>
+                <button type="button" onClick={endCall} aria-label="Leave call" className="rounded-xl bg-rose-600 p-3 hover:bg-rose-500">
+                  <PhoneOff className="h-5 w-5" />
+                </button>
+              </footer>
+            </>
+          )}
+          {callSession.isMinimized && (
+            <div className="flex items-center justify-between px-4 py-2 text-xs text-slate-300">
+              <span>{connectionState === ConnectionState.Connected ? `${minutes}:${seconds}` : 'Connecting…'}</span>
+              <div className="flex gap-2">
+                <button type="button" onClick={toggleCallMute} aria-label={callSession.isMuted ? 'Unmute' : 'Mute'} className="rounded-lg bg-slate-800 p-2">
+                  {callSession.isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </button>
+                <button type="button" onClick={endCall} aria-label="Leave call" className="rounded-lg bg-rose-600 p-2"><PhoneOff className="h-4 w-4" /></button>
               </div>
-              {/* Speaking audio wave indicator */}
-              <div className="absolute top-2 right-2 flex items-center gap-0.5 bg-black/40 backdrop-blur-md p-1 rounded-lg">
-                <span className="w-1 h-3 bg-emerald-400 rounded-full animate-pulse" />
-                <span className="w-1 h-4 bg-emerald-400 rounded-full animate-pulse delay-75" />
-                <span className="w-1 h-2 bg-emerald-400 rounded-full animate-pulse delay-150" />
-              </div>
             </div>
-
-            {/* Self Video Card */}
-            <div className="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 flex items-center justify-center shadow-md">
-              {localStream && !callSession.isCameraOff && workspaceSettings.showCameraPreview ? (
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover scale-x-[-1]"
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center text-slate-400">
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name}
-                    className="w-16 h-16 rounded-full object-cover border-2 border-brand-500 shadow-md mb-2"
-                  />
-                  <p className="text-[11px] font-bold text-slate-300">
-                    {workspaceSettings.showCameraPreview ? 'Camera Off' : 'Preview Hidden'}
-                  </p>
-                </div>
-              )}
-              <div className="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-md px-2 py-0.5 rounded-lg text-[10px] font-bold text-white">
-                You ({currentUser.name})
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Voice Call Audio Card */
-          <div className="flex flex-col items-center justify-center py-6">
-            <div className="relative mb-4">
-              <img
-                src={peer?.avatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200'}
-                alt={peer?.name}
-                className="w-24 h-24 rounded-3xl object-cover border-4 border-brand-500 shadow-2xl"
-              />
-              <span className="absolute -bottom-1 -right-1 p-1.5 bg-emerald-500 text-white rounded-full border-2 border-slate-900">
-                <Mic className="w-4 h-4" />
-              </span>
-            </div>
-            <h4 className="text-sm font-bold text-white">{peer?.name || 'Teammate'}</h4>
-            <p className="text-xs text-slate-400 mt-0.5">{peer?.role || 'Staff Member'}</p>
-
-            {/* Simulated Live Audio Spectrum Bars */}
-            <div className="flex items-center gap-1.5 mt-5">
-              {[4, 8, 14, 20, 16, 22, 10, 18, 12, 6].map((h, i) => (
-                <span
-                  key={i}
-                  className="w-1.5 bg-brand-500 rounded-full animate-pulse"
-                  style={{ height: `${h}px`, animationDelay: `${i * 100}ms` }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Action Toolbar */}
-      <div className="px-6 py-4 bg-slate-900 flex items-center justify-center gap-4">
-        {/* Mute Mic */}
-        <button
-          onClick={toggleCallMute}
-          className={`p-3.5 rounded-2xl transition-all shadow-md ${
-            callSession.isMuted
-              ? 'bg-rose-500 text-white'
-              : 'bg-slate-800 hover:bg-slate-700 text-white'
-          }`}
-          title={callSession.isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
-        >
-          {callSession.isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-        </button>
-
-        {/* Video Toggle */}
-        <button
-          onClick={toggleCallCamera}
-          className={`p-3.5 rounded-2xl transition-all shadow-md ${
-            callSession.isCameraOff
-              ? 'bg-rose-500 text-white'
-              : 'bg-slate-800 hover:bg-slate-700 text-white'
-          }`}
-          title={callSession.isCameraOff ? 'Turn Camera On' : 'Turn Camera Off'}
-        >
-          {callSession.isCameraOff ? <VideoOff className="w-5 h-5" /> : <VideoIcon className="w-5 h-5" />}
-        </button>
-
-        {/* Screen Share Toggle */}
-        <button
-          onClick={toggleCallScreenShare}
-          className={`p-3.5 rounded-2xl transition-all shadow-md ${
-            callSession.isScreenSharing
-              ? 'bg-brand-600 text-white ring-2 ring-brand-400/50'
-              : 'bg-slate-800 hover:bg-slate-700 text-white'
-          }`}
-          title={callSession.isScreenSharing ? 'Stop Screen Sharing' : 'Share Screen'}
-        >
-          {callSession.isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
-        </button>
-
-        {/* End Call */}
-        <button
-          onClick={endCall}
-          className="p-3.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/30 transition-all active:scale-95"
-          title="End Call"
-        >
-          <PhoneOff className="w-5 h-5" />
-        </button>
-      </div>
-    </div>
+          )}
+        </div>
+      )}
+    </>
   );
 };
