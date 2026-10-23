@@ -95,7 +95,7 @@ export const AuthScreen: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-semibold text-slate-700">
-                  Password or Temporary Code
+                  Password
                 </label>
               </div>
               <div className="relative">

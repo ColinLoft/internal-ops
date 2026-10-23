@@ -389,7 +389,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       return { success: false, message: error?.message || 'Unable to sign in.' };
     }
 
-    setIsAuthLoading(true);
     try {
       const profileData = await loadSupabaseProfiles(data.user);
       setUsers(profileData.users);
@@ -405,8 +404,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     } catch (profileError) {
       await supabase.auth.signOut();
       return { success: false, message: `Signed in, but the staff profile could not be loaded: ${(profileError as Error).message}` };
-    } finally {
-      setIsAuthLoading(false);
     }
   };
 
