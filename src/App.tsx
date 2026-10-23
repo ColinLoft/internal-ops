@@ -35,6 +35,7 @@ const WorkspaceShell: React.FC = () => {
     activeTab,
     callSession,
     incomingCall,
+    callError,
     activeThreadMessageId,
     isRightDrawerOpen,
     isAddTeammateOpen,
@@ -94,7 +95,7 @@ const WorkspaceShell: React.FC = () => {
       </div>
 
       {/* Floating In-App Voice & Video Call Overlay */}
-      {(callSession.active || incomingCall) && (
+      {(callSession.active || incomingCall || callError) && (
         <Suspense fallback={null}>
           <CallOverlay />
         </Suspense>

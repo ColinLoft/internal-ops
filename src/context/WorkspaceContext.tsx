@@ -1459,6 +1459,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         durationSeconds: 0,
         isMinimized: false,
       });
+    } catch (error) {
+      setCallError(error instanceof Error
+        ? `Could not start the call: ${error.message}`
+        : 'Could not start the call. Check your connection and try again.');
     } finally {
       callStartInProgressRef.current = false;
     }
