@@ -12,6 +12,8 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 export const TopBar: React.FC = () => {
   const {
     activeTab,
+    activeConversationId,
+    activeChannelId,
     conversations,
     channels,
     messages,
@@ -32,6 +34,8 @@ export const TopBar: React.FC = () => {
     setIsAddEventOpen,
   } = useWorkspace();
 
+  const currentConv = conversations.find((conversation) => conversation.id === activeConversationId);
+  const currentChan = channels.find((channel) => channel.id === activeChannelId);
   const query = searchQuery.trim().toLowerCase();
   const searchResults = query
     ? [
