@@ -35,6 +35,7 @@ interface WorkspaceContextType {
   isAuthenticated: boolean;
   isAuthLoading: boolean;
   requiresPasswordSetup: boolean;
+  requiresOnboarding: boolean;
   currentUser: User;
   workspaceSettings: WorkspaceSettings;
   users: User[];
@@ -82,6 +83,7 @@ interface WorkspaceContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   setPassword: (password: string) => Promise<{ success: boolean; message?: string }>;
+  completeOnboarding: () => Promise<void>;
   
   // Navigation actions
   setActiveTab: (tab: 'messages' | 'channels' | 'calendar' | 'admin') => void;
@@ -366,6 +368,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [requiresPasswordSetup, setRequiresPasswordSetup] = useState(false);
+  const [requiresOnboarding, setRequiresOnboarding] = useState(false);
 
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(false);
 
@@ -559,6 +562,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (active) {
           setIsAuthenticated(false);
           setRequiresPasswordSetup(false);
+          setRequiresOnboarding(false);
           setUsers([]);
           setCurrentUser({ id: '', name: '', email: '', avatar: '', role: '', department: '', phone: '', status: 'offline', systemRole: 'member' });
           setIsAuthLoading(false);
@@ -577,10 +581,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           setMessages(workspaceData.messages);
           setThreadReplies(workspaceData.threadReplies);
           setIsAuthenticated(true);
-          setRequiresPasswordSetup(
-            new URLSearchParams(window.location.search).get('invite') === '1'
-            || session.user.app_metadata?.password_reset_required === true
-          );
+          setRequiresPasswordSetup(session.user.app_metadata?.password_reset_required === true);
+          setRequiresOnboarding(session.user.user_metadata?.onboarding_completed !== true);
         }
       } catch (error) {
         console.error('Unable to load Supabase workspace data:', error);
@@ -664,6 +666,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       setThreadReplies(workspaceData.threadReplies);
       setIsAuthenticated(true);
       setRequiresPasswordSetup(data.user.app_metadata?.password_reset_required === true);
+      setRequiresOnboarding(data.user.user_metadata?.onboarding_completed !== true);
       sounds.playNotification();
       return { success: true };
     } catch (profileError) {
@@ -696,6 +699,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     const { error } = await supabase.auth.updateUser({ password });
     if (error) return { success: false, message: error.message };
 
+    const url = new URL(window.location.href);
+    url.searchParams.delete('invite');
+    window.history.replaceState({}, '', url);
+
     const { error: resetFlagError } = await supabase.functions.invoke('admin-manage-user', {
       body: { action: 'complete-password-reset' },
     });
@@ -704,11 +711,29 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       return { success: false, message: `Password updated, but the temporary-password requirement could not be cleared: ${functionError.message}` };
     }
 
+    const { data: refreshedSession, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) {
+      return { success: false, message: `Password was updated, but the sign-in session could not be refreshed: ${refreshError.message}` };
+    }
+    if (refreshedSession.user?.app_metadata?.password_reset_required === true) {
+      return { success: false, message: 'Password was updated, but the temporary-password flag is still active. Please try again.' };
+    }
+
     setRequiresPasswordSetup(false);
-    const url = new URL(window.location.href);
-    url.searchParams.delete('invite');
-    window.history.replaceState({}, '', url);
     return { success: true };
+  };
+
+  const completeOnboarding = async () => {
+    const { error } = await supabase.functions.invoke('admin-manage-user', {
+      body: { action: 'complete-onboarding' },
+    });
+    if (error) throw await getFunctionError(error);
+    const { data, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) throw refreshError;
+    if (data.user?.user_metadata?.onboarding_completed !== true) {
+      throw new Error('Your profile was saved, but onboarding status could not be confirmed. Please try again.');
+    }
+    setRequiresOnboarding(false);
   };
 
   const setActiveTab = (tab: 'messages' | 'channels' | 'calendar' | 'admin') => {
@@ -1673,6 +1698,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         isAuthenticated,
         isAuthLoading,
         requiresPasswordSetup,
+        requiresOnboarding,
         currentUser,
         workspaceSettings,
         users,
@@ -1707,6 +1733,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         login,
         logout,
         setPassword,
+        completeOnboarding,
         setActiveTab,
         setActiveConversationId,
         setActiveChannelId,

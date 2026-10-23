@@ -13,6 +13,7 @@ import { AdminPage } from './components/admin/AdminPage';
 // Auth & Modals
 import { AuthScreen } from './components/auth/AuthScreen';
 import { PasswordSetupModal } from './components/auth/PasswordSetupModal';
+import { FirstLoginOnboarding } from './components/auth/FirstLoginOnboarding';
 import { ProfileModal } from './components/profile/ProfileModal';
 import { EditProfileModal } from './components/profile/EditProfileModal';
 import { SettingsModal } from './components/profile/SettingsModal';
@@ -32,6 +33,7 @@ const WorkspaceShell: React.FC = () => {
     isAuthenticated,
     isAuthLoading,
     requiresPasswordSetup,
+    requiresOnboarding,
     activeTab,
     callSession,
     incomingCall,
@@ -119,6 +121,7 @@ const WorkspaceShell: React.FC = () => {
         inviteData={inviteReadyData}
       />
       {requiresPasswordSetup && <PasswordSetupModal />}
+      {!requiresPasswordSetup && requiresOnboarding && <FirstLoginOnboarding />}
     </div>
   );
 };

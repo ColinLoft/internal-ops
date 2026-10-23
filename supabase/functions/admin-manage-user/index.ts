@@ -40,8 +40,24 @@ Deno.serve(async (request: Request) => {
   }
 
   if (payload.action === 'complete-password-reset') {
+    const { data: { user }, error: lookupError } = await adminClient.auth.admin.getUserById(caller.id);
+    if (lookupError || !user) {
+      return jsonResponse({ error: lookupError?.message || 'Your account could not be loaded.' }, 404);
+    }
     const { error } = await adminClient.auth.admin.updateUserById(caller.id, {
-      app_metadata: { ...caller.app_metadata, password_reset_required: false },
+      app_metadata: { ...user.app_metadata, password_reset_required: false },
+    });
+    if (error) return jsonResponse({ error: error.message }, 400);
+    return jsonResponse({ success: true });
+  }
+
+  if (payload.action === 'complete-onboarding') {
+    const { data: { user }, error: lookupError } = await adminClient.auth.admin.getUserById(caller.id);
+    if (lookupError || !user) {
+      return jsonResponse({ error: lookupError?.message || 'Your account could not be loaded.' }, 404);
+    }
+    const { error } = await adminClient.auth.admin.updateUserById(caller.id, {
+      user_metadata: { ...user.user_metadata, onboarding_completed: true },
     });
     if (error) return jsonResponse({ error: error.message }, 400);
     return jsonResponse({ success: true });
