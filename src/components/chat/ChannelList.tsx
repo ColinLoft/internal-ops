@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import {
   Hash,
-  Megaphone,
   Lock,
   Plus,
   Search,
-  Pin,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
@@ -14,7 +12,6 @@ export const ChannelList: React.FC = () => {
     channels,
     activeChannelId,
     setActiveChannelId,
-    togglePinChannel,
     setIsCreateChannelOpen,
   } = useWorkspace();
 
@@ -40,16 +37,10 @@ export const ChannelList: React.FC = () => {
         {/* Channel Icon Badge */}
         <div
           className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors ${
-            ch.type === 'announcement'
-              ? 'bg-amber-100/80 text-amber-700'
-              : ch.isPrivate
-              ? 'bg-slate-100 text-slate-600'
-              : 'bg-brand-100/70 text-brand-700'
+            ch.isPrivate ? 'bg-slate-100 text-slate-600' : 'bg-brand-100/70 text-brand-700'
           }`}
         >
-          {ch.type === 'announcement' ? (
-            <Megaphone className="w-5 h-5" />
-          ) : ch.isPrivate ? (
+          {ch.isPrivate ? (
             <Lock className="w-4 h-4" />
           ) : (
             <Hash className="w-5 h-5 font-bold" />
@@ -67,11 +58,6 @@ export const ChannelList: React.FC = () => {
               >
                 #{ch.name}
               </h4>
-              {ch.type === 'announcement' && (
-                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
-                  Broadcast
-                </span>
-              )}
             </div>
             <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap ml-1">
               {ch.lastPost?.timestamp || '9:00 AM'}
@@ -88,19 +74,6 @@ export const ChannelList: React.FC = () => {
           </div>
         </div>
 
-        {/* Pin button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            togglePinChannel(ch.id);
-          }}
-          className={`absolute top-2 right-2 p-1 rounded-md text-slate-400 hover:text-brand-600 hover:bg-white transition-opacity ${
-            ch.isPinned ? 'opacity-100 text-brand-600' : 'opacity-0 group-hover:opacity-100'
-          }`}
-          title={ch.isPinned ? 'Unpin' : 'Pin channel'}
-        >
-          <Pin className={`w-3 h-3 ${ch.isPinned ? 'fill-brand-600' : ''}`} />
-        </button>
       </div>
     );
   };

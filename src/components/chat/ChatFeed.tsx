@@ -4,7 +4,6 @@ import {
   Video,
   Info,
   Users as UsersIcon,
-  Megaphone,
   Lock,
   Hash,
   Clock,
@@ -120,16 +119,10 @@ export const ChatFeed: React.FC = () => {
             {isChannel ? (
               <div
                 className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
-                  currentChan?.type === 'announcement'
-                    ? 'bg-amber-100 text-amber-700'
-                    : currentChan?.isPrivate
-                    ? 'bg-slate-100 text-slate-700'
-                    : 'bg-brand-100 text-brand-700'
+                  currentChan?.isPrivate ? 'bg-slate-100 text-slate-700' : 'bg-brand-100 text-brand-700'
                 }`}
               >
-                {currentChan?.type === 'announcement' ? (
-                  <Megaphone className="w-5 h-5" />
-                ) : currentChan?.isPrivate ? (
+                {currentChan?.isPrivate ? (
                   <Lock className="w-4 h-4" />
                 ) : (
                   <Hash className="w-5 h-5 font-bold" />
@@ -170,11 +163,6 @@ export const ChatFeed: React.FC = () => {
               <h3 className="text-sm font-bold text-slate-900 truncate">
                 {isChannel ? `#${currentChan?.name}` : partnerUser ? partnerUser.name : currentConv?.name}
               </h3>
-              {isChannel && currentChan?.type === 'announcement' && (
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                  Broadcast
-                </span>
-              )}
             </div>
 
             <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
@@ -247,11 +235,7 @@ export const ChatFeed: React.FC = () => {
           <div className="text-center py-12 px-4 max-w-md mx-auto">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-3xl bg-brand-50 text-brand-600 mb-3 shadow-2xs">
               {isChannel ? (
-                currentChan?.type === 'announcement' ? (
-                  <Megaphone className="w-7 h-7 text-amber-600" />
-                ) : (
-                  <Hash className="w-7 h-7" />
-                )
+                <Hash className="w-7 h-7" />
               ) : (
                 <UsersIcon className="w-7 h-7" />
               )}
@@ -259,17 +243,13 @@ export const ChatFeed: React.FC = () => {
 
             <h4 className="text-base font-bold text-slate-900">
               {isChannel
-                ? currentChan?.type === 'announcement'
-                  ? 'Official Announcements Board'
-                  : `Welcome to #${currentChan?.name}!`
+                ? `Welcome to #${currentChan?.name}!`
                 : `Beginning of conversation with ${partnerUser?.name || currentConv?.name}`}
             </h4>
 
             <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
               {isChannel
-                ? currentChan?.type === 'announcement'
-                  ? 'Official announcements for the team.'
-                  : currentChan?.description || 'Send the first message to get the discussion started.'
+                ? currentChan?.description || 'Send the first message to get the discussion started.'
                 : 'Send a message, upload project files, or start a voice or video call.'}
             </p>
           </div>
