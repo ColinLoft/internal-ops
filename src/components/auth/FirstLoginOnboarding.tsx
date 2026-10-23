@@ -85,8 +85,10 @@ export const FirstLoginOnboarding: React.FC = () => {
   const [stage, setStage] = useState<'profile' | 'tour'>('profile');
   const [tourIndex, setTourIndex] = useState(0);
   const [name, setName] = useState(currentUser.name);
-  const [role, setRole] = useState(currentUser.role);
-  const [department, setDepartment] = useState(currentUser.department);
+  const [role, setRole] = useState(currentUser.role === 'Staff Specialist' ? '' : currentUser.role);
+  const [department, setDepartment] = useState(currentUser.department === 'Operations' ? '' : currentUser.department);
+  const [phone, setPhone] = useState(currentUser.phone);
+  const [location, setLocation] = useState(currentUser.location || '');
   const [bio, setBio] = useState(currentUser.bio || '');
   const [avatar, setAvatar] = useState(currentUser.avatar);
   const [banner, setBanner] = useState<ProfileBanner>(currentUser.banner || 'ocean');
@@ -149,8 +151,8 @@ export const FirstLoginOnboarding: React.FC = () => {
   };
 
   const saveProfileAndStartTour = async () => {
-    if (!name.trim() || !role.trim() || !department.trim()) {
-      setError('Please add your name, job title, and department to continue.');
+    if (!name.trim() || !role.trim() || !department.trim() || !phone.trim() || !location.trim() || !avatar) {
+      setError('Please complete every profile field except the bio, including uploading a profile photo.');
       return;
     }
     setSaving(true);
@@ -160,6 +162,8 @@ export const FirstLoginOnboarding: React.FC = () => {
         name: name.trim(),
         role: role.trim(),
         department: department.trim(),
+        phone: phone.trim(),
+        location: location.trim(),
         bio: bio.trim(),
         avatar,
         banner,
@@ -246,7 +250,7 @@ export const FirstLoginOnboarding: React.FC = () => {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-slate-800">Add a profile photo</p>
+                  <p className="text-sm font-semibold text-slate-800">Add a profile photo <span className="text-rose-500">*</span></p>
                   <p className="mt-0.5 text-xs text-slate-500">A clear photo helps teammates recognize you.</p>
                   <input
                     ref={fileInputRef}
@@ -271,11 +275,14 @@ export const FirstLoginOnboarding: React.FC = () => {
                 <OnboardingField label="Full name" value={name} onChange={setName} required />
                 <OnboardingField label="Job title" value={role} onChange={setRole} required />
                 <OnboardingField label="Department" value={department} onChange={setDepartment} required />
+                <OnboardingField label="Phone number" value={phone} onChange={setPhone} required />
+                <OnboardingField label="Location / office" value={location} onChange={setLocation} required />
                 <label className="text-xs font-semibold text-slate-600">
-                  Profile banner
+                  Profile banner <span className="text-rose-500">*</span>
                   <select
                     value={banner}
                     onChange={(event) => setBanner(event.target.value as ProfileBanner)}
+                    required
                     className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-sky-500"
                   >
                     {PROFILE_BANNERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}

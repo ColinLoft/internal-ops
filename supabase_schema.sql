@@ -7,8 +7,8 @@ create table if not exists public.profiles (
   id text primary key,
   email text unique not null,
   name text not null,
-  role text default 'Staff Specialist',
-  department text default 'Operations',
+  role text,
+  department text,
   phone text,
   avatar_url text,
   bio text,
@@ -31,6 +31,8 @@ alter table public.profiles add column if not exists preferences jsonb not null 
 alter table public.profiles add column if not exists account_status text not null default 'active'
   check (account_status in ('active', 'suspended'));
 alter table public.profiles add column if not exists suspended_until timestamptz;
+alter table public.profiles alter column role drop default;
+alter table public.profiles alter column department drop default;
 
 alter table public.profiles drop column if exists must_reset_password;
 alter table public.profiles drop column if exists temp_password;

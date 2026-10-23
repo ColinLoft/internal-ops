@@ -55,8 +55,8 @@ Deno.serve(async (request: Request) => {
 
   const name = typeof payload.name === 'string' ? payload.name.trim() : '';
   const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : '';
-  const role = 'Staff Specialist';
-  const department = 'Operations';
+  const role = null;
+  const department = null;
   const phone = '';
   const avatarUrl = null;
   const systemRole = 'member';
