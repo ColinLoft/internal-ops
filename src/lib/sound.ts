@@ -1,8 +1,10 @@
 // Synthesized audio alerts using Web Audio API
+import { Ringtone } from '../types';
 
 class SoundService {
   private ctx: AudioContext | null = null;
   private isSoundEnabled = true;
+  private ringtone: Ringtone = 'classic';
 
   private getContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
@@ -24,6 +26,10 @@ class SoundService {
 
   public getSoundEnabled(): boolean {
     return this.isSoundEnabled;
+  }
+
+  public setRingtone(ringtone: Ringtone) {
+    this.ringtone = ringtone;
   }
 
   // Soft modern notification chime (like Slack / Teams modern chime)
@@ -124,25 +130,53 @@ class SoundService {
   }
 
   // Call ring tone
-  public playRingTone() {
+  public playRingTone(ringtone = this.ringtone) {
     if (!this.isSoundEnabled) return;
+    this.playRingtonePattern(ringtone);
+  }
+
+  public previewRingTone(ringtone: Ringtone) {
+    this.playRingtonePattern(ringtone);
+  }
+
+  private playRingtonePattern(ringtone: Ringtone) {
     const ctx = this.getContext();
     if (!ctx) return;
 
     try {
       const now = ctx.currentTime;
-      [0, 0.4].forEach((delay) => {
+      const patterns: Record<Ringtone, { frequency: number; delay: number; duration: number; volume: number }[]> = {
+        classic: [
+          { frequency: 440, delay: 0, duration: 0.28, volume: 0.15 },
+          { frequency: 440, delay: 0.4, duration: 0.28, volume: 0.15 },
+        ],
+        chime: [
+          { frequency: 659.25, delay: 0, duration: 0.3, volume: 0.14 },
+          { frequency: 880, delay: 0.16, duration: 0.42, volume: 0.12 },
+        ],
+        pulse: [
+          { frequency: 523.25, delay: 0, duration: 0.16, volume: 0.13 },
+          { frequency: 523.25, delay: 0.28, duration: 0.16, volume: 0.13 },
+          { frequency: 523.25, delay: 0.56, duration: 0.16, volume: 0.13 },
+        ],
+        soft: [
+          { frequency: 392, delay: 0, duration: 0.38, volume: 0.1 },
+          { frequency: 523.25, delay: 0.3, duration: 0.52, volume: 0.1 },
+        ],
+      };
+
+      patterns[ringtone].forEach(({ frequency, delay, duration, volume }) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(440, now + delay);
+        osc.frequency.setValueAtTime(frequency, now + delay);
         gain.gain.setValueAtTime(0, now + delay);
-        gain.gain.linearRampToValueAtTime(0.15, now + delay + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.3);
+        gain.gain.linearRampToValueAtTime(volume, now + delay + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + delay + duration);
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(now + delay);
-        osc.stop(now + delay + 0.32);
+        osc.stop(now + delay + duration + 0.02);
       });
     } catch {
       // ignore

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, Monitor, Palette, Save, Settings, X } from 'lucide-react';
+import { Loader2, Monitor, Palette, Play, Save, Settings, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { WorkspaceSettings } from '../../types';
+import { RINGTONES, WorkspaceSettings } from '../../types';
+import { sounds } from '../../lib/sound';
 
 export const SettingsModal: React.FC = () => {
   const {
@@ -154,6 +155,40 @@ export const SettingsModal: React.FC = () => {
           <section className="rounded-2xl border border-slate-200 p-4">
             <h4 className="text-sm font-bold text-slate-900">Audio & video</h4>
             <p className="text-xs text-slate-500 mt-1 mb-4">Choose devices for in-app calls. Device availability depends on browser permissions.</p>
+            <div className="mb-5">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div>
+                  <h5 className="text-xs font-semibold text-slate-700">Ringtone</h5>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Choose and preview your call ringtone.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => sounds.previewRingTone(draft.ringtone)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-lg transition-colors"
+                >
+                  <Play className="w-3 h-3" />
+                  Preview
+                </button>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {RINGTONES.map((ringtone) => (
+                  <button
+                    key={ringtone.value}
+                    type="button"
+                    onClick={() => update('ringtone', ringtone.value)}
+                    aria-pressed={draft.ringtone === ringtone.value}
+                    className={`text-left p-3 rounded-xl border transition-colors ${
+                      draft.ringtone === ringtone.value
+                        ? 'border-brand-400 bg-brand-50/70 ring-1 ring-brand-300'
+                        : 'border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="block text-xs font-semibold text-slate-800">{ringtone.label}</span>
+                    <span className="block text-[11px] text-slate-500 mt-0.5">{ringtone.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="grid sm:grid-cols-2 gap-4">
               <label className="block">
                 <span className="block text-xs font-semibold text-slate-600 mb-1.5">Microphone</span>

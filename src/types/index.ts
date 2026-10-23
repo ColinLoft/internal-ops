@@ -3,6 +3,14 @@ export type UserStatus = 'online' | 'busy' | 'away' | 'offline';
 export type UserRole = 'admin' | 'coordinator' | 'member';
 
 export type ProfileBanner = 'ocean' | 'violet' | 'forest' | 'sunset' | 'rose';
+export type Ringtone = 'classic' | 'chime' | 'pulse' | 'soft';
+
+export const RINGTONES: { value: Ringtone; label: string; description: string }[] = [
+  { value: 'classic', label: 'Classic', description: 'Warm double ring' },
+  { value: 'chime', label: 'Chime', description: 'Bright two-note chime' },
+  { value: 'pulse', label: 'Pulse', description: 'Three gentle pulses' },
+  { value: 'soft', label: 'Soft', description: 'Quiet rising notes' },
+];
 
 export const PROFILE_BANNERS: { value: ProfileBanner; label: string; className: string }[] = [
   { value: 'ocean', label: 'Ocean blue', className: 'bg-gradient-to-r from-blue-600 via-cyan-600 to-sky-500' },
@@ -38,6 +46,7 @@ export interface WorkspaceSettings {
   autoBusyDuringEvents: boolean;
   microphoneDeviceId: string;
   cameraDeviceId: string;
+  ringtone: Ringtone;
   showCameraPreview: boolean;
   noiseSuppression: boolean;
 }
@@ -49,6 +58,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   autoBusyDuringEvents: true,
   microphoneDeviceId: '',
   cameraDeviceId: '',
+  ringtone: 'classic',
   showCameraPreview: true,
   noiseSuppression: true,
 };

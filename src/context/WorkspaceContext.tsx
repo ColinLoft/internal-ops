@@ -14,6 +14,7 @@ import {
   UserRole,
   WorkspaceSettings,
   DEFAULT_WORKSPACE_SETTINGS,
+  Ringtone,
 } from '../types';
 import {
   initialConversations,
@@ -177,6 +178,9 @@ const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
       : DEFAULT_WORKSPACE_SETTINGS.autoBusyDuringEvents,
     microphoneDeviceId: typeof preferences.microphoneDeviceId === 'string' ? preferences.microphoneDeviceId : '',
     cameraDeviceId: typeof preferences.cameraDeviceId === 'string' ? preferences.cameraDeviceId : '',
+    ringtone: ['classic', 'chime', 'pulse', 'soft'].includes(preferences.ringtone)
+      ? preferences.ringtone as Ringtone
+      : DEFAULT_WORKSPACE_SETTINGS.ringtone,
     showCameraPreview: typeof preferences.showCameraPreview === 'boolean'
       ? preferences.showCameraPreview
       : DEFAULT_WORKSPACE_SETTINGS.showCameraPreview,
@@ -578,7 +582,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   useEffect(() => {
     document.documentElement.dataset.theme = workspaceSettings.theme;
     document.documentElement.style.setProperty('--brand-accent', workspaceSettings.accentColor);
-  }, [workspaceSettings.theme, workspaceSettings.accentColor]);
+    sounds.setRingtone(workspaceSettings.ringtone);
+  }, [workspaceSettings.theme, workspaceSettings.accentColor, workspaceSettings.ringtone]);
 
   const automaticStatusRef = React.useRef<{ userId: string; previousStatus: UserStatus } | null>(null);
   useEffect(() => {
