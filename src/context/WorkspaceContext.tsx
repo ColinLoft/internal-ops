@@ -136,7 +136,12 @@ interface WorkspaceContextType {
   saveWorkspaceSettings: (settings: WorkspaceSettings) => Promise<void>;
   addTeammate: (user: User) => Promise<void>;
   updateStaffUser: (userId: string, updates: Partial<User>) => Promise<void>;
-  manageStaffAccount: (userId: string, action: 'suspend' | 'reactivate' | 'remove', note?: string) => Promise<void>;
+  manageStaffAccount: (
+    userId: string,
+    action: 'suspend' | 'reactivate' | 'remove',
+    note?: string,
+    suspensionDuration?: '1h' | '24h' | '7d' | '30d' | 'indefinite',
+  ) => Promise<void>;
   setStaffTemporaryPassword: (userId: string, password: string) => Promise<void>;
   openUserProfile: (user: User) => void;
   closeUserProfile: () => void;
@@ -167,24 +172,30 @@ const getFunctionError = async (error: unknown): Promise<Error> => {
   return error instanceof Error ? error : new Error('The Supabase function request failed.');
 };
 
-const mapSupabaseProfile = (row: Record<string, any>, currentUserId: string): User => ({
-  id: row.id,
-  name: row.name || row.email,
-  email: row.email,
-  role: row.role || 'Staff Specialist',
-  department: row.department || 'Operations',
-  phone: row.phone || '',
-  avatar: row.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-  status: row.status || 'offline',
-  accountStatus: (row.account_status as AccountStatus) || 'active',
-  systemRole: row.system_role || 'member',
-  statusMessage: row.status_message || undefined,
-  bio: row.bio || '',
-  location: row.location || '',
-  banner: row.banner || 'ocean',
-  preferences: mapWorkspaceSettings(row),
-  isCurrentUser: row.id === currentUserId,
-});
+const mapSupabaseProfile = (row: Record<string, any>, currentUserId: string): User => {
+  const suspendedUntil = typeof row.suspended_until === 'string' ? row.suspended_until : null;
+  const suspensionExpired = suspendedUntil !== null && Date.parse(suspendedUntil) <= Date.now();
+
+  return {
+    id: row.id,
+    name: row.name || row.email,
+    email: row.email,
+    role: row.role || 'Staff Specialist',
+    department: row.department || 'Operations',
+    phone: row.phone || '',
+    avatar: row.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+    status: row.status || 'offline',
+    accountStatus: suspensionExpired ? 'active' : (row.account_status as AccountStatus) || 'active',
+    suspendedUntil,
+    systemRole: row.system_role || 'member',
+    statusMessage: row.status_message || undefined,
+    bio: row.bio || '',
+    location: row.location || '',
+    banner: row.banner || 'ocean',
+    preferences: mapWorkspaceSettings(row),
+    isCurrentUser: row.id === currentUserId,
+  };
+};
 
 const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
   const preferences = row.preferences && typeof row.preferences === 'object' && !Array.isArray(row.preferences)
@@ -950,7 +961,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (userId === currentUser.id) setCurrentUser(mapSupabaseProfile(profile, currentUser.id));
   };
 
-  const manageStaffAccount = async (userId: string, action: 'suspend' | 'reactivate' | 'remove', note?: string) => {
+  const manageStaffAccount = async (
+    userId: string,
+    action: 'suspend' | 'reactivate' | 'remove',
+    note?: string,
+    suspensionDuration?: '1h' | '24h' | '7d' | '30d' | 'indefinite',
+  ) => {
     if (currentUser.systemRole !== 'admin') {
       throw new Error('Only workspace administrators can manage staff accounts.');
     }
@@ -960,8 +976,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const target = users.find((user) => user.id === userId) || null;
     const nextAction = action === 'suspend' ? 'suspend-user' : action === 'reactivate' ? 'reactivate-user' : 'delete-user';
-    const { error } = await supabase.functions.invoke('admin-manage-user', {
-      body: { action: nextAction, userId, note: note || '', actorId: currentUser.id },
+    const { data, error } = await supabase.functions.invoke('admin-manage-user', {
+      body: { action: nextAction, userId, note: note || '', suspensionDuration },
     });
     if (error) {
       throw await getFunctionError(error);
@@ -977,6 +993,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         return {
           ...user,
           accountStatus: action === 'suspend' ? 'suspended' : 'active',
+          suspendedUntil: action === 'suspend' ? data?.suspendedUntil || null : null,
           status: action === 'suspend' ? 'offline' : 'online',
         };
       });
@@ -1026,7 +1043,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         actorName: currentUser.name,
         targetUserId: userId,
         targetUserName: target.name,
-        action: 'password_reset',
+        action: 'password_reset' as const,
         note: `${currentUser.name} reset the sign-in password for ${target.name}.`,
       }, ...previous].slice(0, 50));
     }

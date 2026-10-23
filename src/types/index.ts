@@ -30,6 +30,7 @@ export interface User {
   phone: string;
   status: UserStatus;
   accountStatus?: AccountStatus;
+  suspendedUntil?: string | null;
   statusMessage?: string;
   bio?: string;
   location?: string;

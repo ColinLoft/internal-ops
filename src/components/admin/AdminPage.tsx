@@ -36,6 +36,7 @@ export const AdminPage: React.FC = () => {
   const [temporaryPasswordUser, setTemporaryPasswordUser] = useState<User | null>(null);
   const [password, setPassword] = useState('');
   const [savedPassword, setSavedPassword] = useState('');
+  const [suspensionDurations, setSuspensionDurations] = useState<Record<string, '1h' | '24h' | '7d' | '30d' | 'indefinite'>>({});
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -57,7 +58,15 @@ export const AdminPage: React.FC = () => {
       : true;
     if (!confirmed) return;
     try {
-      await manageStaffAccount(userId, action, `${currentUser.name} ${action === 'suspend' ? 'suspended' : action === 'reactivate' ? 'reactivated' : 'removed'} ${targetUser.name}.`);
+      setError('');
+      const duration = action === 'suspend' ? suspensionDurations[userId] || '7d' : undefined;
+      const lengthLabel = duration === 'indefinite' ? 'indefinitely' : duration ? `for ${duration}` : '';
+      await manageStaffAccount(
+        userId,
+        action,
+        `${currentUser.name} ${action === 'suspend' ? `suspended ${targetUser.name} ${lengthLabel}` : action === 'reactivate' ? `reactivated ${targetUser.name}` : `removed ${targetUser.name}`}.`,
+        duration,
+      );
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'The account action could not be completed.');
     }
@@ -195,6 +204,13 @@ export const AdminPage: React.FC = () => {
                     </div>
                     <p className="truncate text-xs text-slate-500">{user.email}</p>
                     <p className="truncate text-xs text-slate-400">{user.role} · {user.department}</p>
+                    {user.accountStatus === 'suspended' && (
+                      <p className="mt-1 text-xs font-medium text-amber-700">
+                        {user.suspendedUntil
+                          ? `Suspended until ${new Date(user.suspendedUntil).toLocaleString()}`
+                          : 'Suspended indefinitely'}
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -220,13 +236,30 @@ export const AdminPage: React.FC = () => {
                         <CheckCircle2 className="h-3.5 w-3.5" /> Reactivate
                       </button>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => void handleUserAction(user.id, 'suspend')}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100"
-                      >
-                        <Ban className="h-3.5 w-3.5" /> Suspend
-                      </button>
+                      <>
+                        <select
+                          aria-label={`Suspension duration for ${user.name}`}
+                          value={suspensionDurations[user.id] || '7d'}
+                          onChange={(event) => setSuspensionDurations((previous) => ({
+                            ...previous,
+                            [user.id]: event.target.value as '1h' | '24h' | '7d' | '30d' | 'indefinite',
+                          }))}
+                          className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs text-slate-700 outline-none focus:border-brand-500"
+                        >
+                          <option value="1h">1 hour</option>
+                          <option value="24h">24 hours</option>
+                          <option value="7d">7 days</option>
+                          <option value="30d">30 days</option>
+                          <option value="indefinite">Indefinite</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => void handleUserAction(user.id, 'suspend')}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                        >
+                          <Ban className="h-3.5 w-3.5" /> Suspend
+                        </button>
+                      </>
                     )}
                     {user.id !== currentUser.id && (
                       <button

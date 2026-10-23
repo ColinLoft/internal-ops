@@ -28,6 +28,9 @@ alter table public.profiles add column if not exists location text;
 alter table public.profiles add column if not exists banner text default 'ocean'
   check (banner in ('ocean', 'violet', 'forest', 'sunset', 'rose'));
 alter table public.profiles add column if not exists preferences jsonb not null default '{}'::jsonb;
+alter table public.profiles add column if not exists account_status text not null default 'active'
+  check (account_status in ('active', 'suspended'));
+alter table public.profiles add column if not exists suspended_until timestamptz;
 
 alter table public.profiles drop column if exists must_reset_password;
 alter table public.profiles drop column if exists temp_password;

@@ -47,53 +47,6 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ success: true });
   }
 
-  if (payload.action === 'suspend-user' || payload.action === 'reactivate-user') {
-    const targetId = typeof payload.userId === 'string' ? payload.userId : '';
-    if (!targetId) return jsonResponse({ error: 'A staff user ID is required.' }, 400);
-    const profileUpdate: Record<string, unknown> = {
-      status: payload.action === 'suspend-user' ? 'offline' : 'online',
-      account_status: payload.action === 'suspend-user' ? 'suspended' : 'active',
-    };
-    const { error } = await adminClient.from('profiles').update(profileUpdate).eq('id', targetId);
-    if (error && !String(error.message).includes('column')) {
-      return jsonResponse({ error: error.message }, 400);
-    }
-    return jsonResponse({ success: true });
-  }
-
-  if (payload.action === 'delete-user') {
-    const targetId = typeof payload.userId === 'string' ? payload.userId : '';
-    if (!targetId) return jsonResponse({ error: 'A staff user ID is required.' }, 400);
-    if (targetId === caller.id) return jsonResponse({ error: 'You cannot remove your own account.' }, 400);
-
-    const { data: targetProfile, error: targetProfileError } = await adminClient
-      .from('profiles')
-      .select('system_role')
-      .eq('id', targetId)
-      .single();
-    if (targetProfileError && targetProfileError.code !== 'PGRST116') {
-      return jsonResponse({ error: targetProfileError.message }, 404);
-    }
-    if (targetProfile?.system_role === 'admin') {
-      const { count, error: countError } = await adminClient
-        .from('profiles')
-        .select('id', { count: 'exact', head: true })
-        .eq('system_role', 'admin');
-      if (countError) return jsonResponse({ error: countError.message }, 500);
-      if ((count || 0) <= 1) {
-        return jsonResponse({ error: 'The last workspace administrator cannot be removed.' }, 400);
-      }
-    }
-
-    const { error: deleteUserError } = await adminClient.auth.admin.deleteUser(targetId);
-    if (deleteUserError) return jsonResponse({ error: deleteUserError.message }, 400);
-    const { error: profileDeleteError } = await adminClient.from('profiles').delete().eq('id', targetId);
-    if (profileDeleteError && !String(profileDeleteError.message).includes('does not exist')) {
-      return jsonResponse({ error: profileDeleteError.message }, 400);
-    }
-    return jsonResponse({ success: true });
-  }
-
   const { data: callerProfile, error: profileError } = await adminClient
     .from('profiles')
     .select('system_role')
@@ -105,6 +58,112 @@ Deno.serve(async (request: Request) => {
 
   const userId = typeof payload.userId === 'string' ? payload.userId : '';
   if (!userId) return jsonResponse({ error: 'A staff user ID is required.' }, 400);
+
+  if (payload.action === 'suspend-user' || payload.action === 'reactivate-user') {
+    if (payload.action === 'suspend-user' && userId === caller.id) {
+      return jsonResponse({ error: 'You cannot suspend your own administrator account.' }, 400);
+    }
+
+    const { data: targetProfile, error: targetError } = await adminClient
+      .from('profiles')
+      .select('system_role, account_status, suspended_until')
+      .eq('id', userId)
+      .single();
+    if (targetError) return jsonResponse({ error: targetError.message }, 404);
+
+    if (payload.action === 'suspend-user' && targetProfile.system_role === 'admin') {
+      const { count, error: countError } = await adminClient
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('system_role', 'admin')
+        .eq('account_status', 'active');
+      if (countError) return jsonResponse({ error: countError.message }, 500);
+      if ((count || 0) <= 1) {
+        return jsonResponse({ error: 'The last active workspace administrator cannot be suspended.' }, 400);
+      }
+    }
+
+    if (payload.action === 'suspend-user') {
+      const duration = typeof payload.suspensionDuration === 'string' ? payload.suspensionDuration : '7d';
+      const durationMinutes: Record<string, number> = {
+        '1h': 60,
+        '24h': 1440,
+        '7d': 10080,
+        '30d': 43200,
+      };
+      if (duration !== 'indefinite' && !(duration in durationMinutes)) {
+        return jsonResponse({ error: 'Choose a valid suspension length.' }, 400);
+      }
+
+      const suspendedUntil = duration === 'indefinite'
+        ? null
+        : new Date(Date.now() + durationMinutes[duration] * 60_000).toISOString();
+      const { data: targetAuth, error: authLookupError } = await adminClient.auth.admin.getUserById(userId);
+      if (authLookupError || !targetAuth.user) {
+        return jsonResponse({ error: authLookupError?.message || 'Staff account was not found.' }, 404);
+      }
+
+      const banDuration = duration === 'indefinite' ? '876000h' : `${Math.ceil(durationMinutes[duration] / 60)}h`;
+      const { error: banError } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: banDuration });
+      if (banError) return jsonResponse({ error: banError.message }, 400);
+
+      const { error: profileUpdateError } = await adminClient
+        .from('profiles')
+        .update({ status: 'offline', account_status: 'suspended', suspended_until: suspendedUntil })
+        .eq('id', userId);
+      if (profileUpdateError) {
+        const { error: rollbackError } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: 'none' });
+        const rollbackMessage = rollbackError ? ` Authentication rollback failed: ${rollbackError.message}` : '';
+        return jsonResponse({ error: `${profileUpdateError.message}${rollbackMessage}` }, 400);
+      }
+      return jsonResponse({ success: true, suspendedUntil });
+    }
+
+    const { error: profileUpdateError } = await adminClient
+      .from('profiles')
+      .update({ status: 'online', account_status: 'active', suspended_until: null })
+      .eq('id', userId);
+    if (profileUpdateError) return jsonResponse({ error: profileUpdateError.message }, 400);
+
+    const { error: unbanError } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: 'none' });
+    if (unbanError) {
+      const rollbackUntil = typeof targetProfile.suspended_until === 'string' ? targetProfile.suspended_until : null;
+      const { error: rollbackError } = await adminClient
+        .from('profiles')
+        .update({ status: 'offline', account_status: 'suspended', suspended_until: rollbackUntil })
+        .eq('id', userId);
+      const rollbackMessage = rollbackError ? ` Profile rollback failed: ${rollbackError.message}` : '';
+      return jsonResponse({ error: `${unbanError.message}${rollbackMessage}` }, 400);
+    }
+    return jsonResponse({ success: true });
+  }
+
+  if (payload.action === 'delete-user') {
+    if (userId === caller.id) return jsonResponse({ error: 'You cannot remove your own account.' }, 400);
+
+    const { data: targetProfile, error: targetProfileError } = await adminClient
+      .from('profiles')
+      .select('system_role')
+      .eq('id', userId)
+      .single();
+    if (targetProfileError) return jsonResponse({ error: targetProfileError.message }, 404);
+    if (targetProfile.system_role === 'admin') {
+      const { count, error: countError } = await adminClient
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('system_role', 'admin');
+      if (countError) return jsonResponse({ error: countError.message }, 500);
+      if ((count || 0) <= 1) {
+        return jsonResponse({ error: 'The last workspace administrator cannot be removed.' }, 400);
+      }
+    }
+
+    const { error: deleteUserError } = await adminClient.auth.admin.deleteUser(userId);
+    if (deleteUserError) return jsonResponse({ error: deleteUserError.message }, 400);
+    const { error: deleteProfileError } = await adminClient.from('profiles').delete().eq('id', userId);
+    if (deleteProfileError) return jsonResponse({ error: deleteProfileError.message }, 400);
+    return jsonResponse({ success: true });
+  }
 
   if (payload.action === 'set-password') {
     const password = typeof payload.password === 'string' ? payload.password : '';
@@ -121,7 +180,9 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ success: true });
   }
 
-  if (payload.action !== 'update-profile') return jsonResponse({ error: 'Unsupported admin action.' }, 400);
+  if (payload.action !== 'update-profile') {
+    return jsonResponse({ error: 'This admin action is not supported. Deploy the latest admin-manage-user Edge Function and retry.' }, 400);
+  }
   if (!payload.profile || typeof payload.profile !== 'object' || Array.isArray(payload.profile)) {
     return jsonResponse({ error: 'Staff profile details are required.' }, 400);
   }
