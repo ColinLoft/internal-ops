@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Ban,
   CheckCircle2,
   Clock3,
   KeyRound,
   Pencil,
+  RefreshCw,
   Search,
   ShieldCheck,
   Trash2,
@@ -13,7 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { PROFILE_BANNERS, User, UserRole, UserStatus } from '../../types';
+import { PROFILE_BANNERS, SystemActivityLog, User, UserRole, UserStatus } from '../../types';
 
 const roleLabels: Record<UserRole, string> = {
   admin: 'Admin',
@@ -25,7 +26,9 @@ export const AdminPage: React.FC = () => {
   const {
     currentUser,
     users,
-    adminLogs,
+    systemActivityLogs,
+    systemActivityLogError,
+    refreshSystemActivityLogs,
     setIsAddTeammateOpen,
     updateStaffUser,
     manageStaffAccount,
@@ -38,7 +41,17 @@ export const AdminPage: React.FC = () => {
   const [savedPassword, setSavedPassword] = useState('');
   const [suspensionDurations, setSuspensionDurations] = useState<Record<string, '1h' | '24h' | '7d' | '30d' | 'indefinite'>>({});
   const [error, setError] = useState('');
+  const [activityError, setActivityError] = useState('');
+  const [activityFilter, setActivityFilter] = useState('all');
+  const [activitySearch, setActivitySearch] = useState('');
+  const [activityLoading, setActivityLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    refreshSystemActivityLogs()
+      .catch((loadError) => setActivityError(loadError instanceof Error ? loadError.message : 'Could not load system activity.'))
+      .finally(() => setActivityLoading(false));
+  }, []);
 
   const visibleUsers = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -49,6 +62,28 @@ export const AdminPage: React.FC = () => {
         .includes(normalizedQuery))
       .sort((left, right) => left.name.localeCompare(right.name));
   }, [query, users]);
+
+  const activityUsers = useMemo(() => {
+    const byId = new Map<string, string>();
+    systemActivityLogs.forEach((entry) => {
+      if (entry.actor_id) byId.set(entry.actor_id, entry.actor_name);
+      if (entry.target_type === 'user' && entry.target_id && entry.target_name) {
+        byId.set(entry.target_id, entry.target_name);
+      }
+    });
+    return [...byId.entries()].sort((left, right) => left[1].localeCompare(right[1]));
+  }, [systemActivityLogs]);
+
+  const visibleActivityLogs = useMemo(() => {
+    const normalizedSearch = activitySearch.trim().toLowerCase();
+    return systemActivityLogs.filter((entry) => {
+      const matchesUser = activityFilter === 'all'
+        || entry.actor_id === activityFilter
+        || entry.target_id === activityFilter;
+      const searchContent = `${entry.actor_name} ${entry.target_name || ''} ${entry.event_type} ${entry.summary}`.toLowerCase();
+      return matchesUser && (!normalizedSearch || searchContent.includes(normalizedSearch));
+    });
+  }, [activityFilter, activitySearch, systemActivityLogs]);
 
   const handleUserAction = async (userId: string, action: 'suspend' | 'reactivate' | 'remove') => {
     const targetUser = users.find((user) => user.id === userId);
@@ -168,7 +203,7 @@ export const AdminPage: React.FC = () => {
           </div>
         )}
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(280px,0.9fr)]">
+        <div className="space-y-6">
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
@@ -279,28 +314,72 @@ export const AdminPage: React.FC = () => {
             </div>
           </section>
 
-          <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-              <Clock3 className="h-4 w-4 text-brand-600" />
-              Staff activity
-            </div>
-            <div className="mt-4 space-y-3">
-              {adminLogs.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
-                  Staff actions will appear here once a user is edited, suspended, or reset.
-                </p>
-              ) : adminLogs.slice(0, 8).map((entry) => (
-                <div key={entry.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold text-slate-800">{entry.action.replace('_', ' ')}</p>
-                    <span className="text-[10px] text-slate-400">{new Date(entry.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-600">{entry.targetUserName}</p>
-                  <p className="mt-1 text-[11px] text-slate-500">{entry.note}</p>
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                  <Clock3 className="h-4 w-4 text-brand-600" />
+                  System activity
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                    {systemActivityLogs.length}{systemActivityLogs.length === 500 ? '+' : ''}
+                  </span>
                 </div>
-              ))}
+                <p className="mt-1 text-xs text-slate-500">Persistent user and workspace events. Message text and passwords are never recorded.</p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <select
+                  value={activityFilter}
+                  onChange={(event) => setActivityFilter(event.target.value)}
+                  aria-label="Filter activity by user"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none focus:border-brand-500"
+                >
+                  <option value="all">Entire system — all users</option>
+                  {activityUsers.map(([userId, userName]) => <option key={userId} value={userId}>{userName}</option>)}
+                </select>
+                <label className="relative block sm:w-64">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={activitySearch}
+                    onChange={(event) => setActivitySearch(event.target.value)}
+                    placeholder="Search activity..."
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-brand-500"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActivityLoading(true);
+                    setActivityError('');
+                    refreshSystemActivityLogs()
+                      .catch((loadError) => setActivityError(loadError instanceof Error ? loadError.message : 'Could not load system activity.'))
+                      .finally(() => setActivityLoading(false));
+                  }}
+                  disabled={activityLoading}
+                  aria-label="Refresh system activity"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-4 w-4 ${activityLoading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
             </div>
-          </aside>
+            {(activityError || systemActivityLogError) && (
+              <p role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-xs text-rose-700">
+                Could not load or save persistent activity logs. Apply the system activity log migration in Supabase, then refresh. {activityError || systemActivityLogError}
+              </p>
+            )}
+            <div className="max-h-[34rem] divide-y divide-slate-100 overflow-y-auto">
+              {activityLoading && visibleActivityLogs.length === 0 ? (
+                <p className="p-8 text-center text-sm text-slate-500">Loading system activity…</p>
+              ) : visibleActivityLogs.length === 0 ? (
+                <p className="p-8 text-center text-sm text-slate-500">
+                  {systemActivityLogs.length ? 'No activity matches these filters.' : 'No system activity has been recorded yet.'}
+                </p>
+              ) : visibleActivityLogs.map((entry) => <ActivityRow key={entry.id} entry={entry} />)}
+            </div>
+            <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-2 text-[11px] text-slate-500">
+              Showing {visibleActivityLogs.length} of {systemActivityLogs.length}{systemActivityLogs.length === 500 ? '+' : ''} most recent events. Logs are retained in the database.
+            </div>
+          </section>
         </div>
       </div>
 
@@ -393,6 +472,28 @@ export const AdminPage: React.FC = () => {
     </main>
   );
 };
+
+const ActivityRow: React.FC<{ entry: SystemActivityLog }> = ({ entry }) => (
+  <article className="flex flex-col gap-1.5 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700">
+          {entry.event_type.replace(/_/g, ' ')}
+        </span>
+        <span className="text-xs font-semibold text-slate-700">{entry.actor_name}</span>
+        {entry.target_name && (
+          <span className="text-xs text-slate-500">
+            {entry.target_type === 'user' ? `→ ${entry.target_name}` : `· ${entry.target_name}`}
+          </span>
+        )}
+      </div>
+      <p className="mt-1 text-sm text-slate-700">{entry.summary}</p>
+    </div>
+    <time dateTime={entry.created_at} className="shrink-0 text-[11px] text-slate-400">
+      {new Date(entry.created_at).toLocaleString()}
+    </time>
+  </article>
+);
 
 const Field: React.FC<{
   label: string;

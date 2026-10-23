@@ -1,8 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { X, UserPlus, Upload } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, UserPlus } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { UserRole, User } from '../../types';
-import { uploadAvatarToSupabase } from '../../lib/supabase';
 
 export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({
   isOpen,
@@ -12,39 +10,10 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('');
-  const [department, setDepartment] = useState('Outreach & Community');
-  const [phone, setPhone] = useState('');
-  const [systemRole, setSystemRole] = useState<UserRole>('member');
-  const [avatar, setAvatar] = useState(
-    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
-  );
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadError, setUploadError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   if (!isOpen) return null;
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const file = files[0];
-    setUploadingImage(true);
-    setUploadError('');
-    try {
-      const publicUrl = await uploadAvatarToSupabase(file, `temp-${Date.now()}`);
-      setAvatar(publicUrl);
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Unable to upload profile photo.');
-    } finally {
-      setUploadingImage(false);
-      e.target.value = '';
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,17 +21,9 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
     setError('');
     setSubmitting(true);
 
-    const newStaff: User = {
-      id: '',
+    const newStaff = {
       name: name.trim(),
       email: email.trim().toLowerCase(),
-      role: role.trim() || 'Staff Specialist',
-      department: department.trim() || 'Operations',
-      phone: phone.trim() || '+1 (415) 555-0199',
-      status: 'offline',
-      systemRole,
-      avatar,
-      statusMessage: 'New staff member',
     };
 
     try {
@@ -70,9 +31,6 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
       onClose();
       setName('');
       setEmail('');
-      setRole('');
-      setPhone('');
-      setSystemRole('member');
     } catch (inviteError) {
       setError((inviteError as Error).message || 'Unable to send the invitation.');
     } finally {
@@ -104,42 +62,8 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-          {/* Profile Picture Upload */}
-          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-700">Profile Picture</label>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingImage}
-                className="text-[11px] font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-slate-200"
-              >
-                <Upload className="w-3 h-3" />
-                <span>{uploadingImage ? 'Uploading...' : 'Upload Image'}</span>
-              </button>
-            </div>
-
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept="image/*"
-              className="hidden"
-            />
-
-            <div className="flex items-center gap-3">
-              <img
-                src={avatar}
-                alt="Profile photo preview"
-                className="w-12 h-12 rounded-2xl object-cover border-2 border-brand-500 shadow-xs"
-              />
-              <p className="text-xs text-slate-500">Upload a photo to use for this staff profile.</p>
-            </div>
-            {uploadError && <p role="alert" className="text-xs text-rose-600">{uploadError}</p>}
-          </div>
-
           {/* Name & Email */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Full Name <span className="text-rose-500">*</span>
@@ -168,94 +92,7 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
             </div>
           </div>
 
-          {/* Role & Department */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Job Role / Title
-              </label>
-              <input
-                type="text"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                placeholder="e.g. Outreach Specialist"
-                className="w-full px-3 py-2 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Department
-              </label>
-              <input
-                type="text"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                placeholder="e.g. Field Services"
-                className="w-full px-3 py-2 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Phone */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Phone Number
-            </label>
-            <input
-              type="text"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+1 (415) 555-0199"
-              className="w-full px-3 py-2 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
-            />
-          </div>
-
-          <p className="text-xs text-slate-500">No email is sent. A one-time password will be shown after account creation; share it with the employee through a secure channel. They must choose a new password at first sign-in.</p>
-
-          {/* System Role */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Permissions Level
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => setSystemRole('member')}
-                className={`p-2.5 rounded-xl border text-center transition-all ${
-                  systemRole === 'member'
-                    ? 'border-brand-500 bg-brand-50/70 font-bold text-brand-800'
-                    : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                <div className="text-xs">Staff Member</div>
-                <div className="text-[10px] text-slate-400 font-normal">Standard access</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSystemRole('coordinator')}
-                className={`p-2.5 rounded-xl border text-center transition-all ${
-                  systemRole === 'coordinator'
-                    ? 'border-brand-500 bg-brand-50/70 font-bold text-brand-800'
-                    : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                <div className="text-xs">Coordinator</div>
-                <div className="text-[10px] text-slate-400 font-normal">Can broadcast</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSystemRole('admin')}
-                className={`p-2.5 rounded-xl border text-center transition-all ${
-                  systemRole === 'admin'
-                    ? 'border-brand-500 bg-brand-50/70 font-bold text-brand-800'
-                    : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                <div className="text-xs">Admin</div>
-                <div className="text-[10px] text-slate-400 font-normal">Full control</div>
-              </button>
-            </div>
-          </div>
+          <p className="text-xs text-slate-500">The new staff member will set up their profile during onboarding. A one-time password will be shown after account creation; share it through a secure channel.</p>
 
           {/* Submit */}
           {error && <p role="alert" className="text-xs font-semibold text-rose-700">{error}</p>}
@@ -273,7 +110,7 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
               className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-md shadow-brand-500/25 transition-all disabled:opacity-50"
             >
               <UserPlus className="w-4 h-4" />
-              <span>{submitting ? 'Sending...' : 'Send Invitation'}</span>
+              <span>{submitting ? 'Creating...' : 'Create Account'}</span>
             </button>
           </div>
         </form>

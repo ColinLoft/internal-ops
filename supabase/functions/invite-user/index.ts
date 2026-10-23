@@ -55,13 +55,11 @@ Deno.serve(async (request: Request) => {
 
   const name = typeof payload.name === 'string' ? payload.name.trim() : '';
   const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : '';
-  const role = typeof payload.role === 'string' && payload.role.trim() ? payload.role.trim() : 'Staff Specialist';
-  const department = typeof payload.department === 'string' && payload.department.trim()
-    ? payload.department.trim()
-    : 'Operations';
-  const phone = typeof payload.phone === 'string' ? payload.phone.trim() : '';
-  const avatarUrl = typeof payload.avatarUrl === 'string' ? payload.avatarUrl : null;
-  const systemRole = payload.systemRole;
+  const role = 'Staff Specialist';
+  const department = 'Operations';
+  const phone = '';
+  const avatarUrl = null;
+  const systemRole = 'member';
 
   if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return jsonResponse({ error: 'A name and valid email address are required.' }, 400);

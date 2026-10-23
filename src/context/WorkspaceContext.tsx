@@ -17,7 +17,8 @@ import {
   DEFAULT_WORKSPACE_SETTINGS,
   Ringtone,
   AccountStatus,
-  AdminAuditLog,
+  SystemActivityInput,
+  SystemActivityLog,
 } from '../types';
 import {
   initialConversations,
@@ -39,7 +40,10 @@ interface WorkspaceContextType {
   currentUser: User;
   workspaceSettings: WorkspaceSettings;
   users: User[];
-  adminLogs: AdminAuditLog[];
+  systemActivityLogs: SystemActivityLog[];
+  systemActivityLogError: string;
+  refreshSystemActivityLogs: () => Promise<void>;
+  recordSystemActivity: (activity: SystemActivityInput, actor?: User) => Promise<void>;
   isSupabaseConnected: boolean;
   
   // Navigation & Views
@@ -136,7 +140,7 @@ interface WorkspaceContextType {
   updateCurrentUser: (updates: Partial<User>) => void;
   saveCurrentProfile: (updates: Partial<User>) => Promise<void>;
   saveWorkspaceSettings: (settings: WorkspaceSettings) => Promise<void>;
-  addTeammate: (user: User) => Promise<void>;
+  addTeammate: (user: Pick<User, 'name' | 'email'>) => Promise<void>;
   updateStaffUser: (userId: string, updates: Partial<User>) => Promise<void>;
   manageStaffAccount: (
     userId: string,
@@ -374,10 +378,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   // Users state
   const [users, setUsers] = useState<User[]>([]);
-  const [adminLogs, setAdminLogs] = useState<AdminAuditLog[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}admin_logs`);
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [systemActivityLogs, setSystemActivityLogs] = useState<SystemActivityLog[]>([]);
+  const [systemActivityLogError, setSystemActivityLogError] = useState('');
 
   const [currentUser, setCurrentUser] = useState<User>({
     id: '',
@@ -430,10 +432,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : initialNotifications;
   });
 
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}admin_logs`, JSON.stringify(adminLogs));
-  }, [adminLogs]);
-
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
   // Modals state
@@ -463,6 +461,51 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [dismissedCallIds, setDismissedCallIds] = useState<string[]>([]);
   const callStartInProgressRef = React.useRef(false);
   const lastRingingCallIdRef = React.useRef<string | null>(null);
+
+  const refreshSystemActivityLogs = async () => {
+    if (currentUser.systemRole !== 'admin') {
+      setSystemActivityLogs([]);
+      setSystemActivityLogError('');
+      return;
+    }
+    const { data, error } = await supabase
+      .from('system_activity_logs')
+      .select('id, created_at, actor_id, actor_name, event_type, target_type, target_id, target_name, summary, metadata')
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (error) {
+      setSystemActivityLogError(error.message);
+      throw error;
+    }
+    setSystemActivityLogs((data || []) as SystemActivityLog[]);
+    setSystemActivityLogError('');
+  };
+
+  const recordSystemActivity = async (activity: SystemActivityInput, actor: User = currentUser) => {
+    if (!actor.id) return;
+    const logEntry: SystemActivityLog = {
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      actor_id: actor.id,
+      actor_name: actor.name,
+      event_type: activity.eventType,
+      target_type: activity.targetType || null,
+      target_id: activity.targetId || null,
+      target_name: activity.targetName || null,
+      summary: activity.summary,
+      metadata: activity.metadata || {},
+    };
+    const { error } = await supabase.from('system_activity_logs').insert(logEntry);
+    if (error) {
+      setSystemActivityLogError(error.message);
+      console.error('Unable to persist system activity log:', error);
+      return;
+    }
+    setSystemActivityLogError('');
+    if (actor.systemRole === 'admin') {
+      setSystemActivityLogs((previous) => [logEntry, ...previous].slice(0, 500));
+    }
+  };
 
   useEffect(() => {
     if (!currentUser.id) return;
@@ -564,6 +607,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           setRequiresPasswordSetup(false);
           setRequiresOnboarding(false);
           setUsers([]);
+          setSystemActivityLogs([]);
+          setSystemActivityLogError('');
           setCurrentUser({ id: '', name: '', email: '', avatar: '', role: '', department: '', phone: '', status: 'offline', systemRole: 'member' });
           setIsAuthLoading(false);
         }
@@ -667,6 +712,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       setIsAuthenticated(true);
       setRequiresPasswordSetup(data.user.app_metadata?.password_reset_required === true);
       setRequiresOnboarding(data.user.user_metadata?.onboarding_completed !== true);
+      await recordSystemActivity({
+        eventType: 'user_signed_in',
+        summary: 'Signed in to the workspace.',
+        targetType: 'user',
+        targetId: profileData.currentUser.id,
+        targetName: profileData.currentUser.name,
+      }, profileData.currentUser);
       sounds.playNotification();
       return { success: true };
     } catch (profileError) {
@@ -689,7 +741,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   const logout = () => {
-    void supabase.auth.signOut();
+    void recordSystemActivity({
+      eventType: 'user_signed_out',
+      summary: 'Signed out of the workspace.',
+      targetType: 'user',
+      targetId: currentUser.id,
+      targetName: currentUser.name,
+    }).finally(() => supabase.auth.signOut());
     setIsAuthenticated(false);
     setUsers([]);
     setCurrentUser({ id: '', name: '', email: '', avatar: '', role: '', department: '', phone: '', status: 'offline', systemRole: 'member' });
@@ -720,6 +778,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
 
     setRequiresPasswordSetup(false);
+    await recordSystemActivity({
+      eventType: 'password_changed',
+      summary: 'Changed their sign-in password.',
+      targetType: 'user',
+      targetId: currentUser.id,
+      targetName: currentUser.name,
+    });
     return { success: true };
   };
 
@@ -734,6 +799,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       throw new Error('Your profile was saved, but onboarding status could not be confirmed. Please try again.');
     }
     setRequiresOnboarding(false);
+    await recordSystemActivity({
+      eventType: 'onboarding_completed',
+      summary: 'Completed first-time profile setup and workspace tour.',
+      targetType: 'user',
+      targetId: currentUser.id,
+      targetName: currentUser.name,
+    });
   };
 
   const setActiveTab = (tab: 'messages' | 'channels' | 'calendar' | 'admin') => {
@@ -778,26 +850,38 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     );
     if (updates.preferences) setWorkspaceSettings(updates.preferences);
 
-    // Persist to Supabase
-    try {
-      await supabase.from('profiles').upsert({
-        id: updated.id,
-        email: updated.email,
-        name: updated.name,
-        role: updated.role,
-        department: updated.department,
-        phone: updated.phone,
-        avatar_url: updated.avatar,
-        system_role: updated.systemRole,
-        status: updated.status,
-        status_message: updated.statusMessage,
-        bio: updated.bio,
-        location: updated.location,
-        banner: updated.banner,
-        preferences: updated.preferences,
-      });
-    } catch {
-      // fallback
+    const { error } = await supabase.from('profiles').upsert({
+      id: updated.id,
+      email: updated.email,
+      name: updated.name,
+      role: updated.role,
+      department: updated.department,
+      phone: updated.phone,
+      avatar_url: updated.avatar,
+      system_role: updated.systemRole,
+      status: updated.status,
+      status_message: updated.statusMessage,
+      bio: updated.bio,
+      location: updated.location,
+      banner: updated.banner,
+      preferences: updated.preferences,
+    });
+    if (error) {
+      console.error('Unable to persist profile changes:', error);
+      return;
+    }
+    if (updated.id === currentUser.id && updates.id === undefined) {
+      const changedFields = Object.keys(updates).filter((field) => field === 'status' || field === 'statusMessage');
+      if (changedFields.length) {
+        await recordSystemActivity({
+          eventType: 'availability_updated',
+          summary: 'Updated their availability or status message.',
+          targetType: 'user',
+          targetId: currentUser.id,
+          targetName: updated.name,
+          metadata: { fields: changedFields },
+        });
+      }
     }
   };
 
@@ -822,6 +906,14 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (error) throw error;
     setCurrentUser(updated);
     setUsers((previous) => previous.map((user) => user.id === currentUser.id ? updated : user));
+    await recordSystemActivity({
+      eventType: 'profile_updated',
+      summary: 'Updated their profile.',
+      targetType: 'user',
+      targetId: currentUser.id,
+      targetName: currentUser.name,
+      metadata: { fields: Object.keys(updates).filter((field) => field !== 'avatar') },
+    });
   };
 
   const saveWorkspaceSettings = async (settings: WorkspaceSettings) => {
@@ -839,6 +931,14 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     setWorkspaceSettings(settings);
     setCurrentUser((user) => ({ ...user, preferences: settings }));
     setUsers((previous) => previous.map((user) => user.id === currentUser.id ? { ...user, preferences: settings } : user));
+    await recordSystemActivity({
+      eventType: 'settings_updated',
+      summary: 'Updated personal workspace settings.',
+      targetType: 'user',
+      targetId: currentUser.id,
+      targetName: currentUser.name,
+      metadata: { fields: Object.keys(settings) },
+    });
   };
 
   useEffect(() => {
@@ -893,16 +993,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   ]);
 
   // Add teammate / Register staff
-  const addTeammate = async (user: User) => {
+  const addTeammate = async (user: Pick<User, 'name' | 'email'>) => {
     const { data, error } = await supabase.functions.invoke('invite-user', {
       body: {
         name: user.name,
         email: user.email,
-        role: user.role,
-        department: user.department,
-        phone: user.phone,
-        avatarUrl: user.avatar,
-        systemRole: user.systemRole,
       },
     });
 
@@ -916,6 +1011,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       {
         ...user,
         id: data.userId,
+        role: 'Staff Specialist',
+        department: 'Operations',
+        phone: '',
+        status: 'offline',
+        systemRole: 'member',
+        avatar: '',
         isCurrentUser: false,
       },
     ]);
@@ -930,8 +1031,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     setInviteReadyData({
       name: user.name,
       email: user.email,
-      role: user.role,
-      systemRole: user.systemRole,
+      role: 'Staff Specialist',
+      systemRole: 'member',
       temporaryPassword: data.temporaryPassword,
       loginUrl: data.loginUrl,
     });
@@ -943,13 +1044,20 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         id: `notif-user-${Date.now()}`,
         type: 'message',
         title: 'Staff Registered',
-        description: `${user.name} (${user.role}) was added to the workspace.`,
+        description: `${user.name} was added to the workspace.`,
         timestamp: 'Just now',
         isRead: false,
         linkTab: 'messages',
       },
       ...prev,
     ]);
+    await recordSystemActivity({
+      eventType: 'staff_created',
+      summary: `Created a staff account for ${user.name}.`,
+      targetType: 'user',
+      targetId: data.userId,
+      targetName: user.name,
+    });
   };
 
   const updateStaffUser = async (userId: string, updates: Partial<User>) => {
@@ -984,6 +1092,15 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       user.id === userId ? mapSupabaseProfile(profile, currentUser.id) : user
     ));
     if (userId === currentUser.id) setCurrentUser(mapSupabaseProfile(profile, currentUser.id));
+    const target = users.find((user) => user.id === userId);
+    await recordSystemActivity({
+      eventType: 'staff_profile_updated',
+      summary: `Updated ${target?.name || 'a staff member'}'s profile and access.`,
+      targetType: 'user',
+      targetId: userId,
+      targetName: profile.name || target?.name || 'Unknown user',
+      metadata: { fields: Object.keys(updates).filter((field) => field !== 'avatar') },
+    });
   };
 
   const manageStaffAccount = async (
@@ -1024,22 +1141,14 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       });
     });
 
-    const actionLabel: AdminAuditLog['action'] = action === 'suspend'
-      ? 'suspended'
-      : action === 'reactivate'
-        ? 'reactivated'
-        : 'removed';
-    const logEntry: AdminAuditLog = {
-      id: `${Date.now()}-${userId}`,
-      timestamp: new Date().toISOString(),
-      actorId: currentUser.id,
-      actorName: currentUser.name,
-      targetUserId: userId,
-      targetUserName: target?.name || 'Unknown user',
-      action: actionLabel,
-      note: note || `${currentUser.name} ${action === 'suspend' ? 'suspended' : action === 'reactivate' ? 'reactivated' : 'removed'} ${target?.name || 'this user'} from the workspace.`,
-    };
-    setAdminLogs((previous) => [logEntry, ...previous].slice(0, 50));
+    await recordSystemActivity({
+      eventType: action === 'remove' ? 'staff_removed' : action === 'suspend' ? 'staff_suspended' : 'staff_reactivated',
+      summary: note || `${currentUser.name} ${action === 'suspend' ? 'suspended' : action === 'reactivate' ? 'reactivated' : 'removed'} ${target?.name || 'this user'}.`,
+      targetType: 'user',
+      targetId: userId,
+      targetName: target?.name || 'Unknown user',
+      metadata: { suspensionDuration: action === 'suspend' ? suspensionDuration || '7d' : undefined },
+    });
 
     if (action === 'remove') {
       setNotifications((previous) => [{
@@ -1060,18 +1169,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     });
     if (error) throw await getFunctionError(error);
     const target = users.find((user) => user.id === userId);
-    if (target) {
-      setAdminLogs((previous) => [{
-        id: `${Date.now()}-${userId}`,
-        timestamp: new Date().toISOString(),
-        actorId: currentUser.id,
-        actorName: currentUser.name,
-        targetUserId: userId,
-        targetUserName: target.name,
-        action: 'password_reset' as const,
-        note: `${currentUser.name} reset the sign-in password for ${target.name}.`,
-      }, ...previous].slice(0, 50));
-    }
+    await recordSystemActivity({
+      eventType: 'staff_password_reset',
+      summary: `Reset the sign-in password for ${target?.name || 'a staff member'}.`,
+      targetType: 'user',
+      targetId: userId,
+      targetName: target?.name || 'Unknown user',
+    });
   };
 
   const resetWorkspace = () => {
@@ -1139,6 +1243,18 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       is_call_record: false,
     });
     if (error) throw error;
+
+    const messageTarget = isChannelMessage
+      ? channels.find((channel) => channel.id === targetId)
+      : conversations.find((conversation) => conversation.id === targetId);
+    await recordSystemActivity({
+      eventType: poll ? 'poll_created' : 'message_sent',
+      summary: `${poll ? 'Created a poll' : 'Sent a message'} in ${isChannelMessage ? `#${messageTarget?.name || 'channel'}` : messageTarget?.name || 'a conversation'}.`,
+      targetType: isChannelMessage ? 'channel' : 'conversation',
+      targetId,
+      targetName: messageTarget?.name || 'Conversation',
+      metadata: { attachmentCount: attachments?.length || 0, includesPoll: Boolean(poll) },
+    });
 
     sounds.playMessageSent();
     setMessages((prev) => ({
@@ -1237,6 +1353,18 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     });
     if (error) throw error;
 
+    const threadTarget = activeTab === 'channels'
+      ? channels.find((channel) => channel.id === targetId)
+      : conversations.find((conversation) => conversation.id === targetId);
+    await recordSystemActivity({
+      eventType: 'thread_reply_sent',
+      summary: `Replied in a thread in ${activeTab === 'channels' ? `#${threadTarget?.name || 'channel'}` : threadTarget?.name || 'a conversation'}.`,
+      targetType: activeTab === 'channels' ? 'channel' : 'conversation',
+      targetId,
+      targetName: threadTarget?.name || 'Conversation',
+      metadata: { attachmentCount: attachments?.length || 0 },
+    });
+
     sounds.playMessageSent();
     setThreadReplies((prev) => ({
       ...prev,
@@ -1254,6 +1382,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const votePoll = (messageId: string, optionId: string, parentId?: string) => {
     sounds.playReaction();
+    void recordSystemActivity({
+      eventType: 'poll_vote_changed',
+      summary: 'Cast or changed a vote in a poll.',
+      targetType: 'poll',
+      targetId: messageId,
+    });
 
     const updatePollInList = (list: Message[]) =>
       list.map((msg) => {
@@ -1309,6 +1443,17 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const toggleReaction = (messageId: string, emoji: string, parentId?: string) => {
     sounds.playReaction();
+    const targetId = activeTab === 'channels' ? activeChannelId : activeConversationId;
+    void recordSystemActivity({
+      eventType: 'message_reaction_changed',
+      summary: 'Added or removed a reaction on a message.',
+      targetType: activeTab === 'channels' ? 'channel' : 'conversation',
+      targetId,
+      targetName: activeTab === 'channels'
+        ? channels.find((channel) => channel.id === targetId)?.name || 'Channel'
+        : conversations.find((conversation) => conversation.id === targetId)?.name || 'Conversation',
+      metadata: { messageId, isThreadReply: Boolean(parentId) },
+    });
 
     const updateReactionInList = (list: Message[]) =>
       list.map((msg) => {
@@ -1350,12 +1495,28 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   const togglePinConversation = (id: string) => {
+    const conversation = conversations.find((item) => item.id === id);
+    void recordSystemActivity({
+      eventType: conversation?.isPinned ? 'conversation_unpinned' : 'conversation_pinned',
+      summary: `${conversation?.isPinned ? 'Unpinned' : 'Pinned'} a conversation.`,
+      targetType: 'conversation',
+      targetId: id,
+      targetName: conversation?.name || 'Conversation',
+    });
     setConversations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, isPinned: !c.isPinned } : c))
     );
   };
 
   const togglePinChannel = (id: string) => {
+    const channel = channels.find((item) => item.id === id);
+    void recordSystemActivity({
+      eventType: channel?.isPinned ? 'channel_unpinned' : 'channel_pinned',
+      summary: `${channel?.isPinned ? 'Unpinned' : 'Pinned'} a channel.`,
+      targetType: 'channel',
+      targetId: id,
+      targetName: channel?.name || 'Channel',
+    });
     setChannels((prev) =>
       prev.map((c) => (c.id === id ? { ...c, isPinned: !c.isPinned } : c))
     );
@@ -1423,6 +1584,14 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     setActiveChannelId(newChan.id);
     setActiveTab('channels');
     sounds.playNotification();
+    await recordSystemActivity({
+      eventType: 'channel_created',
+      summary: `Created channel #${newChan.name}.`,
+      targetType: 'channel',
+      targetId: newChan.id,
+      targetName: newChan.name,
+      metadata: { private: newChan.isPrivate, announcement: newChan.type === 'announcement' },
+    });
   };
 
   // Create conversation
@@ -1458,6 +1627,14 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     setConversations((prev) => [newConv, ...prev]);
     setActiveConversationId(newId);
     setActiveTab('messages');
+    void recordSystemActivity({
+      eventType: isGroup ? 'group_conversation_created' : 'direct_conversation_created',
+      summary: isGroup ? 'Created a group conversation.' : 'Started a direct conversation.',
+      targetType: 'conversation',
+      targetId: newId,
+      targetName: isGroup ? newConv.name : peer?.name || 'Direct conversation',
+      metadata: { participantCount: newConv.participants.length },
+    });
     return newId;
   };
 
@@ -1488,7 +1665,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
 
     try {
-      await supabase.from('calendar_events').insert({
+      const { error } = await supabase.from('calendar_events').insert({
         id: newEvt.id,
         title: newEvt.title,
         description: newEvt.description,
@@ -1501,17 +1678,41 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         color: newEvt.color,
         created_by: currentUser.id,
       });
+      if (error) throw error;
+      await recordSystemActivity({
+        eventType: 'calendar_event_created',
+        summary: newEvt.scope === 'team'
+          ? `Scheduled a team calendar event: ${newEvt.title}.`
+          : 'Added a personal calendar event.',
+        targetType: 'calendar_event',
+        targetId: newEvt.scope === 'team' ? newEvt.id : undefined,
+        targetName: newEvt.scope === 'team' ? newEvt.title : undefined,
+        metadata: newEvt.scope === 'team' ? { date: newEvt.date, scope: newEvt.scope } : { scope: newEvt.scope },
+      });
     } catch {
-      // Local fallback
+      // Activity is only logged when the event was persisted.
     }
   };
 
   const deleteCalendarEvent = async (id: string) => {
+    const event = calendarEvents.find((item) => item.id === id);
     setCalendarEvents((prev) => prev.filter((e) => e.id !== id));
     try {
-      await supabase.from('calendar_events').delete().eq('id', id);
+      const { error } = await supabase.from('calendar_events').delete().eq('id', id);
+      if (error) throw error;
+      if (event) {
+        await recordSystemActivity({
+          eventType: 'calendar_event_deleted',
+          summary: event.scope === 'team'
+            ? `Removed calendar event: ${event.title}.`
+            : 'Removed a personal calendar event.',
+          targetType: 'calendar_event',
+          targetId: event.scope === 'team' ? id : undefined,
+          targetName: event.scope === 'team' ? event.title : undefined,
+        });
+      }
     } catch {
-      // fallback
+      console.error('Unable to persist calendar event deletion.');
     }
   };
 
@@ -1576,6 +1777,18 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         return;
       }
 
+      const callTarget = targetChannel?.name
+        ? `#${targetChannel.name}`
+        : peerUser?.name || conversation?.name || 'a conversation';
+      await recordSystemActivity({
+        eventType: 'call_started',
+        summary: `Started a ${type} call in ${callTarget}.`,
+        targetType: targetChannel ? 'channel' : 'conversation',
+        targetId: targetChannel?.id || conversation?.id,
+        targetName: callTarget,
+        metadata: { callType: type, participantCount: participants.length },
+      });
+
       sounds.playRingTone();
       setIncomingCall(null);
       setCallSession({
@@ -1606,6 +1819,17 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const endCall = () => {
     sounds.playCallEnd();
     const endedSession = callSession.sessionId;
+    if (endedSession) {
+      void recordSystemActivity({
+        eventType: 'call_ended',
+        summary: `Ended a ${callSession.type} call.`,
+        targetType: 'call',
+        targetId: endedSession,
+        targetName: callSession.targetChannel?.name
+          ? `#${callSession.targetChannel.name}`
+          : callSession.peerUser?.name || 'Workspace call',
+      });
+    }
     if (endedSession && callSession.callerId === currentUser.id) {
       void supabase
         .from('call_sessions')
@@ -1625,6 +1849,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const acceptIncomingCall = () => {
     if (!incomingCall) return;
+    const acceptedCall = incomingCall;
     setCallError('');
     sounds.playRingTone();
     setCallSession({
@@ -1646,6 +1871,15 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       isMinimized: false,
     });
     setIncomingCall(null);
+    void recordSystemActivity({
+      eventType: 'call_accepted',
+      summary: 'Accepted an incoming call.',
+      targetType: 'call',
+      targetId: acceptedCall.id,
+      targetName: acceptedCall.channel_id
+        ? `#${channels.find((channel) => channel.id === acceptedCall.channel_id)?.name || 'Channel'}`
+        : acceptedCall.caller?.name || 'Workspace call',
+    });
   };
 
   const dismissIncomingCall = () => {
@@ -1653,6 +1887,15 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     const declinedCall = incomingCall;
     setDismissedCallIds((previous) => [...new Set([...previous, declinedCall.id])]);
     setIncomingCall(null);
+    void recordSystemActivity({
+      eventType: 'call_declined',
+      summary: 'Declined an incoming call.',
+      targetType: 'call',
+      targetId: declinedCall.id,
+      targetName: declinedCall.channel_id
+        ? `#${channels.find((channel) => channel.id === declinedCall.channel_id)?.name || 'Channel'}`
+        : declinedCall.caller?.name || 'Workspace call',
+    });
     void supabase.functions.invoke('livekit-token', {
       body: { action: 'decline-call', sessionId: declinedCall.id },
     }).then(({ error }) => {
@@ -1674,17 +1917,47 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           if (error) setCallError(`Connected, but could not update call status: ${error.message}`);
         });
     }
+    void recordSystemActivity({
+        eventType: 'call_joined',
+        summary: `Joined a ${callSession.type} call.`,
+        targetType: 'call',
+        targetId: sessionId,
+        targetName: callSession.targetChannel?.name
+          ? `#${callSession.targetChannel.name}`
+          : callSession.peerUser?.name || 'Workspace call',
+    });
   };
 
   const toggleCallMute = () => {
+    void recordSystemActivity({
+        eventType: callSession.isMuted ? 'call_microphone_unmuted' : 'call_microphone_muted',
+        summary: callSession.isMuted ? 'Unmuted their microphone during a call.' : 'Muted their microphone during a call.',
+        targetType: 'call',
+        targetId: callSession.sessionId,
+        targetName: callSession.targetChannel?.name || callSession.peerUser?.name || 'Workspace call',
+    });
     setCallSession((prev) => ({ ...prev, isMuted: !prev.isMuted }));
   };
 
   const toggleCallCamera = () => {
+    void recordSystemActivity({
+        eventType: callSession.isCameraOff ? 'call_camera_enabled' : 'call_camera_disabled',
+        summary: callSession.isCameraOff ? 'Enabled their camera during a call.' : 'Disabled their camera during a call.',
+        targetType: 'call',
+        targetId: callSession.sessionId,
+        targetName: callSession.targetChannel?.name || callSession.peerUser?.name || 'Workspace call',
+    });
     setCallSession((prev) => ({ ...prev, isCameraOff: !prev.isCameraOff }));
   };
 
   const toggleCallScreenShare = () => {
+    void recordSystemActivity({
+        eventType: callSession.isScreenSharing ? 'call_screen_share_stopped' : 'call_screen_share_started',
+        summary: callSession.isScreenSharing ? 'Stopped screen sharing during a call.' : 'Started screen sharing during a call.',
+        targetType: 'call',
+        targetId: callSession.sessionId,
+        targetName: callSession.targetChannel?.name || callSession.peerUser?.name || 'Workspace call',
+    });
     setCallSession((prev) => ({ ...prev, isScreenSharing: !prev.isScreenSharing }));
   };
 
@@ -1702,7 +1975,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         currentUser,
         workspaceSettings,
         users,
-        adminLogs,
+        systemActivityLogs,
+        systemActivityLogError,
+        refreshSystemActivityLogs,
+        recordSystemActivity,
         isSupabaseConnected,
         activeTab,
         activeConversationId,

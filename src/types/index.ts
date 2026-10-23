@@ -41,15 +41,26 @@ export interface User {
   isCurrentUser?: boolean;
 }
 
-export interface AdminAuditLog {
+export interface SystemActivityLog {
   id: string;
-  timestamp: string;
-  actorId: string;
-  actorName: string;
-  targetUserId: string;
-  targetUserName: string;
-  action: 'created' | 'updated' | 'suspended' | 'reactivated' | 'removed' | 'password_reset';
-  note: string;
+  created_at: string;
+  actor_id: string | null;
+  actor_name: string;
+  event_type: string;
+  target_type: string | null;
+  target_id: string | null;
+  target_name: string | null;
+  summary: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface SystemActivityInput {
+  eventType: string;
+  summary: string;
+  targetType?: string;
+  targetId?: string;
+  targetName?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface WorkspaceSettings {
