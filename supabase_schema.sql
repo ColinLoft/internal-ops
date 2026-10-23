@@ -101,6 +101,12 @@ create table if not exists public.channel_members (
   primary key (channel_id, user_id)
 );
 
+insert into public.channels (id, name, description, type, is_private, posting_roles, category)
+values
+  ('chan-announcements', 'announcements', 'Official organization announcements and updates. Leadership posts here.', 'announcement', false, array['admin', 'coordinator'], 'General'),
+  ('chan-general', 'general', 'Workplace discussion and general collaboration for all staff.', 'standard', false, array['admin', 'coordinator', 'member'], 'General')
+on conflict (id) do nothing;
+
 -- 4. Messages Table
 create table if not exists public.messages (
   id text primary key,
@@ -120,6 +126,11 @@ create table if not exists public.messages (
   parent_id text,
   created_at timestamptz default now()
 );
+
+create index if not exists messages_conversation_created_at_idx
+  on public.messages (conversation_id, created_at);
+create index if not exists messages_parent_id_idx
+  on public.messages (parent_id) where parent_id is not null;
 
 -- 5. Calendar Events Table
 create table if not exists public.calendar_events (

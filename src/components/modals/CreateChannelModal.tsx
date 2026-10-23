@@ -23,31 +23,40 @@ export const CreateChannelModal: React.FC = () => {
   const [type, setType] = useState<'standard' | 'announcement'>('standard');
   const [isPrivate, setIsPrivate] = useState(false);
   const [postingLevel, setPostingLevel] = useState<'leadership' | 'all'>('all');
+  const [saveError, setSaveError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   if (!isCreateChannelOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || isSaving) return;
 
     const postingRoles: UserRole[] =
       type === 'announcement' || postingLevel === 'leadership'
         ? ['admin', 'coordinator']
         : ['admin', 'coordinator', 'member'];
 
-    createChannel({
-      name,
-      description: description.trim() || 'General staff collaboration',
-      type,
-      postingRoles,
-      isPrivate,
-    });
-
-    setIsCreateChannelOpen(false);
-    setName('');
-    setDescription('');
-    setType('standard');
-    setPostingLevel('all');
+    setIsSaving(true);
+    setSaveError('');
+    try {
+      await createChannel({
+        name,
+        description: description.trim() || 'General staff collaboration',
+        type,
+        postingRoles,
+        isPrivate,
+      });
+      setIsCreateChannelOpen(false);
+      setName('');
+      setDescription('');
+      setType('standard');
+      setPostingLevel('all');
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -74,6 +83,11 @@ export const CreateChannelModal: React.FC = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {saveError && (
+            <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+              Channel was not saved: {saveError}
+            </p>
+          )}
           {/* Channel Name */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -223,10 +237,11 @@ export const CreateChannelModal: React.FC = () => {
             </button>
             <button
               type="submit"
+              disabled={isSaving}
               className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-md shadow-brand-500/25 transition-all"
             >
               <Plus className="w-4 h-4" />
-              <span>Create Channel</span>
+              <span>{isSaving ? 'Saving…' : 'Create Channel'}</span>
             </button>
           </div>
         </form>

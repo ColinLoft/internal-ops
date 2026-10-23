@@ -86,8 +86,8 @@ interface WorkspaceContextType {
   setSearchQuery: (query: string) => void;
   
   // Messaging actions
-  sendMessage: (text: string, attachments?: Attachment[], poll?: Poll) => void;
-  sendThreadReply: (parentId: string, text: string, attachments?: Attachment[]) => void;
+  sendMessage: (text: string, attachments?: Attachment[], poll?: Poll) => Promise<void>;
+  sendThreadReply: (parentId: string, text: string, attachments?: Attachment[]) => Promise<void>;
   votePoll: (messageId: string, optionId: string, parentId?: string) => void;
   toggleReaction: (messageId: string, emoji: string, parentId?: string) => void;
   togglePinConversation: (id: string) => void;
@@ -100,7 +100,7 @@ interface WorkspaceContextType {
     postingRoles: UserRole[];
     isPrivate: boolean;
     category?: Channel['category'];
-  }) => void;
+  }) => Promise<void>;
   
   createConversation: (participantIds: string[], name?: string, isGroup?: boolean) => string;
   createCalendarEvent: (event: Omit<CalendarEvent, 'id' | 'createdBy'>) => void;
@@ -219,6 +219,107 @@ const loadSupabaseProfiles = async (authUser: SupabaseAuthUser) => {
     users: profileRows.map((row) => mapSupabaseProfile(row, authUser.id)),
     currentUser: mapSupabaseProfile(profile, authUser.id),
     settings: mapWorkspaceSettings(profile),
+  };
+
+  const loadSupabaseWorkspaceData = async (userIds: string[]) => {
+    let channelResult = await supabase.from('channels').select('*').order('created_at', { ascending: true });
+    if (channelResult.error) throw channelResult.error;
+
+    if (channelResult.data.length === 0) {
+      const { error: seedError } = await supabase.from('channels').upsert(
+        initialChannels.map((channel) => ({
+          id: channel.id,
+          name: channel.name,
+          description: channel.description,
+          type: channel.type,
+          is_private: channel.isPrivate,
+          posting_roles: channel.postingRoles,
+          category: channel.category,
+        })),
+        { onConflict: 'id', ignoreDuplicates: true }
+      );
+      if (seedError) throw seedError;
+      channelResult = await supabase.from('channels').select('*').order('created_at', { ascending: true });
+      if (channelResult.error) throw channelResult.error;
+    }
+
+    const [memberResult, messageResult] = await Promise.all([
+      supabase.from('channel_members').select('channel_id, user_id'),
+      supabase.from('messages').select('*').order('created_at', { ascending: true }),
+    ]);
+
+    if (memberResult.error) throw memberResult.error;
+    if (messageResult.error) throw messageResult.error;
+
+    const membersByChannel = new Map<string, string[]>();
+    for (const member of memberResult.data) {
+      const members = membersByChannel.get(member.channel_id) || [];
+      members.push(member.user_id);
+      membersByChannel.set(member.channel_id, members);
+    }
+
+    const channels: Channel[] = channelResult.data.map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description || '',
+      type: row.type === 'announcement' ? 'announcement' : 'standard',
+      isPrivate: Boolean(row.is_private),
+      members: row.is_private
+        ? membersByChannel.get(row.id) || []
+        : userIds,
+      postingRoles: Array.isArray(row.posting_roles) ? row.posting_roles : ['admin', 'coordinator', 'member'],
+      unreadCount: 0,
+      category: ['General', 'Projects', 'Departments', 'Outreach'].includes(row.category) ? row.category : 'General',
+    }));
+
+    const mapMessage = (row: Record<string, any>): Message => ({
+      id: row.id,
+      conversationId: row.conversation_id,
+      senderId: row.sender_id,
+      senderName: row.sender_name,
+      senderAvatar: row.sender_avatar || '',
+      senderRole: row.sender_role || undefined,
+      text: row.text || '',
+      timestamp: row.timestamp || new Date(row.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      seenBy: Array.isArray(row.seen_by) ? row.seen_by : [],
+      reactions: Array.isArray(row.reactions) ? row.reactions : [],
+      attachments: Array.isArray(row.attachments) ? row.attachments : [],
+      poll: row.poll || undefined,
+      isCallRecord: Boolean(row.is_call_record),
+      callDuration: row.call_duration || undefined,
+      parentId: row.parent_id || undefined,
+    });
+
+    const messages: Record<string, Message[]> = {};
+    const threadReplies: Record<string, Message[]> = {};
+    const repliesByParent = new Map<string, Message[]>();
+
+    for (const row of messageResult.data) {
+      const message = mapMessage(row);
+      if (message.parentId) {
+        const replies = repliesByParent.get(message.parentId) || [];
+        replies.push(message);
+        repliesByParent.set(message.parentId, replies);
+        continue;
+      }
+      const targetMessages = messages[message.conversationId] || [];
+      targetMessages.push(message);
+      messages[message.conversationId] = targetMessages;
+    }
+
+    for (const [parentId, replies] of repliesByParent) {
+      threadReplies[parentId] = replies;
+      for (const targetMessages of Object.values(messages)) {
+        const parent = targetMessages.find((message) => message.id === parentId);
+        if (parent) {
+          parent.threadCount = replies.length;
+          parent.lastThreadReplyAt = replies[replies.length - 1]?.timestamp;
+          break;
+        }
+      }
+    }
+
+    return { channels, messages, threadReplies };
   };
 };
 
@@ -353,20 +454,19 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
       try {
         const profileData = await loadSupabaseProfiles(session.user);
+        const workspaceData = await loadSupabaseWorkspaceData(profileData.users.map((user) => user.id));
         if (active) {
           setUsers(profileData.users);
           setCurrentUser(profileData.currentUser);
           setWorkspaceSettings(profileData.settings);
-          setChannels((channels) => channels.map((channel) =>
-            !channel.isPrivate && !channel.members.includes(profileData.currentUser.id)
-              ? { ...channel, members: [...channel.members, profileData.currentUser.id] }
-              : channel
-          ));
+          setChannels(workspaceData.channels);
+          setMessages(workspaceData.messages);
+          setThreadReplies(workspaceData.threadReplies);
           setIsAuthenticated(true);
           setRequiresPasswordSetup(new URLSearchParams(window.location.search).get('invite') === '1');
         }
       } catch (error) {
-        console.error('Unable to load the Supabase profile:', error);
+        console.error('Unable to load Supabase workspace data:', error);
         if (active) setIsAuthenticated(false);
       } finally {
         if (active) setIsAuthLoading(false);
@@ -438,26 +538,32 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     try {
       const profileData = await loadSupabaseProfiles(data.user);
+      const workspaceData = await loadSupabaseWorkspaceData(profileData.users.map((user) => user.id));
       setUsers(profileData.users);
       setCurrentUser(profileData.currentUser);
       setWorkspaceSettings(profileData.settings);
-      setChannels((channels) => channels.map((channel) =>
-        !channel.isPrivate && !channel.members.includes(profileData.currentUser.id)
-          ? { ...channel, members: [...channel.members, profileData.currentUser.id] }
-          : channel
-      ));
+      setChannels(workspaceData.channels);
+      setMessages(workspaceData.messages);
+      setThreadReplies(workspaceData.threadReplies);
       setIsAuthenticated(true);
       sounds.playNotification();
       return { success: true };
     } catch (profileError) {
       await supabase.auth.signOut();
-      if (profileError instanceof Error && profileError.message.includes("Could not find the table 'public.profiles'")) {
+      const errorMessage = profileError instanceof Error ? profileError.message : 'Unknown error';
+      if (errorMessage.includes("Could not find the table 'public.profiles'")) {
         return {
           success: false,
           message: 'The staff profiles table is missing from Supabase. Run supabase_schema.sql in the Supabase SQL Editor, then try signing in again.',
         };
       }
-      return { success: false, message: `Signed in, but the staff profile could not be loaded: ${(profileError as Error).message}` };
+      if (["public.channels", "public.channel_members", "public.messages"].some((table) => errorMessage.includes(`'${table}'`))) {
+        return {
+          success: false,
+          message: `Workspace tables are missing from Supabase. Apply the channels, channel_members, and messages table definitions and policies from supabase_schema.sql, then try signing in again. Details: ${errorMessage}`,
+        };
+      }
+      return { success: false, message: `Signed in, but workspace data could not be loaded: ${errorMessage}` };
     }
   };
 
@@ -716,11 +822,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   // Messaging
   const sendMessage = async (text: string, attachments?: Attachment[], poll?: Poll) => {
-    const targetId = activeTab === 'channels' ? activeChannelId : activeConversationId;
+    const isChannelMessage = activeTab === 'channels';
+    const targetId = isChannelMessage ? activeChannelId : activeConversationId;
     if (!targetId || (!text.trim() && !attachments?.length && !poll)) return;
+    if (!currentUser.id) throw new Error('Sign in before sending messages.');
 
     const newMsg: Message = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      id: `msg-${crypto.randomUUID()}`,
       conversationId: targetId,
       senderId: currentUser.id,
       senderName: currentUser.name,
@@ -734,17 +842,30 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       poll: poll,
     };
 
-    sounds.playMessageSent();
-
-    setMessages((prev) => {
-      const currentList = prev[targetId] || [];
-      return {
-        ...prev,
-        [targetId]: [...currentList, newMsg],
-      };
+    const { error } = await supabase.from('messages').insert({
+      id: newMsg.id,
+      conversation_id: targetId,
+      sender_id: currentUser.id,
+      sender_name: currentUser.name,
+      sender_avatar: currentUser.avatar,
+      sender_role: currentUser.role,
+      text: newMsg.text,
+      timestamp: newMsg.timestamp,
+      attachments: newMsg.attachments,
+      poll: newMsg.poll,
+      reactions: newMsg.reactions,
+      seen_by: newMsg.seenBy,
+      is_call_record: false,
     });
+    if (error) throw error;
 
-    if (activeTab === 'messages') {
+    sounds.playMessageSent();
+    setMessages((prev) => ({
+      ...prev,
+      [targetId]: [...(prev[targetId] || []), newMsg],
+    }));
+
+    if (!isChannelMessage) {
       setConversations((prev) =>
         prev.map((conv) => {
           if (conv.id === targetId) {
@@ -778,24 +899,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       );
     }
 
-    // Persist to Supabase
-    try {
-      await supabase.from('messages').insert({
-        id: newMsg.id,
-        conversation_id: targetId,
-        sender_id: currentUser.id,
-        sender_name: currentUser.name,
-        sender_avatar: currentUser.avatar,
-        sender_role: currentUser.role,
-        text: newMsg.text,
-        timestamp: newMsg.timestamp,
-        attachments: newMsg.attachments,
-        poll: newMsg.poll,
-      });
-    } catch {
-      // Local fallback saved
-    }
-
     if (text.includes('@everyone') || text.includes('@channel')) {
       setTimeout(() => {
         sounds.playNotification();
@@ -819,10 +922,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   // Thread reply
   const sendThreadReply = async (parentId: string, text: string, attachments?: Attachment[]) => {
     if (!text.trim() && !attachments?.length) return;
+    if (!currentUser.id) throw new Error('Sign in before sending messages.');
 
+    const targetId = activeTab === 'channels' ? activeChannelId : activeConversationId;
     const newReply: Message = {
-      id: `th-${Date.now()}`,
-      conversationId: activeTab === 'channels' ? activeChannelId : activeConversationId,
+      id: `msg-${crypto.randomUUID()}`,
+      conversationId: targetId,
       parentId,
       senderId: currentUser.id,
       senderName: currentUser.name,
@@ -835,49 +940,35 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       attachments: attachments || [],
     };
 
+    const { error } = await supabase.from('messages').insert({
+      id: newReply.id,
+      conversation_id: targetId,
+      parent_id: parentId,
+      sender_id: currentUser.id,
+      sender_name: currentUser.name,
+      sender_avatar: currentUser.avatar,
+      sender_role: currentUser.role,
+      text: newReply.text,
+      timestamp: newReply.timestamp,
+      attachments: newReply.attachments,
+      reactions: newReply.reactions,
+      seen_by: newReply.seenBy,
+    });
+    if (error) throw error;
+
     sounds.playMessageSent();
-
-    setThreadReplies((prev) => {
-      const existing = prev[parentId] || [];
-      return {
-        ...prev,
-        [parentId]: [...existing, newReply],
-      };
-    });
-
-    const targetId = activeTab === 'channels' ? activeChannelId : activeConversationId;
-    setMessages((prev) => {
-      const list = prev[targetId] || [];
-      return {
-        ...prev,
-        [targetId]: list.map((m) =>
-          m.id === parentId
-            ? {
-                ...m,
-                threadCount: (m.threadCount || 0) + 1,
-                lastThreadReplyAt: 'Just now',
-              }
-            : m
-        ),
-      };
-    });
-
-    try {
-      await supabase.from('messages').insert({
-        id: newReply.id,
-        conversation_id: targetId,
-        parent_id: parentId,
-        sender_id: currentUser.id,
-        sender_name: currentUser.name,
-        sender_avatar: currentUser.avatar,
-        sender_role: currentUser.role,
-        text: newReply.text,
-        timestamp: newReply.timestamp,
-        attachments: newReply.attachments,
-      });
-    } catch {
-      // Local fallback
-    }
+    setThreadReplies((prev) => ({
+      ...prev,
+      [parentId]: [...(prev[parentId] || []), newReply],
+    }));
+    setMessages((prev) => ({
+      ...prev,
+      [targetId]: (prev[targetId] || []).map((message) =>
+        message.id === parentId
+          ? { ...message, threadCount: (message.threadCount || 0) + 1, lastThreadReplyAt: 'Just now' }
+          : message
+      ),
+    }));
   };
 
   const votePoll = (messageId: string, optionId: string, parentId?: string) => {
@@ -1005,9 +1096,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     isPrivate: boolean;
     category?: Channel['category'];
   }) => {
+    if (!currentUser.id) throw new Error('Sign in before creating a channel.');
     const cleanName = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-_]/g, '');
     const newChan: Channel = {
-      id: `chan-${Date.now()}`,
+      id: `chan-${crypto.randomUUID()}`,
       name: cleanName,
       description,
       type,
@@ -1019,25 +1111,37 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       isPinned: false,
     };
 
+    const { error: channelError } = await supabase.from('channels').insert({
+      id: newChan.id,
+      name: newChan.name,
+      description: newChan.description,
+      type: newChan.type,
+      is_private: newChan.isPrivate,
+      posting_roles: newChan.postingRoles,
+      category: newChan.category,
+      created_by: currentUser.id,
+    });
+    if (channelError) throw channelError;
+
+    const memberIds = [...new Set([...users.map((user) => user.id), currentUser.id])];
+    if (memberIds.length) {
+      const { error: membersError } = await supabase.from('channel_members').upsert(
+        memberIds.map((userId) => ({ channel_id: newChan.id, user_id: userId })),
+        { onConflict: 'channel_id,user_id' }
+      );
+      if (membersError) {
+        const { error: rollbackError } = await supabase.from('channels').delete().eq('id', newChan.id);
+        if (rollbackError) {
+          throw new Error(`Channel was created, but its members could not be saved: ${membersError.message}. Cleanup also failed: ${rollbackError.message}`);
+        }
+        throw membersError;
+      }
+    }
+
     setChannels((prev) => [newChan, ...prev]);
     setActiveChannelId(newChan.id);
     setActiveTab('channels');
     sounds.playNotification();
-
-    try {
-      await supabase.from('channels').insert({
-        id: newChan.id,
-        name: newChan.name,
-        description: newChan.description,
-        type: newChan.type,
-        is_private: newChan.isPrivate,
-        posting_roles: newChan.postingRoles,
-        category: newChan.category,
-        created_by: currentUser.id,
-      });
-    } catch {
-      // Local fallback
-    }
   };
 
   // Create conversation

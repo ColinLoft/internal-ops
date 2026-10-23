@@ -16,7 +16,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { Attachment } from '../../types';
 
 interface MessageComposerProps {
-  onSendMessage: (text: string, attachments?: Attachment[]) => void;
+  onSendMessage: (text: string, attachments?: Attachment[]) => void | Promise<void>;
   placeholder?: string;
   isAnnouncementRestricted?: boolean;
 }
@@ -33,6 +33,8 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
 
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [sendError, setSendError] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMentionMenu, setShowMentionMenu] = useState(false);
@@ -160,15 +162,23 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     textareaRef.current?.focus();
   };
 
-  const handleSend = () => {
-    if (isAnnouncementRestricted) return;
+  const handleSend = async () => {
+    if (isAnnouncementRestricted || isSending) return;
     if (!text.trim() && attachments.length === 0) return;
 
-    onSendMessage(text, attachments);
-    setText('');
-    setAttachments([]);
-    setShowEmojiPicker(false);
-    setShowMentionMenu(false);
+    setIsSending(true);
+    setSendError('');
+    try {
+      await onSendMessage(text, attachments);
+      setText('');
+      setAttachments([]);
+      setShowEmojiPicker(false);
+      setShowMentionMenu(false);
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : 'Message was not saved. Please try again.');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -199,6 +209,11 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
 
   return (
     <div className="relative bg-white/90 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-lg p-2.5 transition-all focus-within:border-brand-500/60 focus-within:ring-4 focus-within:ring-brand-500/10">
+      {sendError && (
+        <p role="alert" className="mb-2 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">
+          Message was not saved: {sendError}
+        </p>
+      )}
       {/* Attachment Preview Chips */}
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2 p-2 bg-slate-50 rounded-xl border border-slate-200/60">
@@ -359,10 +374,10 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         {/* Send Button */}
         <button
           onClick={handleSend}
-          disabled={!text.trim() && attachments.length === 0}
+          disabled={isSending || (!text.trim() && attachments.length === 0)}
           className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:hover:bg-brand-600 text-white rounded-xl text-xs font-bold shadow-md shadow-brand-500/20 transition-all active:scale-95"
         >
-          <span>Send</span>
+          <span>{isSending ? 'Saving…' : 'Send'}</span>
           <Send className="w-3.5 h-3.5" />
         </button>
       </div>

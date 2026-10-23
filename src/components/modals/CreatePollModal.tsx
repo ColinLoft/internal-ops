@@ -13,6 +13,8 @@ export const CreatePollModal: React.FC = () => {
 
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState<string[]>(['', '']);
+  const [saveError, setSaveError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   if (!isCreatePollOpen) return null;
 
@@ -34,9 +36,9 @@ export const CreatePollModal: React.FC = () => {
     setOptions(updated);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!question.trim()) return;
+    if (!question.trim() || isSaving) return;
 
     const validOptions = options.filter((o) => o.trim().length > 0);
     if (validOptions.length < 2) return;
@@ -53,10 +55,18 @@ export const CreatePollModal: React.FC = () => {
       createdBy: currentUser.id,
     };
 
-    sendMessage(`📊 Started a team poll: "${question.trim()}"`, undefined, poll);
-    setIsCreatePollOpen(false);
-    setQuestion('');
-    setOptions(['', '']);
+    setIsSaving(true);
+    setSaveError('');
+    try {
+      await sendMessage(`📊 Started a team poll: "${question.trim()}"`, undefined, poll);
+      setIsCreatePollOpen(false);
+      setQuestion('');
+      setOptions(['', '']);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Poll was not saved. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -83,6 +93,11 @@ export const CreatePollModal: React.FC = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {saveError && (
+            <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+              Poll was not saved: {saveError}
+            </p>
+          )}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Poll Question <span className="text-rose-500">*</span>
@@ -148,10 +163,11 @@ export const CreatePollModal: React.FC = () => {
             </button>
             <button
               type="submit"
+              disabled={isSaving}
               className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-md shadow-brand-500/25 transition-all"
             >
               <Vote className="w-4 h-4" />
-              <span>Post Poll</span>
+              <span>{isSaving ? 'Saving…' : 'Post Poll'}</span>
             </button>
           </div>
         </form>
