@@ -159,7 +159,7 @@ Deno.serve(async (request: Request) => {
 
     const { data: targetProfile, error: targetProfileError } = await adminClient
       .from('profiles')
-      .select('system_role')
+      .select('id, system_role')
       .eq('id', userId)
       .single();
     if (targetProfileError) return jsonResponse({ error: targetProfileError.message }, 404);
@@ -174,10 +174,32 @@ Deno.serve(async (request: Request) => {
       }
     }
 
-    const { error: deleteUserError } = await adminClient.auth.admin.deleteUser(userId);
-    if (deleteUserError) return jsonResponse({ error: deleteUserError.message }, 400);
-    const { error: deleteProfileError } = await adminClient.from('profiles').delete().eq('id', userId);
+    const { data: targetAuth, error: targetAuthError } = await adminClient.auth.admin.getUserById(userId);
+    const authUserMissing = targetAuthError !== null
+      && (targetAuthError.status === 404 || /user not found/i.test(targetAuthError.message));
+    if (targetAuthError && !authUserMissing) {
+      return jsonResponse({ error: `Could not verify the staff account before removal: ${targetAuthError.message}` }, 400);
+    }
+
+    if (targetAuth.user) {
+      const { error: deleteUserError } = await adminClient.auth.admin.deleteUser(userId);
+      const authUserDisappeared = deleteUserError !== null
+        && (deleteUserError.status === 404 || /user not found/i.test(deleteUserError.message));
+      if (deleteUserError && !authUserDisappeared) {
+        return jsonResponse({ error: deleteUserError.message }, 400);
+      }
+    }
+
+    const { data: deletedProfile, error: deleteProfileError } = await adminClient
+      .from('profiles')
+      .delete()
+      .eq('id', targetProfile.id)
+      .select('id')
+      .maybeSingle();
     if (deleteProfileError) return jsonResponse({ error: deleteProfileError.message }, 400);
+    if (!deletedProfile) {
+      return jsonResponse({ error: 'The staff profile was already removed. Refresh the staff list.' }, 404);
+    }
     return jsonResponse({ success: true });
   }
 
