@@ -191,8 +191,8 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
 
   if (isAnnouncementRestricted) {
     return (
-      <div className="p-4 bg-amber-50/90 border border-amber-200/80 rounded-2xl text-center text-xs text-amber-800 font-medium">
-        📢 Only Admins and Leadership Coordinators have permissions to post new broadcasts here. You can reply in threads to existing posts.
+      <div className="px-3 py-2 text-xs text-slate-400 border-t border-slate-200/70">
+        You don't have permission to post here.
       </div>
     );
   }

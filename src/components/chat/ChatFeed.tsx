@@ -240,21 +240,6 @@ export const ChatFeed: React.FC = () => {
         </div>
       </div>
 
-      {/* Announcement Ribbon */}
-      {isChannel && currentChan?.type === 'announcement' && (
-        <div className="bg-amber-500/10 border-b border-amber-200/70 px-6 py-2 flex items-center justify-between text-xs text-amber-900 font-medium">
-          <div className="flex items-center gap-2">
-            <Megaphone className="w-4 h-4 text-amber-600 flex-shrink-0" />
-            <span>
-              Official organization announcement channel. Only Admins and Coordinators can broadcast main posts. Staff can discuss in threads & react.
-            </span>
-          </div>
-          <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-200/70 px-2 py-0.5 rounded text-amber-800">
-            Forum Style
-          </span>
-        </div>
-      )}
-
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
         {currentMessages.length === 0 ? (
@@ -283,7 +268,7 @@ export const ChatFeed: React.FC = () => {
             <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
               {isChannel
                 ? currentChan?.type === 'announcement'
-                  ? 'Leadership can publish official broadcasts below. Teammates will receive sound alerts and can participate via threaded replies.'
+                  ? 'Official announcements for the team.'
                   : currentChan?.description || 'Send the first message to get the discussion started.'
                 : 'Send a message, upload project files, or start a voice or video call.'}
             </p>
@@ -306,11 +291,7 @@ export const ChatFeed: React.FC = () => {
       <div className="p-4 pt-2">
         <MessageComposer
           onSendMessage={sendMessage}
-          placeholder={
-            isAnnouncementRestricted
-              ? 'Posting restricted to Admins & Coordinators...'
-              : `Message ${isChannel ? '#' + currentChan?.name : partnerUser?.name || currentConv?.name}...`
-          }
+          placeholder={`Message ${isChannel ? '#' + currentChan?.name : partnerUser?.name || currentConv?.name}...`}
           isAnnouncementRestricted={isAnnouncementRestricted}
         />
       </div>

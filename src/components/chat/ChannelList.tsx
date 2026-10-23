@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import {
   Hash,
-  Volume2,
   Megaphone,
   Lock,
   Plus,
   Search,
   Pin,
-  ShieldAlert,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
@@ -20,22 +18,11 @@ export const ChannelList: React.FC = () => {
     setIsCreateChannelOpen,
   } = useWorkspace();
 
-  const [filter, setFilter] = useState<'all' | 'announcements' | 'public'>('all');
   const [search, setSearch] = useState('');
 
   const filteredChannels = channels.filter((c) => {
-    const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase());
-    if (filter === 'announcements') {
-      return matchesSearch && c.type === 'announcement';
-    }
-    if (filter === 'public') {
-      return matchesSearch && !c.isPrivate && c.type !== 'announcement';
-    }
-    return matchesSearch;
+    return c.name.toLowerCase().includes(search.toLowerCase());
   });
-
-  const announcementChannels = filteredChannels.filter((c) => c.type === 'announcement');
-  const regularChannels = filteredChannels.filter((c) => c.type !== 'announcement');
 
   const renderChannelItem = (ch: typeof channels[0]) => {
     const isActive = ch.id === activeChannelId;
@@ -95,17 +82,9 @@ export const ChannelList: React.FC = () => {
             {ch.lastPost ? `${ch.lastPost.senderName}: ${ch.lastPost.text}` : ch.description}
           </p>
 
-          {/* Members count & posting permissions info */}
+          {/* Members */}
           <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
             <span>{ch.members.length} members</span>
-            <span>•</span>
-            {ch.type === 'announcement' ? (
-              <span className="text-amber-600 font-semibold flex items-center gap-0.5">
-                <ShieldAlert className="w-2.5 h-2.5" /> Leadership Only
-              </span>
-            ) : (
-              <span>All Staff</span>
-            )}
           </div>
         </div>
 
@@ -133,7 +112,7 @@ export const ChannelList: React.FC = () => {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Channels</h2>
-            <p className="text-[11px] text-slate-500 font-medium">Workspaces & Broadcasts</p>
+            <p className="text-[11px] text-slate-500 font-medium">All channels</p>
           </div>
           <button
             onClick={() => setIsCreateChannelOpen(true)}
@@ -156,60 +135,11 @@ export const ChannelList: React.FC = () => {
           />
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1 p-0.5 bg-slate-100/90 rounded-xl">
-          <button
-            onClick={() => setFilter('all')}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              filter === 'all'
-                ? 'bg-white text-slate-900 shadow-2xs'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            All ({channels.length})
-          </button>
-          <button
-            onClick={() => setFilter('announcements')}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              filter === 'announcements'
-                ? 'bg-white text-slate-900 shadow-2xs'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            📢 Broadcasts
-          </button>
-          <button
-            onClick={() => setFilter('public')}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              filter === 'public'
-                ? 'bg-white text-slate-900 shadow-2xs'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Teams
-          </button>
-        </div>
       </div>
 
       {/* Channel Scroll Area */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
-        {/* Announcement Channels Section */}
-        {announcementChannels.length > 0 && (
-          <div>
-            <div className="flex items-center gap-1.5 px-2 mb-1.5 text-[10px] font-bold text-amber-700 uppercase tracking-wider">
-              <Megaphone className="w-3 h-3 text-amber-600" /> Organization Broadcasts
-            </div>
-            <div className="space-y-1">{announcementChannels.map(renderChannelItem)}</div>
-          </div>
-        )}
-
-        {/* Regular Channels */}
-        <div>
-          <div className="px-2 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            Discussion Channels
-          </div>
-          <div className="space-y-1">{regularChannels.map(renderChannelItem)}</div>
-        </div>
+      <div className="flex-1 overflow-y-auto px-3 py-2">
+        <div className="space-y-1">{filteredChannels.map(renderChannelItem)}</div>
       </div>
     </div>
   );
