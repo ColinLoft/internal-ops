@@ -9,6 +9,7 @@ import { ThreadPanel } from './components/chat/ThreadPanel';
 import { RightDrawer } from './components/chat/RightDrawer';
 import { CalendarView } from './components/calendar/CalendarView';
 import { CallOverlay } from './components/call/CallOverlay';
+import { AdminPage } from './components/admin/AdminPage';
 
 // Auth & Modals
 import { AuthScreen } from './components/auth/AuthScreen';
@@ -83,6 +84,7 @@ const WorkspaceShell: React.FC = () => {
           )}
 
           {activeTab === 'calendar' && <CalendarView />}
+          {activeTab === 'admin' && <AdminPage />}
         </div>
       </div>
 

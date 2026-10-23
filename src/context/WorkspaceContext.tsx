@@ -38,7 +38,7 @@ interface WorkspaceContextType {
   isSupabaseConnected: boolean;
   
   // Navigation & Views
-  activeTab: 'messages' | 'channels' | 'calendar';
+  activeTab: 'messages' | 'channels' | 'calendar' | 'admin';
   activeConversationId: string;
   activeChannelId: string;
   activeThreadMessageId: string | null;
@@ -76,7 +76,7 @@ interface WorkspaceContextType {
   setPassword: (password: string) => Promise<{ success: boolean; message?: string }>;
   
   // Navigation actions
-  setActiveTab: (tab: 'messages' | 'channels' | 'calendar') => void;
+  setActiveTab: (tab: 'messages' | 'channels' | 'calendar' | 'admin') => void;
   setActiveConversationId: (id: string) => void;
   setActiveChannelId: (id: string) => void;
   openThread: (messageId: string) => void;
@@ -123,6 +123,8 @@ interface WorkspaceContextType {
   saveCurrentProfile: (updates: Partial<User>) => Promise<void>;
   saveWorkspaceSettings: (settings: WorkspaceSettings) => Promise<void>;
   addTeammate: (user: User) => Promise<void>;
+  updateStaffUser: (userId: string, updates: Partial<User>) => Promise<void>;
+  setStaffTemporaryPassword: (userId: string, password: string) => Promise<void>;
   openUserProfile: (user: User) => void;
   closeUserProfile: () => void;
   resetWorkspace: () => void;
@@ -140,6 +142,17 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const STORAGE_PREFIX = 'beacon_v3_';
+
+const getFunctionError = async (error: unknown): Promise<Error> => {
+  if (error instanceof Error && 'context' in error && error.context instanceof Response) {
+    const responseBody: unknown = await error.context.clone().json().catch(() => null);
+    if (responseBody && typeof responseBody === 'object' && 'error' in responseBody
+      && typeof responseBody.error === 'string') {
+      return new Error(responseBody.error);
+    }
+  }
+  return error instanceof Error ? error : new Error('The Supabase function request failed.');
+};
 
 const mapSupabaseProfile = (row: Record<string, any>, currentUserId: string): User => ({
   id: row.id,
@@ -166,7 +179,7 @@ const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
 
   return {
     ...DEFAULT_WORKSPACE_SETTINGS,
-    theme: preferences.theme === 'light' ? 'light' : 'dark',
+    theme: preferences.theme === 'dark' ? 'dark' : 'light',
     accentColor: typeof preferences.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(preferences.accentColor)
       ? preferences.accentColor
       : DEFAULT_WORKSPACE_SETTINGS.accentColor,
@@ -348,7 +361,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings>(DEFAULT_WORKSPACE_SETTINGS);
 
   // Navigation
-  const [activeTab, setActiveTabState] = useState<'messages' | 'channels' | 'calendar'>('channels');
+  const [activeTab, setActiveTabState] = useState<'messages' | 'channels' | 'calendar' | 'admin'>('channels');
   const [activeConversationId, setActiveConversationId] = useState<string>('');
   const [activeChannelId, setActiveChannelId] = useState<string>('chan-announcements');
   const [activeThreadMessageId, setActiveThreadMessageId] = useState<string | null>(null);
@@ -463,7 +476,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           setMessages(workspaceData.messages);
           setThreadReplies(workspaceData.threadReplies);
           setIsAuthenticated(true);
-          setRequiresPasswordSetup(new URLSearchParams(window.location.search).get('invite') === '1');
+          setRequiresPasswordSetup(
+            new URLSearchParams(window.location.search).get('invite') === '1'
+            || session.user.app_metadata?.password_reset_required === true
+          );
         }
       } catch (error) {
         console.error('Unable to load Supabase workspace data:', error);
@@ -546,6 +562,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       setMessages(workspaceData.messages);
       setThreadReplies(workspaceData.threadReplies);
       setIsAuthenticated(true);
+      setRequiresPasswordSetup(data.user.app_metadata?.password_reset_required === true);
       sounds.playNotification();
       return { success: true };
     } catch (profileError) {
@@ -578,6 +595,14 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     const { error } = await supabase.auth.updateUser({ password });
     if (error) return { success: false, message: error.message };
 
+    const { error: resetFlagError } = await supabase.functions.invoke('admin-manage-user', {
+      body: { action: 'complete-password-reset' },
+    });
+    if (resetFlagError) {
+      const functionError = await getFunctionError(resetFlagError);
+      return { success: false, message: `Password updated, but the temporary-password requirement could not be cleared: ${functionError.message}` };
+    }
+
     setRequiresPasswordSetup(false);
     const url = new URL(window.location.href);
     url.searchParams.delete('invite');
@@ -585,7 +610,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     return { success: true };
   };
 
-  const setActiveTab = (tab: 'messages' | 'channels' | 'calendar') => {
+  const setActiveTab = (tab: 'messages' | 'channels' | 'calendar' | 'admin') => {
     setActiveTabState(tab);
     setActiveThreadMessageId(null);
   };
@@ -755,7 +780,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       },
     });
 
-    if (error) throw error;
+    if (error) throw await getFunctionError(error);
     if (!data?.userId) throw new Error('The invitation was sent, but no Supabase user ID was returned.');
 
     const { data: profileRows, error: profileError } = await supabase.from('profiles').select('*');
@@ -791,6 +816,47 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       },
       ...prev,
     ]);
+  };
+
+  const updateStaffUser = async (userId: string, updates: Partial<User>) => {
+    const { error } = await supabase.functions.invoke('admin-manage-user', {
+      body: {
+        action: 'update-profile',
+        userId,
+        profile: {
+          name: updates.name,
+          role: updates.role,
+          department: updates.department,
+          phone: updates.phone,
+          avatar_url: updates.avatar,
+          status: updates.status,
+          status_message: updates.statusMessage,
+          bio: updates.bio,
+          location: updates.location,
+          banner: updates.banner,
+          system_role: updates.systemRole,
+        },
+      },
+    });
+    if (error) throw await getFunctionError(error);
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    if (profileError) throw profileError;
+    setUsers((previous) => previous.map((user) =>
+      user.id === userId ? mapSupabaseProfile(profile, currentUser.id) : user
+    ));
+    if (userId === currentUser.id) setCurrentUser(mapSupabaseProfile(profile, currentUser.id));
+  };
+
+  const setStaffTemporaryPassword = async (userId: string, password: string) => {
+    const { error } = await supabase.functions.invoke('admin-manage-user', {
+      body: { action: 'set-password', userId, password },
+    });
+    if (error) throw await getFunctionError(error);
   };
 
   const resetWorkspace = () => {
@@ -910,7 +976,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
             description: `${currentUser.name} pinged the channel`,
             timestamp: 'Just now',
             isRead: false,
-            linkTab: activeTab,
+            linkTab: activeTab === 'admin' ? 'channels' : activeTab,
             targetId,
           },
           ...prev,
@@ -1345,6 +1411,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         saveCurrentProfile,
         saveWorkspaceSettings,
         addTeammate,
+        updateStaffUser,
+        setStaffTemporaryPassword,
         openUserProfile,
         closeUserProfile,
         resetWorkspace,

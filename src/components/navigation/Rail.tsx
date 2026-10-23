@@ -3,6 +3,7 @@ import {
   MessageSquare,
   Hash,
   Calendar as CalendarIcon,
+  UserRound,
   Bell,
   Sparkles,
 } from 'lucide-react';
@@ -116,6 +117,24 @@ export const Rail: React.FC = () => {
               Calendar
             </span>
           </button>
+
+          {currentUser.systemRole === 'admin' && (
+            <button
+              onClick={() => setActiveTab('admin')}
+              className={`group relative p-3 rounded-2xl transition-all duration-200 ${
+                activeTab === 'admin'
+                  ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40'
+                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
+              }`}
+              title="People & access"
+              aria-label="People & access"
+            >
+              <UserRound className="w-5 h-5" />
+              <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                People &amp; access
+              </span>
+            </button>
+          )}
         </nav>
       </div>
 
