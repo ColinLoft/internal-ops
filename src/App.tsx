@@ -12,7 +12,7 @@ import { CallOverlay } from './components/call/CallOverlay';
 
 // Auth & Modals
 import { AuthScreen } from './components/auth/AuthScreen';
-import { PasswordResetModal } from './components/auth/PasswordResetModal';
+import { PasswordSetupModal } from './components/auth/PasswordSetupModal';
 import { ProfileModal } from './components/profile/ProfileModal';
 import { EditProfileModal } from './components/profile/EditProfileModal';
 import { CreateChannelModal } from './components/modals/CreateChannelModal';
@@ -25,6 +25,8 @@ import { InviteReadyModal } from './components/modals/InviteReadyModal';
 const WorkspaceShell: React.FC = () => {
   const {
     isAuthenticated,
+    isAuthLoading,
+    requiresPasswordSetup,
     activeTab,
     activeThreadMessageId,
     isRightDrawerOpen,
@@ -35,13 +37,12 @@ const WorkspaceShell: React.FC = () => {
   } = useWorkspace();
 
   // If not authenticated, render the Auth Portal
+  if (isAuthLoading) {
+    return <div className="min-h-screen bg-slate-950" aria-label="Loading session" />;
+  }
+
   if (!isAuthenticated) {
-    return (
-      <>
-        <AuthScreen />
-        <PasswordResetModal />
-      </>
-    );
+    return <AuthScreen />;
   }
 
   return (
@@ -103,7 +104,7 @@ const WorkspaceShell: React.FC = () => {
         onClose={() => setInviteReadyData(null)}
         inviteData={inviteReadyData}
       />
-      <PasswordResetModal />
+      {requiresPasswordSetup && <PasswordSetupModal />}
     </div>
   );
 };

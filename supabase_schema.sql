@@ -15,12 +15,60 @@ create table if not exists public.profiles (
   status text default 'online' check (status in ('online', 'busy', 'away', 'offline')),
   status_message text,
   last_seen text,
-  must_reset_password boolean default false,
-  temp_password text,
-  password_hash text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.profiles drop column if exists must_reset_password;
+alter table public.profiles drop column if exists temp_password;
+alter table public.profiles drop column if exists password_hash;
+
+delete from public.profiles as profile
+where not exists (
+  select 1 from auth.users as auth_user where auth_user.id::text = profile.id
+);
+
+-- Create a workspace profile for each Supabase Auth user.
+create or replace function public.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, email, name)
+  values (
+    new.id::text,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1))
+  )
+  on conflict (id) do update
+    set email = excluded.email;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_auth_user();
+
+create or replace function public.prevent_profile_role_change()
+returns trigger
+language plpgsql
+as $$
+begin
+  if auth.role() = 'authenticated' and new.system_role is distinct from old.system_role then
+    raise exception 'Only trusted server operations can change workspace permissions';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists protect_profile_role on public.profiles;
+create trigger protect_profile_role
+  before update on public.profiles
+  for each row execute procedure public.prevent_profile_role_change();
 
 -- 2. Channels Table
 create table if not exists public.channels (
@@ -85,16 +133,22 @@ values ('avatars', 'avatars', true)
 on conflict (id) do update set public = true;
 
 -- Storage bucket access policies
+drop policy if exists "Allow Public Read on Avatars" on storage.objects;
+drop policy if exists "Allow Public Upload on Avatars" on storage.objects;
+drop policy if exists "Allow Public Update on Avatars" on storage.objects;
+
 create policy "Allow Public Read on Avatars"
   on storage.objects for select
   using ( bucket_id = 'avatars' );
 
 create policy "Allow Public Upload on Avatars"
   on storage.objects for insert
+  to authenticated
   with check ( bucket_id = 'avatars' );
 
 create policy "Allow Public Update on Avatars"
   on storage.objects for update
+  to authenticated
   using ( bucket_id = 'avatars' );
 
 -- Enable Row Level Security (RLS) with open read/write for organization staff
@@ -104,17 +158,36 @@ alter table public.channel_members enable row level security;
 alter table public.messages enable row level security;
 alter table public.calendar_events enable row level security;
 
-create policy "Enable full access for staff on profiles"
-  on public.profiles for all using (true) with check (true);
+drop policy if exists "Enable full access for staff on profiles" on public.profiles;
+drop policy if exists "Authenticated users can read profiles" on public.profiles;
+drop policy if exists "Users can insert their own profile" on public.profiles;
+drop policy if exists "Users can update their own profile" on public.profiles;
+
+create policy "Authenticated users can read profiles"
+  on public.profiles for select to authenticated using (true);
+
+create policy "Users can insert their own profile"
+  on public.profiles for insert to authenticated
+  with check (id = auth.uid()::text);
+
+create policy "Users can update their own profile"
+  on public.profiles for update to authenticated
+  using (id = auth.uid()::text)
+  with check (id = auth.uid()::text);
+
+drop policy if exists "Enable full access for staff on channels" on public.channels;
+drop policy if exists "Enable full access for staff on channel_members" on public.channel_members;
+drop policy if exists "Enable full access for staff on messages" on public.messages;
+drop policy if exists "Enable full access for staff on calendar_events" on public.calendar_events;
 
 create policy "Enable full access for staff on channels"
-  on public.channels for all using (true) with check (true);
+  on public.channels for all to authenticated using (true) with check (true);
 
 create policy "Enable full access for staff on channel_members"
-  on public.channel_members for all using (true) with check (true);
+  on public.channel_members for all to authenticated using (true) with check (true);
 
 create policy "Enable full access for staff on messages"
-  on public.messages for all using (true) with check (true);
+  on public.messages for all to authenticated using (true) with check (true);
 
 create policy "Enable full access for staff on calendar_events"
-  on public.calendar_events for all using (true) with check (true);
+  on public.calendar_events for all to authenticated using (true) with check (true);

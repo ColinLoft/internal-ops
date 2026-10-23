@@ -23,7 +23,7 @@ export const AuthScreen: React.FC = () => {
     setLoading(true);
 
     try {
-      const result = await login(email.trim(), password.trim());
+      const result = await login(email.trim(), password);
       if (!result.success) {
         setError(result.message || 'Invalid email or password.');
       }
@@ -61,7 +61,7 @@ export const AuthScreen: React.FC = () => {
           <div className="mb-5 text-center">
             <h3 className="text-base font-bold text-slate-900">Staff Portal Sign In</h3>
             <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Enter your registered staff email and password or administrator-issued temporary passcode.
+              Sign in with the email and password for your Supabase Auth account.
             </p>
           </div>
 

@@ -15,9 +15,6 @@ export interface User {
   lastSeen?: string;
   systemRole: UserRole; // for announcement channel permissions
   isCurrentUser?: boolean;
-  mustResetPassword?: boolean;
-  tempPassword?: string;
-  password?: string;
 }
 
 export interface Attachment {

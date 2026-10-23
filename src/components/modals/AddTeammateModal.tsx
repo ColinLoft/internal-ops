@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, UserPlus, ShieldCheck, Camera, Key, RefreshCw, Upload } from 'lucide-react';
+import { X, UserPlus, Camera, Upload } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { UserRole, User } from '../../types';
 import { uploadAvatarToSupabase } from '../../lib/supabase';
@@ -20,15 +20,8 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
     'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
   );
   const [uploadingImage, setUploadingImage] = useState(false);
-
-  // Generate random temporary password
-  const generateTempPassword = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    const rand = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-    return `BEACON-${rand}`;
-  };
-
-  const [tempPassword, setTempPassword] = useState(generateTempPassword);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,12 +52,14 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) return;
+    if (!name.trim() || !email.trim() || submitting) return;
+    setError('');
+    setSubmitting(true);
 
     const newStaff: User = {
-      id: `user-${Date.now()}`,
+      id: '',
       name: name.trim(),
       email: email.trim().toLowerCase(),
       role: role.trim() || 'Staff Specialist',
@@ -74,20 +69,21 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
       systemRole,
       avatar,
       statusMessage: 'New staff member',
-      mustResetPassword: true,
-      tempPassword: tempPassword.trim(),
     };
 
-    addTeammate(newStaff);
-    onClose();
-
-    // Reset fields
-    setName('');
-    setEmail('');
-    setRole('');
-    setPhone('');
-    setSystemRole('member');
-    setTempPassword(generateTempPassword());
+    try {
+      await addTeammate(newStaff);
+      onClose();
+      setName('');
+      setEmail('');
+      setRole('');
+      setPhone('');
+      setSystemRole('member');
+    } catch (inviteError) {
+      setError((inviteError as Error).message || 'Unable to send the invitation.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -101,7 +97,7 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
             </div>
             <div>
               <h3 className="font-bold text-base text-slate-900">Register Staff Member</h3>
-              <p className="text-xs text-slate-500 font-medium">Issue invite credentials with temporary password</p>
+              <p className="text-xs text-slate-500 font-medium">Send a secure Supabase Auth invitation</p>
             </div>
           </div>
           <button
@@ -247,35 +243,7 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
             />
           </div>
 
-          {/* Generated Temporary Password Card */}
-          <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200/80 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-amber-700" />
-                Temporary Login Passcode
-              </label>
-              <button
-                type="button"
-                onClick={() => setTempPassword(generateTempPassword())}
-                className="text-[11px] font-semibold text-amber-800 hover:text-amber-950 flex items-center gap-1"
-                title="Generate another password"
-              >
-                <RefreshCw className="w-3 h-3" /> Regenerate
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={tempPassword}
-                onChange={(e) => setTempPassword(e.target.value)}
-                required
-                className="flex-1 px-3 py-1.5 text-xs font-mono font-bold bg-white text-slate-900 rounded-xl border border-amber-300 focus:border-brand-500 outline-none"
-              />
-            </div>
-            <p className="text-[10px] text-amber-700 leading-tight">
-              The employee will be required to reset this to their own permanent password upon their first sign in.
-            </p>
-          </div>
+          <p className="text-xs text-slate-500">The employee will receive an email invitation and set their password through Supabase.</p>
 
           {/* System Role */}
           <div>
@@ -323,6 +291,7 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
           </div>
 
           {/* Submit */}
+          {error && <p role="alert" className="text-xs font-semibold text-rose-700">{error}</p>}
           <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
             <button
               type="button"
@@ -333,10 +302,11 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
             </button>
             <button
               type="submit"
-              className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-md shadow-brand-500/25 transition-all"
+              disabled={submitting}
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-md shadow-brand-500/25 transition-all disabled:opacity-50"
             >
               <UserPlus className="w-4 h-4" />
-              <span>Register Employee</span>
+              <span>{submitting ? 'Sending...' : 'Send Invitation'}</span>
             </button>
           </div>
         </form>

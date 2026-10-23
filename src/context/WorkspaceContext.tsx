@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import type { User as SupabaseAuthUser } from '@supabase/supabase-js';
 import {
   User,
   Conversation,
@@ -13,8 +14,6 @@ import {
   UserRole,
 } from '../types';
 import {
-  initialCurrentUser,
-  initialUsers,
   initialConversations,
   initialChannels,
   initialMessages,
@@ -28,8 +27,9 @@ import { supabase, testSupabaseConnection } from '../lib/supabase';
 interface WorkspaceContextType {
   // Auth state
   isAuthenticated: boolean;
+  isAuthLoading: boolean;
+  requiresPasswordSetup: boolean;
   currentUser: User;
-  pendingResetUser: User | null;
   users: User[];
   isSupabaseConnected: boolean;
   
@@ -61,7 +61,6 @@ interface WorkspaceContextType {
     name: string;
     email: string;
     role: string;
-    tempPassword: string;
     systemRole: string;
   } | null;
   searchQuery: string;
@@ -69,7 +68,7 @@ interface WorkspaceContextType {
   // Auth actions
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
-  completePasswordReset: (newPassword: string) => void;
+  setPassword: (password: string) => Promise<{ success: boolean; message?: string }>;
   
   // Navigation actions
   setActiveTab: (tab: 'messages' | 'channels' | 'calendar') => void;
@@ -116,7 +115,7 @@ interface WorkspaceContextType {
   
   // Profile & Management
   updateCurrentUser: (updates: Partial<User>) => void;
-  addTeammate: (user: User) => void;
+  addTeammate: (user: User) => Promise<void>;
   openUserProfile: (user: User) => void;
   closeUserProfile: () => void;
   resetWorkspace: () => void;
@@ -134,24 +133,72 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 
 const STORAGE_PREFIX = 'beacon_v3_';
 
+const mapSupabaseProfile = (row: Record<string, any>, currentUserId: string): User => ({
+  id: row.id,
+  name: row.name || row.email,
+  email: row.email,
+  role: row.role || 'Staff Specialist',
+  department: row.department || 'Operations',
+  phone: row.phone || '',
+  avatar: row.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+  status: row.status || 'offline',
+  systemRole: row.system_role || 'member',
+  statusMessage: row.status_message || undefined,
+  isCurrentUser: row.id === currentUserId,
+});
+
+const loadSupabaseProfiles = async (authUser: SupabaseAuthUser) => {
+  const { data: existingProfile, error: profileError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', authUser.id)
+    .maybeSingle();
+
+  if (profileError) throw profileError;
+
+  let profile = existingProfile;
+  if (!profile) {
+    const name = String(authUser.user_metadata?.name || authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Staff member');
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert({ id: authUser.id, email: authUser.email, name }, { onConflict: 'id' })
+      .select()
+      .single();
+
+    if (error) throw error;
+    profile = data;
+  }
+
+  const { data: profileRows, error: rosterError } = await supabase.from('profiles').select('*');
+  if (rosterError) throw rosterError;
+
+  return {
+    users: profileRows.map((row) => mapSupabaseProfile(row, authUser.id)),
+    currentUser: mapSupabaseProfile(profile, authUser.id),
+  };
+};
+
 export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Auth state
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem(`${STORAGE_PREFIX}is_auth`) === 'true';
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [requiresPasswordSetup, setRequiresPasswordSetup] = useState(false);
 
-  const [pendingResetUser, setPendingResetUser] = useState<User | null>(null);
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(false);
 
   // Users state
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}users`);
-    return saved ? JSON.parse(saved) : initialUsers;
-  });
+  const [users, setUsers] = useState<User[]>([]);
 
-  const [currentUser, setCurrentUser] = useState<User>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}current_user`);
-    return saved ? JSON.parse(saved) : initialCurrentUser;
+  const [currentUser, setCurrentUser] = useState<User>({
+    id: '',
+    name: '',
+    email: '',
+    avatar: '',
+    role: '',
+    department: '',
+    phone: '',
+    status: 'offline',
+    systemRole: 'member',
   });
 
   // Navigation
@@ -206,7 +253,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     name: string;
     email: string;
     role: string;
-    tempPassword: string;
     systemRole: string;
   } | null>(null);
 
@@ -238,25 +284,75 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
   }, [callSession.active, callSession.status]);
 
-  // Check Supabase connection on startup
+  // Restore the Supabase session and keep workspace authentication in sync.
   useEffect(() => {
     testSupabaseConnection().then((res) => {
       setIsSupabaseConnected(res.success);
     });
+
+    let active = true;
+    let authEventSeen = false;
+
+    const applySession = async (session: { user: SupabaseAuthUser } | null) => {
+      if (!session) {
+        if (active) {
+          setIsAuthenticated(false);
+          setRequiresPasswordSetup(false);
+          setUsers([]);
+          setCurrentUser({ id: '', name: '', email: '', avatar: '', role: '', department: '', phone: '', status: 'offline', systemRole: 'member' });
+          setIsAuthLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const profileData = await loadSupabaseProfiles(session.user);
+        if (active) {
+          setUsers(profileData.users);
+          setCurrentUser(profileData.currentUser);
+          setChannels((channels) => channels.map((channel) =>
+            !channel.isPrivate && !channel.members.includes(profileData.currentUser.id)
+              ? { ...channel, members: [...channel.members, profileData.currentUser.id] }
+              : channel
+          ));
+          setIsAuthenticated(true);
+          setRequiresPasswordSetup(new URLSearchParams(window.location.search).get('invite') === '1');
+        }
+      } catch (error) {
+        console.error('Unable to load the Supabase profile:', error);
+        if (active) setIsAuthenticated(false);
+      } finally {
+        if (active) setIsAuthLoading(false);
+      }
+    };
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) console.error('Unable to restore Supabase session:', error);
+      if (active && !authEventSeen) void applySession(data?.session ?? null);
+    }).catch((error) => {
+      console.error('Unable to restore Supabase session:', error);
+      if (active) setIsAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      authEventSeen = true;
+      window.setTimeout(() => {
+        if (active) void applySession(session);
+      }, 0);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Save state to localStorage
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}is_auth`, isAuthenticated ? 'true' : 'false');
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}current_user`, JSON.stringify(currentUser));
-  }, [currentUser]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}users`, JSON.stringify(users));
-  }, [users]);
+    localStorage.removeItem(`${STORAGE_PREFIX}is_auth`);
+    localStorage.removeItem(`${STORAGE_PREFIX}current_user`);
+    localStorage.removeItem(`${STORAGE_PREFIX}users`);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_PREFIX}conversations`, JSON.stringify(conversations));
@@ -282,136 +378,54 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     localStorage.setItem(`${STORAGE_PREFIX}notifications`, JSON.stringify(notifications));
   }, [notifications]);
 
-  // Sync with Supabase profiles table if available
-  useEffect(() => {
-    const fetchSupabaseProfiles = async () => {
-      try {
-        const { data, error } = await supabase.from('profiles').select('*');
-        if (!error && data && data.length > 0) {
-          const mappedUsers: User[] = data.map((d) => ({
-            id: d.id,
-            name: d.name,
-            email: d.email,
-            role: d.role || 'Staff Specialist',
-            department: d.department || 'Operations',
-            phone: d.phone || '',
-            avatar: d.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-            status: d.status || 'offline',
-            systemRole: d.system_role || 'member',
-            statusMessage: d.status_message,
-            mustResetPassword: d.must_reset_password,
-            tempPassword: d.temp_password,
-            password: d.password_hash,
-          }));
-
-          setUsers((prev) => {
-            const combined = [...prev];
-            mappedUsers.forEach((mu) => {
-              const idx = combined.findIndex((u) => u.email.toLowerCase() === mu.email.toLowerCase());
-              if (idx >= 0) {
-                combined[idx] = { ...combined[idx], ...mu };
-              } else {
-                combined.push(mu);
-              }
-            });
-            return combined;
-          });
-        }
-      } catch {
-        // Fallback to local state
-      }
-    };
-
-    fetchSupabaseProfiles();
-  }, []);
-
   // Login handler
   const login = async (email: string, pass: string): Promise<{ success: boolean; message?: string }> => {
-    const cleanEmail = email.trim().toLowerCase();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password: pass,
+    });
 
-    // 1. Check Admin Account (Default / Superuser)
-    if (cleanEmail === 'alex.morgan@beaconwork.org' && pass === 'beacon-admin-2026') {
-      setCurrentUser(initialCurrentUser);
+    if (error || !data.user) {
+      return { success: false, message: error?.message || 'Unable to sign in.' };
+    }
+
+    setIsAuthLoading(true);
+    try {
+      const profileData = await loadSupabaseProfiles(data.user);
+      setUsers(profileData.users);
+      setCurrentUser(profileData.currentUser);
+      setChannels((channels) => channels.map((channel) =>
+        !channel.isPrivate && !channel.members.includes(profileData.currentUser.id)
+          ? { ...channel, members: [...channel.members, profileData.currentUser.id] }
+          : channel
+      ));
       setIsAuthenticated(true);
       sounds.playNotification();
       return { success: true };
+    } catch (profileError) {
+      await supabase.auth.signOut();
+      return { success: false, message: `Signed in, but the staff profile could not be loaded: ${(profileError as Error).message}` };
+    } finally {
+      setIsAuthLoading(false);
     }
-
-    // 2. Look up user in roster
-    const matchedUser = users.find((u) => u.email.toLowerCase() === cleanEmail);
-
-    if (!matchedUser) {
-      return {
-        success: false,
-        message: 'No registered account found with this email. Please contact an organization administrator for an invite.',
-      };
-    }
-
-    // Check if user is logging in with temporary password for the first time
-    if (matchedUser.mustResetPassword && matchedUser.tempPassword) {
-      if (pass === matchedUser.tempPassword || pass === 'beacon-admin-2026') {
-        // Trigger mandatory password reset modal
-        setPendingResetUser(matchedUser);
-        return { success: true };
-      } else {
-        return { success: false, message: 'Invalid temporary passcode. Please verify with your admin.' };
-      }
-    }
-
-    // Standard password check
-    if (matchedUser.password && matchedUser.password !== pass && pass !== 'beacon-admin-2026') {
-      return { success: false, message: 'Incorrect password. Please try again.' };
-    }
-
-    // Success login
-    setCurrentUser(matchedUser);
-    setIsAuthenticated(true);
-    sounds.playNotification();
-    return { success: true };
   };
 
   const logout = () => {
+    void supabase.auth.signOut();
     setIsAuthenticated(false);
-    setPendingResetUser(null);
+    setUsers([]);
+    setCurrentUser({ id: '', name: '', email: '', avatar: '', role: '', department: '', phone: '', status: 'offline', systemRole: 'member' });
   };
 
-  // Complete password reset
-  const completePasswordReset = async (newPassword: string) => {
-    if (!pendingResetUser) return;
+  const setPassword = async (password: string): Promise<{ success: boolean; message?: string }> => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return { success: false, message: error.message };
 
-    const updatedUser: User = {
-      ...pendingResetUser,
-      mustResetPassword: false,
-      tempPassword: undefined,
-      password: newPassword,
-    };
-
-    // Update in local state
-    setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
-    setCurrentUser(updatedUser);
-    setPendingResetUser(null);
-    setIsAuthenticated(true);
-
-    // Sync to Supabase
-    try {
-      await supabase.from('profiles').upsert({
-        id: updatedUser.id,
-        email: updatedUser.email,
-        name: updatedUser.name,
-        role: updatedUser.role,
-        department: updatedUser.department,
-        phone: updatedUser.phone,
-        avatar_url: updatedUser.avatar,
-        system_role: updatedUser.systemRole,
-        must_reset_password: false,
-        temp_password: null,
-        password_hash: newPassword,
-      });
-    } catch {
-      // Local fallback saved
-    }
-
-    sounds.playNotification();
+    setRequiresPasswordSetup(false);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('invite');
+    window.history.replaceState({}, '', url);
+    return { success: true };
   };
 
   const setActiveTab = (tab: 'messages' | 'channels' | 'calendar') => {
@@ -476,44 +490,39 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   // Add teammate / Register staff
   const addTeammate = async (user: User) => {
-    setUsers((prev) => [...prev, user]);
-
-    // Automatically add to public channels
-    setChannels((prevChans) =>
-      prevChans.map((ch) =>
-        !ch.isPrivate ? { ...ch, members: [...ch.members, user.id] } : ch
-      )
-    );
-
-    // Set invite ready details so Admin can copy them
-    if (user.tempPassword) {
-      setInviteReadyData({
+    const { data, error } = await supabase.functions.invoke('invite-user', {
+      body: {
         name: user.name,
         email: user.email,
-        role: user.role,
-        tempPassword: user.tempPassword,
-        systemRole: user.systemRole,
-      });
-    }
-
-    // Sync to Supabase
-    try {
-      await supabase.from('profiles').upsert({
-        id: user.id,
-        email: user.email,
-        name: user.name,
         role: user.role,
         department: user.department,
         phone: user.phone,
-        avatar_url: user.avatar,
-        system_role: user.systemRole,
-        status: 'offline',
-        must_reset_password: user.mustResetPassword,
-        temp_password: user.tempPassword,
-      });
-    } catch {
-      // local fallback saved
-    }
+        avatarUrl: user.avatar,
+        systemRole: user.systemRole,
+      },
+    });
+
+    if (error) throw error;
+    if (!data?.userId) throw new Error('The invitation was sent, but no Supabase user ID was returned.');
+
+    const { data: profileRows, error: profileError } = await supabase.from('profiles').select('*');
+    if (profileError) throw profileError;
+
+    setUsers(profileRows.map((row) => mapSupabaseProfile(row, currentUser.id)));
+    setChannels((prevChans) =>
+      prevChans.map((channel) =>
+        !channel.isPrivate && !channel.members.includes(data.userId)
+          ? { ...channel, members: [...channel.members, data.userId] }
+          : channel
+      )
+    );
+
+    setInviteReadyData({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      systemRole: user.systemRole,
+    });
 
     sounds.playNotification();
 
@@ -522,7 +531,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         id: `notif-user-${Date.now()}`,
         type: 'message',
         title: 'Staff Registered',
-        description: `${user.name} (${user.role}) was invited. Temporary password generated.`,
+        description: `${user.name} (${user.role}) was sent a Supabase invitation.`,
         timestamp: 'Just now',
         isRead: false,
         linkTab: 'messages',
@@ -1021,8 +1030,9 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     <WorkspaceContext.Provider
       value={{
         isAuthenticated,
+        isAuthLoading,
+        requiresPasswordSetup,
         currentUser,
-        pendingResetUser,
         users,
         isSupabaseConnected,
         activeTab,
@@ -1050,7 +1060,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         searchQuery,
         login,
         logout,
-        completePasswordReset,
+        setPassword,
         setActiveTab,
         setActiveConversationId,
         setActiveChannelId,
