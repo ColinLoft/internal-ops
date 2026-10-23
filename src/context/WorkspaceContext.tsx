@@ -16,6 +16,8 @@ import {
   WorkspaceSettings,
   DEFAULT_WORKSPACE_SETTINGS,
   Ringtone,
+  AccountStatus,
+  AdminAuditLog,
 } from '../types';
 import {
   initialConversations,
@@ -36,6 +38,7 @@ interface WorkspaceContextType {
   currentUser: User;
   workspaceSettings: WorkspaceSettings;
   users: User[];
+  adminLogs: AdminAuditLog[];
   isSupabaseConnected: boolean;
   
   // Navigation & Views
@@ -70,6 +73,8 @@ interface WorkspaceContextType {
     email: string;
     role: string;
     systemRole: string;
+    temporaryPassword: string;
+    loginUrl: string;
   } | null;
   searchQuery: string;
   
@@ -131,6 +136,7 @@ interface WorkspaceContextType {
   saveWorkspaceSettings: (settings: WorkspaceSettings) => Promise<void>;
   addTeammate: (user: User) => Promise<void>;
   updateStaffUser: (userId: string, updates: Partial<User>) => Promise<void>;
+  manageStaffAccount: (userId: string, action: 'suspend' | 'reactivate' | 'remove', note?: string) => Promise<void>;
   setStaffTemporaryPassword: (userId: string, password: string) => Promise<void>;
   openUserProfile: (user: User) => void;
   closeUserProfile: () => void;
@@ -170,6 +176,7 @@ const mapSupabaseProfile = (row: Record<string, any>, currentUserId: string): Us
   phone: row.phone || '',
   avatar: row.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
   status: row.status || 'offline',
+  accountStatus: (row.account_status as AccountStatus) || 'active',
   systemRole: row.system_role || 'member',
   statusMessage: row.status_message || undefined,
   bio: row.bio || '',
@@ -353,6 +360,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   // Users state
   const [users, setUsers] = useState<User[]>([]);
+  const [adminLogs, setAdminLogs] = useState<AdminAuditLog[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}admin_logs`);
+    return saved ? JSON.parse(saved) : [];
+  });
 
   const [currentUser, setCurrentUser] = useState<User>({
     id: '',
@@ -405,6 +416,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : initialNotifications;
   });
 
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_PREFIX}admin_logs`, JSON.stringify(adminLogs));
+  }, [adminLogs]);
+
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
   // Modals state
@@ -416,12 +431,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [isNewMessageOpen, setIsNewMessageOpen] = useState<boolean>(false);
   const [isAddEventOpen, setIsAddEventOpen] = useState<boolean>(false);
   const [isAddTeammateOpen, setIsAddTeammateOpen] = useState<boolean>(false);
-  const [inviteReadyData, setInviteReadyData] = useState<{
-    name: string;
-    email: string;
-    role: string;
-    systemRole: string;
-  } | null>(null);
+  const [inviteReadyData, setInviteReadyData] = useState<WorkspaceContextType['inviteReadyData']>(null);
 
   // In-app calling state
   const [callSession, setCallSession] = useState<CallSession>({
@@ -861,12 +871,18 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     });
 
     if (error) throw await getFunctionError(error);
-    if (!data?.userId) throw new Error('The invitation was sent, but no Supabase user ID was returned.');
+    if (!data?.userId || !data?.temporaryPassword || !data?.loginUrl) {
+      throw new Error('The staff account was created, but its one-time sign-in details were not returned.');
+    }
 
-    const { data: profileRows, error: profileError } = await supabase.from('profiles').select('*');
-    if (profileError) throw profileError;
-
-    setUsers(profileRows.map((row) => mapSupabaseProfile(row, currentUser.id)));
+    setUsers((previous) => [
+      ...previous.filter((existing) => existing.id !== data.userId),
+      {
+        ...user,
+        id: data.userId,
+        isCurrentUser: false,
+      },
+    ]);
     setChannels((prevChans) =>
       prevChans.map((channel) =>
         !channel.isPrivate && !channel.members.includes(data.userId)
@@ -880,6 +896,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       email: user.email,
       role: user.role,
       systemRole: user.systemRole,
+      temporaryPassword: data.temporaryPassword,
+      loginUrl: data.loginUrl,
     });
 
     sounds.playNotification();
@@ -889,7 +907,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         id: `notif-user-${Date.now()}`,
         type: 'message',
         title: 'Staff Registered',
-        description: `${user.name} (${user.role}) was sent a Supabase invitation.`,
+        description: `${user.name} (${user.role}) was added to the workspace.`,
         timestamp: 'Just now',
         isRead: false,
         linkTab: 'messages',
@@ -932,11 +950,86 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (userId === currentUser.id) setCurrentUser(mapSupabaseProfile(profile, currentUser.id));
   };
 
+  const manageStaffAccount = async (userId: string, action: 'suspend' | 'reactivate' | 'remove', note?: string) => {
+    if (currentUser.systemRole !== 'admin') {
+      throw new Error('Only workspace administrators can manage staff accounts.');
+    }
+    if (userId === currentUser.id && action !== 'reactivate') {
+      throw new Error('You cannot suspend or remove your own admin account.');
+    }
+
+    const target = users.find((user) => user.id === userId) || null;
+    const nextAction = action === 'suspend' ? 'suspend-user' : action === 'reactivate' ? 'reactivate-user' : 'delete-user';
+    const { error } = await supabase.functions.invoke('admin-manage-user', {
+      body: { action: nextAction, userId, note: note || '', actorId: currentUser.id },
+    });
+    if (error) {
+      throw await getFunctionError(error);
+    }
+
+    setUsers((previous) => {
+      if (action === 'remove') {
+        return previous.filter((user) => user.id !== userId);
+      }
+
+      return previous.map((user) => {
+        if (user.id !== userId) return user;
+        return {
+          ...user,
+          accountStatus: action === 'suspend' ? 'suspended' : 'active',
+          status: action === 'suspend' ? 'offline' : 'online',
+        };
+      });
+    });
+
+    const actionLabel: AdminAuditLog['action'] = action === 'suspend'
+      ? 'suspended'
+      : action === 'reactivate'
+        ? 'reactivated'
+        : 'removed';
+    const logEntry: AdminAuditLog = {
+      id: `${Date.now()}-${userId}`,
+      timestamp: new Date().toISOString(),
+      actorId: currentUser.id,
+      actorName: currentUser.name,
+      targetUserId: userId,
+      targetUserName: target?.name || 'Unknown user',
+      action: actionLabel,
+      note: note || `${currentUser.name} ${action === 'suspend' ? 'suspended' : action === 'reactivate' ? 'reactivated' : 'removed'} ${target?.name || 'this user'} from the workspace.`,
+    };
+    setAdminLogs((previous) => [logEntry, ...previous].slice(0, 50));
+
+    if (action === 'remove') {
+      setNotifications((previous) => [{
+        id: `notif-admin-remove-${Date.now()}`,
+        type: 'announcement',
+        title: 'User removed',
+        description: `${target?.name || 'User'} was removed from the workspace.`,
+        timestamp: 'Just now',
+        isRead: false,
+        linkTab: 'channels',
+      }, ...previous]);
+    }
+  };
+
   const setStaffTemporaryPassword = async (userId: string, password: string) => {
     const { error } = await supabase.functions.invoke('admin-manage-user', {
       body: { action: 'set-password', userId, password },
     });
     if (error) throw await getFunctionError(error);
+    const target = users.find((user) => user.id === userId);
+    if (target) {
+      setAdminLogs((previous) => [{
+        id: `${Date.now()}-${userId}`,
+        timestamp: new Date().toISOString(),
+        actorId: currentUser.id,
+        actorName: currentUser.name,
+        targetUserId: userId,
+        targetUserName: target.name,
+        action: 'password_reset',
+        note: `${currentUser.name} reset the sign-in password for ${target.name}.`,
+      }, ...previous].slice(0, 50));
+    }
   };
 
   const resetWorkspace = () => {
@@ -1566,6 +1659,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         currentUser,
         workspaceSettings,
         users,
+        adminLogs,
         isSupabaseConnected,
         activeTab,
         activeConversationId,
@@ -1632,6 +1726,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         saveWorkspaceSettings,
         addTeammate,
         updateStaffUser,
+        manageStaffAccount,
         setStaffTemporaryPassword,
         openUserProfile,
         closeUserProfile,

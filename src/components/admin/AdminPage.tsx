@@ -1,9 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Ban,
+  CheckCircle2,
+  Clock3,
   KeyRound,
   Pencil,
   Search,
   ShieldCheck,
+  Trash2,
   UserPlus,
   Users,
   X,
@@ -21,8 +25,10 @@ export const AdminPage: React.FC = () => {
   const {
     currentUser,
     users,
+    adminLogs,
     setIsAddTeammateOpen,
     updateStaffUser,
+    manageStaffAccount,
     setStaffTemporaryPassword,
   } = useWorkspace();
   const [query, setQuery] = useState('');
@@ -36,11 +42,26 @@ export const AdminPage: React.FC = () => {
   const visibleUsers = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return [...users]
+      .filter((user) => user.accountStatus !== 'removed')
       .filter((user) => !normalizedQuery || `${user.name} ${user.email} ${user.role} ${user.department} ${roleLabels[user.systemRole]}`
         .toLowerCase()
         .includes(normalizedQuery))
       .sort((left, right) => left.name.localeCompare(right.name));
   }, [query, users]);
+
+  const handleUserAction = async (userId: string, action: 'suspend' | 'reactivate' | 'remove') => {
+    const targetUser = users.find((user) => user.id === userId);
+    if (!targetUser) return;
+    const confirmed = action === 'remove'
+      ? window.confirm(`Remove ${targetUser.name} from the workspace? This cannot be undone.`)
+      : true;
+    if (!confirmed) return;
+    try {
+      await manageStaffAccount(userId, action, `${currentUser.name} ${action === 'suspend' ? 'suspended' : action === 'reactivate' ? 'reactivated' : 'removed'} ${targetUser.name}.`);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'The account action could not be completed.');
+    }
+  };
 
   if (currentUser.systemRole !== 'admin') {
     return (
@@ -132,63 +153,122 @@ export const AdminPage: React.FC = () => {
           </button>
         </header>
 
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-              <Users className="h-4 w-4 text-brand-600" />
-              Staff directory <span className="text-xs font-medium text-slate-400">{users.length}</span>
-            </div>
-            <label className="relative block sm:w-72">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search staff..."
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
-              />
-            </label>
+        {error && (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {error}
           </div>
-          <div className="divide-y divide-slate-100">
-            {visibleUsers.map((user) => (
-              <div key={user.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-                <img src={user.avatar} alt="" className="h-11 w-11 rounded-full border border-slate-200 object-cover" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-sm font-semibold text-slate-900">{user.name}</p>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                      user.systemRole === 'admin'
-                        ? 'bg-violet-100 text-violet-700'
-                        : user.systemRole === 'coordinator'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-slate-100 text-slate-600'
-                    }`}>{roleLabels[user.systemRole]}</span>
-                  </div>
-                  <p className="truncate text-xs text-slate-500">{user.email}</p>
-                  <p className="truncate text-xs text-slate-400">{user.role} · {user.department}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { setEditingUser(user); setError(''); }}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    <Pencil className="h-3.5 w-3.5" /> Edit profile
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setTemporaryPasswordUser(user); setError(''); setSavedPassword(''); }}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    <KeyRound className="h-3.5 w-3.5" /> Set password
-                  </button>
-                </div>
+        )}
+
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(280px,0.9fr)]">
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <Users className="h-4 w-4 text-brand-600" />
+                Staff directory <span className="text-xs font-medium text-slate-400">{visibleUsers.length}</span>
               </div>
-            ))}
-            {visibleUsers.length === 0 && (
-              <p className="p-8 text-center text-sm text-slate-500">No staff members match that search.</p>
-            )}
-          </div>
-        </section>
+              <label className="relative block sm:w-72">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search staff..."
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+                />
+              </label>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {visibleUsers.map((user) => (
+                <div key={user.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+                  <img src={user.avatar} alt="" className="h-11 w-11 rounded-full border border-slate-200 object-cover" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-slate-900">{user.name}</p>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                        user.accountStatus === 'suspended'
+                          ? 'bg-amber-100 text-amber-700'
+                          : user.systemRole === 'admin'
+                            ? 'bg-violet-100 text-violet-700'
+                            : user.systemRole === 'coordinator'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-slate-100 text-slate-600'
+                      }`}>{user.accountStatus === 'suspended' ? 'Suspended' : roleLabels[user.systemRole]}</span>
+                    </div>
+                    <p className="truncate text-xs text-slate-500">{user.email}</p>
+                    <p className="truncate text-xs text-slate-400">{user.role} · {user.department}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setEditingUser(user); setError(''); }}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setTemporaryPasswordUser(user); setError(''); setSavedPassword(''); }}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      <KeyRound className="h-3.5 w-3.5" /> Password
+                    </button>
+                    {user.accountStatus === 'suspended' ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleUserAction(user.id, 'reactivate')}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Reactivate
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void handleUserAction(user.id, 'suspend')}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                      >
+                        <Ban className="h-3.5 w-3.5" /> Suspend
+                      </button>
+                    )}
+                    {user.id !== currentUser.id && (
+                      <button
+                        type="button"
+                        onClick={() => void handleUserAction(user.id, 'remove')}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {visibleUsers.length === 0 && (
+                <p className="p-8 text-center text-sm text-slate-500">No staff members match that search.</p>
+              )}
+            </div>
+          </section>
+
+          <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <Clock3 className="h-4 w-4 text-brand-600" />
+              Staff activity
+            </div>
+            <div className="mt-4 space-y-3">
+              {adminLogs.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
+                  Staff actions will appear here once a user is edited, suspended, or reset.
+                </p>
+              ) : adminLogs.slice(0, 8).map((entry) => (
+                <div key={entry.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-slate-800">{entry.action.replace('_', ' ')}</p>
+                    <span className="text-[10px] text-slate-400">{new Date(entry.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600">{entry.targetUserName}</p>
+                  <p className="mt-1 text-[11px] text-slate-500">{entry.note}</p>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </div>
       </div>
 
       {editingUser && (

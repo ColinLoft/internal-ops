@@ -70,18 +70,56 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ error: 'Invalid workspace permission level.' }, 400);
   }
 
-  const inviteOptions: { data: { name: string }; redirectTo: string } = { data: { name }, redirectTo: '' };
   const siteUrl = Deno.env.get('SITE_URL');
   if (!siteUrl) return jsonResponse({ error: 'The invitation function requires the SITE_URL secret.' }, 500);
-  inviteOptions.redirectTo = new URL('/?invite=1', siteUrl).toString();
 
-  const { data: invitation, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, inviteOptions);
-  if (inviteError || !invitation.user) {
-    return jsonResponse({ error: inviteError?.message || 'Supabase could not create the invitation.' }, 400);
+  const randomBytes = crypto.getRandomValues(new Uint8Array(24));
+  const temporaryPassword = `${Array.from(randomBytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}Aa1!`;
+  const { data: existingProfile, error: existingProfileError } = await adminClient
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+  if (existingProfileError) {
+    return jsonResponse({ error: `Could not check for an existing staff account: ${existingProfileError.message}` }, 500);
+  }
+
+  let staffUserId: string;
+  if (existingProfile) {
+    const { data: existingAuth, error: existingAuthError } = await adminClient.auth.admin.getUserById(existingProfile.id);
+    if (existingAuthError || !existingAuth.user) {
+      return jsonResponse({ error: existingAuthError?.message || 'The existing staff account could not be loaded.' }, 500);
+    }
+    if (existingAuth.user.email_confirmed_at) {
+      return jsonResponse({ error: 'An account already exists for this email address.' }, 409);
+    }
+
+    const { data: updated, error: updateError } = await adminClient.auth.admin.updateUserById(existingAuth.user.id, {
+      password: temporaryPassword,
+      email_confirm: true,
+      user_metadata: { ...existingAuth.user.user_metadata, name },
+      app_metadata: { ...existingAuth.user.app_metadata, password_reset_required: true },
+    });
+    if (updateError || !updated.user) {
+      return jsonResponse({ error: updateError?.message || 'The pending staff account could not be activated.' }, 400);
+    }
+    staffUserId = updated.user.id;
+  } else {
+    const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+      email,
+      password: temporaryPassword,
+      email_confirm: true,
+      user_metadata: { name },
+      app_metadata: { password_reset_required: true },
+    });
+    if (createError || !created.user) {
+      return jsonResponse({ error: createError?.message || 'Supabase could not create the staff account.' }, 400);
+    }
+    staffUserId = created.user.id;
   }
 
   const { error: upsertError } = await adminClient.from('profiles').upsert({
-    id: invitation.user.id,
+    id: staffUserId,
     email,
     name,
     role,
@@ -92,7 +130,17 @@ Deno.serve(async (request: Request) => {
     status: 'offline',
   }, { onConflict: 'id' });
 
-  if (upsertError) return jsonResponse({ error: `Invitation created, but profile setup failed: ${upsertError.message}` }, 500);
+  if (upsertError) {
+    if (!existingProfile) {
+      const { error: cleanupError } = await adminClient.auth.admin.deleteUser(staffUserId);
+      if (cleanupError) console.error('Could not remove staff auth user after profile setup failed:', cleanupError.message);
+    }
+    return jsonResponse({ error: `Staff account setup failed: ${upsertError.message}` }, 500);
+  }
 
-  return jsonResponse({ userId: invitation.user.id });
+  return jsonResponse({
+    userId: staffUserId,
+    temporaryPassword,
+    loginUrl: new URL('/', siteUrl).toString(),
+  });
 });

@@ -1,6 +1,6 @@
 export type UserStatus = 'online' | 'busy' | 'away' | 'offline';
-
 export type UserRole = 'admin' | 'coordinator' | 'member';
+export type AccountStatus = 'active' | 'suspended' | 'pending' | 'removed';
 
 export type ProfileBanner = 'ocean' | 'violet' | 'forest' | 'sunset' | 'rose';
 export type Ringtone = 'classic' | 'chime' | 'pulse' | 'soft';
@@ -29,6 +29,7 @@ export interface User {
   department: string;
   phone: string;
   status: UserStatus;
+  accountStatus?: AccountStatus;
   statusMessage?: string;
   bio?: string;
   location?: string;
@@ -37,6 +38,17 @@ export interface User {
   lastSeen?: string;
   systemRole: UserRole; // for announcement channel permissions
   isCurrentUser?: boolean;
+}
+
+export interface AdminAuditLog {
+  id: string;
+  timestamp: string;
+  actorId: string;
+  actorName: string;
+  targetUserId: string;
+  targetUserName: string;
+  action: 'created' | 'updated' | 'suspended' | 'reactivated' | 'removed' | 'password_reset';
+  note: string;
 }
 
 export interface WorkspaceSettings {

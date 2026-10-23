@@ -47,6 +47,53 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ success: true });
   }
 
+  if (payload.action === 'suspend-user' || payload.action === 'reactivate-user') {
+    const targetId = typeof payload.userId === 'string' ? payload.userId : '';
+    if (!targetId) return jsonResponse({ error: 'A staff user ID is required.' }, 400);
+    const profileUpdate: Record<string, unknown> = {
+      status: payload.action === 'suspend-user' ? 'offline' : 'online',
+      account_status: payload.action === 'suspend-user' ? 'suspended' : 'active',
+    };
+    const { error } = await adminClient.from('profiles').update(profileUpdate).eq('id', targetId);
+    if (error && !String(error.message).includes('column')) {
+      return jsonResponse({ error: error.message }, 400);
+    }
+    return jsonResponse({ success: true });
+  }
+
+  if (payload.action === 'delete-user') {
+    const targetId = typeof payload.userId === 'string' ? payload.userId : '';
+    if (!targetId) return jsonResponse({ error: 'A staff user ID is required.' }, 400);
+    if (targetId === caller.id) return jsonResponse({ error: 'You cannot remove your own account.' }, 400);
+
+    const { data: targetProfile, error: targetProfileError } = await adminClient
+      .from('profiles')
+      .select('system_role')
+      .eq('id', targetId)
+      .single();
+    if (targetProfileError && targetProfileError.code !== 'PGRST116') {
+      return jsonResponse({ error: targetProfileError.message }, 404);
+    }
+    if (targetProfile?.system_role === 'admin') {
+      const { count, error: countError } = await adminClient
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('system_role', 'admin');
+      if (countError) return jsonResponse({ error: countError.message }, 500);
+      if ((count || 0) <= 1) {
+        return jsonResponse({ error: 'The last workspace administrator cannot be removed.' }, 400);
+      }
+    }
+
+    const { error: deleteUserError } = await adminClient.auth.admin.deleteUser(targetId);
+    if (deleteUserError) return jsonResponse({ error: deleteUserError.message }, 400);
+    const { error: profileDeleteError } = await adminClient.from('profiles').delete().eq('id', targetId);
+    if (profileDeleteError && !String(profileDeleteError.message).includes('does not exist')) {
+      return jsonResponse({ error: profileDeleteError.message }, 400);
+    }
+    return jsonResponse({ success: true });
+  }
+
   const { data: callerProfile, error: profileError } = await adminClient
     .from('profiles')
     .select('system_role')

@@ -91,7 +91,7 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
             </div>
             <div>
               <h3 className="font-bold text-base text-slate-900">Register Staff Member</h3>
-              <p className="text-xs text-slate-500 font-medium">Send a secure Supabase Auth invitation</p>
+              <p className="text-xs text-slate-500 font-medium">Create a staff sign-in account</p>
             </div>
           </div>
           <button
@@ -210,7 +210,7 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
             />
           </div>
 
-          <p className="text-xs text-slate-500">The employee will receive an email invitation and set their password through Supabase.</p>
+          <p className="text-xs text-slate-500">No email is sent. A one-time password will be shown after account creation; share it with the employee through a secure channel. They must choose a new password at first sign-in.</p>
 
           {/* System Role */}
           <div>
