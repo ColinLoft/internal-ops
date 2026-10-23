@@ -68,10 +68,15 @@ export const testSupabaseConnection = async (): Promise<{ success: boolean; mess
   try {
     const { error } = await supabase.from('profiles').select('id').limit(1);
     if (error && error.code !== 'PGRST116') {
-      if (error.message.includes('relation') || error.message.includes('does not exist')) {
+      if (
+        error.code === 'PGRST205'
+        || error.message.includes("Could not find the table 'public.profiles'")
+        || error.message.includes('relation')
+        || error.message.includes('does not exist')
+      ) {
         return {
-          success: true,
-          message: 'Connected to Supabase project! (Tables ready for setup)',
+          success: false,
+          message: 'Connected to Supabase, but the required tables are missing. Run supabase_schema.sql in the Supabase SQL Editor.',
         };
       }
       return { success: false, message: error.message };

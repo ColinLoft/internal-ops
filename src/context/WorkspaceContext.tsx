@@ -403,6 +403,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       return { success: true };
     } catch (profileError) {
       await supabase.auth.signOut();
+      if (profileError instanceof Error && profileError.message.includes("Could not find the table 'public.profiles'")) {
+        return {
+          success: false,
+          message: 'The staff profiles table is missing from Supabase. Run supabase_schema.sql in the Supabase SQL Editor, then try signing in again.',
+        };
+      }
       return { success: false, message: `Signed in, but the staff profile could not be loaded: ${(profileError as Error).message}` };
     }
   };

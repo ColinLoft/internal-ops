@@ -38,7 +38,7 @@ const WorkspaceShell: React.FC = () => {
 
   // If not authenticated, render the Auth Portal
   if (isAuthLoading) {
-    return <div className="min-h-screen bg-slate-950" aria-label="Loading session" />;
+    return <div className="min-h-screen bg-gradient-to-br from-slate-100 via-sky-50/70 to-blue-50/90" aria-label="Loading session" />;
   }
 
   if (!isAuthenticated) {

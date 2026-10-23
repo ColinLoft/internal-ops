@@ -191,3 +191,5 @@ create policy "Enable full access for staff on messages"
 
 create policy "Enable full access for staff on calendar_events"
   on public.calendar_events for all to authenticated using (true) with check (true);
+
+notify pgrst, 'reload schema';
