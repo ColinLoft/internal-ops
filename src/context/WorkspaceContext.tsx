@@ -12,6 +12,8 @@ import {
   Poll,
   UserStatus,
   UserRole,
+  WorkspaceSettings,
+  DEFAULT_WORKSPACE_SETTINGS,
 } from '../types';
 import {
   initialConversations,
@@ -30,6 +32,7 @@ interface WorkspaceContextType {
   isAuthLoading: boolean;
   requiresPasswordSetup: boolean;
   currentUser: User;
+  workspaceSettings: WorkspaceSettings;
   users: User[];
   isSupabaseConnected: boolean;
   
@@ -52,6 +55,7 @@ interface WorkspaceContextType {
   // Modals state
   activeProfileModalUser: User | null;
   isProfileSettingsOpen: boolean;
+  isWorkspaceSettingsOpen: boolean;
   isCreateChannelOpen: boolean;
   isCreatePollOpen: boolean;
   isNewMessageOpen: boolean;
@@ -115,12 +119,15 @@ interface WorkspaceContextType {
   
   // Profile & Management
   updateCurrentUser: (updates: Partial<User>) => void;
+  saveCurrentProfile: (updates: Partial<User>) => Promise<void>;
+  saveWorkspaceSettings: (settings: WorkspaceSettings) => Promise<void>;
   addTeammate: (user: User) => Promise<void>;
   openUserProfile: (user: User) => void;
   closeUserProfile: () => void;
   resetWorkspace: () => void;
   
   setIsProfileSettingsOpen: (open: boolean) => void;
+  setIsWorkspaceSettingsOpen: (open: boolean) => void;
   setIsCreateChannelOpen: (open: boolean) => void;
   setIsCreatePollOpen: (open: boolean) => void;
   setIsNewMessageOpen: (open: boolean) => void;
@@ -144,8 +151,40 @@ const mapSupabaseProfile = (row: Record<string, any>, currentUserId: string): Us
   status: row.status || 'offline',
   systemRole: row.system_role || 'member',
   statusMessage: row.status_message || undefined,
+  bio: row.bio || '',
+  location: row.location || '',
+  banner: row.banner || 'ocean',
+  preferences: mapWorkspaceSettings(row),
   isCurrentUser: row.id === currentUserId,
 });
+
+const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
+  const preferences = row.preferences && typeof row.preferences === 'object' && !Array.isArray(row.preferences)
+    ? row.preferences
+    : {};
+
+  return {
+    ...DEFAULT_WORKSPACE_SETTINGS,
+    theme: preferences.theme === 'light' ? 'light' : 'dark',
+    accentColor: typeof preferences.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(preferences.accentColor)
+      ? preferences.accentColor
+      : DEFAULT_WORKSPACE_SETTINGS.accentColor,
+    autoBusyInCalls: typeof preferences.autoBusyInCalls === 'boolean'
+      ? preferences.autoBusyInCalls
+      : DEFAULT_WORKSPACE_SETTINGS.autoBusyInCalls,
+    autoBusyDuringEvents: typeof preferences.autoBusyDuringEvents === 'boolean'
+      ? preferences.autoBusyDuringEvents
+      : DEFAULT_WORKSPACE_SETTINGS.autoBusyDuringEvents,
+    microphoneDeviceId: typeof preferences.microphoneDeviceId === 'string' ? preferences.microphoneDeviceId : '',
+    cameraDeviceId: typeof preferences.cameraDeviceId === 'string' ? preferences.cameraDeviceId : '',
+    showCameraPreview: typeof preferences.showCameraPreview === 'boolean'
+      ? preferences.showCameraPreview
+      : DEFAULT_WORKSPACE_SETTINGS.showCameraPreview,
+    noiseSuppression: typeof preferences.noiseSuppression === 'boolean'
+      ? preferences.noiseSuppression
+      : DEFAULT_WORKSPACE_SETTINGS.noiseSuppression,
+  };
+};
 
 const loadSupabaseProfiles = async (authUser: SupabaseAuthUser) => {
   const { data: existingProfile, error: profileError } = await supabase
@@ -175,6 +214,7 @@ const loadSupabaseProfiles = async (authUser: SupabaseAuthUser) => {
   return {
     users: profileRows.map((row) => mapSupabaseProfile(row, authUser.id)),
     currentUser: mapSupabaseProfile(profile, authUser.id),
+    settings: mapWorkspaceSettings(profile),
   };
 };
 
@@ -200,6 +240,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     status: 'offline',
     systemRole: 'member',
   });
+  const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings>(DEFAULT_WORKSPACE_SETTINGS);
 
   // Navigation
   const [activeTab, setActiveTabState] = useState<'messages' | 'channels' | 'calendar'>('channels');
@@ -244,6 +285,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   // Modals state
   const [activeProfileModalUser, setActiveProfileModalUser] = useState<User | null>(null);
   const [isProfileSettingsOpen, setIsProfileSettingsOpen] = useState<boolean>(false);
+  const [isWorkspaceSettingsOpen, setIsWorkspaceSettingsOpen] = useState<boolean>(false);
   const [isCreateChannelOpen, setIsCreateChannelOpen] = useState<boolean>(false);
   const [isCreatePollOpen, setIsCreatePollOpen] = useState<boolean>(false);
   const [isNewMessageOpen, setIsNewMessageOpen] = useState<boolean>(false);
@@ -310,6 +352,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (active) {
           setUsers(profileData.users);
           setCurrentUser(profileData.currentUser);
+          setWorkspaceSettings(profileData.settings);
           setChannels((channels) => channels.map((channel) =>
             !channel.isPrivate && !channel.members.includes(profileData.currentUser.id)
               ? { ...channel, members: [...channel.members, profileData.currentUser.id] }
@@ -393,6 +436,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const profileData = await loadSupabaseProfiles(data.user);
       setUsers(profileData.users);
       setCurrentUser(profileData.currentUser);
+      setWorkspaceSettings(profileData.settings);
       setChannels((channels) => channels.map((channel) =>
         !channel.isPrivate && !channel.members.includes(profileData.currentUser.id)
           ? { ...channel, members: [...channel.members, profileData.currentUser.id] }
@@ -471,6 +515,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     setUsers((prevUsers) =>
       prevUsers.map((u) => (u.id === currentUser.id ? updated : u))
     );
+    if (updates.preferences) setWorkspaceSettings(updates.preferences);
 
     // Persist to Supabase
     try {
@@ -485,11 +530,100 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         system_role: updated.systemRole,
         status: updated.status,
         status_message: updated.statusMessage,
+        bio: updated.bio,
+        location: updated.location,
+        banner: updated.banner,
+        preferences: updated.preferences,
       });
     } catch {
       // fallback
     }
   };
+
+  const saveCurrentProfile = async (updates: Partial<User>) => {
+    const updated = { ...currentUser, ...updates };
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        name: updated.name,
+        role: updated.role,
+        department: updated.department,
+        phone: updated.phone,
+        email: updated.email,
+        avatar_url: updated.avatar,
+        status_message: updated.statusMessage,
+        bio: updated.bio,
+        location: updated.location,
+        banner: updated.banner,
+      })
+      .eq('id', currentUser.id);
+
+    if (error) throw error;
+    setCurrentUser(updated);
+    setUsers((previous) => previous.map((user) => user.id === currentUser.id ? updated : user));
+  };
+
+  const saveWorkspaceSettings = async (settings: WorkspaceSettings) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ preferences: settings })
+      .eq('id', currentUser.id);
+
+    if (error) throw error;
+    setWorkspaceSettings(settings);
+    setCurrentUser((user) => ({ ...user, preferences: settings }));
+    setUsers((previous) => previous.map((user) => user.id === currentUser.id ? { ...user, preferences: settings } : user));
+  };
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = workspaceSettings.theme;
+    document.documentElement.style.setProperty('--brand-accent', workspaceSettings.accentColor);
+  }, [workspaceSettings.theme, workspaceSettings.accentColor]);
+
+  const automaticStatusRef = React.useRef<{ userId: string; previousStatus: UserStatus } | null>(null);
+  useEffect(() => {
+    const evaluateAutomaticStatus = () => {
+      if (!currentUser.id) return;
+      if (automaticStatusRef.current && automaticStatusRef.current.userId !== currentUser.id) {
+        automaticStatusRef.current = null;
+      }
+
+      const storageKey = `${STORAGE_PREFIX}auto_status_previous_${currentUser.id}`;
+      const storedStatus = localStorage.getItem(storageKey) as UserStatus | null;
+      const now = new Date();
+      const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const hasActiveEvent = workspaceSettings.autoBusyDuringEvents && calendarEvents.some((event) =>
+        event.date === date && (event.isAllDay || (time >= event.startTime && time <= event.endTime))
+      );
+      const shouldBeBusy =
+        (workspaceSettings.autoBusyInCalls && callSession.active)
+        || hasActiveEvent;
+
+      if (shouldBeBusy && !automaticStatusRef.current) {
+        const previousStatus = storedStatus || currentUser.status;
+        automaticStatusRef.current = { userId: currentUser.id, previousStatus };
+        if (!storedStatus) localStorage.setItem(storageKey, previousStatus);
+        if (currentUser.status !== 'busy') void updateCurrentUser({ status: 'busy' });
+      } else if (!shouldBeBusy && (automaticStatusRef.current || storedStatus)) {
+        const previousStatus = automaticStatusRef.current?.previousStatus || storedStatus || currentUser.status;
+        automaticStatusRef.current = null;
+        localStorage.removeItem(storageKey);
+        if (currentUser.status === 'busy') void updateCurrentUser({ status: previousStatus });
+      }
+    };
+
+    evaluateAutomaticStatus();
+    const timer = window.setInterval(evaluateAutomaticStatus, 30_000);
+    return () => window.clearInterval(timer);
+  }, [
+    calendarEvents,
+    callSession.active,
+    currentUser.id,
+    currentUser.status,
+    workspaceSettings.autoBusyDuringEvents,
+    workspaceSettings.autoBusyInCalls,
+  ]);
 
   // Add teammate / Register staff
   const addTeammate = async (user: User) => {
@@ -1036,6 +1170,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         isAuthLoading,
         requiresPasswordSetup,
         currentUser,
+        workspaceSettings,
         users,
         isSupabaseConnected,
         activeTab,
@@ -1054,6 +1189,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         callSession,
         activeProfileModalUser,
         isProfileSettingsOpen,
+        isWorkspaceSettingsOpen,
         isCreateChannelOpen,
         isCreatePollOpen,
         isNewMessageOpen,
@@ -1092,11 +1228,14 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         toggleCallScreenShare,
         toggleCallMinimize,
         updateCurrentUser,
+        saveCurrentProfile,
+        saveWorkspaceSettings,
         addTeammate,
         openUserProfile,
         closeUserProfile,
         resetWorkspace,
         setIsProfileSettingsOpen,
+        setIsWorkspaceSettingsOpen,
         setIsCreateChannelOpen,
         setIsCreatePollOpen,
         setIsNewMessageOpen,

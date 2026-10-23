@@ -23,6 +23,7 @@ export const CallOverlay: React.FC = () => {
     toggleCallScreenShare,
     toggleCallMinimize,
     currentUser,
+    workspaceSettings,
   } = useWorkspace();
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -30,13 +31,26 @@ export const CallOverlay: React.FC = () => {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const screenVideoRef = useRef<HTMLVideoElement>(null);
 
-  // Attempt real camera media stream if video call
+  // Capture the selected local devices for the active call.
   useEffect(() => {
     let stream: MediaStream | null = null;
-    if (callSession.active && callSession.type === 'video' && !callSession.isCameraOff) {
+    if (callSession.active) {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices
-          .getUserMedia({ video: true, audio: true })
+        const audio: MediaTrackConstraints = {
+          noiseSuppression: workspaceSettings.noiseSuppression,
+          ...(workspaceSettings.microphoneDeviceId
+            ? { deviceId: { exact: workspaceSettings.microphoneDeviceId } }
+            : {}),
+        };
+        const video: MediaTrackConstraints | boolean = callSession.type === 'video'
+          ? {
+              ...(workspaceSettings.cameraDeviceId
+                ? { deviceId: { exact: workspaceSettings.cameraDeviceId } }
+                : {}),
+            }
+          : false;
+
+        navigator.mediaDevices.getUserMedia({ video, audio })
           .then((s) => {
             stream = s;
             setLocalStream(s);
@@ -44,9 +58,7 @@ export const CallOverlay: React.FC = () => {
               localVideoRef.current.srcObject = s;
             }
           })
-          .catch((err) => {
-            console.warn('Real camera not available or permission denied, using simulated stream:', err);
-          });
+          .catch((err) => console.warn('Selected call devices are unavailable or permission was denied:', err));
       }
     } else {
       if (localStream) {
@@ -60,7 +72,25 @@ export const CallOverlay: React.FC = () => {
         stream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [callSession.active, callSession.type, callSession.isCameraOff]);
+  }, [
+    callSession.active,
+    callSession.type,
+    workspaceSettings.microphoneDeviceId,
+    workspaceSettings.cameraDeviceId,
+    workspaceSettings.noiseSuppression,
+  ]);
+
+  useEffect(() => {
+    localStream?.getVideoTracks().forEach((track) => {
+      track.enabled = !callSession.isCameraOff;
+    });
+  }, [localStream, callSession.isCameraOff]);
+
+  useEffect(() => {
+    localStream?.getAudioTracks().forEach((track) => {
+      track.enabled = !callSession.isMuted;
+    });
+  }, [localStream, callSession.isMuted]);
 
   // Handle real screen sharing via getDisplayMedia
   useEffect(() => {
@@ -239,7 +269,7 @@ export const CallOverlay: React.FC = () => {
 
             {/* Self Video Card */}
             <div className="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 flex items-center justify-center shadow-md">
-              {localStream && !callSession.isCameraOff ? (
+              {localStream && !callSession.isCameraOff && workspaceSettings.showCameraPreview ? (
                 <video
                   ref={localVideoRef}
                   autoPlay
@@ -254,7 +284,9 @@ export const CallOverlay: React.FC = () => {
                     alt={currentUser.name}
                     className="w-16 h-16 rounded-full object-cover border-2 border-brand-500 shadow-md mb-2"
                   />
-                  <p className="text-[11px] font-bold text-slate-300">Camera Off</p>
+                  <p className="text-[11px] font-bold text-slate-300">
+                    {workspaceSettings.showCameraPreview ? 'Camera Off' : 'Preview Hidden'}
+                  </p>
                 </div>
               )}
               <div className="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-md px-2 py-0.5 rounded-lg text-[10px] font-bold text-white">

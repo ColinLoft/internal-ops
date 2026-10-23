@@ -11,6 +11,10 @@ create table if not exists public.profiles (
   department text default 'Operations',
   phone text,
   avatar_url text,
+  bio text,
+  location text,
+  banner text default 'ocean' check (banner in ('ocean', 'violet', 'forest', 'sunset', 'rose')),
+  preferences jsonb not null default '{}'::jsonb,
   system_role text default 'member' check (system_role in ('admin', 'coordinator', 'member')),
   status text default 'online' check (status in ('online', 'busy', 'away', 'offline')),
   status_message text,
@@ -18,6 +22,12 @@ create table if not exists public.profiles (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.profiles add column if not exists bio text;
+alter table public.profiles add column if not exists location text;
+alter table public.profiles add column if not exists banner text default 'ocean'
+  check (banner in ('ocean', 'violet', 'forest', 'sunset', 'rose'));
+alter table public.profiles add column if not exists preferences jsonb not null default '{}'::jsonb;
 
 alter table public.profiles drop column if exists must_reset_password;
 alter table public.profiles drop column if exists temp_password;

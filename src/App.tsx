@@ -15,6 +15,7 @@ import { AuthScreen } from './components/auth/AuthScreen';
 import { PasswordSetupModal } from './components/auth/PasswordSetupModal';
 import { ProfileModal } from './components/profile/ProfileModal';
 import { EditProfileModal } from './components/profile/EditProfileModal';
+import { SettingsModal } from './components/profile/SettingsModal';
 import { CreateChannelModal } from './components/modals/CreateChannelModal';
 import { CreatePollModal } from './components/modals/CreatePollModal';
 import { NewMessageModal } from './components/modals/NewMessageModal';
@@ -91,6 +92,7 @@ const WorkspaceShell: React.FC = () => {
       {/* Modals & Dialogs */}
       <ProfileModal />
       <EditProfileModal />
+      <SettingsModal />
       <CreateChannelModal />
       <CreatePollModal />
       <NewMessageModal />

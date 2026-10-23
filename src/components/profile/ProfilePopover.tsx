@@ -4,6 +4,7 @@ import {
   LogOut,
   RotateCcw,
   Settings,
+  UserRound,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -16,6 +17,7 @@ export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) =
     users,
     updateCurrentUser,
     setIsProfileSettingsOpen,
+    setIsWorkspaceSettingsOpen,
     setIsAddTeammateOpen,
     resetWorkspace,
     logout,
@@ -38,7 +40,7 @@ export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) =
     window.setTimeout(() => setIsStatusSaved(false), 1500);
   };
 
-  const openProfileSettings = () => {
+  const openProfile = () => {
     setIsProfileSettingsOpen(true);
     onClose();
   };
@@ -103,11 +105,21 @@ export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) =
 
       <div className="p-2 space-y-1">
         <button
-          onClick={openProfileSettings}
+          onClick={openProfile}
+          className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all"
+        >
+          <UserRound className="w-4 h-4 text-slate-500" />
+          <span>Profile</span>
+        </button>
+        <button
+          onClick={() => {
+            setIsWorkspaceSettingsOpen(true);
+            onClose();
+          }}
           className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all"
         >
           <Settings className="w-4 h-4 text-slate-500" />
-          <span>Edit Profile & Settings</span>
+          <span>Settings</span>
         </button>
 
         <button
@@ -142,6 +154,10 @@ export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) =
                       systemRole: user.systemRole,
                       status: user.status,
                       statusMessage: user.statusMessage,
+                      bio: user.bio,
+                      location: user.location,
+                      banner: user.banner,
+                      preferences: user.preferences,
                     });
                     onClose();
                   }}

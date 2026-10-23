@@ -2,6 +2,16 @@ export type UserStatus = 'online' | 'busy' | 'away' | 'offline';
 
 export type UserRole = 'admin' | 'coordinator' | 'member';
 
+export type ProfileBanner = 'ocean' | 'violet' | 'forest' | 'sunset' | 'rose';
+
+export const PROFILE_BANNERS: { value: ProfileBanner; label: string; className: string }[] = [
+  { value: 'ocean', label: 'Ocean blue', className: 'bg-gradient-to-r from-blue-600 via-cyan-600 to-sky-500' },
+  { value: 'violet', label: 'Violet', className: 'bg-gradient-to-r from-violet-700 via-purple-600 to-fuchsia-500' },
+  { value: 'forest', label: 'Forest', className: 'bg-gradient-to-r from-emerald-700 via-teal-600 to-lime-500' },
+  { value: 'sunset', label: 'Sunset', className: 'bg-gradient-to-r from-orange-600 via-rose-600 to-pink-500' },
+  { value: 'rose', label: 'Rose', className: 'bg-gradient-to-r from-rose-700 via-pink-600 to-purple-500' },
+];
+
 export interface User {
   id: string;
   name: string;
@@ -12,10 +22,36 @@ export interface User {
   phone: string;
   status: UserStatus;
   statusMessage?: string;
+  bio?: string;
+  location?: string;
+  banner?: ProfileBanner;
+  preferences?: WorkspaceSettings;
   lastSeen?: string;
   systemRole: UserRole; // for announcement channel permissions
   isCurrentUser?: boolean;
 }
+
+export interface WorkspaceSettings {
+  theme: 'light' | 'dark';
+  accentColor: string;
+  autoBusyInCalls: boolean;
+  autoBusyDuringEvents: boolean;
+  microphoneDeviceId: string;
+  cameraDeviceId: string;
+  showCameraPreview: boolean;
+  noiseSuppression: boolean;
+}
+
+export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
+  theme: 'dark',
+  accentColor: '#2563eb',
+  autoBusyInCalls: true,
+  autoBusyDuringEvents: true,
+  microphoneDeviceId: '',
+  cameraDeviceId: '',
+  showCameraPreview: true,
+  noiseSuppression: true,
+};
 
 export interface Attachment {
   id: string;

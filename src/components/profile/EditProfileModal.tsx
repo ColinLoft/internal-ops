@@ -1,15 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Camera, Save, User as UserIcon, RotateCcw, Upload, Loader2 } from 'lucide-react';
+import { X, Camera, Save, User as UserIcon, Upload, Loader2 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { uploadAvatarToSupabase } from '../../lib/supabase';
+import { ProfileBanner, PROFILE_BANNERS } from '../../types';
 
 export const EditProfileModal: React.FC = () => {
   const {
     currentUser,
-    updateCurrentUser,
+    saveCurrentProfile,
     isProfileSettingsOpen,
     setIsProfileSettingsOpen,
-    resetWorkspace,
   } = useWorkspace();
 
   const [name, setName] = useState(currentUser.name);
@@ -19,7 +19,13 @@ export const EditProfileModal: React.FC = () => {
   const [email, setEmail] = useState(currentUser.email);
   const [avatar, setAvatar] = useState(currentUser.avatar);
   const [statusMessage, setStatusMessage] = useState(currentUser.statusMessage || '');
+  const [bio, setBio] = useState(currentUser.bio || '');
+  const [location, setLocation] = useState(currentUser.location || '');
+  const [banner, setBanner] = useState<ProfileBanner>(currentUser.banner || 'ocean');
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [uploadError, setUploadError] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -32,6 +38,11 @@ export const EditProfileModal: React.FC = () => {
     setEmail(currentUser.email);
     setAvatar(currentUser.avatar);
     setStatusMessage(currentUser.statusMessage || '');
+    setBio(currentUser.bio || '');
+    setLocation(currentUser.location || '');
+    setBanner(currentUser.banner || 'ocean');
+    setSaveError('');
+    setUploadError('');
   }, [currentUser, isProfileSettingsOpen]);
 
   const presetAvatars = [
@@ -51,28 +62,40 @@ export const EditProfileModal: React.FC = () => {
 
     const file = files[0];
     setUploading(true);
+    setUploadError('');
     try {
       const publicUrl = await uploadAvatarToSupabase(file, currentUser.id);
       setAvatar(publicUrl);
     } catch (err) {
-      console.warn('Avatar upload failed:', err);
+      setUploadError(err instanceof Error ? err.message : 'Unable to upload profile photo.');
     } finally {
       setUploading(false);
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateCurrentUser({
-      name: name.trim() || currentUser.name,
-      role: role.trim() || currentUser.role,
-      department: department.trim() || currentUser.department,
-      phone: phone.trim() || currentUser.phone,
-      email: email.trim() || currentUser.email,
-      avatar,
-      statusMessage: statusMessage.trim(),
-    });
-    setIsProfileSettingsOpen(false);
+    setSaving(true);
+    setSaveError('');
+    try {
+      await saveCurrentProfile({
+        name: name.trim() || currentUser.name,
+        role: role.trim() || currentUser.role,
+        department: department.trim() || currentUser.department,
+        phone: phone.trim() || currentUser.phone,
+        email: email.trim() || currentUser.email,
+        avatar,
+        statusMessage: statusMessage.trim(),
+        bio: bio.trim(),
+        location: location.trim(),
+        banner,
+      });
+      setIsProfileSettingsOpen(false);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Unable to save your profile.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -82,7 +105,7 @@ export const EditProfileModal: React.FC = () => {
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
           <div className="flex items-center gap-2 text-slate-800">
             <UserIcon className="w-5 h-5 text-brand-600" />
-            <h3 className="font-bold text-base">Edit Staff Profile & Settings</h3>
+            <h3 className="font-bold text-base">Edit Profile</h3>
           </div>
           <button
             onClick={() => setIsProfileSettingsOpen(false)}
@@ -96,6 +119,23 @@ export const EditProfileModal: React.FC = () => {
         <form onSubmit={handleSave} className="p-6 max-h-[80vh] overflow-y-auto">
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-6">
             <div className="space-y-4">
+          <section className="p-4 rounded-2xl border border-slate-200 bg-slate-50/70">
+            <h4 className="text-xs font-bold text-slate-800 mb-2">Profile banner</h4>
+            <div className="flex flex-wrap gap-2">
+              {PROFILE_BANNERS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setBanner(option.value)}
+                  aria-label={option.label}
+                  aria-pressed={banner === option.value}
+                  className={`h-9 w-14 rounded-xl ${option.className} ${
+                    banner === option.value ? 'ring-2 ring-brand-600 ring-offset-2' : 'opacity-80 hover:opacity-100'
+                  }`}
+                />
+              ))}
+            </div>
+          </section>
           {/* Avatar selector with Supabase Storage File Upload */}
           <div className="flex flex-col sm:flex-row items-center gap-4 p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80">
             <div className="relative group">
@@ -237,12 +277,35 @@ export const EditProfileModal: React.FC = () => {
               className="w-full px-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
             />
           </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">About me</label>
+            <textarea
+              value={bio}
+              maxLength={500}
+              rows={3}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Share a little about your work, interests, or how you support the team."
+              className="w-full resize-y px-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
+            />
+            <p className="text-right text-[10px] text-slate-400 mt-1">{bio.length}/500</p>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Location / office</label>
+            <input
+              type="text"
+              value={location}
+              maxLength={100}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="e.g. Oakland office"
+              className="w-full px-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
+            />
+          </div>
             </div>
 
             <aside className="lg:sticky lg:top-0 self-start">
               <p className="text-xs font-semibold text-slate-500 mb-2">Profile preview</p>
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div className="h-16 bg-gradient-to-r from-brand-600 via-indigo-600 to-sky-600" />
+                <div className={`h-16 ${PROFILE_BANNERS.find((option) => option.value === banner)?.className || PROFILE_BANNERS[0].className}`} />
                 <div className="px-4 pb-4">
                   <div className="relative -mt-8 mb-3 w-fit">
                     <img
@@ -263,6 +326,8 @@ export const EditProfileModal: React.FC = () => {
                   <h4 className="text-sm font-bold text-slate-900 break-words">{name || 'Your name'}</h4>
                   <p className="text-xs text-slate-600 mt-0.5">{role || 'Your role'}</p>
                   <p className="text-xs text-slate-400 mt-0.5">{department || 'Your department'}</p>
+                  {location.trim() && <p className="mt-2 text-[11px] text-slate-500">{location}</p>}
+                  {bio.trim() && <p className="mt-2 text-xs text-slate-600 break-words">{bio}</p>}
                   {statusMessage.trim() && (
                     <p className="mt-3 px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-600 break-words">
                       {statusMessage}
@@ -278,19 +343,10 @@ export const EditProfileModal: React.FC = () => {
           </div>
 
           {/* Actions */}
-          <div className="pt-4 flex items-center justify-between border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm('Reset all workspace data?')) {
-                  resetWorkspace();
-                }
-              }}
-              className="text-xs text-rose-600 hover:text-rose-700 font-semibold flex items-center gap-1"
-            >
-              <RotateCcw className="w-3.5 h-3.5" /> Reset Data
-            </button>
+          <div className="pt-4 flex items-center justify-end border-t border-slate-100">
             <div className="flex items-center gap-2">
+              {uploadError && <p role="alert" className="max-w-64 text-xs text-rose-600">{uploadError}</p>}
+              {saveError && <p role="alert" className="max-w-64 text-xs text-rose-600">{saveError}</p>}
               <button
                 type="button"
                 onClick={() => setIsProfileSettingsOpen(false)}
@@ -300,10 +356,11 @@ export const EditProfileModal: React.FC = () => {
               </button>
               <button
                 type="submit"
+                disabled={saving || uploading}
                 className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-md shadow-brand-500/25 transition-all"
               >
-                <Save className="w-3.5 h-3.5" />
-                <span>Save Profile</span>
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                <span>{saving ? 'Saving...' : 'Save Profile'}</span>
               </button>
             </div>
           </div>

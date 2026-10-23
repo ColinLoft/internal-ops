@@ -11,6 +11,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { PROFILE_BANNERS } from '../../types';
 
 export const ProfileModal: React.FC = () => {
   const {
@@ -44,7 +45,7 @@ export const ProfileModal: React.FC = () => {
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Modal Banner */}
-        <div className="h-28 bg-gradient-to-r from-brand-600 via-indigo-600 to-sky-600 relative p-4 flex justify-end">
+        <div className={`h-28 relative p-4 flex justify-end ${PROFILE_BANNERS.find((option) => option.value === activeProfileModalUser.banner)?.className || PROFILE_BANNERS[0].className}`}>
           <button
             onClick={closeUserProfile}
             className="p-1.5 rounded-full bg-black/20 hover:bg-black/30 text-white backdrop-blur-md transition-colors"
@@ -115,6 +116,14 @@ export const ProfileModal: React.FC = () => {
             </div>
             <p className="text-sm font-medium text-slate-600">{activeProfileModalUser.role}</p>
             <p className="text-xs text-slate-400">{activeProfileModalUser.department}</p>
+            {activeProfileModalUser.location && (
+              <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                <MapPin className="w-3 h-3" /> {activeProfileModalUser.location}
+              </p>
+            )}
+            {activeProfileModalUser.bio && (
+              <p className="text-xs text-slate-600 leading-relaxed mt-3">{activeProfileModalUser.bio}</p>
+            )}
           </div>
 
           {/* Status Message or Last Seen */}
@@ -170,7 +179,7 @@ export const ProfileModal: React.FC = () => {
             <div className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-2.5 text-slate-600">
                 <MapPin className="w-4 h-4 text-slate-400" />
-                <span className="font-medium">San Francisco Regional Center</span>
+                <span className="font-medium">{activeProfileModalUser.location || 'Location not set'}</span>
               </div>
               <span className="text-[10px] text-slate-400 uppercase font-semibold">Office</span>
             </div>
