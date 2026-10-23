@@ -568,12 +568,17 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   const saveWorkspaceSettings = async (settings: WorkspaceSettings) => {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .update({ preferences: settings })
-      .eq('id', currentUser.id);
+      .eq('id', currentUser.id)
+      .select('id')
+      .maybeSingle();
 
     if (error) throw error;
+    if (!data) {
+      throw new Error('Settings were not saved because your profile was not updated. Check that you are signed in and that the profile update policy is applied.');
+    }
     setWorkspaceSettings(settings);
     setCurrentUser((user) => ({ ...user, preferences: settings }));
     setUsers((previous) => previous.map((user) => user.id === currentUser.id ? { ...user, preferences: settings } : user));

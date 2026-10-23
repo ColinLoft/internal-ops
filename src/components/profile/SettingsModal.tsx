@@ -49,7 +49,16 @@ export const SettingsModal: React.FC = () => {
       await saveWorkspaceSettings(draft);
       setIsWorkspaceSettingsOpen(false);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Unable to save settings.');
+      const saveFailure = error as Error & { code?: string };
+      if (
+        saveFailure.code === 'PGRST204'
+        || saveFailure.code === '42703'
+        || saveFailure.message?.toLowerCase().includes('preferences')
+      ) {
+        setSaveError('Your Supabase profiles table is missing the preferences column. Run the latest supabase_schema.sql in the Supabase SQL Editor, then try saving again.');
+      } else {
+        setSaveError(saveFailure.message || 'Unable to save settings.');
+      }
     } finally {
       setSaving(false);
     }
