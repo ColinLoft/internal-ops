@@ -81,7 +81,7 @@ export const ChatFeed: React.FC = () => {
   // If in Messages tab but no conversation is active yet
   if (!isChannel && !currentConv) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50/50 backdrop-blur-md text-center">
+      <div data-onboarding-target="message-feed" className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50/50 backdrop-blur-md text-center">
         <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-brand-600 to-indigo-500 text-white flex items-center justify-center shadow-lg shadow-brand-500/25 mb-4">
           <MessageSquare className="w-8 h-8" />
         </div>
@@ -110,7 +110,7 @@ export const ChatFeed: React.FC = () => {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-50/50 backdrop-blur-md relative overflow-hidden">
+    <div data-onboarding-target={isChannel ? 'channel-feed' : 'message-feed'} className="flex-1 flex flex-col h-full bg-slate-50/50 backdrop-blur-md relative overflow-hidden">
       {/* Feed Top Header */}
       <div className="h-16 px-6 bg-white/80 backdrop-blur-xl border-b border-slate-200/80 flex items-center justify-between z-10 flex-shrink-0">
         <div className="flex items-center gap-3 min-w-0">

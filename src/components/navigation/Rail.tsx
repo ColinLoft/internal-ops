@@ -62,6 +62,7 @@ export const Rail: React.FC = () => {
         <nav className="flex flex-col items-center gap-2">
           {/* Messages Item */}
           <button
+            data-onboarding-target="nav-messages"
             onClick={() => setActiveTab('messages')}
             className={`group relative p-3 rounded-2xl transition-all duration-200 ${
               activeTab === 'messages'
@@ -83,6 +84,7 @@ export const Rail: React.FC = () => {
 
           {/* Channels Item */}
           <button
+            data-onboarding-target="nav-channels"
             onClick={() => setActiveTab('channels')}
             className={`group relative p-3 rounded-2xl transition-all duration-200 ${
               activeTab === 'channels'
@@ -104,6 +106,7 @@ export const Rail: React.FC = () => {
 
           {/* Calendar Item */}
           <button
+            data-onboarding-target="nav-calendar"
             onClick={() => setActiveTab('calendar')}
             className={`group relative p-3 rounded-2xl transition-all duration-200 ${
               activeTab === 'calendar'
@@ -171,6 +174,7 @@ export const Rail: React.FC = () => {
         {/* User Avatar with Profile Popover */}
         <div className="relative" ref={profileRef}>
           <button
+            data-onboarding-target="profile-button"
             onClick={() => setIsProfilePopoverOpen((prev) => !prev)}
             className="group relative p-0.5 rounded-full hover:ring-2 hover:ring-brand-500/60 transition-all"
             title={`${currentUser.name} (${currentUser.role})`}

@@ -479,7 +479,7 @@ export const CalendarView: React.FC = () => {
 
       {/* Main Calendar Area */}
       <div className="flex-1 flex flex-col p-6 overflow-hidden">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+        <div data-onboarding-target="calendar-controls" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
             <div>
               <h2 className="text-xl font-bold text-slate-900">

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -9,19 +9,71 @@ import {
   LoaderCircle,
   MessageSquare,
   UserRound,
-  Users,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { uploadAvatarToSupabase } from '../../lib/supabase';
-import { PROFILE_BANNERS, ProfileBanner, User } from '../../types';
+import { PROFILE_BANNERS, ProfileBanner } from '../../types';
 
 type TourStep = {
   title: string;
   description: string;
   tab?: 'messages' | 'channels' | 'calendar' | 'admin';
+  target: string;
   icon: React.ComponentType<{ className?: string }>;
   action: string;
 };
+
+type SpotlightRect = { top: number; left: number; width: number; height: number };
+
+const TOUR_STEPS: TourStep[] = [
+  {
+    title: 'Find your channels',
+    description: 'This sidebar lists your team channels. Choose a channel to open its conversation, catch up on updates, and share work with the whole team.',
+    tab: 'channels',
+    target: 'channel-list',
+    icon: Hash,
+    action: 'Show channel conversation',
+  },
+  {
+    title: 'Join the conversation',
+    description: 'Here you can read channel posts, reply, add reactions, and share files. Restricted channels show a note when posting is limited.',
+    tab: 'channels',
+    target: 'channel-feed',
+    icon: MessageSquare,
+    action: 'Explore direct messages',
+  },
+  {
+    title: 'Message a teammate',
+    description: 'Your message list keeps direct and group conversations together. Select a conversation to continue chatting, or start a new one.',
+    tab: 'messages',
+    target: 'conversation-list',
+    icon: MessageSquare,
+    action: 'Show a message',
+  },
+  {
+    title: 'Your chat workspace',
+    description: 'This is where your direct conversation appears. Send messages, share attachments, or start an audio or video call with teammates.',
+    tab: 'messages',
+    target: 'message-feed',
+    icon: MessageSquare,
+    action: 'Show the calendar',
+  },
+  {
+    title: 'Keep up with the team',
+    description: 'The calendar brings team events and your personal schedule together. Use it to see what is coming up or add an event.',
+    tab: 'calendar',
+    target: 'calendar-controls',
+    icon: CalendarDays,
+    action: 'See your profile options',
+  },
+  {
+    title: 'Your profile and settings',
+    description: 'Your profile button opens status, profile editing, and settings like themes, audio/video devices, and ringtones. Click it after the tour to explore.',
+    target: 'profile-button',
+    icon: UserRound,
+    action: 'Finish tour',
+  },
+];
 
 export const FirstLoginOnboarding: React.FC = () => {
   const {
@@ -41,49 +93,45 @@ export const FirstLoginOnboarding: React.FC = () => {
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [spotlightRect, setSpotlightRect] = useState<SpotlightRect | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const tourSteps = useMemo<TourStep[]>(() => {
-    const steps: TourStep[] = [
-      {
-        title: 'Your channels',
-        description: 'Channels keep team conversations organized by topic. Use the sidebar to browse channels and join the conversations that matter to your work.',
-        tab: 'channels',
-        icon: Hash,
-        action: 'Show channels',
-      },
-      {
-        title: 'Direct messages',
-        description: 'Use messages for one-to-one or group conversations. Start a message with a teammate and keep private discussions together.',
-        tab: 'messages',
-        icon: MessageSquare,
-        action: 'Show messages',
-      },
-      {
-        title: 'Team calendar',
-        description: 'Check upcoming team events and add meetings or important dates to keep everyone in sync.',
-        tab: 'calendar',
-        icon: CalendarDays,
-        action: 'Show calendar',
-      },
-      ...(currentUser.systemRole === 'admin'
-        ? [{
-            title: 'People and access',
-            description: 'As an administrator, you can add staff, manage workspace roles, reset passwords, and review staff account activity.',
-            tab: 'admin' as const,
-            icon: Users,
-            action: 'Show administration',
-          }]
-        : []),
-      {
-        title: 'Make it yours',
-        description: 'Your profile menu lets you update your status, edit your profile, and choose personal settings such as your theme, devices, and ringtone.',
-        icon: UserRound,
-        action: 'Finish tour',
-      },
-    ];
-    return steps;
-  }, [currentUser.systemRole]);
+  const tourSteps = TOUR_STEPS;
+
+  useEffect(() => {
+    if (stage !== 'tour') {
+      setSpotlightRect(null);
+      return;
+    }
+
+    const updateSpotlight = () => {
+      const target = document.querySelector<HTMLElement>(
+        `[data-onboarding-target="${tourSteps[tourIndex]?.target}"]`,
+      );
+      if (!target) {
+        setSpotlightRect(null);
+        return;
+      }
+      const rect = target.getBoundingClientRect();
+      const left = Math.max(8, Math.min(rect.left - 6, window.innerWidth - 48));
+      const top = Math.max(8, Math.min(rect.top - 6, window.innerHeight - 48));
+      setSpotlightRect({
+        top,
+        left,
+        width: Math.max(0, Math.min(rect.width + 12, window.innerWidth - left - 8)),
+        height: Math.max(0, Math.min(rect.height + 12, window.innerHeight - top - 8)),
+      });
+    };
+
+    const frame = window.requestAnimationFrame(updateSpotlight);
+    window.addEventListener('resize', updateSpotlight);
+    window.addEventListener('scroll', updateSpotlight, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', updateSpotlight);
+      window.removeEventListener('scroll', updateSpotlight, true);
+    };
+  }, [stage, tourIndex, tourSteps]);
 
   const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -117,7 +165,7 @@ export const FirstLoginOnboarding: React.FC = () => {
         banner,
       });
       setStage('tour');
-      setActiveTab(tourSteps[0]?.tab || 'channels');
+      setActiveTab(tourSteps[0].tab || 'channels');
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Could not save your profile.');
     } finally {
@@ -148,14 +196,35 @@ export const FirstLoginOnboarding: React.FC = () => {
   const TourIcon = activeStep?.icon;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+    <div className={`fixed inset-0 z-[70] ${stage === 'tour' ? 'pointer-events-none' : 'flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm'}`}>
+      {stage === 'tour' && (
+        <>
+          {!spotlightRect && <div className="absolute inset-0 bg-slate-950/55" />}
+          {spotlightRect && (
+            <div
+              aria-hidden="true"
+              className="absolute rounded-2xl border-2 border-sky-300 shadow-[0_0_0_9999px_rgba(15,23,42,0.56)] transition-all duration-300"
+              style={{
+                top: spotlightRect.top,
+                left: spotlightRect.left,
+                width: spotlightRect.width,
+                height: spotlightRect.height,
+              }}
+            />
+          )}
+        </>
+      )}
       <section
         aria-labelledby="onboarding-title"
-        aria-modal="true"
+        aria-modal={stage === 'profile'}
         role="dialog"
-        className="w-full max-w-xl overflow-hidden rounded-3xl border border-white/70 bg-white shadow-2xl"
+        className={`w-full overflow-hidden rounded-3xl border border-white/70 bg-white shadow-2xl ${
+          stage === 'profile'
+            ? 'max-w-xl'
+            : 'pointer-events-auto fixed bottom-4 right-4 max-h-[calc(100vh-2rem)] max-w-sm overflow-y-auto sm:bottom-6 sm:right-6'
+        }`}
       >
-        <div className="h-2 bg-gradient-to-r from-sky-500 via-blue-500 to-cyan-400" />
+        <div className="h-1.5 bg-gradient-to-r from-sky-500 via-blue-500 to-cyan-400" />
         {stage === 'profile' ? (
           <>
             <div className="p-6 pb-4 sm:p-8 sm:pb-5">
@@ -230,7 +299,7 @@ export const FirstLoginOnboarding: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/70 px-6 py-4 sm:px-8">
-              <span className="text-xs text-slate-400">Step 1 of {tourSteps.length + 1}</span>
+              <span className="text-xs text-slate-400">Profile setup · then a {tourSteps.length}-step tour</span>
               <button
                 type="button"
                 onClick={() => void saveProfileAndStartTour()}
@@ -244,10 +313,10 @@ export const FirstLoginOnboarding: React.FC = () => {
           </>
         ) : (
           <>
-            <div className="p-6 pb-4 sm:p-8 sm:pb-5">
+            <div className="p-5 pb-4">
               <div className="mb-5 flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-700">Workspace tour</p>
-                <span className="text-xs font-semibold text-slate-400">Step {tourIndex + 2} of {tourSteps.length + 1}</span>
+                <span className="text-xs font-semibold text-slate-400">Step {tourIndex + 1} of {tourSteps.length}</span>
               </div>
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
                 {TourIcon && <TourIcon className="h-7 w-7" />}
@@ -256,7 +325,7 @@ export const FirstLoginOnboarding: React.FC = () => {
               <p className="mt-2 text-sm leading-6 text-slate-600">{activeStep?.description}</p>
             </div>
 
-            <div className="mx-6 mb-6 grid grid-cols-5 gap-1.5 sm:mx-8">
+            <div className="mx-5 mb-5 grid grid-cols-6 gap-1.5">
               {tourSteps.map((step, index) => (
                 <div
                   key={step.title}
