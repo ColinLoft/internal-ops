@@ -220,8 +220,9 @@ const loadSupabaseProfiles = async (authUser: SupabaseAuthUser) => {
     currentUser: mapSupabaseProfile(profile, authUser.id),
     settings: mapWorkspaceSettings(profile),
   };
+};
 
-  const loadSupabaseWorkspaceData = async (userIds: string[]) => {
+const loadSupabaseWorkspaceData = async (userIds: string[]) => {
     let channelResult = await supabase.from('channels').select('*').order('created_at', { ascending: true });
     if (channelResult.error) throw channelResult.error;
 
@@ -319,8 +320,7 @@ const loadSupabaseProfiles = async (authUser: SupabaseAuthUser) => {
       }
     }
 
-    return { channels, messages, threadReplies };
-  };
+  return { channels, messages, threadReplies };
 };
 
 export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
