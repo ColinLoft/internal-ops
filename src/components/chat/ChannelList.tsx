@@ -3,7 +3,6 @@ import {
   Hash,
   Lock,
   Plus,
-  Search,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
@@ -14,12 +13,6 @@ export const ChannelList: React.FC = () => {
     setActiveChannelId,
     setIsCreateChannelOpen,
   } = useWorkspace();
-
-  const [search, setSearch] = useState('');
-
-  const filteredChannels = channels.filter((c) => {
-    return c.name.toLowerCase().includes(search.toLowerCase());
-  });
 
   const renderChannelItem = (ch: typeof channels[0]) => {
     const isActive = ch.id === activeChannelId;
@@ -36,9 +29,7 @@ export const ChannelList: React.FC = () => {
       >
         {/* Channel Icon Badge */}
         <div
-          className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors ${
-            ch.isPrivate ? 'bg-slate-100 text-slate-600' : 'bg-brand-100/70 text-brand-700'
-          }`}
+          className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors bg-brand-100/70 text-brand-700"
         >
           {ch.isPrivate ? (
             <Lock className="w-4 h-4" />
@@ -96,23 +87,11 @@ export const ChannelList: React.FC = () => {
           </button>
         </div>
 
-        {/* Search */}
-        <div className="relative mb-3">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search channels..."
-            className="w-full pl-8 pr-3 py-1.5 bg-slate-100/80 focus:bg-white text-xs text-slate-800 placeholder:text-slate-400 rounded-xl border border-transparent focus:border-brand-500/40 outline-none transition-all"
-          />
-        </div>
-
       </div>
 
       {/* Channel Scroll Area */}
       <div className="flex-1 overflow-y-auto px-3 py-2">
-        <div className="space-y-1">{filteredChannels.map(renderChannelItem)}</div>
+        <div className="space-y-1">{channels.map(renderChannelItem)}</div>
       </div>
     </div>
   );

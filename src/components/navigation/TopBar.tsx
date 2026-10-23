@@ -12,12 +12,17 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 export const TopBar: React.FC = () => {
   const {
     activeTab,
-    activeConversationId,
-    activeChannelId,
     conversations,
     channels,
+    messages,
+    users,
+    calendarEvents,
     searchQuery,
     setSearchQuery,
+    setActiveTab,
+    setActiveConversationId,
+    setActiveChannelId,
+    openUserProfile,
     soundEnabled,
     toggleSound,
     callSession,
@@ -27,18 +32,78 @@ export const TopBar: React.FC = () => {
     setIsAddEventOpen,
   } = useWorkspace();
 
-  const currentConv = conversations.find((c) => c.id === activeConversationId);
-  const currentChan = channels.find((c) => c.id === activeChannelId);
+  const query = searchQuery.trim().toLowerCase();
+  const searchResults = query
+    ? [
+        ...channels
+          .filter((channel) => `${channel.name} ${channel.description}`.toLowerCase().includes(query))
+          .map((channel) => ({
+            id: `channel-${channel.id}`,
+            type: 'Channel' as const,
+            title: `#${channel.name}`,
+            detail: channel.description,
+            onSelect: () => {
+              setActiveTab('channels');
+              setActiveChannelId(channel.id);
+            },
+          })),
+        ...conversations
+          .filter((conversation) =>
+            `${conversation.name} ${conversation.lastMessage?.text || ''}`.toLowerCase().includes(query)
+          )
+          .map((conversation) => ({
+            id: `conversation-${conversation.id}`,
+            type: 'Direct message' as const,
+            title: conversation.name,
+            detail: conversation.lastMessage?.text || 'Open conversation',
+            onSelect: () => {
+              setActiveTab('messages');
+              setActiveConversationId(conversation.id);
+            },
+          })),
+        ...Object.entries(messages).flatMap(([targetId, targetMessages]) => {
+          const isChannel = channels.some((channel) => channel.id === targetId);
+          const conversation = conversations.find((item) => item.id === targetId);
+          if (!isChannel && !conversation) return [];
 
-  const getBreadcrumbTitle = () => {
-    if (activeTab === 'messages') {
-      return `Messages • ${currentConv?.name || 'All Direct Messages'}`;
-    }
-    if (activeTab === 'channels') {
-      return `Channels • #${currentChan?.name || 'General'}`;
-    }
-    return 'Calendar • Non-Profit Schedule';
-  };
+          return targetMessages
+            .filter((message) => message.text.toLowerCase().includes(query))
+            .map((message) => ({
+              id: `message-${message.id}`,
+              type: 'Message' as const,
+              title: message.senderName,
+              detail: message.text,
+              onSelect: () => {
+                if (isChannel) {
+                  setActiveTab('channels');
+                  setActiveChannelId(targetId);
+                } else {
+                  setActiveTab('messages');
+                  setActiveConversationId(targetId);
+                }
+              },
+            }));
+        }),
+        ...users
+          .filter((user) => `${user.name} ${user.role} ${user.email}`.toLowerCase().includes(query))
+          .map((user) => ({
+            id: `user-${user.id}`,
+            type: 'Person' as const,
+            title: user.name,
+            detail: `${user.role} · ${user.department}`,
+            onSelect: () => openUserProfile(user),
+          })),
+        ...calendarEvents
+          .filter((event) => `${event.title} ${event.description || ''} ${event.location || ''}`.toLowerCase().includes(query))
+          .map((event) => ({
+            id: `event-${event.id}`,
+            type: 'Calendar event' as const,
+            title: event.title,
+            detail: `${event.date}${event.location ? ` · ${event.location}` : ''}`,
+            onSelect: () => setActiveTab('calendar'),
+          })),
+      ].slice(0, 8)
+    : [];
 
   return (
     <header className="h-16 px-6 bg-white/70 backdrop-blur-xl border-b border-slate-200/80 flex items-center justify-between z-20 flex-shrink-0 shadow-xs">
@@ -63,7 +128,14 @@ export const TopBar: React.FC = () => {
         <input
           type="text"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setSearchQuery('');
+            if (event.key === 'Enter' && searchResults[0]) {
+              searchResults[0].onSelect();
+              setSearchQuery('');
+            }
+          }}
           placeholder="Search anything... ⌘+S Quick search"
           className="w-full pl-9 pr-14 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white text-xs font-medium text-slate-900 placeholder:text-slate-400 rounded-xl border border-transparent focus:border-brand-500/50 focus:ring-4 focus:ring-brand-500/10 transition-all outline-none"
         />
@@ -72,6 +144,29 @@ export const TopBar: React.FC = () => {
             ⌘S
           </kbd>
         </div>
+        {query && (
+          <div className="absolute top-full left-0 right-0 mt-2 p-1.5 bg-white rounded-xl border border-slate-200 shadow-xl z-50 max-h-80 overflow-y-auto">
+            {searchResults.length > 0 ? searchResults.map((result) => (
+              <button
+                key={result.id}
+                type="button"
+                onClick={() => {
+                  result.onSelect();
+                  setSearchQuery('');
+                }}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-brand-50 transition-colors"
+              >
+                <span className="block text-[10px] font-semibold uppercase tracking-wide text-brand-600">
+                  {result.type}
+                </span>
+                <span className="block text-xs font-semibold text-slate-800 truncate">{result.title}</span>
+                <span className="block text-[11px] text-slate-500 truncate">{result.detail}</span>
+              </button>
+            )) : (
+              <p className="px-3 py-4 text-xs text-center text-slate-500">No matching results</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right controls */}

@@ -5,8 +5,6 @@ import {
 } from '../../types';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
-  CheckCheck,
-  Check,
   Phone,
   PhoneOff,
   Play,
@@ -36,6 +34,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const {
     users,
     currentUser,
+    activeTab,
     openUserProfile,
     toggleReaction,
     votePoll,
@@ -316,7 +315,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         )}
 
         {/* Seen status or Read Receipt (matching Screenshot 1 Sage) */}
-        {isCurrentUser && (
+        {isCurrentUser && activeTab !== 'channels' && (
           <div className="flex items-center gap-1 mt-1 text-[10px] font-semibold text-brand-600">
             <CheckCheck className="w-3.5 h-3.5" />
             <span>Seen</span>
