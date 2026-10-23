@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, UserPlus, Camera, Upload } from 'lucide-react';
+import { X, UserPlus, Upload } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { UserRole, User } from '../../types';
 import { uploadAvatarToSupabase } from '../../lib/supabase';
@@ -20,19 +20,11 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
     'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
   );
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const presetAvatars = [
-    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-  ];
 
   if (!isOpen) return null;
 
@@ -42,13 +34,15 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
 
     const file = files[0];
     setUploadingImage(true);
+    setUploadError('');
     try {
       const publicUrl = await uploadAvatarToSupabase(file, `temp-${Date.now()}`);
       setAvatar(publicUrl);
     } catch (err) {
-      console.warn('Avatar upload error:', err);
+      setUploadError(err instanceof Error ? err.message : 'Unable to upload profile photo.');
     } finally {
       setUploadingImage(false);
+      e.target.value = '';
     }
   };
 
@@ -110,7 +104,7 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-          {/* Profile Picture Upload & Picker */}
+          {/* Profile Picture Upload */}
           <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-slate-700">Profile Picture</label>
@@ -134,41 +128,14 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
             />
 
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <img
-                  src={avatar}
-                  alt="avatar"
-                  className="w-12 h-12 rounded-2xl object-cover border-2 border-brand-500 shadow-xs"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute -bottom-1 -right-1 p-1 bg-brand-600 text-white rounded-full shadow-xs"
-                  title="Upload from computer"
-                >
-                  <Camera className="w-2.5 h-2.5" />
-                </button>
-              </div>
-
-              <div className="flex-1">
-                <div className="flex items-center gap-1.5 overflow-x-auto py-1">
-                  {presetAvatars.map((url, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setAvatar(url)}
-                      className={`rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${
-                        avatar === url
-                          ? 'border-brand-600 ring-2 ring-brand-400/30'
-                          : 'border-transparent opacity-60 hover:opacity-100'
-                      }`}
-                    >
-                      <img src={url} alt="preset" className="w-6 h-6 object-cover" />
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <img
+                src={avatar}
+                alt="Profile photo preview"
+                className="w-12 h-12 rounded-2xl object-cover border-2 border-brand-500 shadow-xs"
+              />
+              <p className="text-xs text-slate-500">Upload a photo to use for this staff profile.</p>
             </div>
+            {uploadError && <p role="alert" className="text-xs text-rose-600">{uploadError}</p>}
           </div>
 
           {/* Name & Email */}

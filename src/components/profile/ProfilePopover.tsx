@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import {
   Check,
   LogOut,
-  RotateCcw,
   Settings,
   UserRound,
-  UserPlus,
   Users,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -18,8 +16,6 @@ export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) =
     updateCurrentUser,
     setIsProfileSettingsOpen,
     setIsWorkspaceSettingsOpen,
-    setIsAddTeammateOpen,
-    resetWorkspace,
     logout,
   } = useWorkspace();
 
@@ -122,17 +118,6 @@ export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) =
           <span>Settings</span>
         </button>
 
-        <button
-          onClick={() => {
-            setIsAddTeammateOpen(true);
-            onClose();
-          }}
-          className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-xl transition-all"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>Add Teammate / Colleague</span>
-        </button>
-
         {users.length > 1 && (
           <div className="pt-2 border-t border-slate-200/70">
             <div className="px-2 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
@@ -176,18 +161,7 @@ export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) =
         )}
       </div>
 
-      <div className="p-2 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between">
-        <button
-          onClick={() => {
-            if (window.confirm('Reset workspace data back to fresh empty slate? All custom messages and events will be cleared.')) {
-              resetWorkspace();
-            }
-          }}
-          className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-slate-500 hover:text-rose-600 rounded-lg transition-all"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset Data</span>
-        </button>
+      <div className="p-2 border-t border-slate-100 bg-slate-50/70 flex items-center justify-end">
         <button
           onClick={() => {
             logout();
