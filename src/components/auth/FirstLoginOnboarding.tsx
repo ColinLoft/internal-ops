@@ -17,7 +17,7 @@ import { PROFILE_BANNERS, ProfileBanner } from '../../types';
 type TourStep = {
   title: string;
   description: string;
-  tab?: 'messages' | 'channels' | 'calendar' | 'admin';
+  tab?: 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin';
   target: string;
   icon: React.ComponentType<{ className?: string }>;
   action: string;

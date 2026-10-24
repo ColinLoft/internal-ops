@@ -23,6 +23,7 @@ import { NewMessageModal } from './components/modals/NewMessageModal';
 import { AddEventModal } from './components/modals/AddEventModal';
 import { AddTeammateModal } from './components/modals/AddTeammateModal';
 import { InviteReadyModal } from './components/modals/InviteReadyModal';
+import { EmailInboxPage } from './components/email/EmailInboxPage';
 
 const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
@@ -92,6 +93,7 @@ const WorkspaceShell: React.FC = () => {
           )}
 
           {activeTab === 'calendar' && <CalendarView />}
+          {activeTab === 'inbox' && <EmailInboxPage />}
           {activeTab === 'admin' && <AdminPage />}
         </div>
       </div>

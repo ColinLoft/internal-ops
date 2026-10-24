@@ -181,6 +181,33 @@ Deno.serve(async (request: Request) => {
       return jsonResponse({ error: `Could not verify the staff account before removal: ${targetAuthError.message}` }, 400);
     }
 
+    const { data: ownedMailboxes, error: mailboxLookupError } = await adminClient
+      .from('email_mailboxes')
+      .select('id, mailbox_type')
+      .eq('connected_by', userId);
+    if (mailboxLookupError) return jsonResponse({ error: `Connected email accounts could not be prepared for removal: ${mailboxLookupError.message}` }, 500);
+    const personalMailboxIds = (ownedMailboxes || [])
+      .filter((mailbox) => mailbox.mailbox_type === 'personal')
+      .map((mailbox) => mailbox.id);
+    if (personalMailboxIds.length) {
+      const { error: personalDeleteError } = await adminClient.from('email_mailboxes')
+        .delete()
+        .in('id', personalMailboxIds);
+      if (personalDeleteError) return jsonResponse({ error: `Personal email accounts could not be disconnected: ${personalDeleteError.message}` }, 500);
+    }
+    const sharedMailboxIds = (ownedMailboxes || [])
+      .filter((mailbox) => mailbox.mailbox_type === 'shared')
+      .map((mailbox) => mailbox.id);
+    if (sharedMailboxIds.length) {
+      const { error: sharedTransferError } = await adminClient.from('email_mailboxes')
+        .update({
+          connected_by: caller.id,
+          push_error: 'The original mailbox connector was removed. Verify provider authorization and reconnect this shared mailbox if synchronization stops.',
+        })
+        .in('id', sharedMailboxIds);
+      if (sharedTransferError) return jsonResponse({ error: `Shared email accounts could not be transferred to the removing administrator: ${sharedTransferError.message}` }, 500);
+    }
+
     if (targetAuth.user) {
       const { error: deleteUserError } = await adminClient.auth.admin.deleteUser(userId);
       const authUserDisappeared = deleteUserError !== null

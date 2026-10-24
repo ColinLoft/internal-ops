@@ -47,7 +47,7 @@ interface WorkspaceContextType {
   isSupabaseConnected: boolean;
   
   // Navigation & Views
-  activeTab: 'messages' | 'channels' | 'calendar' | 'admin';
+  activeTab: 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin';
   activeConversationId: string;
   activeChannelId: string;
   activeThreadMessageId: string | null;
@@ -90,7 +90,7 @@ interface WorkspaceContextType {
   completeOnboarding: () => Promise<void>;
   
   // Navigation actions
-  setActiveTab: (tab: 'messages' | 'channels' | 'calendar' | 'admin') => void;
+  setActiveTab: (tab: 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin') => void;
   setActiveConversationId: (id: string) => void;
   setActiveChannelId: (id: string) => void;
   openThread: (messageId: string) => void;
@@ -395,7 +395,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings>(DEFAULT_WORKSPACE_SETTINGS);
 
   // Navigation
-  const [activeTab, setActiveTabState] = useState<'messages' | 'channels' | 'calendar' | 'admin'>('channels');
+  const [activeTab, setActiveTabState] = useState<'messages' | 'channels' | 'calendar' | 'inbox' | 'admin'>(() =>
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('mail_oauth') === 'callback'
+      ? 'inbox'
+      : 'channels'
+  );
   const [activeConversationId, setActiveConversationId] = useState<string>('');
   const [activeChannelId, setActiveChannelId] = useState<string>('chan-announcements');
   const [activeThreadMessageId, setActiveThreadMessageId] = useState<string | null>(null);
@@ -808,7 +812,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     });
   };
 
-  const setActiveTab = (tab: 'messages' | 'channels' | 'calendar' | 'admin') => {
+  const setActiveTab = (tab: 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin') => {
     setActiveTabState(tab);
     setActiveThreadMessageId(null);
   };
@@ -1307,7 +1311,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
             description: `${currentUser.name} pinged the channel`,
             timestamp: 'Just now',
             isRead: false,
-            linkTab: activeTab === 'admin' ? 'channels' : activeTab,
+            linkTab: activeTab === 'admin' || activeTab === 'inbox' ? 'channels' : activeTab,
             targetId,
           },
           ...prev,

@@ -3,6 +3,7 @@ import {
   MessageSquare,
   Hash,
   Calendar as CalendarIcon,
+  Mail,
   UserRound,
   Bell,
 } from 'lucide-react';
@@ -117,6 +118,22 @@ export const Rail: React.FC = () => {
             <CalendarIcon className="w-5 h-5" />
             <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
               Calendar
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('inbox')}
+            className={`group relative p-3 rounded-2xl transition-all duration-200 ${
+              activeTab === 'inbox'
+                ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40'
+                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
+            }`}
+            title="Email inbox"
+            aria-label="Email inbox"
+          >
+            <Mail className="w-5 h-5" />
+            <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+              Email inbox
             </span>
           </button>
 
