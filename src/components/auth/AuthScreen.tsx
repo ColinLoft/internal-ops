@@ -45,15 +45,11 @@ export const AuthScreen: React.FC = () => {
         {/* Top Brand Banner */}
         <div className="bg-gradient-to-r from-brand-600 via-brand-700 to-brand-800 p-6 text-white text-center relative">
           <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-black/10">
-            <img src="/brand-icon.png" alt="Beacon Workspace" className="w-8 h-8 object-contain" />
+            <img src="/brand-icon.png" alt="Season Report" className="w-8 h-8 object-contain" />
           </div>
-          <h2 className="text-xl font-bold tracking-tight">Beacon Workspace</h2>
-          <p className="text-brand-100 text-xs mt-1">Nonprofit Staff & Outreach Collaboration</p>
+          <h2 className="text-xl font-bold tracking-tight">Season Report</h2>
+          <p className="text-brand-100 text-xs mt-1">Season Report's Operation Platform</p>
 
-          <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2.5 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-[10px] font-semibold text-emerald-300">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Invite-Only</span>
-          </div>
         </div>
 
         {/* Form Body */}
@@ -61,7 +57,7 @@ export const AuthScreen: React.FC = () => {
           <div className="mb-5 text-center">
             <h3 className="text-base font-bold text-slate-900">Staff Portal Sign In</h3>
             <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Sign in with the email and password for your Supabase Auth account.
+              Sign in with your email and password for operation account.
             </p>
           </div>
 
@@ -76,7 +72,7 @@ export const AuthScreen: React.FC = () => {
             {/* Email Field */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Staff Email Address
+                Email Address
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
@@ -84,7 +80,7 @@ export const AuthScreen: React.FC = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your.name@beaconwork.org"
+                  placeholder="firstname@seasonreport.org"
                   required
                   className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all"
                 />
