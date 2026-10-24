@@ -1,213 +1,127 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  MessageSquare,
-  Hash,
-  Calendar as CalendarIcon,
-  UserRound,
-  Bell,
-  Sparkles,
+  Mail,
+  Key,
+  ArrowRight,
+  AlertCircle,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { NotificationCenter } from '../notifications/NotificationCenter';
-import { ProfilePopover } from '../profile/ProfilePopover';
 
-export const Rail: React.FC = () => {
-  const {
-    activeTab,
-    setActiveTab,
-    conversations,
-    channels,
-    unreadNotificationCount,
-    currentUser,
-  } = useWorkspace();
+export const AuthScreen: React.FC = () => {
+  const { login } = useWorkspace();
 
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState(false);
-  
-  const notifRef = useRef<HTMLDivElement>(null);
-  const profileRef = useRef<HTMLDivElement>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Calculate unread totals
-  const totalUnreadMessages = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
-  const totalUnreadChannels = channels.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
-  // Close menus on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setIsNotificationsOpen(false);
+    try {
+      const result = await login(email.trim(), password);
+      if (!result.success) {
+        setError(result.message || 'Invalid email or password.');
       }
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setIsProfilePopoverOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    } catch {
+      setError('An error occurred during authentication.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <aside className="w-[72px] bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/80 flex flex-col items-center py-4 justify-between z-30 select-none shadow-2xl flex-shrink-0">
-      {/* Top Brand Logo */}
-      <div className="flex flex-col items-center gap-6">
-        <div 
-          onClick={() => setActiveTab('messages')}
-          className="group relative cursor-pointer w-11 h-11 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-brand-500/25 transition-transform hover:scale-105 active:scale-95"
-          title="Beacon Workspace"
-        >
-          <Sparkles className="w-6 h-6 text-white group-hover:rotate-12 transition-transform duration-300" />
-          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 border-2 border-slate-900 rounded-full" />
+    <div className="min-h-screen w-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-sky-50/70 to-blue-50/90 p-4 select-none relative overflow-hidden">
+      {/* Decorative ambient glowing orbs in brand blue */}
+      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-brand-500/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-brand-400/10 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Main Glassy Card */}
+      <div className="w-full max-w-md bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200">
+        {/* Top Brand Banner */}
+        <div className="bg-gradient-to-r from-brand-600 via-brand-700 to-brand-800 p-6 text-white text-center relative">
+          <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-black/10">
+            <img src="/brand-icon.png" alt="Season Report" className="w-8 h-8 object-contain" />
+          </div>
+          <h2 className="text-xl font-bold tracking-tight">Season Report</h2>
+          <p className="text-brand-100 text-xs mt-1">Season Report's Operation Platform</p>
         </div>
 
-        {/* Navigation Item Tabs */}
-        <nav className="flex flex-col items-center gap-2">
-          {/* Messages Item */}
-          <button
-            data-onboarding-target="nav-messages"
-            onClick={() => setActiveTab('messages')}
-            className={`group relative p-3 rounded-2xl transition-all duration-200 ${
-              activeTab === 'messages'
-                ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40'
-                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
-            }`}
-            title="Messages & Direct Chats"
-          >
-            <MessageSquare className="w-5 h-5" />
-            {totalUnreadMessages > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-slate-900 animate-pulse">
-                {totalUnreadMessages}
-              </span>
-            )}
-            <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-              Messages
-            </span>
-          </button>
+        {/* Form Body */}
+        <div className="p-6">
+          <div className="mb-5 text-center">
+            {/* Box with brand-icon.png and green dot */}
+            <div className="relative w-12 h-12 mx-auto mb-3 flex items-center justify-center bg-slate-100 rounded-2xl border border-slate-200 shadow-sm">
+              <img src="/brand-icon.png" alt="Brand Icon" className="w-6 h-6 object-contain" />
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full" />
+            </div>
 
-          {/* Channels Item */}
-          <button
-            data-onboarding-target="nav-channels"
-            onClick={() => setActiveTab('channels')}
-            className={`group relative p-3 rounded-2xl transition-all duration-200 ${
-              activeTab === 'channels'
-                ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40'
-                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
-            }`}
-            title="Channels & Announcements"
-          >
-            <Hash className="w-5 h-5" />
-            {totalUnreadChannels > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-brand-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-slate-900">
-                {totalUnreadChannels}
-              </span>
-            )}
-            <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-              Channels
-            </span>
-          </button>
+            <h3 className="text-base font-bold text-slate-900">Staff Portal Sign In</h3>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              Sign in with the email and password for your Supabase Auth account.
+            </p>
+          </div>
 
-          {/* Calendar Item */}
-          <button
-            data-onboarding-target="nav-calendar"
-            onClick={() => setActiveTab('calendar')}
-            className={`group relative p-3 rounded-2xl transition-all duration-200 ${
-              activeTab === 'calendar'
-                ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40'
-                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
-            }`}
-            title="Team & Personal Calendar"
-          >
-            <CalendarIcon className="w-5 h-5" />
-            <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-              Calendar
-            </span>
-          </button>
+          {error && (
+            <div className="p-3 mb-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
-          {currentUser.systemRole === 'admin' && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Email Field */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Staff Email Address
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your.name@beaconwork.org"
+                  required
+                  className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Password Field */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Password
+                </label>
+              </div>
+              <div className="relative">
+                <Key className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password or invite code"
+                  required
+                  className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Sign in button */}
             <button
-              onClick={() => setActiveTab('admin')}
-              className={`group relative p-3 rounded-2xl transition-all duration-200 ${
-                activeTab === 'admin'
-                  ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40'
-                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
-              }`}
-              title="People & access"
-              aria-label="People & access"
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-500/25 transition-all flex items-center justify-center gap-2 group active:scale-95 disabled:opacity-50"
             >
-              <UserRound className="w-5 h-5" />
-              <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                People &amp; access
-              </span>
+              <span>{loading ? 'Authenticating...' : 'Sign In to Workspace'}</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </button>
-          )}
-        </nav>
-      </div>
-
-      {/* Bottom Actions: Notifications & Current User Avatar */}
-      <div className="flex flex-col items-center gap-4">
-        {/* Notifications Bell */}
-        <div className="relative" ref={notifRef}>
-          <button
-            onClick={() => setIsNotificationsOpen((prev) => !prev)}
-            className={`group relative p-3 rounded-2xl text-slate-400 hover:text-slate-100 hover:bg-slate-800/70 transition-all ${
-              isNotificationsOpen ? 'bg-slate-800 text-white' : ''
-            }`}
-            title="Notification Center"
-          >
-            <Bell className="w-5 h-5" />
-            {unreadNotificationCount > 0 && (
-              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-slate-900 animate-ping" />
-            )}
-            {unreadNotificationCount > 0 && (
-              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-slate-900" />
-            )}
-            <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-              Notifications ({unreadNotificationCount})
-            </span>
-          </button>
-
-          {isNotificationsOpen && (
-            <div className="absolute left-[84px] bottom-0 z-50">
-              <NotificationCenter onClose={() => setIsNotificationsOpen(false)} />
-            </div>
-          )}
-        </div>
-
-        {/* User Avatar with Profile Popover */}
-        <div className="relative" ref={profileRef}>
-          <button
-            data-onboarding-target="profile-button"
-            onClick={() => setIsProfilePopoverOpen((prev) => !prev)}
-            className="group relative p-0.5 rounded-full hover:ring-2 hover:ring-brand-500/60 transition-all"
-            title={`${currentUser.name} (${currentUser.role})`}
-          >
-            <img
-              src={currentUser.avatar}
-              alt={currentUser.name}
-              className="w-10 h-10 rounded-full object-cover border-2 border-slate-700 shadow-md group-hover:border-brand-500 transition-colors"
-            />
-            {/* Status dot */}
-            <span
-              className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${
-                currentUser.status === 'online'
-                  ? 'bg-emerald-500'
-                  : currentUser.status === 'busy'
-                  ? 'bg-rose-500'
-                  : currentUser.status === 'away'
-                  ? 'bg-amber-500'
-                  : 'bg-slate-500'
-              }`}
-            />
-            <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-              {currentUser.name} • Status & Profile
-            </span>
-          </button>
-
-          {isProfilePopoverOpen && (
-            <div className="absolute left-[84px] bottom-0 z-50">
-              <ProfilePopover onClose={() => setIsProfilePopoverOpen(false)} />
-            </div>
-          )}
+          </form>
         </div>
       </div>
-    </aside>
+    </div>
   );
 };
