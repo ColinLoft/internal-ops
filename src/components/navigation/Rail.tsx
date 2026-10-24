@@ -5,7 +5,6 @@ import {
   Calendar as CalendarIcon,
   UserRound,
   Bell,
-  Sparkles,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { NotificationCenter } from '../notifications/NotificationCenter';
@@ -54,7 +53,7 @@ export const Rail: React.FC = () => {
           className="group relative cursor-pointer w-11 h-11 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-brand-500/25 transition-transform hover:scale-105 active:scale-95"
           title="Beacon Workspace"
         >
-          <Sparkles className="w-6 h-6 text-white group-hover:rotate-12 transition-transform duration-300" />
+          <img src="/brand-icon.png" alt="Beacon Workspace" className="w-6 h-6 object-contain group-hover:rotate-12 transition-transform duration-300" />
           <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 border-2 border-slate-900 rounded-full" />
         </div>
 
@@ -197,7 +196,7 @@ export const Rail: React.FC = () => {
               }`}
             />
             <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-              {currentUser.name} • Status & Profile
+              {currentUser.name} Status &amp; Profile
             </span>
           </button>
 
