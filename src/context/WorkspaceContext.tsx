@@ -72,6 +72,7 @@ interface WorkspaceContextType {
   isCreatePollOpen: boolean;
   isNewMessageOpen: boolean;
   isAddEventOpen: boolean;
+  isEmailComposeRequested: boolean;
   isAddTeammateOpen: boolean;
   inviteReadyData: {
     name: string;
@@ -160,6 +161,8 @@ interface WorkspaceContextType {
   setIsCreatePollOpen: (open: boolean) => void;
   setIsNewMessageOpen: (open: boolean) => void;
   setIsAddEventOpen: (open: boolean) => void;
+  setIsEmailComposeRequested: (requested: boolean) => void;
+  requestEmailCompose: () => void;
   setIsAddTeammateOpen: (open: boolean) => void;
   setInviteReadyData: (data: WorkspaceContextType['inviteReadyData']) => void;
 }
@@ -447,7 +450,9 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : initialNotifications;
   });
 
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() =>
+    localStorage.getItem(`${STORAGE_PREFIX}sound_enabled`) !== 'false'
+  );
 
   // Modals state
   const [activeProfileModalUser, setActiveProfileModalUser] = useState<User | null>(null);
@@ -457,6 +462,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [isCreatePollOpen, setIsCreatePollOpen] = useState<boolean>(false);
   const [isNewMessageOpen, setIsNewMessageOpen] = useState<boolean>(false);
   const [isAddEventOpen, setIsAddEventOpen] = useState<boolean>(false);
+  const [isEmailComposeRequested, setIsEmailComposeRequested] = useState<boolean>(false);
   const [isAddTeammateOpen, setIsAddTeammateOpen] = useState<boolean>(false);
   const [inviteReadyData, setInviteReadyData] = useState<WorkspaceContextType['inviteReadyData']>(null);
 
@@ -704,6 +710,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     localStorage.setItem(`${STORAGE_PREFIX}notifications`, JSON.stringify(notifications));
   }, [notifications]);
 
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_PREFIX}sound_enabled`, String(soundEnabled));
+    sounds.setSoundEnabled(soundEnabled);
+  }, [soundEnabled]);
+
   // Login handler
   const login = async (email: string, pass: string): Promise<{ success: boolean; message?: string }> => {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -826,6 +837,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const setActiveTab = (tab: 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin') => {
     setActiveTabState(tab);
     setActiveThreadMessageId(null);
+  };
+
+  const requestEmailCompose = () => {
+    setActiveTab('inbox');
+    setIsEmailComposeRequested(true);
   };
 
   const openThread = (messageId: string) => {
@@ -2073,6 +2089,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         isCreatePollOpen,
         isNewMessageOpen,
         isAddEventOpen,
+        isEmailComposeRequested,
         isAddTeammateOpen,
         inviteReadyData,
         searchQuery,
@@ -2128,6 +2145,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         setIsCreatePollOpen,
         setIsNewMessageOpen,
         setIsAddEventOpen,
+        setIsEmailComposeRequested,
+        requestEmailCompose,
         setIsAddTeammateOpen,
         setInviteReadyData,
       }}

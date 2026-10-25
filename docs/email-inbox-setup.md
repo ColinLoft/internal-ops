@@ -236,6 +236,8 @@ Do not paste real secrets into screenshots or support messages. If you rerun the
 
 Email AI requires an Azure OpenAI resource and a deployed chat model. Skip this if you do not want AI summaries or reply drafts.
 
+For the detailed Azure portal walkthrough, exact Supabase secret setup, deployment, safe testing, and troubleshooting, follow [Azure OpenAI setup for email AI](./azure-openai-setup.md). The concise checklist below is retained as a quick reference.
+
 1. Open the [Azure portal](https://portal.azure.com/) and sign in to the Azure subscription that should pay for AI usage.
 2. Use the portal search bar to find **Azure AI Foundry** or **Azure OpenAI**, then create an available resource in a region where your chosen model is available. Complete the required subscription, resource group, name, and region fields.
 3. Open [Microsoft Foundry](https://ai.azure.com/) and select the project/resource you just created.

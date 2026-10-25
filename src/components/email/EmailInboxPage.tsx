@@ -181,7 +181,15 @@ const localDateTimeValue = (date: Date) => {
 };
 
 export const EmailInboxPage: React.FC = () => {
-  const { currentUser, recordSystemActivity, channels, postChannelMessage } = useWorkspace();
+  const {
+    activeTab,
+    currentUser,
+    recordSystemActivity,
+    channels,
+    postChannelMessage,
+    isEmailComposeRequested,
+    setIsEmailComposeRequested,
+  } = useWorkspace();
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
   const [activeMailboxId, setActiveMailboxId] = useState('');
   const [activeFolder, setActiveFolder] = useState('inbox');
@@ -231,6 +239,12 @@ export const EmailInboxPage: React.FC = () => {
     (!channel.isPrivate || channel.members.includes(currentUser.id))
     && channel.postingRoles.includes(currentUser.systemRole)
   );
+
+  useEffect(() => {
+    if (activeTab !== 'inbox' || !isEmailComposeRequested) return;
+    setComposeOpen(true);
+    setIsEmailComposeRequested(false);
+  }, [activeTab, isEmailComposeRequested, setIsEmailComposeRequested]);
 
   const loadMailboxes = useCallback(async () => {
     const { data, error: queryError } = await supabase

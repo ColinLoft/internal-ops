@@ -6,8 +6,6 @@ import {
   AtSign,
   Calendar,
   MessageSquare,
-  Volume2,
-  VolumeX,
   X,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -20,8 +18,6 @@ export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose 
     setActiveTab,
     setActiveChannelId,
     setActiveConversationId,
-    soundEnabled,
-    toggleSound,
   } = useWorkspace();
 
   const handleNotificationClick = (notif: typeof notifications[0]) => {
@@ -49,7 +45,7 @@ export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose 
   };
 
   return (
-    <div className="w-80 bg-white/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-150">
+    <div role="dialog" aria-label="Notification center" className="w-80 bg-white/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-150">
       {/* Header */}
       <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
         <div className="flex items-center gap-2">
@@ -57,13 +53,6 @@ export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose 
           <h4 className="text-xs font-bold text-slate-900">Notification Center</h4>
         </div>
         <div className="flex items-center gap-1.5">
-          <button
-            onClick={toggleSound}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
-            title={soundEnabled ? 'Mute Chimes' : 'Enable Chimes'}
-          >
-            {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-brand-600" /> : <VolumeX className="w-3.5 h-3.5" />}
-          </button>
           <button
             onClick={markAllNotificationsRead}
             className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"

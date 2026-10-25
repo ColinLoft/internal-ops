@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, Monitor, Palette, Play, Save, Settings, X } from 'lucide-react';
+import { Loader2, Monitor, Palette, Play, Save, Settings, Volume2, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { RINGTONES, WorkspaceSettings } from '../../types';
 import { sounds } from '../../lib/sound';
@@ -10,6 +10,8 @@ export const SettingsModal: React.FC = () => {
     setIsWorkspaceSettingsOpen,
     workspaceSettings,
     saveWorkspaceSettings,
+    soundEnabled,
+    toggleSound,
   } = useWorkspace();
 
   const [draft, setDraft] = useState<WorkspaceSettings>(workspaceSettings);
@@ -140,6 +142,19 @@ export const SettingsModal: React.FC = () => {
               </label>
             </div>
             <p className="text-[11px] text-slate-500 mt-2">Accent color applies to buttons and highlights. Dark blue is the default.</p>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Volume2 className="w-4 h-4 text-brand-600" />
+              <h4 className="text-sm font-bold text-slate-900">Notifications</h4>
+            </div>
+            <Toggle
+              label="Notification sounds"
+              description="Play a subtle sound when workspace notifications arrive."
+              checked={soundEnabled}
+              onChange={() => toggleSound()}
+            />
           </section>
 
           <section className="rounded-2xl border border-slate-200 p-4 divide-y divide-slate-100">

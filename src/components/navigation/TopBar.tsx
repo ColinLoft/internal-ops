@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Search,
-  Volume2,
-  VolumeX,
+  Bell,
   PhoneCall,
   Video,
-  Plus,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { NotificationCenter } from '../notifications/NotificationCenter';
 
 export const TopBar: React.FC = () => {
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const {
     activeTab,
     activeConversationId,
@@ -25,14 +26,20 @@ export const TopBar: React.FC = () => {
     setActiveConversationId,
     setActiveChannelId,
     openUserProfile,
-    soundEnabled,
-    toggleSound,
+    unreadNotificationCount,
     callSession,
     startCall,
-    setIsNewMessageOpen,
-    setIsCreateChannelOpen,
-    setIsAddEventOpen,
   } = useWorkspace();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setIsNotificationsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const currentConv = conversations.find((conversation) => conversation.id === activeConversationId);
   const currentChan = channels.find((channel) => channel.id === activeChannelId);
@@ -175,18 +182,33 @@ export const TopBar: React.FC = () => {
 
       {/* Right controls */}
       <div className="flex items-center gap-3">
-        {/* Sound toggle button */}
-        <button
-          onClick={toggleSound}
-          className={`p-2 rounded-xl border transition-all ${
-            soundEnabled
-              ? 'text-brand-600 bg-brand-50/70 border-brand-200/60 hover:bg-brand-100/70'
-              : 'text-slate-400 bg-slate-100 border-slate-200 hover:bg-slate-200/70'
-          }`}
-          title={soundEnabled ? 'Notification Chimes Active (Click to mute)' : 'Sounds Muted'}
-        >
-          {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-        </button>
+        <div className="relative" ref={notificationsRef}>
+          <button
+            type="button"
+            onClick={() => setIsNotificationsOpen((open) => !open)}
+            aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ''}`}
+            aria-haspopup="dialog"
+            aria-expanded={isNotificationsOpen}
+            title="Notifications"
+            className={`relative rounded-xl border p-2 transition-all ${
+              isNotificationsOpen
+                ? 'border-brand-200 bg-brand-50 text-brand-700'
+                : 'border-slate-200 bg-white/70 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+            }`}
+          >
+            <Bell className="h-4 w-4" />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-white">
+                {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+              </span>
+            )}
+          </button>
+          {isNotificationsOpen && (
+            <div className="absolute right-0 top-full z-50 mt-2">
+              <NotificationCenter onClose={() => setIsNotificationsOpen(false)} />
+            </div>
+          )}
+        </div>
 
         {/* Call quick status if active */}
         {callSession.active && (
@@ -196,36 +218,6 @@ export const TopBar: React.FC = () => {
           </div>
         )}
 
-        {/* Quick Add button contextually */}
-        {activeTab === 'messages' && (
-          <button
-            onClick={() => setIsNewMessageOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-sm shadow-brand-500/30 transition-all active:scale-95"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Chat</span>
-          </button>
-        )}
-
-        {activeTab === 'channels' && (
-          <button
-            onClick={() => setIsCreateChannelOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-sm shadow-brand-500/30 transition-all active:scale-95"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Create Channel</span>
-          </button>
-        )}
-
-        {activeTab === 'calendar' && (
-          <button
-            onClick={() => setIsAddEventOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-sm shadow-brand-500/30 transition-all active:scale-95"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Event</span>
-          </button>
-        )}
       </div>
     </header>
   );

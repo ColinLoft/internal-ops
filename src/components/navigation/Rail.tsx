@@ -5,10 +5,12 @@ import {
   Calendar as CalendarIcon,
   Mail,
   UserRound,
-  Bell,
+  CirclePlus,
+  MessageSquarePlus,
+  MailPlus,
+  CalendarPlus,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { NotificationCenter } from '../notifications/NotificationCenter';
 import { ProfilePopover } from '../profile/ProfilePopover';
 
 export const Rail: React.FC = () => {
@@ -17,14 +19,17 @@ export const Rail: React.FC = () => {
     setActiveTab,
     conversations,
     channels,
-    unreadNotificationCount,
     currentUser,
+    setIsNewMessageOpen,
+    setIsCreateChannelOpen,
+    setIsAddEventOpen,
+    requestEmailCompose,
   } = useWorkspace();
 
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState(false);
   
-  const notifRef = useRef<HTMLDivElement>(null);
+  const quickActionsRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Calculate unread totals
@@ -34,8 +39,8 @@ export const Rail: React.FC = () => {
   // Close menus on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setIsNotificationsOpen(false);
+      if (quickActionsRef.current && !quickActionsRef.current.contains(e.target as Node)) {
+        setIsQuickActionsOpen(false);
       }
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setIsProfilePopoverOpen(false);
@@ -157,32 +162,88 @@ export const Rail: React.FC = () => {
         </nav>
       </div>
 
-      {/* Bottom Actions: Notifications & Current User Avatar */}
+      {/* Bottom Actions: Quick Create & Current User Avatar */}
       <div className="flex flex-col items-center gap-4">
-        {/* Notifications Bell */}
-        <div className="relative" ref={notifRef}>
+        <div className="relative" ref={quickActionsRef}>
           <button
-            onClick={() => setIsNotificationsOpen((prev) => !prev)}
-            className={`group relative p-3 rounded-2xl text-slate-400 hover:text-slate-100 hover:bg-slate-800/70 transition-all ${
-              isNotificationsOpen ? 'bg-slate-800 text-white' : ''
+            type="button"
+            onClick={() => setIsQuickActionsOpen((prev) => !prev)}
+            className={`group relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 transition-all hover:border-brand-400 hover:bg-slate-800 ${
+              isQuickActionsOpen ? 'bg-slate-800 text-white ring-2 ring-brand-400/40' : 'text-slate-300'
             }`}
-            title="Notification Center"
+            title="Create something"
+            aria-label="Create something"
+            aria-expanded={isQuickActionsOpen}
+            aria-haspopup="menu"
           >
-            <Bell className="w-5 h-5" />
-            {unreadNotificationCount > 0 && (
-              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-slate-900 animate-ping" />
-            )}
-            {unreadNotificationCount > 0 && (
-              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-slate-900" />
-            )}
-            <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-              Notifications ({unreadNotificationCount})
+            <CirclePlus className="h-6 w-6" />
+            <span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100 pointer-events-none">
+              Create
             </span>
           </button>
 
-          {isNotificationsOpen && (
-            <div className="absolute left-[84px] bottom-0 z-50">
-              <NotificationCenter onClose={() => setIsNotificationsOpen(false)} />
+          {isQuickActionsOpen && (
+            <div className="absolute bottom-0 left-[54px] z-50 w-64 rounded-2xl border border-slate-200/90 bg-white/95 p-2 text-slate-800 shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150" aria-label="Quick create">
+              <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Quick create</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('messages');
+                  setIsNewMessageOpen(true);
+                  setIsQuickActionsOpen(false);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-brand-50"
+              >
+                <MessageSquarePlus className="h-4 w-4 text-brand-600" />
+                <span>
+                  <span className="block text-xs font-semibold">New chat</span>
+                  <span className="block text-[10px] text-slate-500">Start a direct or group message</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  requestEmailCompose();
+                  setIsQuickActionsOpen(false);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-brand-50"
+              >
+                <MailPlus className="h-4 w-4 text-brand-600" />
+                <span>
+                  <span className="block text-xs font-semibold">New email</span>
+                  <span className="block text-[10px] text-slate-500">Open the email composer</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('channels');
+                  setIsCreateChannelOpen(true);
+                  setIsQuickActionsOpen(false);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-brand-50"
+              >
+                <Hash className="h-4 w-4 text-brand-600" />
+                <span>
+                  <span className="block text-xs font-semibold">New channel</span>
+                  <span className="block text-[10px] text-slate-500">Create a workspace channel</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('calendar');
+                  setIsAddEventOpen(true);
+                  setIsQuickActionsOpen(false);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-brand-50"
+              >
+                <CalendarPlus className="h-4 w-4 text-brand-600" />
+                <span>
+                  <span className="block text-xs font-semibold">New event</span>
+                  <span className="block text-[10px] text-slate-500">Add an item to the calendar</span>
+                </span>
+              </button>
             </div>
           )}
         </div>
