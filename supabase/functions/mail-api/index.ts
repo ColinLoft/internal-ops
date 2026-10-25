@@ -1,6 +1,7 @@
 import {
   bytesToBase64Url,
   clientsFor,
+  emailCorsHeaders,
   getAccessToken,
   hasMailboxAccess,
   jsonResponse,
@@ -20,7 +21,7 @@ const encodeBase64Url = (text: string) => {
 };
 
 Deno.serve(async (request: Request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*' } });
+  if (request.method === 'OPTIONS') return new Response('ok', { headers: emailCorsHeaders });
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405);
 
   try {

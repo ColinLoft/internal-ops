@@ -3,7 +3,9 @@ import {
   Archive,
   ArrowLeft,
   ArrowUpRight,
+  Check,
   ChevronDown,
+  Filter,
   Inbox,
   LoaderCircle,
   Mail,
@@ -52,15 +54,19 @@ type EmailMessage = {
 };
 
 type AiArtifact = { id: string; artifact_type: 'summary' | 'draft'; content: string; created_at: string };
+type MessageFilter = 'all' | 'unread' | 'starred' | 'attachments';
 
 const getFunctionErrorMessage = async (error: Error) => {
+  if ('name' in error && error.name === 'FunctionsFetchError') {
+    return 'The mailbox was connected, but the sync request could not reach Supabase. Check the deployed mail-sync function and the browser connection, then select Sync inbox to retry.';
+  }
   if ('context' in error && error.context instanceof Response) {
     const responseBody: unknown = await error.context.clone().json().catch(() => null);
     if (responseBody && typeof responseBody === 'object') {
       if ('error' in responseBody && typeof responseBody.error === 'string') return responseBody.error;
       if ('message' in responseBody && typeof responseBody.message === 'string') return responseBody.message;
     }
-    return `Email connection failed with status ${error.context.status}. Please check the Edge Function logs in Supabase.`;
+    return `Email request failed with status ${error.context.status}. Please check the Edge Function logs in Supabase.`;
   }
   return error.message;
 };
@@ -77,6 +83,8 @@ export const EmailInboxPage: React.FC = () => {
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
   const [activeMailboxId, setActiveMailboxId] = useState('');
   const [activeFolder, setActiveFolder] = useState('inbox');
+  const [messageFilter, setMessageFilter] = useState<MessageFilter>('all');
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(() => new Set());
   const [messages, setMessages] = useState<EmailMessage[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<EmailMessage | null>(null);
   const [artifacts, setArtifacts] = useState<AiArtifact[]>([]);
@@ -146,16 +154,23 @@ export const EmailInboxPage: React.FC = () => {
         || '';
       if (mailboxId) setActiveMailboxId(mailboxId);
       let activityLogWarning = '';
+      let syncWarning = '';
       if (sync && mailboxId) {
         setSyncing(true);
         const { data, error: syncError } = await supabase.functions.invoke('mail-sync', {
           body: { mailboxId },
         });
-        if (syncError) throw syncError;
-        activityLogWarning = data?.activityLogWarning || '';
+        if (syncError) {
+          syncWarning = await getFunctionErrorMessage(syncError);
+        } else if (data?.error) {
+          syncWarning = data.error;
+        } else {
+          activityLogWarning = data?.activityLogWarning || '';
+        }
       }
       await loadMessages(mailboxId);
-      if (activityLogWarning) setError(activityLogWarning);
+      const warnings = [syncWarning, activityLogWarning].filter(Boolean);
+      if (warnings.length) setError(warnings.join(' '));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Email could not be loaded.');
     } finally {
@@ -205,8 +220,11 @@ export const EmailInboxPage: React.FC = () => {
           throw new Error(message);
         });
       }
-      setNotice(data?.webhookWarning
-        ? `Mailbox connected. ${data.webhookWarning}`
+      const webhookWarning = String(data?.webhookWarning || '')
+        .replace(/^Mailbox connected\.\s*/i, '')
+        .trim();
+      setNotice(webhookWarning
+        ? `Mailbox connected. ${webhookWarning}`
         : 'Mailbox connected. Syncing messages…');
       return refresh(true, data?.mailboxId);
     }).catch((exchangeError: unknown) => {
@@ -251,6 +269,26 @@ export const EmailInboxPage: React.FC = () => {
   }, [selectedMessage]);
 
   const unreadCount = useMemo(() => messages.filter((message) => !message.is_read).length, [messages]);
+  const filteredMessages = useMemo(() => messages.filter((message) => {
+    if (messageFilter === 'unread') return !message.is_read;
+    if (messageFilter === 'starred') return message.is_starred;
+    if (messageFilter === 'attachments') return message.has_attachments;
+    return true;
+  }), [messageFilter, messages]);
+  const allVisibleSelected = filteredMessages.length > 0
+    && filteredMessages.every((message) => selectedMessageIds.has(message.id));
+
+  useEffect(() => {
+    setSelectedMessageIds((current) => {
+      const availableIds = new Set(messages.map((message) => message.id));
+      const next = new Set([...current].filter((id) => availableIds.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [messages]);
+
+  useEffect(() => {
+    setSelectedMessageIds(new Set());
+  }, [activeMailboxId, activeFolder, messageFilter]);
 
   const connectMailbox = async (provider: Mailbox['provider'], mailboxType: Mailbox['mailbox_type']) => {
     setError('');
@@ -310,6 +348,54 @@ export const EmailInboxPage: React.FC = () => {
       await loadMessages();
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : 'Could not update the message.');
+    }
+  };
+
+  const toggleMessageSelection = (messageId: string) => {
+    setSelectedMessageIds((current) => {
+      const next = new Set(current);
+      if (next.has(messageId)) next.delete(messageId);
+      else next.add(messageId);
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisible = () => {
+    setSelectedMessageIds((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) filteredMessages.forEach((message) => next.delete(message.id));
+      else filteredMessages.forEach((message) => next.add(message.id));
+      return next;
+    });
+  };
+
+  const runBulkAction = async (action: 'archive' | 'read' | 'unread' | 'star' | 'unstar') => {
+    const selectedMessages = messages.filter((message) => selectedMessageIds.has(message.id));
+    if (selectedMessages.length === 0) return;
+    setSyncing(true);
+    setError('');
+    let completed = 0;
+    try {
+      for (const message of selectedMessages) {
+        if (action === 'archive') await invokeMailboxAction('archive', { messageId: message.id });
+        else if (action === 'read' || action === 'unread') {
+          await invokeMailboxAction('mark-read', { messageId: message.id, isRead: action === 'read' });
+        } else {
+          await invokeMailboxAction('star', { messageId: message.id, isStarred: action === 'star' });
+        }
+        completed += 1;
+      }
+      setSelectedMessageIds(new Set());
+      if (selectedMessage && selectedMessages.some((message) => message.id === selectedMessage.id) && action === 'archive') {
+        setSelectedMessage(null);
+      }
+      await loadMessages();
+      setNotice(`${completed} message${completed === 1 ? '' : 's'} ${action === 'archive' ? 'archived' : action === 'read' ? 'marked as read' : action === 'unread' ? 'marked as unread' : action === 'star' ? 'starred' : 'unstarred'}.`);
+    } catch (actionError) {
+      setError(`${completed} of ${selectedMessages.length} messages updated. ${actionError instanceof Error ? actionError.message : 'The bulk action could not be completed.'}`);
+      await loadMessages();
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -377,6 +463,38 @@ export const EmailInboxPage: React.FC = () => {
   };
 
   const title = selectedMessage?.subject || (activeFolder === 'inbox' ? 'Inbox' : folders.find((folder) => folder.id === activeFolder)?.label || 'Email');
+  const sharedMailboxControl = mailboxes.length > 0 && currentUser.systemRole === 'admin' ? (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setConnectMenuOpen((open) => !open)}
+        className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+      >
+        <Plus className="h-4 w-4" />
+        Connect shared mailbox
+      </button>
+      {connectMenuOpen && (
+        <div className="absolute right-0 top-11 z-30 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+          <p className="mb-2 text-xs font-semibold text-slate-800">Connect a Microsoft 365 shared mailbox</p>
+          <input
+            value={sharedMailboxAddress}
+            onChange={(event) => setSharedMailboxAddress(event.target.value)}
+            placeholder="shared@organization.org"
+            type="email"
+            className="mb-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-500"
+          />
+          <button
+            type="button"
+            disabled={!sharedMailboxAddress.trim()}
+            onClick={() => void connectMailbox('microsoft', 'shared')}
+            className="w-full rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+          >
+            Continue to Microsoft
+          </button>
+        </div>
+      )}
+    </div>
+  ) : null;
 
   return (
     <main className="flex min-w-0 flex-1 overflow-hidden bg-slate-50/70">
@@ -424,34 +542,9 @@ export const EmailInboxPage: React.FC = () => {
           ))}
         </div>
         <div className="mt-auto border-t border-slate-100 pt-3">
-          <div className="relative">
-            <button type="button" onClick={() => setConnectMenuOpen((open) => !open)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50">
-              <Plus className="h-4 w-4" /> Connect Microsoft 365
-            </button>
-            {connectMenuOpen && (
-              <div className="absolute bottom-12 left-0 z-30 w-full rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-                <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Personal mailbox</p>
-                <button type="button" onClick={() => void connectMailbox('microsoft', 'personal')} className="w-full rounded-lg px-2 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">Connect personal Microsoft 365</button>
-                {currentUser.systemRole === 'admin' && (
-                  <>
-                    <div className="my-1 border-t border-slate-100" />
-                    <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Connect shared mailbox</p>
-                    <input
-                      value={sharedMailboxAddress}
-                      onChange={(event) => setSharedMailboxAddress(event.target.value)}
-                      placeholder="shared@organization.org"
-                      type="email"
-                      className="mb-1 w-full rounded-lg border border-slate-200 px-2 py-2 text-xs outline-none focus:border-brand-500"
-                    />
-                    <button type="button" disabled={!sharedMailboxAddress.trim()} onClick={() => void connectMailbox('microsoft', 'shared')} className="w-full rounded-lg px-2 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50">Connect shared Microsoft mailbox</button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
           {activeMailbox && (
             <p className="mt-2 truncate text-center text-[10px] text-slate-400" title={activeMailbox.email}>
-              {activeMailbox.email} · {activeMailbox.provider === 'google' ? 'Google' : 'Microsoft'}
+              {activeMailbox.mailbox_type === 'shared' ? 'Shared mailbox · ' : ''}{activeMailbox.email} · Microsoft 365
             </p>
           )}
         </div>
@@ -460,18 +553,21 @@ export const EmailInboxPage: React.FC = () => {
       <section className={`flex min-w-0 flex-1 flex-col ${selectedMessage ? 'hidden xl:flex' : ''}`}>
         <div className="flex items-center gap-3 border-b border-slate-200 bg-white/90 px-4 py-3">
           <h2 className="min-w-0 flex-1 truncate text-sm font-bold text-slate-800">{title}</h2>
-          <button
-            type="button"
-            onClick={() => void connectMailbox('microsoft', 'personal')}
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700"
-          >
-            <Plus className="h-4 w-4" />
-            Connect Microsoft 365
-          </button>
           <label className="relative hidden w-64 sm:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search this mailbox" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-brand-500" />
           </label>
+          {!activeMailbox && mailboxes.length === 0 && !loading && (
+            <button
+              type="button"
+              onClick={() => void connectMailbox('microsoft', 'personal')}
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700"
+            >
+              <Plus className="h-4 w-4" />
+              Connect Microsoft 365
+            </button>
+          )}
+          {sharedMailboxControl}
           {activeMailbox?.connected_by === currentUser.id && (
             <button type="button" onClick={() => setRulesOpen(true)} aria-label="Manage inbox rules" title="Inbox rules" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
               <Settings2 className="h-4 w-4" />
@@ -483,6 +579,40 @@ export const EmailInboxPage: React.FC = () => {
         </div>
         {error && <div role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</div>}
         {notice && <div role="status" className="border-b border-emerald-100 bg-emerald-50 px-4 py-2 text-xs text-emerald-700">{notice}<button type="button" onClick={() => setNotice('')} className="ml-2 underline">Dismiss</button></div>}
+        {activeMailbox && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5">
+            <Filter className="mr-1 h-4 w-4 text-slate-400" />
+            {([
+              ['all', 'All mail', messages.length],
+              ['unread', 'Unread', unreadCount],
+              ['starred', 'Starred', messages.filter((message) => message.is_starred).length],
+              ['attachments', 'Attachments', messages.filter((message) => message.has_attachments).length],
+            ] as const).map(([filter, label, count]) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setMessageFilter(filter)}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  messageFilter === filter
+                    ? 'bg-brand-100 text-brand-700'
+                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                }`}
+              >
+                {label}<span className="ml-1.5 opacity-70">{count}</span>
+              </button>
+            ))}
+            {selectedMessageIds.size > 0 && (
+              <div className="ml-auto flex flex-wrap items-center gap-1 border-l border-slate-200 pl-2">
+                <span className="mr-1 text-[11px] font-medium text-slate-500">{selectedMessageIds.size} selected</span>
+                <button type="button" onClick={() => void runBulkAction('read')} disabled={syncing} title="Mark selected as read" aria-label="Mark selected as read" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"><MailOpen className="h-4 w-4" /></button>
+                <button type="button" onClick={() => void runBulkAction('unread')} disabled={syncing} title="Mark selected as unread" aria-label="Mark selected as unread" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"><Mail className="h-4 w-4" /></button>
+                <button type="button" onClick={() => void runBulkAction('star')} disabled={syncing} title="Star selected" aria-label="Star selected" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"><Star className="h-4 w-4" /></button>
+                <button type="button" onClick={() => void runBulkAction('archive')} disabled={syncing} title="Archive selected" aria-label="Archive selected" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"><Archive className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setSelectedMessageIds(new Set())} title="Clear selection" aria-label="Clear selection" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto">
           {!activeMailbox ? (
             <div className="mx-auto mt-14 max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
@@ -501,10 +631,35 @@ export const EmailInboxPage: React.FC = () => {
             </div>
           ) : loading ? (
             <div className="flex h-48 items-center justify-center text-sm text-slate-500"><LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> Loading messages…</div>
-          ) : messages.length === 0 ? (
-            <div className="p-12 text-center text-sm text-slate-500">No messages here yet. New mail will appear automatically once provider notifications are configured.</div>
-          ) : messages.map((message) => (
+          ) : filteredMessages.length === 0 ? (
+            <div className="p-12 text-center text-sm text-slate-500">
+              {messages.length === 0 ? 'No messages in this folder yet. Select Sync inbox to check Microsoft 365.' : `No ${messageFilter === 'all' ? '' : `${messageFilter} `}messages match this view.`}
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 border-b border-slate-100 bg-white/80 px-4 py-2">
+                <button
+                  type="button"
+                  onClick={toggleSelectAllVisible}
+                  aria-label={allVisibleSelected ? 'Deselect all visible messages' : 'Select all visible messages'}
+                  title={allVisibleSelected ? 'Deselect all visible messages' : 'Select all visible messages'}
+                  className={`flex h-4 w-4 items-center justify-center rounded border ${allVisibleSelected ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300 bg-white text-transparent'}`}
+                >
+                  <Check className="h-3 w-3" />
+                </button>
+                <span className="text-[11px] text-slate-400">{filteredMessages.length} messages · newest first</span>
+                <span className="ml-auto text-[11px] text-slate-400">{activeMailbox.email}</span>
+              </div>
+              {filteredMessages.map((message) => (
             <div key={message.id} className={`flex items-start gap-3 border-b border-slate-100 px-4 py-3 hover:bg-white ${selectedMessage?.id === message.id ? 'bg-brand-50/60' : 'bg-white/40'}`}>
+              <button
+                type="button"
+                onClick={() => toggleMessageSelection(message.id)}
+                aria-label={selectedMessageIds.has(message.id) ? 'Deselect message' : 'Select message'}
+                className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${selectedMessageIds.has(message.id) ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300 bg-white text-transparent hover:border-brand-400'}`}
+              >
+                <Check className="h-3 w-3" />
+              </button>
               <button type="button" onClick={() => void openMessage(message)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
                 <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${message.is_read ? 'bg-transparent' : 'bg-brand-600'}`} />
                 <div className="min-w-0 flex-1">
@@ -522,7 +677,9 @@ export const EmailInboxPage: React.FC = () => {
                 <Star className={`h-4 w-4 ${message.is_starred ? 'fill-amber-400 text-amber-500' : ''}`} />
               </button>
             </div>
-          ))}
+              ))}
+            </>
+          )}
         </div>
       </section>
 
@@ -531,6 +688,7 @@ export const EmailInboxPage: React.FC = () => {
           <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3">
             <button type="button" onClick={() => setSelectedMessage(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 xl:hidden" aria-label="Back to list"><ArrowLeft className="h-4 w-4" /></button>
             <h2 className="min-w-0 flex-1 truncate text-sm font-bold text-slate-900">{selectedMessage.subject || '(no subject)'}</h2>
+            {sharedMailboxControl}
             <button type="button" onClick={() => void archiveMessage(selectedMessage)} title="Archive" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><Archive className="h-4 w-4" /></button>
             <button type="button" onClick={() => void invokeMailboxAction('mark-read', { messageId: selectedMessage.id, isRead: !selectedMessage.is_read }).then(() => loadMessages()).catch((actionError) => setError(actionError.message))} title={selectedMessage.is_read ? 'Mark unread' : 'Mark read'} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">{selectedMessage.is_read ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}</button>
             <button type="button" onClick={() => setSelectedMessage(null)} title="Close" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>

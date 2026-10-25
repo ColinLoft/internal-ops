@@ -1,8 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { clientsFor, hasMailboxAccess, jsonResponse, recordEmailActivity, syncMailbox } from '../_shared/email.ts';
+import { clientsFor, emailCorsHeaders, hasMailboxAccess, jsonResponse, recordEmailActivity, syncMailbox } from '../_shared/email.ts';
 
 Deno.serve(async (request: Request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*' } });
+  if (request.method === 'OPTIONS') return new Response('ok', { headers: emailCorsHeaders });
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405);
 
   let payload: Record<string, unknown>;
