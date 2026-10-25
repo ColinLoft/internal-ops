@@ -29,7 +29,7 @@ Use your actual deployed website URL in place of `https://workspace.example.com`
 
 ## Step 2: Apply the database migration
 
-This creates the email tables, access policies, search index, and retention cleanup function.
+This applies the email tables, access policies, search index, retention cleanup function, and any newer email schema updates (including HTML message bodies).
 
 1. Open the repository folder in VS Code.
 2. Open **Terminal → New Terminal**. Confirm the terminal is at the repository root—the folder containing `package.json` and `supabase/`.
@@ -65,7 +65,7 @@ This creates the email tables, access policies, search index, and retention clea
 
    Review the migration list shown by the CLI and confirm when prompted.
 
-7. Verify it in Supabase: open **Table Editor** and check that tables beginning with `email_` are present. If the CLI says there are no migrations to apply, verify that you linked the intended project.
+7. Verify it in Supabase: open **Table Editor** and check that tables beginning with `email_` are present. In `email_messages`, confirm the `body_html` column exists so formatted email content and images can display. If the CLI says there are no migrations to apply, verify that you linked the intended project.
 
 ## Step 3: Create Microsoft 365 OAuth credentials
 
@@ -265,3 +265,6 @@ The app only sends a message to Azure OpenAI when a user selects **Summarize** o
 - **The callback returns an error or the inbox does not connect**: Confirm the database migration was applied, the correct provider secret names were used, and the signed-in email domain matches a workspace profile.
 - **Mailbox connected but no new messages arrive automatically**: Manual refresh should still work. Check the provider-specific push setup, webhook URL, and maintenance schedule. Reconnect the mailbox after configuring the push values.
 - **AI action says Azure OpenAI is not configured**: Check the three required Azure secrets, confirm the deployment name is exact, and redeploy `mail-ai`.
+- **AI action reports an Azure OpenAI request error**: The inbox now includes the provider's HTTP status and error detail. In Foundry, verify the deployment is active and that `AZURE_OPENAI_DEPLOYMENT` exactly matches its deployment name. In the Azure portal, confirm the endpoint and key belong to that same resource, and confirm `AZURE_OPENAI_API_VERSION` is supported for the deployment. Replace rotated keys in Supabase Edge Function secrets and retry.
+- **Email images or formatting do not appear**: Confirm the latest migration has been applied and the `body_html` column exists. Sync the mailbox again to retrieve the HTML bodies. Remote images may still be blocked by the provider or the user's network.
+- **A message cannot be sent with attachments**: New-message attachments are limited to 10 files and 3 MB combined and are currently supported for Microsoft 365 mailboxes. Replies do not support attachments; start a new message instead.

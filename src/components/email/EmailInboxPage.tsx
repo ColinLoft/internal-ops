@@ -6,10 +6,12 @@ import {
   Check,
   ChevronDown,
   Filter,
+  FileText,
   Inbox,
   LoaderCircle,
   Mail,
   MailOpen,
+  Paperclip,
   Plus,
   RefreshCw,
   Search,
@@ -18,6 +20,7 @@ import {
   Sparkles,
   Star,
   Trash2,
+  Upload,
   X,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -44,7 +47,9 @@ type EmailMessage = {
   sender_name: string;
   sender_email: string;
   to_recipients: { name?: string; email: string }[];
+  cc_recipients: { name?: string; email: string }[];
   body_text: string;
+  body_html: string;
   snippet: string;
   received_at: string;
   is_read: boolean;
@@ -55,10 +60,78 @@ type EmailMessage = {
 
 type AiArtifact = { id: string; artifact_type: 'summary' | 'draft'; content: string; created_at: string };
 type MessageFilter = 'all' | 'unread' | 'starred' | 'attachments';
+type EmailAttachment = { name: string; contentType: string; contentBytes: string };
+
+const sanitizeEmailHtml = (html: string) => {
+  const document = new DOMParser().parseFromString(html, 'text/html');
+  const allowedTags = new Set([
+    'A', 'ABBR', 'B', 'BLOCKQUOTE', 'BR', 'CAPTION', 'CODE', 'DD', 'DIV', 'DL', 'DT', 'EM',
+    'H1', 'H2', 'H3', 'H4', 'HR', 'I', 'IMG', 'LI', 'OL', 'P', 'PRE', 'S', 'SMALL', 'SPAN',
+    'STRONG', 'SUB', 'SUP', 'TABLE', 'TBODY', 'TD', 'TFOOT', 'TH', 'THEAD', 'TR', 'U', 'UL',
+  ]);
+  const unsafeTags = new Set(['IFRAME', 'OBJECT', 'EMBED', 'SCRIPT', 'STYLE', 'FORM', 'INPUT', 'BUTTON', 'VIDEO', 'AUDIO']);
+  for (const element of [...document.body.querySelectorAll('*')]) {
+    if (unsafeTags.has(element.tagName)) {
+      element.remove();
+      continue;
+    }
+    if (!allowedTags.has(element.tagName)) {
+      element.replaceWith(...element.childNodes);
+      continue;
+    }
+    for (const attribute of [...element.attributes]) {
+      const name = attribute.name.toLowerCase();
+      const value = attribute.value.trim();
+      if (name === 'href' && element.tagName === 'A') {
+        if (!/^(https?:|mailto:)/i.test(value)) element.removeAttribute(attribute.name);
+        continue;
+      }
+      if (name === 'src' && element.tagName === 'IMG') {
+        if (!/^(https?:|data:image\/(?:png|gif|jpe?g|webp);base64,)/i.test(value)) element.removeAttribute(attribute.name);
+        continue;
+      }
+      if (['alt', 'title', 'colspan', 'rowspan'].includes(name)
+        || (['width', 'height'].includes(name) && /^\d{1,4}$/.test(value))) continue;
+      element.removeAttribute(attribute.name);
+    }
+    if (element.tagName === 'A' && element.hasAttribute('href')) {
+      element.setAttribute('target', '_blank');
+      element.setAttribute('rel', 'noopener noreferrer');
+    }
+  }
+  return document.body.innerHTML;
+};
+
+const encodeFile = async (file: File): Promise<EmailAttachment> => {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+  return {
+    name: file.name,
+    contentType: file.type || 'application/octet-stream',
+    contentBytes: btoa(binary),
+  };
+};
+
+const EmailHtmlBody: React.FC<{ html: string }> = ({ html }) => {
+  const safeHtml = useMemo(() => sanitizeEmailHtml(html), [html]);
+  return (
+    <iframe
+      title="Email content"
+      sandbox=""
+      referrerPolicy="no-referrer"
+      srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: http: data:; style-src 'unsafe-inline'"><style>body{font:14px/1.65 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#334155;overflow-wrap:anywhere}img{max-width:100%;height:auto}table{max-width:100%;border-collapse:collapse}td,th{padding:4px}a{color:#2563eb}</style></head><body>${safeHtml}</body></html>`}
+      className="mt-5 h-[min(70vh,800px)] min-h-64 w-full rounded-lg border-0 bg-white"
+    />
+  );
+};
 
 const getFunctionErrorMessage = async (error: Error) => {
   if ('name' in error && error.name === 'FunctionsFetchError') {
-    return 'The mailbox was connected, but the sync request could not reach Supabase. Check the deployed mail-sync function and the browser connection, then select Sync inbox to retry.';
+    return 'The email service could not be reached. Check the deployed Edge Function and browser connection, then try again.';
   }
   if ('context' in error && error.context instanceof Response) {
     const responseBody: unknown = await error.context.clone().json().catch(() => null);
@@ -97,9 +170,16 @@ export const EmailInboxPage: React.FC = () => {
   const [sharedMailboxAddress, setSharedMailboxAddress] = useState('');
   const [composeOpen, setComposeOpen] = useState(false);
   const [replyMode, setReplyMode] = useState(false);
+  const [composeTo, setComposeTo] = useState('');
+  const [composeCc, setComposeCc] = useState('');
+  const [composeBcc, setComposeBcc] = useState('');
+  const [composeSubject, setComposeSubject] = useState('');
+  const [composeBody, setComposeBody] = useState('');
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
+  const [composeAttachments, setComposeAttachments] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
-  const [aiDraft, setAiDraft] = useState('');
   const [rulesOpen, setRulesOpen] = useState(false);
 
   const activeMailbox = mailboxes.find((mailbox) => mailbox.id === activeMailboxId) || null;
@@ -127,7 +207,7 @@ export const EmailInboxPage: React.FC = () => {
     }
     let query = supabase
       .from('email_messages')
-      .select('id, mailbox_id, provider_message_id, provider_thread_id, folder, subject, sender_name, sender_email, to_recipients, body_text, snippet, received_at, is_read, is_starred, has_attachments, labels')
+      .select('id, mailbox_id, provider_message_id, provider_thread_id, folder, subject, sender_name, sender_email, to_recipients, cc_recipients, body_text, body_html, snippet, received_at, is_read, is_starred, has_attachments, labels')
       .eq('mailbox_id', mailboxId)
       .eq('folder', activeFolder)
       .order('received_at', { ascending: false })
@@ -251,7 +331,6 @@ export const EmailInboxPage: React.FC = () => {
   useEffect(() => {
     if (!selectedMessage) {
       setArtifacts([]);
-      setAiDraft('');
       return;
     }
     let active = true;
@@ -316,20 +395,82 @@ export const EmailInboxPage: React.FC = () => {
     const { data, error: actionError } = await supabase.functions.invoke('mail-api', {
       body: { action, mailboxId: activeMailboxId, ...payload },
     });
-    if (actionError) throw actionError;
+    if (actionError) throw new Error(await getFunctionErrorMessage(actionError));
     if (data?.activityLogWarning) setError(data.activityLogWarning);
     return data;
+  };
+
+  const updateMessageState = (messageId: string, updates: Partial<EmailMessage>) => {
+    setMessages((current) => current.map((message) => message.id === messageId ? { ...message, ...updates } : message));
+    setSelectedMessage((current) => current?.id === messageId ? { ...current, ...updates } : current);
+  };
+
+  const openNewCompose = () => {
+    setReplyMode(false);
+    setComposeTo('');
+    setComposeCc('');
+    setComposeBcc('');
+    setComposeSubject('');
+    setComposeBody('');
+    setComposeAttachments([]);
+    setShowCc(false);
+    setShowBcc(false);
+    setComposeOpen(true);
+  };
+
+  const openReplyCompose = (body = '') => {
+    setReplyMode(true);
+    setComposeTo(selectedMessage?.sender_email || '');
+    setComposeCc('');
+    setComposeBcc('');
+    setComposeSubject(selectedMessage
+      ? `Re: ${selectedMessage.subject.replace(/^Re:\s*/i, '')}`
+      : '');
+    setComposeBody(body);
+    setComposeAttachments([]);
+    setShowCc(false);
+    setShowBcc(false);
+    setComposeOpen(true);
   };
 
   const openMessage = async (message: EmailMessage) => {
     setSelectedMessage(message);
     if (!message.is_read) {
+      updateMessageState(message.id, { is_read: true });
       try {
         await invokeMailboxAction('mark-read', { messageId: message.id, isRead: true });
       } catch (actionError) {
+        updateMessageState(message.id, { is_read: false });
         setError(actionError instanceof Error ? actionError.message : 'Could not mark the message as read.');
       }
     }
+  };
+
+  const toggleRead = async (message: EmailMessage) => {
+    const isRead = !message.is_read;
+    updateMessageState(message.id, { is_read: isRead });
+    try {
+      await invokeMailboxAction('mark-read', { messageId: message.id, isRead });
+    } catch (actionError) {
+      updateMessageState(message.id, { is_read: message.is_read });
+      setError(actionError instanceof Error ? actionError.message : 'Could not update the message.');
+    }
+  };
+
+  const addComposeAttachments = (files: FileList | null) => {
+    if (!files?.length) return;
+    const next = [...composeAttachments, ...Array.from(files)];
+    const totalBytes = next.reduce((total, file) => total + file.size, 0);
+    if (next.length > 10) {
+      setError('Attach up to 10 files per email.');
+      return;
+    }
+    if (totalBytes > 3 * 1024 * 1024) {
+      setError('Attachments are limited to 3 MB total. Remove or shrink a file and try again.');
+      return;
+    }
+    setError('');
+    setComposeAttachments(next);
   };
 
   const archiveMessage = async (message: EmailMessage) => {
@@ -343,10 +484,12 @@ export const EmailInboxPage: React.FC = () => {
   };
 
   const toggleStar = async (message: EmailMessage) => {
+    const isStarred = !message.is_starred;
+    updateMessageState(message.id, { is_starred: isStarred });
     try {
-      await invokeMailboxAction('star', { messageId: message.id, isStarred: !message.is_starred });
-      await loadMessages();
+      await invokeMailboxAction('star', { messageId: message.id, isStarred });
     } catch (actionError) {
+      updateMessageState(message.id, { is_starred: message.is_starred });
       setError(actionError instanceof Error ? actionError.message : 'Could not update the message.');
     }
   };
@@ -407,13 +550,11 @@ export const EmailInboxPage: React.FC = () => {
       const { data, error: aiError } = await supabase.functions.invoke('mail-ai', {
         body: { action, messageId: selectedMessage.id },
       });
-      if (aiError) throw aiError;
+      if (aiError) throw new Error(await getFunctionErrorMessage(aiError));
       if (data?.activityLogWarning) setError(data.activityLogWarning);
       if (action === 'draft') {
-        setAiDraft(data.content || '');
         setArtifacts((current) => [data as AiArtifact, ...current.filter((artifact) => artifact.id !== data.id)]);
-        setComposeOpen(true);
-        setReplyMode(true);
+        openReplyCompose(data.content || '');
       } else {
         const { data: saved, error: saveError } = await supabase
           .from('email_ai_artifacts')
@@ -433,26 +574,34 @@ export const EmailInboxPage: React.FC = () => {
   const submitMessage = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!activeMailboxId || sending) return;
-    const formData = new FormData(event.currentTarget);
-    const to = replyMode && selectedMessage
-      ? selectedMessage.sender_email
-      : String(formData.get('to') || '').trim();
-    const subject = replyMode && selectedMessage && !String(formData.get('subject') || '').startsWith('Re:')
-      ? `Re: ${selectedMessage.subject}`
-      : String(formData.get('subject') || '').trim();
-    const body = aiDraft || String(formData.get('body') || '').trim();
+    const to = replyMode && selectedMessage ? selectedMessage.sender_email : composeTo.trim();
+    const subject = composeSubject.trim();
+    const body = composeBody.trim();
+    if (!to || !subject || !body) {
+      setError('Add a recipient, subject, and message body before sending.');
+      return;
+    }
     setSending(true);
     setError('');
     try {
+      const attachments = await Promise.all(composeAttachments.map(encodeFile));
       await invokeMailboxAction(replyMode ? 'reply' : 'send', {
         to,
+        cc: replyMode ? undefined : composeCc,
+        bcc: replyMode ? undefined : composeBcc,
         subject,
         body,
+        attachments,
         replyToMessageId: replyMode ? selectedMessage?.id : undefined,
       });
       setComposeOpen(false);
       setReplyMode(false);
-      setAiDraft('');
+      setComposeTo('');
+      setComposeCc('');
+      setComposeBcc('');
+      setComposeSubject('');
+      setComposeBody('');
+      setComposeAttachments([]);
       setNotice('Message sent.');
       await refresh(true);
     } catch (sendError) {
@@ -474,7 +623,7 @@ export const EmailInboxPage: React.FC = () => {
         Connect shared mailbox
       </button>
       {connectMenuOpen && (
-        <div className="absolute right-0 top-11 z-30 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+        <div className="absolute bottom-11 left-0 z-30 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
           <p className="mb-2 text-xs font-semibold text-slate-800">Connect a Microsoft 365 shared mailbox</p>
           <input
             value={sharedMailboxAddress}
@@ -504,7 +653,7 @@ export const EmailInboxPage: React.FC = () => {
             <h1 className="text-lg font-bold text-slate-900">Mail</h1>
             <p className="mt-0.5 text-xs text-slate-500">Your connected inboxes</p>
           </div>
-          <button type="button" onClick={() => setComposeOpen(true)} aria-label="Compose email" className="rounded-xl bg-brand-600 p-2.5 text-white hover:bg-brand-700">
+          <button type="button" onClick={openNewCompose} aria-label="Compose email" className="rounded-xl bg-brand-600 p-2.5 text-white hover:bg-brand-700">
             <Plus className="h-4 w-4" />
           </button>
         </div>
@@ -542,8 +691,9 @@ export const EmailInboxPage: React.FC = () => {
           ))}
         </div>
         <div className="mt-auto border-t border-slate-100 pt-3">
+          {sharedMailboxControl}
           {activeMailbox && (
-            <p className="mt-2 truncate text-center text-[10px] text-slate-400" title={activeMailbox.email}>
+            <p className="mt-3 truncate text-center text-[10px] text-slate-400" title={activeMailbox.email}>
               {activeMailbox.mailbox_type === 'shared' ? 'Shared mailbox · ' : ''}{activeMailbox.email} · Microsoft 365
             </p>
           )}
@@ -567,7 +717,6 @@ export const EmailInboxPage: React.FC = () => {
               Connect Microsoft 365
             </button>
           )}
-          {sharedMailboxControl}
           {activeMailbox?.connected_by === currentUser.id && (
             <button type="button" onClick={() => setRulesOpen(true)} aria-label="Manage inbox rules" title="Inbox rules" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
               <Settings2 className="h-4 w-4" />
@@ -688,22 +837,56 @@ export const EmailInboxPage: React.FC = () => {
           <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3">
             <button type="button" onClick={() => setSelectedMessage(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 xl:hidden" aria-label="Back to list"><ArrowLeft className="h-4 w-4" /></button>
             <h2 className="min-w-0 flex-1 truncate text-sm font-bold text-slate-900">{selectedMessage.subject || '(no subject)'}</h2>
-            {sharedMailboxControl}
+            <button type="button" onClick={() => void toggleStar(selectedMessage)} title={selectedMessage.is_starred ? 'Unstar' : 'Star'} aria-label={selectedMessage.is_starred ? 'Unstar email' : 'Star email'} className="rounded-lg p-2 text-slate-500 hover:bg-amber-50 hover:text-amber-600">
+              <Star className={`h-4 w-4 ${selectedMessage.is_starred ? 'fill-amber-400 text-amber-500' : ''}`} />
+            </button>
             <button type="button" onClick={() => void archiveMessage(selectedMessage)} title="Archive" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><Archive className="h-4 w-4" /></button>
-            <button type="button" onClick={() => void invokeMailboxAction('mark-read', { messageId: selectedMessage.id, isRead: !selectedMessage.is_read }).then(() => loadMessages()).catch((actionError) => setError(actionError.message))} title={selectedMessage.is_read ? 'Mark unread' : 'Mark read'} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">{selectedMessage.is_read ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}</button>
+            <button type="button" onClick={() => void toggleRead(selectedMessage)} title={selectedMessage.is_read ? 'Mark unread' : 'Mark read'} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">{selectedMessage.is_read ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}</button>
             <button type="button" onClick={() => setSelectedMessage(null)} title="Close" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>
           </div>
-          <div className="flex-1 overflow-y-auto p-5">
-            <p className="text-xs text-slate-500">{selectedMessage.sender_name} &lt;{selectedMessage.sender_email}&gt;</p>
-            <p className="mt-1 text-[11px] text-slate-400">{new Date(selectedMessage.received_at).toLocaleString()}</p>
-            <div className="mt-5 whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">{selectedMessage.body_text || selectedMessage.snippet || 'This email has no readable text content.'}</div>
-            {selectedMessage.has_attachments && <p className="mt-5 rounded-xl bg-slate-50 p-3 text-xs text-slate-500">This message has attachments. Open the message in your mail provider to download them.</p>}
+          <div className="flex-1 overflow-y-auto bg-slate-50/50 p-4 sm:p-6">
+            <article className="mx-auto max-w-4xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+              <h1 className="mb-6 text-xl font-bold leading-7 text-slate-900">{selectedMessage.subject || '(no subject)'}</h1>
+              <div className="flex items-start gap-3 border-b border-slate-100 pb-5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
+                  {(selectedMessage.sender_name || selectedMessage.sender_email || '?').slice(0, 1).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-900">{selectedMessage.sender_name || selectedMessage.sender_email}</p>
+                  <p className="truncate text-xs text-slate-500">{selectedMessage.sender_email}</p>
+                  <p className="mt-2 break-words text-xs text-slate-500">
+                    To {selectedMessage.to_recipients?.map((recipient) => recipient.name || recipient.email).join(', ') || activeMailbox?.email}
+                  </p>
+                  {selectedMessage.cc_recipients?.length > 0 && (
+                    <p className="mt-1 break-words text-xs text-slate-500">
+                      Cc {selectedMessage.cc_recipients.map((recipient) => recipient.name || recipient.email).join(', ')}
+                    </p>
+                  )}
+                </div>
+                <time className="shrink-0 text-right text-[11px] text-slate-400" dateTime={selectedMessage.received_at}>
+                  {new Date(selectedMessage.received_at).toLocaleString()}
+                </time>
+              </div>
+              {selectedMessage.body_html ? (
+                <EmailHtmlBody html={selectedMessage.body_html} />
+              ) : (
+                <div className="mt-6 whitespace-pre-wrap break-words text-sm leading-7 text-slate-700">
+                  {selectedMessage.body_text || selectedMessage.snippet || 'This email has no readable text content.'}
+                </div>
+              )}
+              {selectedMessage.has_attachments && (
+                <div className="mt-6 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                  <Paperclip className="h-4 w-4 shrink-0 text-slate-400" />
+                  This message has attachments. Open it in Microsoft 365 to download them.
+                </div>
+              )}
+            </article>
             {artifacts.map((artifact) => (
-              <div key={artifact.id} className="mt-5 rounded-xl border border-violet-100 bg-violet-50/70 p-4">
+              <div key={artifact.id} className="mx-auto mt-5 max-w-4xl rounded-xl border border-violet-100 bg-violet-50/70 p-4">
                 <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-violet-800"><Sparkles className="h-3.5 w-3.5" /> Saved AI {artifact.artifact_type === 'summary' ? 'summary' : 'draft'}</p>
                 <p className="whitespace-pre-wrap text-xs leading-5 text-violet-900">{artifact.content}</p>
                 {artifact.artifact_type === 'draft' && (
-                  <button type="button" onClick={() => { setAiDraft(artifact.content); setComposeOpen(true); setReplyMode(true); }} className="mt-3 text-xs font-semibold text-violet-800 underline">
+                  <button type="button" onClick={() => openReplyCompose(artifact.content)} className="mt-3 text-xs font-semibold text-violet-800 underline">
                     Use this draft
                   </button>
                 )}
@@ -711,7 +894,7 @@ export const EmailInboxPage: React.FC = () => {
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 p-3">
-            <button type="button" onClick={() => { setComposeOpen(true); setReplyMode(true); }} className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700"><ArrowUpRight className="h-3.5 w-3.5" /> Reply</button>
+            <button type="button" onClick={() => openReplyCompose()} className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700"><ArrowUpRight className="h-3.5 w-3.5" /> Reply</button>
             <button type="button" disabled={aiBusy} onClick={() => void runAiAction('summarize')} className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50 disabled:opacity-50"><Sparkles className="h-3.5 w-3.5" /> Summarize</button>
             <button type="button" disabled={aiBusy} onClick={() => void runAiAction('draft')} className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50 disabled:opacity-50"><Sparkles className="h-3.5 w-3.5" /> Draft reply</button>
             <p className="w-full text-[10px] text-slate-400">AI actions send this message to Azure OpenAI and save the result in the workspace.</p>
@@ -721,18 +904,60 @@ export const EmailInboxPage: React.FC = () => {
 
       {composeOpen && activeMailbox && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/40 p-4">
-          <form onSubmit={(event) => void submitMessage(event)} className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+          <form onSubmit={(event) => void submitMessage(event)} className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">{replyMode ? 'Reply' : 'New message'}</h3>
                 <p className="text-[11px] text-slate-400">From {activeMailbox.email}</p>
               </div>
-              <button type="button" onClick={() => { setComposeOpen(false); setReplyMode(false); setAiDraft(''); }} aria-label="Close" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+              <button type="button" onClick={() => { setComposeOpen(false); setReplyMode(false); setComposeAttachments([]); }} aria-label="Close" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
             </div>
-            <div className="space-y-3 p-5">
-              {!replyMode && <input required type="email" name="to" placeholder="To" className="w-full border-b border-slate-100 py-2 text-sm outline-none focus:border-brand-500" />}
-              <input required name="subject" defaultValue={replyMode && selectedMessage ? `Re: ${selectedMessage.subject.replace(/^Re:\s*/i, '')}` : ''} placeholder="Subject" className="w-full border-b border-slate-100 py-2 text-sm outline-none focus:border-brand-500" />
-              <textarea required name="body" defaultValue={aiDraft} onChange={() => setAiDraft('')} rows={10} placeholder="Write your message…" className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 outline-none focus:border-brand-500" />
+            <div className="max-h-[70vh] space-y-3 overflow-y-auto p-5">
+              {replyMode ? (
+                <p className="border-b border-slate-100 py-2 text-sm text-slate-500">To: {composeTo}</p>
+              ) : (
+                <div className="flex items-center gap-3 border-b border-slate-100">
+                  <input required value={composeTo} onChange={(event) => setComposeTo(event.target.value)} placeholder="To (separate addresses with commas)" aria-label="To" className="min-w-0 flex-1 py-2 text-sm outline-none focus:border-brand-500" />
+                  <div className="flex shrink-0 gap-2">
+                    <button type="button" onClick={() => setShowCc((shown) => !shown)} className="text-xs text-slate-500 hover:text-slate-800">Cc</button>
+                    <button type="button" onClick={() => setShowBcc((shown) => !shown)} className="text-xs text-slate-500 hover:text-slate-800">Bcc</button>
+                  </div>
+                </div>
+              )}
+              {!replyMode && showCc && <input value={composeCc} onChange={(event) => setComposeCc(event.target.value)} placeholder="Cc (separate addresses with commas)" aria-label="Cc" className="w-full border-b border-slate-100 py-2 text-sm outline-none focus:border-brand-500" />}
+              {!replyMode && showBcc && <input value={composeBcc} onChange={(event) => setComposeBcc(event.target.value)} placeholder="Bcc (separate addresses with commas)" aria-label="Bcc" className="w-full border-b border-slate-100 py-2 text-sm outline-none focus:border-brand-500" />}
+              <input required value={composeSubject} onChange={(event) => setComposeSubject(event.target.value)} placeholder="Subject" aria-label="Subject" className="w-full border-b border-slate-100 py-2 text-sm outline-none focus:border-brand-500" />
+              <textarea required value={composeBody} onChange={(event) => setComposeBody(event.target.value)} rows={10} placeholder="Write your message…" aria-label="Message body" className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 outline-none focus:border-brand-500" />
+              {!replyMode && (
+                <>
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+                    <Upload className="h-4 w-4" />
+                    Attach files
+                    <input
+                      type="file"
+                      multiple
+                      className="sr-only"
+                      onChange={(event) => {
+                        addComposeAttachments(event.currentTarget.files);
+                        event.currentTarget.value = '';
+                      }}
+                    />
+                  </label>
+                  <p className="ml-2 inline text-[11px] text-slate-400">Up to 10 files, 3 MB total</p>
+                  {composeAttachments.length > 0 && (
+                    <ul className="space-y-2">
+                      {composeAttachments.map((file, index) => (
+                        <li key={`${file.name}-${file.size}-${index}`} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                          <FileText className="h-4 w-4 shrink-0 text-slate-400" />
+                          <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                          <span className="shrink-0 text-slate-400">{(file.size / 1024).toFixed(0)} KB</span>
+                          <button type="button" onClick={() => setComposeAttachments((current) => current.filter((_, fileIndex) => fileIndex !== index))} aria-label={`Remove ${file.name}`} className="rounded p-1 text-slate-400 hover:bg-white hover:text-rose-600"><X className="h-3.5 w-3.5" /></button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
             </div>
             <div className="flex justify-end border-t border-slate-100 p-4">
               <button type="submit" disabled={sending} className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-50">

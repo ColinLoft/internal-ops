@@ -203,6 +203,37 @@ const gmailTextBody = (payload: Record<string, any>): string => {
   return '';
 };
 
+const gmailHtmlBody = (payload: Record<string, any>): string => {
+  if (payload.mimeType === 'text/html' && payload.body?.data && !payload.filename) {
+    return base64UrlDecode(payload.body.data);
+  }
+  for (const part of payload.parts || []) {
+    const html = gmailHtmlBody(part);
+    if (html) return html;
+  }
+  return '';
+};
+
+const htmlToText = (html: string) => html
+  .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ' ')
+  .replace(/<\s*br\b[^>]*>/gi, '\n')
+  .replace(/<\/\s*(?:address|blockquote|div|h[1-6]|li|p|pre|table|tr)\s*>/gi, '\n')
+  .replace(/<[^>]*>/g, ' ')
+  .replace(/&#(?:x([a-f\d]+)|(\d+));/gi, (_match, hex: string, decimal: string) => {
+    const codePoint = Number.parseInt(hex || decimal, hex ? 16 : 10);
+    return codePoint > 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : ' ';
+  })
+  .replace(/&nbsp;/gi, ' ')
+  .replace(/&amp;/gi, '&')
+  .replace(/&lt;/gi, '<')
+  .replace(/&gt;/gi, '>')
+  .replace(/&quot;/gi, '"')
+  .replace(/&#39;|&apos;/gi, "'")
+  .replace(/[ \t]+\n/g, '\n')
+  .replace(/\n{3,}/g, '\n\n')
+  .replace(/[ \t]{2,}/g, ' ')
+  .trim();
+
 const gmailHasAttachment = (payload: Record<string, any>): boolean =>
   (payload.parts || []).some((part: Record<string, any>) => Boolean(part.filename) || gmailHasAttachment(part));
 
@@ -255,6 +286,7 @@ export const syncMailbox = async (
       const senderName = addressMatch ? from.replace(addressMatch[0], '').replace(/["']/g, '').trim() : senderEmail;
       const receivedAt = new Date(Number(body.internalDate || Date.now())).toISOString();
       const providerLabels = Array.isArray(body.labelIds) ? body.labelIds as string[] : [];
+      const htmlBody = gmailHtmlBody(body.payload || {});
       const labels = providerLabels.filter((label) => ![
           'INBOX', 'SENT', 'TRASH', 'UNREAD', 'STARRED', 'IMPORTANT', 'DRAFT',
           'CATEGORY_PERSONAL', 'CATEGORY_SOCIAL', 'CATEGORY_PROMOTIONS', 'CATEGORY_UPDATES', 'CATEGORY_FORUMS',
@@ -269,7 +301,8 @@ export const syncMailbox = async (
         sender_email: senderEmail,
         to_recipients: gmailHeader(headers, 'To').split(',').filter(Boolean).map((email: string) => ({ email: email.trim() })),
         cc_recipients: gmailHeader(headers, 'Cc').split(',').filter(Boolean).map((email: string) => ({ email: email.trim() })),
-        body_text: gmailTextBody(body.payload || {}),
+        body_text: gmailTextBody(body.payload || {}) || htmlToText(htmlBody),
+        body_html: htmlBody,
         snippet: String(body.snippet || ''),
         received_at: receivedAt,
         is_read: !providerLabels.includes('UNREAD'),
@@ -287,7 +320,7 @@ export const syncMailbox = async (
     if (messageIds?.length) {
       const fetched = await Promise.all(messageIds.slice(0, 50).map(async (id) => {
         const response = await fetch(`https://graph.microsoft.com/v1.0/${userPath}/messages/${encodeURIComponent(id)}?$select=id,conversationId,subject,from,toRecipients,ccRecipients,body,bodyPreview,receivedDateTime,isRead,flag,hasAttachments,parentFolderId`, {
-          headers: { Authorization: `Bearer ${accessToken}`, Prefer: 'outlook.body-content-type="text"' },
+          headers: { Authorization: `Bearer ${accessToken}`, Prefer: 'outlook.body-content-type="html"' },
         });
         const message = await response.json();
         if (!response.ok) throw new Error(`Microsoft mail sync failed: ${message.error?.message || response.statusText}`);
@@ -307,7 +340,7 @@ export const syncMailbox = async (
         url.searchParams.set('$orderby', 'receivedDateTime desc');
         url.searchParams.set('$select', 'id,conversationId,subject,from,toRecipients,ccRecipients,body,bodyPreview,receivedDateTime,isRead,flag,hasAttachments,parentFolderId');
         const response = await fetch(url, {
-          headers: { Authorization: `Bearer ${accessToken}`, Prefer: 'outlook.body-content-type="text"' },
+          headers: { Authorization: `Bearer ${accessToken}`, Prefer: 'outlook.body-content-type="html"' },
         });
         const body = await response.json();
         if (!response.ok) throw new Error(`Microsoft mail sync failed: ${body.error?.message || response.statusText}`);
@@ -425,7 +458,10 @@ const normalizeGraphMessage = (
     sender_email: String(from.address || '').toLowerCase(),
     to_recipients: (message.toRecipients || []).map((recipient: Record<string, any>) => recipient.emailAddress),
     cc_recipients: (message.ccRecipients || []).map((recipient: Record<string, any>) => recipient.emailAddress),
-    body_text: message.body?.content || '',
+    body_text: message.body?.contentType === 'text'
+      ? message.body.content || ''
+      : htmlToText(String(message.body?.content || '')),
+    body_html: message.body?.contentType === 'html' ? message.body.content || '' : '',
     snippet: message.bodyPreview || '',
     received_at: receivedAt,
     is_read: Boolean(message.isRead),

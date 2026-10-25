@@ -52,10 +52,19 @@ Deno.serve(async (request: Request) => {
         }),
       },
     );
-    const completion = await completionResponse.json();
+    const responseBody: unknown = await completionResponse.json().catch(() => ({}));
+    const completion = responseBody && typeof responseBody === 'object'
+      ? responseBody as Record<string, any>
+      : {};
     if (!completionResponse.ok) {
-      console.error('Azure OpenAI email action failed:', completion.error?.code || completionResponse.status);
-      return jsonResponse({ error: 'Azure OpenAI could not complete this email action. Check the deployment configuration and try again.' }, 502);
+      const providerCode = typeof completion.error?.code === 'string' ? completion.error.code : '';
+      const providerMessage = typeof completion.error?.message === 'string'
+        ? completion.error.message.slice(0, 500)
+        : 'No error detail was returned.';
+      console.error('Azure OpenAI email action failed:', completionResponse.status, providerCode || 'unknown');
+      return jsonResponse({
+        error: `Azure OpenAI request failed (${completionResponse.status}${providerCode ? `, ${providerCode}` : ''}): ${providerMessage} Check that the endpoint, deployment name, API key, and API version match the Azure resource.`,
+      }, 502);
     }
     const content = completion.choices?.[0]?.message?.content;
     if (typeof content !== 'string' || !content.trim()) return jsonResponse({ error: 'Azure OpenAI returned an empty result.' }, 502);

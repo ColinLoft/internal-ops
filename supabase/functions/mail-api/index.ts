@@ -8,11 +8,43 @@ import {
   recordEmailActivity,
 } from '../_shared/email.ts';
 
-const parseSingleAddress = (value: unknown) => {
-  if (typeof value !== 'string' || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value.trim())) {
-    throw new Error('Enter a valid recipient email address.');
+const parseAddresses = (value: unknown, label: string) => {
+  if (value == null || value === '') return [];
+  const addresses = (Array.isArray(value) ? value : String(value).split(/[;,]/))
+    .map((address) => String(address).trim())
+    .filter(Boolean);
+  if (addresses.length > 20 || addresses.some((address) => !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address))) {
+    throw new Error(`Enter up to 20 valid ${label} email addresses.`);
   }
-  return value.trim();
+  return addresses;
+};
+
+const providerError = (body: Record<string, any>, fallback: string) =>
+  body.error?.message || body.error?.innerError?.message || fallback;
+
+const parseAttachments = (value: unknown) => {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > 10) throw new Error('Attach up to 10 files per email.');
+  let totalBytes = 0;
+  return value.map((item) => {
+    if (!item || typeof item !== 'object') throw new Error('An attachment is invalid.');
+    const attachment = item as Record<string, unknown>;
+    const name = typeof attachment.name === 'string' ? attachment.name.trim().slice(0, 255) : '';
+    const contentType = typeof attachment.contentType === 'string' ? attachment.contentType.slice(0, 128) : 'application/octet-stream';
+    const contentBytes = typeof attachment.contentBytes === 'string' ? attachment.contentBytes : '';
+    if (!name || /[\r\n/\\]/.test(name) || !/^[\w.+-]+\/[\w.+-]+$/.test(contentType)) {
+      throw new Error('An attachment has an invalid file name or content type.');
+    }
+    if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(contentBytes)) {
+      throw new Error(`Attachment "${name}" is not valid base64 data.`);
+    }
+    const bytes = Math.floor(contentBytes.length * 3 / 4) - (contentBytes.endsWith('==') ? 2 : contentBytes.endsWith('=') ? 1 : 0);
+    totalBytes += bytes;
+    if (bytes > 3 * 1024 * 1024 || totalBytes > 3 * 1024 * 1024) {
+      throw new Error('Email attachments are limited to 3 MB total. Remove or shrink a file and try again.');
+    }
+    return { name, contentType, contentBytes };
+  });
 };
 
 const encodeBase64Url = (text: string) => {
@@ -124,12 +156,22 @@ Deno.serve(async (request: Request) => {
     }
 
     if (action === 'send' || action === 'reply') {
-      const to = parseSingleAddress(payload.to);
+      const to = parseAddresses(payload.to, 'To');
+      const cc = parseAddresses(payload.cc, 'Cc');
+      const bcc = parseAddresses(payload.bcc, 'Bcc');
       const subject = typeof payload.subject === 'string' ? payload.subject.trim().slice(0, 998) : '';
       const body = typeof payload.body === 'string' ? payload.body.trim() : '';
+      if (to.length === 0 && action !== 'reply') return jsonResponse({ error: 'Add at least one recipient in To.' }, 400);
       if (!subject || !body) return jsonResponse({ error: 'A subject and message body are required.' }, 400);
       if (body.length > 100_000) return jsonResponse({ error: 'Email body exceeds the 100,000 character limit.' }, 400);
-      if (/\r|\n/.test(to) || /\r|\n/.test(subject)) return jsonResponse({ error: 'Email headers contain invalid characters.' }, 400);
+      if (/\r|\n/.test(subject)) return jsonResponse({ error: 'Email headers contain invalid characters.' }, 400);
+      const attachments = parseAttachments(payload.attachments);
+      if (action === 'reply' && attachments.length > 0) {
+        return jsonResponse({ error: 'Attachments are not yet supported when replying. Compose a new message to send files.' }, 400);
+      }
+      if (action === 'reply' && (cc.length > 0 || bcc.length > 0)) {
+        return jsonResponse({ error: 'Cc and Bcc are only available for new messages.' }, 400);
+      }
 
       const accessToken = await getAccessToken(adminClient, mailbox);
       const replyToMessageId = typeof payload.replyToMessageId === 'string' ? payload.replyToMessageId : '';
@@ -144,6 +186,9 @@ Deno.serve(async (request: Request) => {
       if (replyLookupError) return jsonResponse({ error: `Reply target could not be loaded: ${replyLookupError.message}` }, 400);
       if (action === 'reply' && !replyMessage) return jsonResponse({ error: 'The message to reply to was not found.' }, 404);
       if (mailbox.provider === 'google') {
+        if (attachments.length > 0) {
+          return jsonResponse({ error: 'File attachments are currently supported for Microsoft 365 mailboxes only.' }, 400);
+        }
         const replyHeaders: string[] = [];
         if (action === 'reply' && replyMessage) {
           const originalUrl = new URL(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(replyMessage.provider_message_id)}`);
@@ -166,7 +211,9 @@ Deno.serve(async (request: Request) => {
           }
         }
         const mime = [
-          `To: ${to}`,
+          `To: ${to.join(', ')}`,
+          ...(cc.length ? [`Cc: ${cc.join(', ')}`] : []),
+          ...(bcc.length ? [`Bcc: ${bcc.join(', ')}`] : []),
           `Subject: ${subject}`,
           ...replyHeaders,
           'Content-Type: text/plain; charset="UTF-8"',
@@ -198,12 +245,25 @@ Deno.serve(async (request: Request) => {
               message: {
                 subject,
                 body: { contentType: 'Text', content: body },
-                toRecipients: [{ emailAddress: { address: to } }],
+                toRecipients: to.map((address) => ({ emailAddress: { address } })),
+                ccRecipients: cc.map((address) => ({ emailAddress: { address } })),
+                bccRecipients: bcc.map((address) => ({ emailAddress: { address } })),
+                ...(attachments.length ? {
+                  attachments: attachments.map((attachment) => ({
+                    '@odata.type': '#microsoft.graph.fileAttachment',
+                    name: attachment.name,
+                    contentType: attachment.contentType,
+                    contentBytes: attachment.contentBytes,
+                  })),
+                } : {}),
               },
               saveToSentItems: true,
             }),
           });
-        if (!response.ok) return jsonResponse({ error: 'Microsoft Graph could not send the message.' }, 400);
+        if (!response.ok) {
+          const details = await response.json().catch(() => ({}));
+          return jsonResponse({ error: providerError(details, 'Microsoft Graph could not send the message.') }, 400);
+        }
       }
       const activityLogWarning = await recordEmailActivity(
         adminClient,
