@@ -44,10 +44,10 @@ Deno.serve(async (request: Request) => {
   const action = payload.action;
 
   if (action === 'authorize') {
-    const provider = payload.provider === 'microsoft' || payload.provider === 'google' ? payload.provider : null;
+    const provider = payload.provider === 'microsoft' ? payload.provider : null;
     const mailboxType = payload.mailboxType === 'shared' ? 'shared' : 'personal';
     const targetEmail = typeof payload.targetEmail === 'string' ? payload.targetEmail.trim().toLowerCase() : '';
-    if (!provider) return jsonResponse({ error: 'Choose Microsoft 365 or Google Workspace.' }, 400);
+    if (!provider) return jsonResponse({ error: 'Only Microsoft 365 mailboxes are supported.' }, 400);
     if (mailboxType === 'shared') {
       const { data: profile, error: profileError } = await adminClient.from('profiles').select('system_role').eq('id', user.id).maybeSingle();
       if (profileError) return jsonResponse({ error: `Administrator role could not be verified: ${profileError.message}` }, 500);
@@ -154,16 +154,30 @@ Deno.serve(async (request: Request) => {
       redirect_uri: redirectUri,
     }),
   });
-  const tokens = await tokenResponse.json();
+  const tokens = await tokenResponse.json().catch(() => ({}));
   if (!tokenResponse.ok || typeof tokens.access_token !== 'string') {
-    return jsonResponse({ error: 'The email provider rejected authorization. Check the OAuth client, redirect URI, and requested permissions.' }, 400);
+    const providerName = provider === 'microsoft' ? 'Microsoft' : 'Google';
+    const providerMessage = typeof tokens.error_description === 'string'
+      ? tokens.error_description.slice(0, 500)
+      : typeof tokens.error === 'string'
+        ? tokens.error
+        : `HTTP ${tokenResponse.status}`;
+    return jsonResponse({
+      error: `${providerName} authorization failed: ${providerMessage}. Check the OAuth client secret, exact redirect URI, and granted permissions.`,
+    }, 400);
   }
 
   const identityResponse = provider === 'google'
     ? await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: `Bearer ${tokens.access_token}` } })
     : await fetch('https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName', { headers: { Authorization: `Bearer ${tokens.access_token}` } });
-  const identity = await identityResponse.json();
-  if (!identityResponse.ok) return jsonResponse({ error: 'The connected email identity could not be verified.' }, 400);
+  const identity = await identityResponse.json().catch(() => ({}));
+  if (!identityResponse.ok) {
+    const providerName = provider === 'microsoft' ? 'Microsoft' : 'Google';
+    const providerMessage = typeof identity.error?.message === 'string'
+      ? identity.error.message.slice(0, 500)
+      : `HTTP ${identityResponse.status}`;
+    return jsonResponse({ error: `The ${providerName} account could not be verified: ${providerMessage}` }, 400);
+  }
   if (provider === 'google' && identity.verified_email !== true) {
     return jsonResponse({ error: 'Google did not verify this mailbox email address.' }, 403);
   }

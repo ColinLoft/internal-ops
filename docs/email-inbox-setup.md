@@ -1,6 +1,6 @@
 # Email inbox setup: step-by-step
 
-This guide walks through setting up the workspace email inbox. You can connect Microsoft 365, Google Workspace, or both. Start with one provider and get a mailbox connected before setting up optional push notifications or AI.
+This guide walks through setting up the workspace email inbox with Microsoft 365. First connect a personal mailbox, then configure optional push notifications and AI if you need them.
 
 The inbox stores synchronized email content in Supabase. Access is controlled by the workspace, and administrators can set how long message content is retained. Connecting a provider grants the app permission to read, change read/star/archive status, and send mail for the account. AI features are optional and only send a message to Azure OpenAI when a user explicitly chooses an AI action.
 
@@ -9,7 +9,7 @@ The inbox stores synchronized email content in Supabase. Access is controlled by
 - Access to this repository and its project folder on your computer.
 - Access to the Supabase project used by the workspace, including permission to deploy database changes and Edge Functions.
 - A publicly accessible HTTPS URL for the deployed workspace, such as `https://workspace.example.com`. Do not use `localhost` for a production setup.
-- Administrator access to the Microsoft 365 tenant or Google Cloud project for the provider you want to connect.
+- Administrator access to your Microsoft 365 tenant.
 - At least one existing workspace profile whose email address uses the organization domain you plan to connect. The app checks this domain when connecting mailboxes.
 
 You do **not** need to set up push notifications or Azure OpenAI to connect a mailbox. Without push notifications, use the inbox refresh button to sync manually.
@@ -67,11 +67,9 @@ This creates the email tables, access policies, search index, and retention clea
 
 7. Verify it in Supabase: open **Table Editor** and check that tables beginning with `email_` are present. If the CLI says there are no migrations to apply, verify that you linked the intended project.
 
-## Step 3: Create provider OAuth credentials
+## Step 3: Create Microsoft 365 OAuth credentials
 
-Complete **only the provider you want to connect first**. Both providers must use the exact same redirect URL from Step 1.
-
-### Option A: Microsoft 365
+Use the exact redirect URL from Step 1.
 
 1. Open the [Microsoft Entra admin center](https://entra.microsoft.com/) and sign in with an account allowed to register applications in your organization.
 2. Go to **Identity → Applications → App registrations**, then select **New registration**.
@@ -91,24 +89,6 @@ Complete **only the provider you want to connect first**. Both providers must us
    - `Mail.Send.Shared`
 10. If your organization requires admin approval, select **Grant admin consent for [your organization]** and confirm. Shared mailbox access requires the shared-mailbox permissions and the signing-in user must already have access to the shared mailbox in Microsoft 365.
 
-### Option B: Google Workspace
-
-1. Open the [Google Cloud Console](https://console.cloud.google.com/) and sign in with an account that can manage projects for your organization.
-2. Select an existing Google Cloud project or use the project picker to create one. Keep this project for both Gmail API and Pub/Sub setup.
-3. Open **APIs & Services → Library**, search for **Gmail API**, open it, and select **Enable**.
-4. Open **Google Auth platform** (or **APIs & Services → OAuth consent screen**, depending on the console layout) and configure the consent screen:
-   - Enter the app name and support email.
-   - Choose **Internal** if the app is only for users in your Google Workspace organization and this option is available. Otherwise choose **External**.
-   - Add the required contact details and save.
-   - If the app is in testing mode, add the accounts that will test it under **Test users**.
-5. In the consent screen's **Data access** or **Scopes** section, add these Gmail scopes:
-   - `https://www.googleapis.com/auth/gmail.modify`
-   - `https://www.googleapis.com/auth/gmail.send`
-6. Gmail modify/send are sensitive or restricted scopes. Google may require verification before an external app can be used broadly. Follow any verification notice shown in the console. For initial testing in External/Testing mode, authorize only listed test users.
-7. Open **Google Auth platform → Clients** (or **APIs & Services → Credentials**), select **Create client**, then choose **Web application**.
-8. Give the client a name. Under **Authorized redirect URIs**, add the exact URL from Step 1, then create the client.
-9. Copy the client ID and client secret. These become `GOOGLE_MAIL_CLIENT_ID` and `GOOGLE_MAIL_CLIENT_SECRET`.
-
 ## Step 4: Add Edge Function secrets in Supabase
 
 Secrets are private server-side settings. Never put provider secrets, encryption keys, or Azure keys in frontend environment variables or commit them to the repository.
@@ -123,9 +103,7 @@ Secrets are private server-side settings. Never put provider secrets, encryption
    | `MAIL_TOKEN_ENCRYPTION_KEY` | A new base64-encoded 32-byte key; generate it as described below |
    | `MICROSOFT_MAIL_CLIENT_ID` | Microsoft Application (client) ID; only if setting up Microsoft |
    | `MICROSOFT_MAIL_CLIENT_SECRET` | Microsoft client secret **Value**; only if setting up Microsoft |
-   | `MICROSOFT_TENANT_ID` | Microsoft Directory (tenant) ID; only if setting up Microsoft |
-   | `GOOGLE_MAIL_CLIENT_ID` | Google OAuth client ID; only if setting up Google |
-   | `GOOGLE_MAIL_CLIENT_SECRET` | Google OAuth client secret; only if setting up Google |
+   | `MICROSOFT_TENANT_ID` | Microsoft Directory (tenant) ID |
 
 4. To generate the encryption key, run this in a terminal:
 
@@ -135,7 +113,7 @@ Secrets are private server-side settings. Never put provider secrets, encryption
 
    Copy the output into `MAIL_TOKEN_ENCRYPTION_KEY`. Save a secure backup. If you lose or replace this key, previously stored provider tokens can no longer be decrypted and mailboxes will need to be connected again.
 
-5. Select **Save** or **Add secret** for each value. The dashboard is recommended for this step because putting real credentials directly in a terminal command can save them in your shell history.
+5. Select **Save** or **Add secret** for each value. The dashboard is recommended because putting real credentials directly in a terminal command can save them in your shell history.
 
 ## Step 5: Deploy the email Edge Functions
 
@@ -162,13 +140,13 @@ In Supabase, open **Edge Functions** and confirm all seven functions show as dep
 
 1. Open the deployed workspace and sign in.
 2. Select **Inbox** in the left navigation.
-3. Select **Connect mailbox**, then choose **Microsoft 365** or **Google Workspace** under **Personal mailbox**.
+3. Select **Connect Microsoft 365**.
 4. Sign in to the organization mailbox you want to connect. Review the provider permission screen and select **Allow/Accept**.
 5. You should return to the workspace and see the mailbox in the selector. The first sync may take a little while.
 6. Select the refresh icon to run a manual sync. Confirm messages appear and try opening one.
 7. Send a test email only if you are comfortable doing so; sending uses the connected provider account.
 
-The email domain must match a domain found on an existing workspace profile. For Google shared mailboxes, the admin must sign in directly as the shared Gmail account when connecting it. For Microsoft shared mailboxes, the user connecting it must have Microsoft 365 access to that mailbox first.
+The email domain must match a domain found on an existing workspace profile. For Microsoft shared mailboxes, the user connecting it must already have access to that mailbox in Microsoft 365.
 
 ## Optional: Turn on near-real-time arrival notifications
 
@@ -186,24 +164,6 @@ Replace `<project-ref>` with the Supabase project reference from Step 1. Add the
 4. Microsoft Graph sends a validation request to the webhook when its subscription is created. The function URL must be publicly reachable over HTTPS.
 
 Microsoft subscriptions expire after about three days. Configure the hourly maintenance job below so they are renewed automatically.
-
-### Google notifications
-
-Google notifications use Cloud Pub/Sub. Use the same Google Cloud project where you enabled Gmail API and created the OAuth client.
-
-1. In Supabase Edge Function secrets, add:
-   - `MAIL_WEBHOOK_URL`: the webhook URL above.
-   - `GOOGLE_PUBSUB_TOPIC`: the full topic name, for example `projects/my-project-id/topics/gmail-notifications`.
-   - `GMAIL_PUBSUB_AUDIENCE`: the webhook URL above, with no extra query string.
-   - `GMAIL_PUBSUB_SERVICE_ACCOUNT`: the email address of the service account that will sign OIDC tokens for Pub/Sub push delivery.
-2. In [Google Cloud Console](https://console.cloud.google.com/), choose the project from above and open **Pub/Sub → Topics → Create topic**. Name it `gmail-notifications` (or use another name) and create it. Copy the full topic name into `GOOGLE_PUBSUB_TOPIC`.
-3. Open that topic's **Permissions** panel and grant `gmail-api-push@system.gserviceaccount.com` the **Pub/Sub Publisher** role.
-4. Open **Pub/Sub → Subscriptions → Create subscription**. Select the topic you just created and choose **Push** as the delivery type.
-5. Set the endpoint to the webhook URL. Turn on authentication/OIDC, select a service account, and set the audience to the exact value in `GMAIL_PUBSUB_AUDIENCE`.
-6. Put that selected service account's email address in `GMAIL_PUBSUB_SERVICE_ACCOUNT`. If Google Cloud reports a permission issue while creating or delivering the subscription, grant the Pub/Sub service agent permission to create tokens for the selected service account, then retry.
-7. Save the subscription. Return to Supabase and reconnect the Google mailbox so Gmail starts its watch against the topic.
-
-Gmail watches expire after seven days. Configure hourly maintenance below to renew them.
 
 ### Schedule hourly maintenance
 
@@ -293,14 +253,15 @@ The app only sends a message to Azure OpenAI when a user selects **Summarize** o
 - An administrator can change retention in **People & Access → Email access and retention**.
 - Mailbox owners can add sender/subject rules from the inbox settings button. Rules can label, mark read, or archive matching messages.
 - Shared mailbox access and send permission are managed by an administrator in **People & Access → Email access and retention**.
-- Sync is bounded: up to the 100 newest Google messages in the retention window and up to 100 messages per Microsoft folder per refresh. Search covers messages already synced.
+- Sync is bounded to the 100 newest messages per Microsoft folder per refresh. Search covers messages already synced.
 - Attachments are not copied into the workspace; open them from the provider mailbox.
 
 ## Troubleshooting
 
-- **"Email OAuth is not configured yet"**: Check the provider client ID/secret and `MAIL_REDIRECT_URI` in Supabase Edge Function secrets. Confirm the secrets were saved to the same project where the functions are deployed.
-- **"redirect_uri_mismatch" or "redirect URI is invalid"**: Compare the provider's registered redirect URI with `MAIL_REDIRECT_URI`. They must match exactly, including `https`, domain, trailing slash, and `?mail_oauth=callback`.
+- **"Email OAuth is not configured yet"**: Check `MICROSOFT_MAIL_CLIENT_ID`, `MICROSOFT_MAIL_CLIENT_SECRET`, and `MAIL_REDIRECT_URI` in Supabase Edge Function secrets. Confirm the secrets were saved to the same project where the functions are deployed.
+- **Microsoft says `AADSTS7000215` or reports an invalid client secret**: In Entra, create a new client secret and copy its **Value** (not Secret ID). Update `MICROSOFT_MAIL_CLIENT_SECRET` in Supabase, then redeploy `mail-connect`.
+- **Microsoft says `AADSTS50011` or reports a redirect URI mismatch**: Compare the redirect URI in Entra with `MAIL_REDIRECT_URI`. They must match exactly, including `https`, domain, trailing slash, and `?mail_oauth=callback`.
+- **The connection fails after Microsoft authorization**: The inbox displays the error returned by the Edge Function. Check that function's logs in Supabase under **Edge Functions → mail-connect → Logs**. Confirm Graph delegated permissions were added and admin consent was granted if required.
 - **The callback returns an error or the inbox does not connect**: Confirm the database migration was applied, the correct provider secret names were used, and the signed-in email domain matches a workspace profile.
-- **Google says the app is unverified or the user is not allowed**: Check OAuth consent-screen publishing status and add the account as a test user while the app is in testing. For general external use, follow Google's verification instructions for Gmail scopes.
 - **Mailbox connected but no new messages arrive automatically**: Manual refresh should still work. Check the provider-specific push setup, webhook URL, and maintenance schedule. Reconnect the mailbox after configuring the push values.
 - **AI action says Azure OpenAI is not configured**: Check the three required Azure secrets, confirm the deployment name is exact, and redeploy `mail-ai`.

@@ -53,6 +53,18 @@ type EmailMessage = {
 
 type AiArtifact = { id: string; artifact_type: 'summary' | 'draft'; content: string; created_at: string };
 
+const getFunctionErrorMessage = async (error: Error) => {
+  if ('context' in error && error.context instanceof Response) {
+    const responseBody: unknown = await error.context.clone().json().catch(() => null);
+    if (responseBody && typeof responseBody === 'object') {
+      if ('error' in responseBody && typeof responseBody.error === 'string') return responseBody.error;
+      if ('message' in responseBody && typeof responseBody.message === 'string') return responseBody.message;
+    }
+    return `Email connection failed with status ${error.context.status}. Please check the Edge Function logs in Supabase.`;
+  }
+  return error.message;
+};
+
 const folders = [
   { id: 'inbox', label: 'Inbox', icon: Inbox },
   { id: 'sent', label: 'Sent', icon: Send },
@@ -188,7 +200,11 @@ export const EmailInboxPage: React.FC = () => {
     void supabase.functions.invoke('mail-connect', {
       body: { action: 'exchange', code, state },
     }).then(({ data, error: exchangeError }) => {
-      if (exchangeError) throw exchangeError;
+      if (exchangeError) {
+        return getFunctionErrorMessage(exchangeError).then((message) => {
+          throw new Error(message);
+        });
+      }
       setNotice(data?.webhookWarning
         ? `Mailbox connected. ${data.webhookWarning}`
         : 'Mailbox connected. Syncing messages…');
@@ -247,7 +263,7 @@ export const EmailInboxPage: React.FC = () => {
       },
     });
     if (connectError) {
-      setError(connectError.message);
+      setError(await getFunctionErrorMessage(connectError));
       return;
     }
     if (!data?.authorizationUrl) {
@@ -410,13 +426,12 @@ export const EmailInboxPage: React.FC = () => {
         <div className="mt-auto border-t border-slate-100 pt-3">
           <div className="relative">
             <button type="button" onClick={() => setConnectMenuOpen((open) => !open)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50">
-              <Plus className="h-4 w-4" /> Connect mailbox
+              <Plus className="h-4 w-4" /> Connect Microsoft 365
             </button>
             {connectMenuOpen && (
               <div className="absolute bottom-12 left-0 z-30 w-full rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
                 <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Personal mailbox</p>
-                <button type="button" onClick={() => void connectMailbox('microsoft', 'personal')} className="w-full rounded-lg px-2 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">Microsoft 365</button>
-                <button type="button" onClick={() => void connectMailbox('google', 'personal')} className="w-full rounded-lg px-2 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">Google Workspace</button>
+                <button type="button" onClick={() => void connectMailbox('microsoft', 'personal')} className="w-full rounded-lg px-2 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">Connect personal Microsoft 365</button>
                 {currentUser.systemRole === 'admin' && (
                   <>
                     <div className="my-1 border-t border-slate-100" />
@@ -429,7 +444,6 @@ export const EmailInboxPage: React.FC = () => {
                       className="mb-1 w-full rounded-lg border border-slate-200 px-2 py-2 text-xs outline-none focus:border-brand-500"
                     />
                     <button type="button" disabled={!sharedMailboxAddress.trim()} onClick={() => void connectMailbox('microsoft', 'shared')} className="w-full rounded-lg px-2 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50">Connect shared Microsoft mailbox</button>
-                    <button type="button" disabled={!sharedMailboxAddress.trim()} onClick={() => void connectMailbox('google', 'shared')} className="w-full rounded-lg px-2 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50">Connect shared Google mailbox</button>
                   </>
                 )}
               </div>
@@ -446,6 +460,14 @@ export const EmailInboxPage: React.FC = () => {
       <section className={`flex min-w-0 flex-1 flex-col ${selectedMessage ? 'hidden xl:flex' : ''}`}>
         <div className="flex items-center gap-3 border-b border-slate-200 bg-white/90 px-4 py-3">
           <h2 className="min-w-0 flex-1 truncate text-sm font-bold text-slate-800">{title}</h2>
+          <button
+            type="button"
+            onClick={() => void connectMailbox('microsoft', 'personal')}
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700"
+          >
+            <Plus className="h-4 w-4" />
+            Connect Microsoft 365
+          </button>
           <label className="relative hidden w-64 sm:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search this mailbox" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-brand-500" />
@@ -466,7 +488,15 @@ export const EmailInboxPage: React.FC = () => {
             <div className="mx-auto mt-14 max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
               <Mail className="mx-auto h-10 w-10 text-brand-500" />
               <h3 className="mt-4 text-lg font-bold text-slate-900">Connect your email</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-500">Connect an organization Microsoft 365 or Google Workspace account. Mail content is synced to the workspace and automatically removed according to the admin retention setting.</p>
+              <p className="mt-2 text-sm leading-6 text-slate-500">Connect an organization Microsoft 365 account. Mail content is synced to the workspace and automatically removed according to the admin retention setting.</p>
+              <button
+                type="button"
+                onClick={() => void connectMailbox('microsoft', 'personal')}
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+              >
+                <Plus className="h-4 w-4" />
+                Connect Microsoft 365
+              </button>
               <p className="mt-3 text-xs text-slate-400">Provider OAuth credentials must be configured by an administrator before you can connect an account.</p>
             </div>
           ) : loading ? (
