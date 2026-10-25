@@ -131,7 +131,7 @@ create policy "Channel members can read channel attachments"
     and exists (
       select 1
       from public.channels as channel
-      where channel.id = (storage.foldername(name))[1]
+      where channel.id = (storage.foldername(storage.objects.name))[1]
         and (
           not channel.is_private
           or exists (
@@ -152,7 +152,7 @@ create policy "Channel members can upload channel attachments"
       select 1
       from public.channels as channel
       join public.profiles as profile on profile.id = auth.uid()::text
-      where channel.id = (storage.foldername(name))[1]
+      where channel.id = (storage.foldername(storage.objects.name))[1]
         and (
           not channel.is_private
           or exists (
