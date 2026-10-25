@@ -297,13 +297,26 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                             <p className="text-[10px] opacity-75">{att.size}</p>
                           </div>
                         </div>
-                        <button
+                        <a
+                          href={att.url}
+                          download={att.name}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="p-1.5 rounded-lg hover:bg-black/10 transition-colors"
-                          title="Download File"
+                          title={`Download ${att.name}`}
                         >
                           <Download className="w-4 h-4" />
-                        </button>
+                        </a>
                       </div>
+                    );
+                  }
+
+                  if (att.type === 'image') {
+                    return (
+                      <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="block max-w-sm overflow-hidden rounded-xl border border-slate-200">
+                        <img src={att.url} alt={att.name} className="max-h-72 w-full object-contain" loading="lazy" />
+                        <span className="block truncate px-2 py-1 text-[10px] text-slate-500">{att.name}</span>
+                      </a>
                     );
                   }
 

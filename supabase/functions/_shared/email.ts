@@ -214,7 +214,44 @@ const gmailHtmlBody = (payload: Record<string, any>): string => {
   return '';
 };
 
+const embedGmailInlineImages = async (
+  html: string,
+  payload: Record<string, any>,
+  messageId: string,
+  accessToken: string,
+) => {
+  if (!html || !/cid:/i.test(html)) return html;
+  const parts: Record<string, any>[] = [];
+  const collect = (part: Record<string, any>) => {
+    const contentId = gmailHeader(part.headers || [], 'Content-ID').replace(/[<>]/g, '').trim();
+    if (contentId && String(part.mimeType || '').startsWith('image/') && part.body?.attachmentId) {
+      parts.push({ ...part, contentId });
+    }
+    for (const nested of part.parts || []) collect(nested);
+  };
+  collect(payload);
+  let output = html;
+  for (const part of parts) {
+    const response = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(part.body.attachmentId)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    const result = await response.json();
+    if (!response.ok || typeof result.data !== 'string') {
+      throw new Error(`Inline email image could not be loaded: ${result.error?.message || response.statusText}`);
+    }
+    const base64 = result.data.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(result.data.length / 4) * 4, '=');
+    const escapedId = String(part.contentId).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    output = output.replace(
+      new RegExp(`cid:(?:<)?${escapedId}(?:>)?`, 'gi'),
+      `data:${part.mimeType};base64,${base64}`,
+    );
+  }
+  return output;
+};
+
 const htmlToText = (html: string) => html
+  .replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, '$2 ($1)')
   .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ' ')
   .replace(/<\s*br\b[^>]*>/gi, '\n')
   .replace(/<\/\s*(?:address|blockquote|div|h[1-6]|li|p|pre|table|tr)\s*>/gi, '\n')
@@ -286,7 +323,12 @@ export const syncMailbox = async (
       const senderName = addressMatch ? from.replace(addressMatch[0], '').replace(/["']/g, '').trim() : senderEmail;
       const receivedAt = new Date(Number(body.internalDate || Date.now())).toISOString();
       const providerLabels = Array.isArray(body.labelIds) ? body.labelIds as string[] : [];
-      const htmlBody = gmailHtmlBody(body.payload || {});
+      const htmlBody = await embedGmailInlineImages(
+        gmailHtmlBody(body.payload || {}),
+        body.payload || {},
+        body.id,
+        accessToken,
+      );
       const labels = providerLabels.filter((label) => ![
           'INBOX', 'SENT', 'TRASH', 'UNREAD', 'STARRED', 'IMPORTANT', 'DRAFT',
           'CATEGORY_PERSONAL', 'CATEGORY_SOCIAL', 'CATEGORY_PROMOTIONS', 'CATEGORY_UPDATES', 'CATEGORY_FORUMS',
@@ -324,7 +366,7 @@ export const syncMailbox = async (
         });
         const message = await response.json();
         if (!response.ok) throw new Error(`Microsoft mail sync failed: ${message.error?.message || response.statusText}`);
-        return normalizeGraphMessage(message, mailbox, expiresAt, 'inbox');
+        return normalizeGraphMessage(message, mailbox, expiresAt, 'inbox', accessToken);
       }));
       normalized = fetched;
     } else {
@@ -344,7 +386,8 @@ export const syncMailbox = async (
         });
         const body = await response.json();
         if (!response.ok) throw new Error(`Microsoft mail sync failed: ${body.error?.message || response.statusText}`);
-        return (body.value || []).map((message: Record<string, any>) => normalizeGraphMessage(message, mailbox, expiresAt, folder));
+        return Promise.all((body.value || []).map((message: Record<string, any>) =>
+          normalizeGraphMessage(message, mailbox, expiresAt, folder, accessToken)));
       }));
       normalized = folderMessages.flat();
     }
@@ -440,14 +483,46 @@ export const syncMailbox = async (
   return { synced: normalized.length, lastSyncedAt: now };
 };
 
-const normalizeGraphMessage = (
+const embedGraphInlineImages = async (
+  html: string,
+  message: Record<string, any>,
+  mailbox: Record<string, any>,
+  accessToken: string,
+) => {
+  if (!html || !/cid:/i.test(html) || !message.hasAttachments) return html;
+  const userPath = mailbox.mailbox_type === 'shared' ? `users/${encodeURIComponent(mailbox.email)}` : 'me';
+  const response = await fetch(
+    `https://graph.microsoft.com/v1.0/${userPath}/messages/${encodeURIComponent(message.id)}/attachments?$select=name,contentType,contentBytes,isInline,contentId&$top=50`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  const result = await response.json();
+  if (!response.ok) throw new Error(`Inline email images could not be loaded: ${result.error?.message || response.statusText}`);
+  let output = html;
+  for (const attachment of result.value || []) {
+    if (!attachment.isInline || typeof attachment.contentBytes !== 'string'
+      || !String(attachment.contentType || '').startsWith('image/')
+      || typeof attachment.contentId !== 'string') continue;
+    const escapedId = attachment.contentId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    output = output.replace(
+      new RegExp(`cid:(?:<)?${escapedId}(?:>)?`, 'gi'),
+      `data:${attachment.contentType};base64,${attachment.contentBytes}`,
+    );
+  }
+  return output;
+};
+
+const normalizeGraphMessage = async (
   message: Record<string, any>,
   mailbox: Record<string, any>,
   expiresAt: (receivedAt: string) => string,
   folder: string,
+  accessToken: string,
 ) => {
   const receivedAt = message.receivedDateTime || new Date().toISOString();
   const from = message.from?.emailAddress || {};
+  const bodyHtml = message.body?.contentType === 'html'
+    ? await embedGraphInlineImages(String(message.body.content || ''), message, mailbox, accessToken)
+    : '';
   return {
     mailbox_id: mailbox.id,
     provider_message_id: message.id,
@@ -461,7 +536,7 @@ const normalizeGraphMessage = (
     body_text: message.body?.contentType === 'text'
       ? message.body.content || ''
       : htmlToText(String(message.body?.content || '')),
-    body_html: message.body?.contentType === 'html' ? message.body.content || '' : '',
+    body_html: bodyHtml,
     snippet: message.bodyPreview || '',
     received_at: receivedAt,
     is_read: Boolean(message.isRead),

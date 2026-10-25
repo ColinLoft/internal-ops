@@ -101,6 +101,7 @@ interface WorkspaceContextType {
   
   // Messaging actions
   sendMessage: (text: string, attachments?: Attachment[], poll?: Poll) => Promise<void>;
+  postChannelMessage: (channelId: string, text: string, attachments?: Attachment[]) => Promise<void>;
   sendThreadReply: (parentId: string, text: string, attachments?: Attachment[]) => Promise<void>;
   votePoll: (messageId: string, optionId: string, parentId?: string) => void;
   toggleReaction: (messageId: string, emoji: string, parentId?: string) => void;
@@ -317,30 +318,40 @@ const loadSupabaseWorkspaceData = async (userIds: string[]) => {
       category: ['General', 'Projects', 'Departments', 'Outreach'].includes(row.category) ? row.category : 'General',
     }));
 
-    const mapMessage = (row: Record<string, any>): Message => ({
-      id: row.id,
-      conversationId: row.conversation_id,
-      senderId: row.sender_id,
-      senderName: row.sender_name,
-      senderAvatar: row.sender_avatar || '',
-      senderRole: row.sender_role || undefined,
-      text: row.text || '',
-      timestamp: row.timestamp || new Date(row.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
-      seenBy: Array.isArray(row.seen_by) ? row.seen_by : [],
-      reactions: Array.isArray(row.reactions) ? row.reactions : [],
-      attachments: Array.isArray(row.attachments) ? row.attachments : [],
-      poll: row.poll || undefined,
-      isCallRecord: Boolean(row.is_call_record),
-      callDuration: row.call_duration || undefined,
-      parentId: row.parent_id || undefined,
-    });
+    const mapMessage = async (row: Record<string, any>): Promise<Message> => {
+      const attachments = await Promise.all((Array.isArray(row.attachments) ? row.attachments : []).map(async (attachment: Attachment) => {
+        if (!attachment.storagePath) return attachment;
+        const { data, error } = await supabase.storage
+          .from('channel-attachments')
+          .createSignedUrl(attachment.storagePath, 60 * 60);
+        if (error) throw new Error(`Channel attachment "${attachment.name}" could not be opened: ${error.message}`);
+        return { ...attachment, url: data.signedUrl };
+      }));
+      return {
+        id: row.id,
+        conversationId: row.conversation_id,
+        senderId: row.sender_id,
+        senderName: row.sender_name,
+        senderAvatar: row.sender_avatar || '',
+        senderRole: row.sender_role || undefined,
+        text: row.text || '',
+        timestamp: row.timestamp || new Date(row.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        seenBy: Array.isArray(row.seen_by) ? row.seen_by : [],
+        reactions: Array.isArray(row.reactions) ? row.reactions : [],
+        attachments,
+        poll: row.poll || undefined,
+        isCallRecord: Boolean(row.is_call_record),
+        callDuration: row.call_duration || undefined,
+        parentId: row.parent_id || undefined,
+      };
+    };
 
     const messages: Record<string, Message[]> = {};
     const threadReplies: Record<string, Message[]> = {};
     const repliesByParent = new Map<string, Message[]>();
 
     for (const row of messageResult.data) {
-      const message = mapMessage(row);
+      const message = await mapMessage(row);
       if (message.parentId) {
         const replies = repliesByParent.get(message.parentId) || [];
         replies.push(message);
@@ -1320,6 +1331,61 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   };
 
+  const postChannelMessage = async (channelId: string, text: string, attachments: Attachment[] = []) => {
+    const channel = channels.find((item) => item.id === channelId);
+    if (!channel) throw new Error('The selected channel could not be found.');
+    if (channel.isPrivate && !channel.members.includes(currentUser.id)) {
+      throw new Error('You do not have access to that channel.');
+    }
+    if (!channel.postingRoles.includes(currentUser.systemRole)) {
+      throw new Error('You do not have permission to post in that channel.');
+    }
+    if (!text.trim() && attachments.length === 0) return;
+    if (!currentUser.id) throw new Error('Sign in before sending messages.');
+
+    const newMsg: Message = {
+      id: `msg-${crypto.randomUUID()}`,
+      conversationId: channelId,
+      senderId: currentUser.id,
+      senderName: currentUser.name,
+      senderAvatar: currentUser.avatar,
+      senderRole: currentUser.role,
+      text: text.trim(),
+      timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      seenBy: [currentUser.id],
+      reactions: [],
+      attachments,
+    };
+    const { error } = await supabase.from('messages').insert({
+      id: newMsg.id,
+      conversation_id: channelId,
+      sender_id: currentUser.id,
+      sender_name: currentUser.name,
+      sender_avatar: currentUser.avatar,
+      sender_role: currentUser.role,
+      text: newMsg.text,
+      timestamp: newMsg.timestamp,
+      attachments,
+      reactions: [],
+      seen_by: [currentUser.id],
+      is_call_record: false,
+    });
+    if (error) throw error;
+
+    setMessages((previous) => ({ ...previous, [channelId]: [...(previous[channelId] || []), newMsg] }));
+    setChannels((previous) => previous.map((item) => item.id === channelId
+      ? { ...item, lastPost: { text: newMsg.text || 'Shared an attachment', timestamp: 'Just now', senderName: currentUser.name } }
+      : item));
+    await recordSystemActivity({
+      eventType: 'email_shared_to_channel',
+      summary: `Shared an email to #${channel.name}.`,
+      targetType: 'channel',
+      targetId: channelId,
+      targetName: channel.name,
+      metadata: { attachmentCount: attachments.length },
+    });
+  };
+
   // Thread reply
   const sendThreadReply = async (parentId: string, text: string, attachments?: Attachment[]) => {
     if (!text.trim() && !attachments?.length) return;
@@ -2023,6 +2089,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         setRightDrawerOpen,
         setSearchQuery,
         sendMessage,
+        postChannelMessage,
         sendThreadReply,
         votePoll,
         toggleReaction,

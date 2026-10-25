@@ -4,6 +4,8 @@ This guide walks through setting up the workspace email inbox with Microsoft 365
 
 The inbox stores synchronized email content in Supabase. Access is controlled by the workspace, and administrators can set how long message content is retained. Connecting a provider grants the app permission to read, change read/star/archive status, and send mail for the account. AI features are optional and only send a message to Azure OpenAI when a user explicitly chooses an AI action.
 
+For a dedicated walkthrough of the expanded email suite rollout—including the new migrations, function deployments, frontend release, scheduled-send worker, and end-to-end testing—see [Email suite changes: in-depth setup and rollout guide](./email-suite-rollout-guide.md).
+
 ## What you need before you start
 
 - Access to this repository and its project folder on your computer.
@@ -27,9 +29,9 @@ You do **not** need to set up push notifications or Azure OpenAI to connect a ma
 
 Use your actual deployed website URL in place of `https://workspace.example.com`. Keep the trailing slash before `?mail_oauth=callback`. This is the workspace's callback URL, **not** a Supabase Auth callback URL.
 
-## Step 2: Apply the database migration
+## Step 2: Apply the database migrations
 
-This applies the email tables, access policies, search index, retention cleanup function, and any newer email schema updates (including HTML message bodies).
+This applies the email tables, access policies, search index, retention cleanup function, HTML message bodies, templates, scheduled sends, and private channel-attachment storage.
 
 1. Open the repository folder in VS Code.
 2. Open **Terminal → New Terminal**. Confirm the terminal is at the repository root—the folder containing `package.json` and `supabase/`.
@@ -65,7 +67,7 @@ This applies the email tables, access policies, search index, retention cleanup 
 
    Review the migration list shown by the CLI and confirm when prompted.
 
-7. Verify it in Supabase: open **Table Editor** and check that tables beginning with `email_` are present. In `email_messages`, confirm the `body_html` column exists so formatted email content and images can display. If the CLI says there are no migrations to apply, verify that you linked the intended project.
+7. Verify it in Supabase: open **Table Editor** and check that tables beginning with `email_` are present, including `email_templates` and `email_scheduled_sends`. In `email_messages`, confirm the `body_html` column exists so formatted email content and images can display. If the CLI says there are no migrations to apply, verify that you linked the intended project.
 
 ## Step 3: Create Microsoft 365 OAuth credentials
 
@@ -163,11 +165,11 @@ Replace `<project-ref>` with the Supabase project reference from Step 1. Add the
 3. After those secrets are saved, reconnect the Microsoft mailbox or use the inbox sync/connection flow again so the Microsoft notification subscription is created.
 4. Microsoft Graph sends a validation request to the webhook when its subscription is created. The function URL must be publicly reachable over HTTPS.
 
-Microsoft subscriptions expire after about three days. Configure the hourly maintenance job below so they are renewed automatically.
+Microsoft subscriptions expire after about three days. Configure the maintenance job below so they are renewed automatically and scheduled emails are sent on time.
 
-### Schedule hourly maintenance
+### Schedule maintenance every minute
 
-Maintenance removes expired email content and renews provider notification subscriptions. The function expects the `MAIL_MAINTENANCE_SECRET` secret.
+Maintenance removes expired email content, sends due scheduled messages, and renews provider notification subscriptions. Scheduled replies and emails are sent by the server even when the sender is offline. The function expects the `MAIL_MAINTENANCE_SECRET` secret.
 
 1. Generate a long, unique maintenance secret in a terminal:
 
@@ -196,12 +198,16 @@ Maintenance removes expired email content and renews provider notification subsc
    ```
 
 5. Open **SQL Editor → New query**.
-6. Paste the schedule SQL below and select **Run**:
+6. Replace any previous hourly job and schedule the function to run every minute. Paste this SQL and select **Run**:
 
    ```sql
+   select cron.unschedule(jobid)
+   from cron.job
+   where jobname in ('email-inbox-maintenance-hourly', 'email-inbox-maintenance-minute');
+
    select cron.schedule(
-     'email-inbox-maintenance-hourly',
-     '0 * * * *',
+     'email-inbox-maintenance-minute',
+     '* * * * *',
      $$
      select net.http_post(
        url := (select decrypted_secret from vault.decrypted_secrets where name = 'email_maintenance_url'),
@@ -221,7 +227,7 @@ Maintenance removes expired email content and renews provider notification subsc
    ```sql
    select jobid, schedule, command
    from cron.job
-   where jobname = 'email-inbox-maintenance-hourly';
+   where jobname = 'email-inbox-maintenance-minute';
    ```
 
 Do not paste real secrets into screenshots or support messages. If you rerun the `vault.create_secret` statements, first remove or update the prior Vault secret entries so you do not leave stale values behind.
@@ -254,7 +260,10 @@ The app only sends a message to Azure OpenAI when a user selects **Summarize** o
 - Mailbox owners can add sender/subject rules from the inbox settings button. Rules can label, mark read, or archive matching messages.
 - Shared mailbox access and send permission are managed by an administrator in **People & Access → Email access and retention**.
 - Sync is bounded to the 100 newest messages per Microsoft folder per refresh. Search covers messages already synced.
-- Attachments are not copied into the workspace; open them from the provider mailbox.
+- Messages with the same provider conversation ID appear as one conversation in the list. Open a conversation to read or print its messages in order.
+- Compose supports rich text, templates, file attachments, external forwarding, and scheduled delivery. Personal templates are available to their creator; administrators can save templates for the workspace.
+- Forwarding to a channel copies the email body and attachments into the channel. Channel members will be able to read those files, so check the destination before sharing confidential email.
+- Email attachments are not otherwise copied into the workspace; use the provider mailbox to download attachments on received messages.
 
 ## Troubleshooting
 
@@ -268,3 +277,5 @@ The app only sends a message to Azure OpenAI when a user selects **Summarize** o
 - **AI action reports an Azure OpenAI request error**: The inbox now includes the provider's HTTP status and error detail. In Foundry, verify the deployment is active and that `AZURE_OPENAI_DEPLOYMENT` exactly matches its deployment name. In the Azure portal, confirm the endpoint and key belong to that same resource, and confirm `AZURE_OPENAI_API_VERSION` is supported for the deployment. Replace rotated keys in Supabase Edge Function secrets and retry.
 - **Email images or formatting do not appear**: Confirm the latest migration has been applied and the `body_html` column exists. Sync the mailbox again to retrieve the HTML bodies. Remote images may still be blocked by the provider or the user's network.
 - **A message cannot be sent with attachments**: New-message attachments are limited to 10 files and 3 MB combined and are currently supported for Microsoft 365 mailboxes. Replies do not support attachments; start a new message instead.
+- **A scheduled email is not sent at its scheduled time**: Confirm `email-inbox-maintenance-minute` is active in `cron.job`, `mail-maintenance` is deployed, and `MAIL_MAINTENANCE_SECRET` and the Vault URL/secret are correct. Check **Edge Functions → mail-maintenance → Logs** and the status/error in the inbox's **Scheduled** view.
+- **A channel-shared attachment cannot be opened**: Apply the latest migration and confirm that the destination channel still exists and that you are a member if it is private.
