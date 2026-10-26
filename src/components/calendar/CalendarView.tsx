@@ -486,7 +486,7 @@ export const CalendarView: React.FC = () => {
                 {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
               </h2>
               <p className="text-xs text-slate-500 font-medium">
-                Nonprofit employee schedule • Personal & Whole Team
+                Org Wide Calendar & Personal Calendar
               </p>
             </div>
 
