@@ -190,17 +190,6 @@ export const DrivePage: React.FC = () => {
     : routedEditorItem
       ? { ...routedEditorItem, content: normalizeEditorContent(routedEditorItem) }
       : null;
-  if (activeEditorItem && ['document', 'presentation', 'spreadsheet', 'form'].includes(activeEditorItem.item_type)) {
-    return <DriveEditorWorkspace item={activeEditorItem} onClose={closeEditor} onSave={async (content) => {
-      const { error: saveError } = await supabase.from('drive_items').update({ content, updated_at: new Date().toISOString() }).eq('id', activeEditorItem.id);
-      if (saveError) throw new Error(`Changes could not be saved: ${saveError.message}`);
-      const updatedAt = new Date().toISOString();
-      const updated = { ...activeEditorItem, content, updated_at: updatedAt };
-      setEditorItem(updated);
-      setItems((current) => current.map((entry) => entry.id === updated.id ? updated : entry));
-    }} />;
-  }
-
   const visibleItems = useMemo(() => {
     const query = search.trim().toLowerCase();
     return items.filter((item) =>
@@ -212,6 +201,17 @@ export const DrivePage: React.FC = () => {
       && (!query || item.name.toLowerCase().includes(query))
     );
   }, [currentFolderId, currentUser.id, items, search, section, driveView]);
+
+  if (activeEditorItem && ['document', 'presentation', 'spreadsheet', 'form'].includes(activeEditorItem.item_type)) {
+    return <DriveEditorWorkspace item={activeEditorItem} onClose={closeEditor} onSave={async (content) => {
+      const { error: saveError } = await supabase.from('drive_items').update({ content, updated_at: new Date().toISOString() }).eq('id', activeEditorItem.id);
+      if (saveError) throw new Error(`Changes could not be saved: ${saveError.message}`);
+      const updatedAt = new Date().toISOString();
+      const updated = { ...activeEditorItem, content, updated_at: updatedAt };
+      setEditorItem(updated);
+      setItems((current) => current.map((entry) => entry.id === updated.id ? updated : entry));
+    }} />;
+  }
 
   const createItem = async (itemType: DriveItem['item_type'], name: string) => {
     const { data, error: createError } = await supabase
