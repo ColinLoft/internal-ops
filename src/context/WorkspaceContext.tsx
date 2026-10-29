@@ -47,7 +47,7 @@ interface WorkspaceContextType {
   isSupabaseConnected: boolean;
   
   // Navigation & Views
-  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive';
+  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers';
   activeConversationId: string;
   activeChannelId: string;
   activeThreadMessageId: string | null;
@@ -92,7 +92,7 @@ interface WorkspaceContextType {
   completeOnboarding: () => Promise<void>;
   
   // Navigation actions
-  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive') => void;
+  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers') => void;
   setActiveConversationId: (id: string) => void;
   setActiveChannelId: (id: string) => void;
   openThread: (messageId: string) => void;
@@ -172,11 +172,12 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const STORAGE_PREFIX = 'beacon_v3_';
-type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive';
+type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers';
 
 const tabFromPath = (pathname: string): WorkspaceTab | null => {
   const segment = pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
   if (segment === 'home') return 'home';
+  if (segment === 'customers') return 'customers';
   if (segment === 'messages') return 'messages';
   if (segment === 'channels') return 'channels';
   if (segment === 'calendar') return 'calendar';
@@ -189,6 +190,7 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
 
 const pathForTab = (tab: WorkspaceTab) => ({
   home: '/home',
+  customers: '/customers',
   messages: '/messages',
   channels: '/channels',
   calendar: '/calendar',

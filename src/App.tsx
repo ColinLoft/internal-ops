@@ -27,13 +27,14 @@ import { EmailInboxPage } from './components/email/EmailInboxPage';
 import { WorkspaceAssistant } from './components/assistant/WorkspaceAssistant';
 import { DrivePage } from './components/drive/DrivePage';
 import { HomePage } from './components/home/HomePage';
+import { CustomerPage } from './components/customers/CustomerPage';
 import { NotFoundPage } from './components/NotFoundPage';
 
 const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
 }));
 
-const isKnownPath = (pathname: string) => /^\/?(|home|messages|channels|calendar|email|inbox|admin|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
+const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
 
 const WorkspaceShell: React.FC = () => {
   const {
@@ -82,6 +83,7 @@ const WorkspaceShell: React.FC = () => {
         {/* Workspace Body */}
         <div className="flex-1 flex min-w-0 h-full overflow-hidden">
           {activeTab === 'home' && <HomePage />}
+          {activeTab === 'customers' && <CustomerPage />}
           {activeTab === 'messages' && (
             <>
               {/* Messages Sidebar */}
