@@ -1107,14 +1107,13 @@ export const EmailInboxPage: React.FC = () => {
 
   return (
     <main className="flex min-w-0 flex-1 overflow-hidden bg-[linear-gradient(135deg,#f8fbff_0%,#eef6ff_52%,#f8fafc_100%)] print:bg-white">
-      <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200/80 bg-white/90 p-3 shadow-[4px_0_24px_rgba(30,64,175,0.04)] print:hidden">
-        <div className="mb-4 flex items-center justify-between rounded-2xl bg-gradient-to-br from-brand-600 to-sky-600 p-3 text-white shadow-lg shadow-brand-500/15">
+      <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200/80 bg-white/90 p-2.5 shadow-[4px_0_24px_rgba(30,64,175,0.04)] print:hidden">
+        <div className="mb-3 flex items-center justify-between rounded-xl bg-gradient-to-br from-brand-600 to-sky-600 p-2.5 text-white shadow-lg shadow-brand-500/15">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/70">Workspace mail</p>
-            <h1 className="mt-1 text-lg font-bold">Inbox</h1>
-            <p className="mt-0.5 text-[11px] text-white/75">Stay on top of every conversation</p>
+            <h1 className="mt-0.5 text-base font-bold">Inbox</h1>
           </div>
-          <button type="button" onClick={openNewCompose} aria-label="Compose email" title="Compose a new email" className="rounded-xl bg-white/15 p-2.5 text-white ring-1 ring-white/20 hover:bg-white/25">
+          <button type="button" onClick={openNewCompose} aria-label="Compose email" title="Compose a new email" className="rounded-lg bg-white/15 p-2 text-white ring-1 ring-white/20 hover:bg-white/25">
             <Plus className="h-4 w-4" />
           </button>
         </div>
@@ -1213,7 +1212,7 @@ export const EmailInboxPage: React.FC = () => {
         </div>
       </aside>
 
-      <section className={`flex min-w-0 flex-1 flex-col border-r border-slate-200/80 print:hidden ${selectedMessage ? 'hidden lg:flex lg:w-[43%]' : 'lg:w-[48%]'}`}>
+      <section className={`flex min-w-0 flex-1 flex-col border-r border-slate-200/80 print:hidden ${selectedMessage ? 'hidden lg:flex lg:w-[39%]' : 'lg:w-[40%]'}`}>
         <div className="flex items-center gap-3 border-b border-slate-200/80 bg-white/85 px-5 py-3 backdrop-blur">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-600">{showScheduledSends ? 'Planning' : activeFolder === 'drafts' ? 'Unfinished work' : 'Mailbox'}</p>
@@ -1402,7 +1401,7 @@ export const EmailInboxPage: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-1 items-center justify-center overflow-y-auto p-8">
-            <div className="w-full max-w-xl">
+            <div className="w-full max-w-2xl">
               <div className="mb-6 flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-100 text-brand-700"><Mail className="h-7 w-7" /></div>
                 <div>
@@ -1410,20 +1409,17 @@ export const EmailInboxPage: React.FC = () => {
                   <p className="mt-1 text-sm text-slate-500">Choose a shortcut or select a conversation to get started.</p>
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-3">
                 {[
-                  { label: 'Recent emails', detail: 'See your latest conversations', icon: Clock3, action: () => { setActiveFolder('inbox'); setMessageFilter('all'); } },
-                  { label: 'Unread emails', detail: 'Catch up on what needs attention', icon: MailOpen, action: () => { setActiveFolder('inbox'); setMessageFilter('unread'); } },
-                  { label: "Today's emails", detail: 'Review messages received today', icon: Inbox, action: () => { setActiveFolder('inbox'); setMessageFilter('today'); } },
-                  { label: 'Starred emails', detail: 'Open your important messages', icon: Star, action: () => { setActiveFolder('inbox'); setMessageFilter('starred'); } },
-                  { label: 'Attachments', detail: 'Find emails with files', icon: Paperclip, action: () => { setActiveFolder('inbox'); setMessageFilter('attachments'); } },
-                  { label: 'Start a new email', detail: 'Compose a message', icon: Plus, action: openNewCompose },
-                ].map(({ label, detail, icon: Icon, action }) => (
+                  { label: 'Recent emails', icon: Clock3, action: () => { setActiveFolder('inbox'); setMessageFilter('all'); } },
+                  { label: 'Unread emails', icon: MailOpen, action: () => { setActiveFolder('inbox'); setMessageFilter('unread'); } },
+                  { label: 'Write an email', icon: Plus, action: openNewCompose },
+                  { label: 'Ask the assistant', icon: Sparkles, action: () => window.dispatchEvent(new CustomEvent('workspace-assistant-request', { detail: { prompt: 'Help me understand my email inbox and suggest what I should handle first.' } })) },
+                ].map(({ label, icon: Icon, action }) => (
                   <button key={label} type="button" onClick={action} className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-500 transition group-hover:bg-brand-50 group-hover:text-brand-600"><Icon className="h-4 w-4" /></span>
                     <span className="min-w-0">
                       <span className="block text-sm font-bold text-slate-800">{label}</span>
-                      <span className="mt-0.5 block text-xs text-slate-500">{detail}</span>
                     </span>
                   </button>
                 ))}

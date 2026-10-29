@@ -58,7 +58,7 @@ const WorkspaceShell: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-gradient-to-br from-slate-100 via-sky-50/70 to-blue-50/90 select-none">
+    <div className="flex min-h-screen h-screen w-screen overflow-hidden bg-gradient-to-br from-slate-100 via-sky-50/70 to-blue-50/90 select-none">
       {/* 1. Left Icon Rail */}
       <Rail />
 

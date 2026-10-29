@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Bot, Check, LoaderCircle, Send, Sparkles, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -28,6 +28,16 @@ export const WorkspaceAssistant: React.FC = () => {
   const [error, setError] = useState('');
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [proposal, setProposal] = useState<AssistantAction | null>(null);
+
+  useEffect(() => {
+    const handleAssistantRequest = (event: Event) => {
+      const prompt = (event as CustomEvent<{ prompt?: string }>).detail?.prompt || '';
+      setOpen(true);
+      if (prompt) setInput(prompt);
+    };
+    window.addEventListener('workspace-assistant-request', handleAssistantRequest);
+    return () => window.removeEventListener('workspace-assistant-request', handleAssistantRequest);
+  }, []);
 
   const target = useMemo(() => activeTab === 'channels'
     ? channels.find((channel) => channel.id === activeChannelId)?.name
