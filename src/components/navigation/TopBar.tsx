@@ -2,6 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Search,
   Bell,
+  Grid3X3,
+  HardDrive,
+  UsersRound,
+  Settings2,
+  Landmark,
   PhoneCall,
   Video,
 } from 'lucide-react';
@@ -10,7 +15,10 @@ import { NotificationCenter } from '../notifications/NotificationCenter';
 
 export const TopBar: React.FC = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isAppsOpen, setIsAppsOpen] = useState(false);
+  const [selectedApp, setSelectedApp] = useState<string | null>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const appsRef = useRef<HTMLDivElement>(null);
   const {
     activeTab,
     activeConversationId,
@@ -36,6 +44,10 @@ export const TopBar: React.FC = () => {
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setIsNotificationsOpen(false);
       }
+      if (appsRef.current && !appsRef.current.contains(event.target as Node)) {
+        setIsAppsOpen(false);
+        setSelectedApp(null);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -43,6 +55,36 @@ export const TopBar: React.FC = () => {
 
   const currentConv = conversations.find((conversation) => conversation.id === activeConversationId);
   const currentChan = channels.find((channel) => channel.id === activeChannelId);
+  const appDestinations = [
+    {
+      id: 'drive',
+      name: 'Flown Drive',
+      description: 'Files, folders, and shared resources',
+      icon: HardDrive,
+      accent: 'from-sky-500 to-blue-600',
+    },
+    {
+      id: 'customers',
+      name: 'Customer management',
+      description: 'Relationships, contacts, and support',
+      icon: UsersRound,
+      accent: 'from-violet-500 to-indigo-600',
+    },
+    {
+      id: 'operations',
+      name: 'System management',
+      description: 'HR, planning, and internal operations',
+      icon: Settings2,
+      accent: 'from-emerald-500 to-teal-600',
+    },
+    {
+      id: 'finance',
+      name: 'Finance & grants',
+      description: 'Budgets, grants, and financial planning',
+      icon: Landmark,
+      accent: 'from-amber-500 to-orange-600',
+    },
+  ];
   const query = searchQuery.trim().toLowerCase();
   const searchResults = query
     ? [
@@ -123,7 +165,7 @@ export const TopBar: React.FC = () => {
         <div className="flex items-center text-sm font-semibold text-slate-800 tracking-tight">
           <span className="text-brand-600 font-bold">Flown</span>
           <span className="mx-2 text-slate-400">/</span>
-          <span className="text-slate-600 font-medium capitalize">{activeTab === 'admin' ? 'People & access' : activeTab === 'inbox' ? 'Email inbox' : activeTab}</span>
+          <span className="text-slate-600 font-medium">{activeTab === 'admin' ? 'People & access' : activeTab === 'inbox' ? 'Email inbox' : 'Communications'}</span>
           <span className="mx-2 text-slate-400">/</span>
           <span className="text-slate-900 bg-brand-50 px-2 py-0.5 rounded-md text-xs font-semibold text-brand-700 border border-brand-100/80">
             {activeTab === 'messages' ? currentConv?.name : activeTab === 'channels' ? `#${currentChan?.name}` : activeTab === 'calendar' ? 'Schedule' : activeTab === 'inbox' ? 'Connected mailboxes' : 'Staff directory'}
@@ -182,6 +224,74 @@ export const TopBar: React.FC = () => {
 
       {/* Right controls */}
       <div className="flex items-center gap-3">
+        <div className="relative" ref={appsRef}>
+          <button
+            type="button"
+            onClick={() => {
+              setIsAppsOpen((open) => !open);
+              setIsNotificationsOpen(false);
+              setSelectedApp(null);
+            }}
+            aria-label="More Flown apps"
+            aria-haspopup="dialog"
+            aria-expanded={isAppsOpen}
+            title="More Flown apps"
+            className={`rounded-xl border p-2 transition-all ${
+              isAppsOpen
+                ? 'border-brand-200 bg-brand-50 text-brand-700'
+                : 'border-slate-200 bg-white/70 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+            }`}
+          >
+            <Grid3X3 className="h-4 w-4" />
+          </button>
+          {isAppsOpen && (
+            <div className="absolute right-0 top-full z-50 mt-2 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 p-3 text-slate-800 shadow-2xl backdrop-blur-xl">
+              <div className="mb-3 flex items-center justify-between px-1">
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Flown apps</p>
+                  <p className="text-[11px] text-slate-500">Your operations suite</p>
+                </div>
+                <span className="rounded-full bg-brand-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-brand-700">
+                  More coming
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {appDestinations.map((app) => {
+                  const Icon = app.icon;
+                  const isSelected = selectedApp === app.id;
+                  return (
+                    <button
+                      key={app.id}
+                      type="button"
+                      onClick={() => setSelectedApp(isSelected ? null : app.id)}
+                      className={`rounded-xl border p-3 text-left transition-all ${
+                        isSelected
+                          ? 'border-brand-300 bg-brand-50 shadow-sm'
+                          : 'border-slate-200/80 bg-white hover:border-brand-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className={`mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${app.accent} text-white shadow-sm`}>
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span className="block text-xs font-bold leading-4 text-slate-900">{app.name}</span>
+                      <span className="mt-1 block text-[10px] leading-4 text-slate-500">{app.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedApp && (
+                <div className="mt-3 rounded-xl border border-brand-100 bg-brand-50/70 px-3 py-2.5">
+                  <p className="text-xs font-semibold text-brand-900">
+                    {appDestinations.find((app) => app.id === selectedApp)?.name} is coming soon.
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-brand-700/80">
+                    This app will use the same Flown navigation and workspace layout.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <div className="relative" ref={notificationsRef}>
           <button
             type="button"
