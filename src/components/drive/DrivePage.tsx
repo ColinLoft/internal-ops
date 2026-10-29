@@ -39,6 +39,18 @@ type DriveItem = {
   updated_at: string;
 };
 
+type DriveWorkspaceKind = 'documents' | 'presentations' | 'spreadsheets' | 'forms' | 'files';
+
+const workspaceKindFromPath = (pathname: string): DriveWorkspaceKind | null => {
+  const segment = pathname.replace(/^\/+/, '').split('/')[0];
+  if (segment === 'docs') return 'documents';
+  if (segment === 'slides') return 'presentations';
+  if (segment === 'sheets') return 'spreadsheets';
+  if (segment === 'forms') return 'forms';
+  if (segment === 'files') return 'files';
+  return null;
+};
+
 const itemIcon = (type: DriveItem['item_type']) => {
   if (type === 'folder') return Folder;
   if (type === 'document') return FileText;
@@ -70,9 +82,9 @@ export const DrivePage: React.FC = () => {
   const [section, setSection] = useState<'drive' | 'shared' | 'starred' | 'trash'>('drive');
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
-  const [driveView, setDriveView] = useState<'all' | 'documents' | 'presentations' | 'spreadsheets' | 'forms' | 'files'>('all');
+  const [driveView, setDriveView] = useState<'all' | DriveWorkspaceKind>(() => workspaceKindFromPath(window.location.pathname) || 'all');
   const [editorItemId, setEditorItemId] = useState<string | null>(() => {
-    const match = window.location.pathname.match(/^\/(docs|slides|forms)\/([^/]+)/);
+    const match = window.location.pathname.match(/^\/(docs|slides|sheets|forms)\/([^/]+)/);
     return match?.[2] || null;
   });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -115,7 +127,7 @@ export const DrivePage: React.FC = () => {
       }
     };
     const handleRoute = () => {
-      const match = window.location.pathname.match(/^\/(docs|slides|forms)\/([^/]+)/);
+      const match = window.location.pathname.match(/^\/(docs|slides|sheets|forms)\/([^/]+)/);
       setEditorItemId(match?.[2] || null);
     };
     window.addEventListener('flown-drive-view', handleDriveView);
@@ -134,7 +146,7 @@ export const DrivePage: React.FC = () => {
   }, []);
 
   const openEditor = (item: DriveItem) => {
-    const segment = item.item_type === 'document' ? 'docs' : item.item_type === 'presentation' ? 'slides' : 'forms';
+    const segment = item.item_type === 'document' ? 'docs' : item.item_type === 'presentation' ? 'slides' : item.item_type === 'spreadsheet' ? 'sheets' : 'forms';
     window.history.pushState({}, '', `/${segment}/${item.id}`);
     setEditorItemId(item.id);
   };
@@ -145,7 +157,7 @@ export const DrivePage: React.FC = () => {
   };
 
   const editorItem = items.find((item) => item.id === editorItemId);
-  if (editorItem && ['document', 'presentation', 'form'].includes(editorItem.item_type)) {
+  if (editorItem && ['document', 'presentation', 'spreadsheet', 'form'].includes(editorItem.item_type)) {
     return <DriveEditorWorkspace item={editorItem} onClose={closeEditor} onSave={async (content) => {
       const { error: saveError } = await supabase.from('drive_items').update({ content, updated_at: new Date().toISOString() }).eq('id', editorItem.id);
       if (saveError) throw new Error(`Changes could not be saved: ${saveError.message}`);
@@ -354,7 +366,7 @@ export const DrivePage: React.FC = () => {
             <div className={view === 'grid' ? 'grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4' : 'space-y-2'}>
               {visibleItems.map((item) => {
                 const Icon = itemIcon(item.item_type);
-                return <button key={item.id} type="button" onDoubleClick={() => item.item_type === 'folder' ? setCurrentFolderId(item.id) : ['document', 'presentation', 'form'].includes(item.item_type) ? openEditor(item) : setSelectedItem(item)} onClick={() => setSelectedItem(item)} className={`group flex text-left ${view === 'grid' ? 'flex-col rounded-2xl border border-slate-200/80 bg-white p-4 hover:border-brand-200 hover:shadow-md' : 'items-center gap-3 rounded-xl border border-slate-200/70 bg-white px-4 py-3 hover:border-brand-200'}`}>
+                return <button key={item.id} type="button" onDoubleClick={() => item.item_type === 'folder' ? setCurrentFolderId(item.id) : ['document', 'presentation', 'spreadsheet', 'form'].includes(item.item_type) ? openEditor(item) : setSelectedItem(item)} onClick={() => setSelectedItem(item)} className={`group flex text-left ${view === 'grid' ? 'flex-col rounded-2xl border border-slate-200/80 bg-white p-4 hover:border-brand-200 hover:shadow-md' : 'items-center gap-3 rounded-xl border border-slate-200/70 bg-white px-4 py-3 hover:border-brand-200'}`}>
                   <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${itemColor(item.item_type)}`}><Icon className="h-5 w-5" /></span>
                   <span className={`${view === 'grid' ? 'mt-4' : 'flex-1'} min-w-0`}><span className="block truncate text-xs font-bold text-slate-800">{item.name}</span><span className="mt-1 block text-[10px] capitalize text-slate-400">{item.item_type} · {new Date(item.updated_at).toLocaleDateString()}</span></span>
                   {section === 'trash' ? <span className="ml-auto flex items-center gap-1"><span onClick={(event) => { event.stopPropagation(); void restoreItem(item); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600" title="Restore"><RotateCcw className="h-4 w-4" /></span><span onClick={(event) => { event.stopPropagation(); void permanentlyDelete(item); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Delete permanently"><Trash2 className="h-4 w-4" /></span></span> : <span className="ml-auto flex items-center gap-1"><span onClick={async (event) => { event.stopPropagation(); const next = !item.is_starred; const { error: starError } = await supabase.from('drive_items').update({ is_starred: next }).eq('id', item.id); if (starError) setError(`Could not update star: ${starError.message}`); else setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, is_starred: next } : entry)); }} className={`rounded-lg p-1.5 ${item.is_starred ? 'text-amber-500' : 'text-slate-300 hover:text-amber-500'}`} title={item.is_starred ? 'Remove star' : 'Star item'}><Star className="h-4 w-4" fill={item.is_starred ? 'currentColor' : 'none'} /></span>{view === 'list' && <MoreHorizontal className="h-4 w-4 text-slate-400" />}</span>}
