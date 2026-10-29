@@ -25,6 +25,7 @@ import { AddTeammateModal } from './components/modals/AddTeammateModal';
 import { InviteReadyModal } from './components/modals/InviteReadyModal';
 import { EmailInboxPage } from './components/email/EmailInboxPage';
 import { WorkspaceAssistant } from './components/assistant/WorkspaceAssistant';
+import { DrivePage } from './components/drive/DrivePage';
 
 const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
@@ -96,6 +97,7 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'calendar' && <CalendarView />}
           {activeTab === 'inbox' && <EmailInboxPage />}
           {activeTab === 'admin' && <AdminPage />}
+          {activeTab === 'drive' && <DrivePage />}
         </div>
       </div>
 

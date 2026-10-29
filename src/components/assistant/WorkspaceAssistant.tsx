@@ -131,7 +131,7 @@ export const WorkspaceAssistant: React.FC = () => {
         setActiveTab('calendar');
       } else if (proposal.type === 'open_view') {
         const details = proposal.details || {};
-        setActiveTab((details.tab as 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin') || 'messages');
+        setActiveTab((details.tab as 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive') || 'messages');
         if (details.channelId) setActiveChannelId(details.channelId);
         if (details.conversationId) setActiveConversationId(details.conversationId);
       } else if (proposal.type === 'compose_email' || proposal.type === 'send_email' || proposal.type === 'schedule_email') {

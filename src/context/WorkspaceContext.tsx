@@ -47,7 +47,7 @@ interface WorkspaceContextType {
   isSupabaseConnected: boolean;
   
   // Navigation & Views
-  activeTab: 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin';
+  activeTab: 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive';
   activeConversationId: string;
   activeChannelId: string;
   activeThreadMessageId: string | null;
@@ -92,7 +92,7 @@ interface WorkspaceContextType {
   completeOnboarding: () => Promise<void>;
   
   // Navigation actions
-  setActiveTab: (tab: 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin') => void;
+  setActiveTab: (tab: 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive') => void;
   setActiveConversationId: (id: string) => void;
   setActiveChannelId: (id: string) => void;
   openThread: (messageId: string) => void;
@@ -172,7 +172,7 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const STORAGE_PREFIX = 'beacon_v3_';
-type WorkspaceTab = 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin';
+type WorkspaceTab = 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive';
 
 const tabFromPath = (pathname: string): WorkspaceTab | null => {
   const segment = pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
@@ -181,6 +181,7 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
   if (segment === 'calendar') return 'calendar';
   if (segment === 'email' || segment === 'inbox') return 'inbox';
   if (segment === 'admin') return 'admin';
+  if (segment === 'drive') return 'drive';
   return null;
 };
 
@@ -190,6 +191,7 @@ const pathForTab = (tab: WorkspaceTab) => ({
   calendar: '/calendar',
   inbox: '/email',
   admin: '/admin',
+  drive: '/drive',
 }[tab]);
 
 const getFunctionError = async (error: unknown): Promise<Error> => {

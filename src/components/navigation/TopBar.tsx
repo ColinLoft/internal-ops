@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Search,
   Bell,
-  Grid3X3,
   HardDrive,
   UsersRound,
   Settings2,
@@ -165,10 +164,10 @@ export const TopBar: React.FC = () => {
         <div className="flex items-center text-sm font-semibold text-slate-800 tracking-tight">
           <span className="text-brand-600 font-bold">Flown</span>
           <span className="mx-2 text-slate-400">/</span>
-          <span className="text-slate-600 font-medium">{activeTab === 'admin' ? 'People & access' : activeTab === 'inbox' ? 'Email inbox' : 'Communications'}</span>
+          <span className="text-slate-600 font-medium">{activeTab === 'admin' ? 'People & access' : activeTab === 'inbox' ? 'Email inbox' : activeTab === 'drive' ? 'Flown Drive' : 'Communications'}</span>
           <span className="mx-2 text-slate-400">/</span>
           <span className="text-slate-900 bg-brand-50 px-2 py-0.5 rounded-md text-xs font-semibold text-brand-700 border border-brand-100/80">
-            {activeTab === 'messages' ? currentConv?.name : activeTab === 'channels' ? `#${currentChan?.name}` : activeTab === 'calendar' ? 'Schedule' : activeTab === 'inbox' ? 'Connected mailboxes' : 'Staff directory'}
+            {activeTab === 'messages' ? currentConv?.name : activeTab === 'channels' ? `#${currentChan?.name}` : activeTab === 'calendar' ? 'Schedule' : activeTab === 'inbox' ? 'Connected mailboxes' : activeTab === 'drive' ? 'My Drive' : 'Staff directory'}
           </span>
         </div>
       </div>
@@ -242,7 +241,11 @@ export const TopBar: React.FC = () => {
                 : 'border-slate-200 bg-white/70 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
             }`}
           >
-            <Grid3X3 className="h-4 w-4" />
+            <span className="grid h-4 w-4 grid-cols-3 grid-rows-3 gap-[3px]" aria-hidden="true">
+              {Array.from({ length: 9 }, (_, index) => (
+                <span key={index} className="h-1 w-1 rounded-full bg-current" />
+              ))}
+            </span>
           </button>
           {isAppsOpen && (
             <div className="absolute right-0 top-full z-50 mt-2 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 p-3 text-slate-800 shadow-2xl backdrop-blur-xl">
@@ -251,9 +254,6 @@ export const TopBar: React.FC = () => {
                   <p className="text-sm font-bold text-slate-900">Flown apps</p>
                   <p className="text-[11px] text-slate-500">Your operations suite</p>
                 </div>
-                <span className="rounded-full bg-brand-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-brand-700">
-                  More coming
-                </span>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {appDestinations.map((app) => {
@@ -263,7 +263,15 @@ export const TopBar: React.FC = () => {
                     <button
                       key={app.id}
                       type="button"
-                      onClick={() => setSelectedApp(isSelected ? null : app.id)}
+                      onClick={() => {
+                        if (app.id === 'drive') {
+                          setActiveTab('drive');
+                          setIsAppsOpen(false);
+                          setSelectedApp(null);
+                        } else {
+                          setSelectedApp(isSelected ? null : app.id);
+                        }
+                      }}
                       className={`rounded-xl border p-3 text-left transition-all ${
                         isSelected
                           ? 'border-brand-300 bg-brand-50 shadow-sm'
