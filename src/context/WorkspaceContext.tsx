@@ -83,6 +83,7 @@ interface WorkspaceContextType {
     loginUrl: string;
   } | null;
   searchQuery: string;
+  focusedEmailId: string | null;
   
   // Auth actions
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
@@ -99,6 +100,7 @@ interface WorkspaceContextType {
   toggleRightDrawer: () => void;
   setRightDrawerOpen: (open: boolean) => void;
   setSearchQuery: (query: string) => void;
+  setFocusedEmailId: (id: string | null) => void;
   
   // Messaging actions
   sendMessage: (text: string, attachments?: Attachment[], poll?: Poll) => Promise<void>;
@@ -419,6 +421,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [activeThreadMessageId, setActiveThreadMessageId] = useState<string | null>(null);
   const [isRightDrawerOpen, setIsRightDrawerOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [focusedEmailId, setFocusedEmailId] = useState<string | null>(null);
 
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}conversations`);
@@ -2093,6 +2096,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         isAddTeammateOpen,
         inviteReadyData,
         searchQuery,
+        focusedEmailId,
         login,
         logout,
         setPassword,
@@ -2105,6 +2109,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         toggleRightDrawer,
         setRightDrawerOpen,
         setSearchQuery,
+        setFocusedEmailId,
         sendMessage,
         postChannelMessage,
         sendThreadReply,

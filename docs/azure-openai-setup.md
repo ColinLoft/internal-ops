@@ -1,8 +1,8 @@
-# Azure OpenAI setup for email AI
+# Azure OpenAI setup for email AI and the workspace assistant
 
-This guide configures Azure OpenAI for the workspace email **Summarize** and **Draft reply** actions. It explains where to create a model deployment, which values to copy, where to save them in Supabase, and how to test the integration.
+This guide configures Azure OpenAI for the workspace email **Summarize** and **Draft reply** actions plus the sitewide conversational **Workspace assistant**. It explains where to create a model deployment, which values to copy, where to save them in Supabase, and how to test the integration.
 
-The app calls Azure OpenAI only after a user explicitly selects an AI action on an email. The function sends the email sender, subject, and up to 30,000 characters of text to the configured deployment. It saves the generated summary or draft in the workspace. A draft is not sent automatically.
+The app calls Azure OpenAI only after a signed-in user opens the assistant or explicitly selects an AI action on an email. The email function sends the email sender, subject, and up to 30,000 characters of text. The workspace assistant retrieves the current permitted channel, conversation, or calendar context server-side. It can prepare a message action, but the browser always shows the exact target and text and requires an explicit confirmation before posting or sending. It never publishes an action directly from the model response.
 
 > You need access to the Azure subscription that will pay for model usage, permission to create or use an Azure OpenAI resource and model deployment, and administrator access to the workspace's Supabase project.
 
@@ -68,7 +68,7 @@ The browser never needs the Azure key. The email AI Edge Function reads these va
 
 The code defaults to API version `2024-10-21` if `AZURE_OPENAI_API_VERSION` is not set. Set it explicitly as above so the deployed configuration is easy to verify.
 
-## 5. Deploy the email AI function
+## 5. Deploy the AI functions
 
 Changing Edge Function secrets does not require a redeploy, but make sure the latest `mail-ai` function is deployed:
 
@@ -82,13 +82,14 @@ Changing Edge Function secrets does not require a redeploy, but make sure the la
    ```
 
    Replace `<your-project-ref>` with the identifier for the workspace's Supabase project. Do not paste a service-role key into a command.
-4. Deploy the authenticated AI function:
+4. Deploy both authenticated AI functions:
 
    ```sh
    supabase functions deploy mail-ai
+   supabase functions deploy workspace-ai
    ```
 
-5. In Supabase **Edge Functions**, confirm `mail-ai` shows as deployed.
+5. In Supabase **Edge Functions**, confirm both `mail-ai` and `workspace-ai` show as deployed.
 
 Do not add `--no-verify-jwt` to this deployment. The function requires the signed-in workspace user's authentication.
 
@@ -99,6 +100,16 @@ Do not add `--no-verify-jwt` to this deployment. The function requires the signe
 3. Select **Summarize** and verify that a summary appears and is saved with the email.
 4. Select **Draft reply** and verify that a draft is returned. Confirm it is not sent automatically.
 5. If a request fails, note the status and error text shown in the app, then inspect **Supabase Dashboard → Edge Functions → mail-ai → Logs** for the corresponding request.
+
+### Test the Workspace assistant
+
+1. Open the deployed workspace and select the sparkle button in the lower-right corner.
+2. Ask a read-only question such as `Summarize what is happening in this channel.` Confirm the response uses the current view.
+3. In a channel where you can post, ask it to prepare a short update. Verify that it shows a **Confirmation required** card with the destination and exact text.
+4. Select **Cancel** and confirm no message was created.
+5. Ask it to prepare the update again, then select **Confirm**. Verify that one message is posted in the current channel.
+6. Change to another channel or conversation before confirming a proposal. The assistant must refuse to execute the stale proposal.
+7. If the assistant fails, inspect **Supabase Dashboard → Edge Functions → workspace-ai → Logs**.
 
 Start with a short test email. Avoid putting sensitive, regulated, or confidential email content into AI processing unless the organization's Azure configuration, policies, and data-handling approval explicitly permit it.
 

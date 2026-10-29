@@ -198,6 +198,7 @@ export const EmailInboxPage: React.FC = () => {
     channels,
     postChannelMessage,
     searchQuery,
+    setFocusedEmailId,
     isEmailComposeRequested,
     setIsEmailComposeRequested,
   } = useWorkspace();
@@ -413,6 +414,11 @@ export const EmailInboxPage: React.FC = () => {
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [activeMailboxId, loadMessages]);
+
+  useEffect(() => {
+    setFocusedEmailId(selectedMessage?.id || null);
+    return () => setFocusedEmailId(null);
+  }, [selectedMessage?.id, setFocusedEmailId]);
 
   useEffect(() => {
     if (!selectedMessage) {

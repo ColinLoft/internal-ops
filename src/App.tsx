@@ -24,6 +24,7 @@ import { AddEventModal } from './components/modals/AddEventModal';
 import { AddTeammateModal } from './components/modals/AddTeammateModal';
 import { InviteReadyModal } from './components/modals/InviteReadyModal';
 import { EmailInboxPage } from './components/email/EmailInboxPage';
+import { WorkspaceAssistant } from './components/assistant/WorkspaceAssistant';
 
 const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
@@ -122,6 +123,7 @@ const WorkspaceShell: React.FC = () => {
         onClose={() => setInviteReadyData(null)}
         inviteData={inviteReadyData}
       />
+      <WorkspaceAssistant />
       {requiresPasswordSetup && <PasswordSetupModal />}
       {!requiresPasswordSetup && requiresOnboarding && <FirstLoginOnboarding />}
     </div>
