@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ChevronRight,
   Clock3,
-  Forward,
   FileText,
   Italic,
   Inbox,
@@ -1374,36 +1373,14 @@ export const EmailInboxPage: React.FC = () => {
 
       {!selectedMessage && (
         <section className="hidden min-w-0 flex-1 flex-col bg-white/45 lg:flex print:hidden lg:w-[65%]">
-          <div className="flex items-center border-b border-slate-200/80 bg-white/75 px-6 py-4">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-600">Email overview</p>
-              <h2 className="mt-1 text-lg font-bold tracking-tight text-slate-900">What would you like to do?</h2>
-            </div>
-          </div>
-          <div className="flex flex-1 items-center justify-center overflow-y-auto p-8">
-            <div className="w-full max-w-2xl">
-              <div className="mb-6 flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-100 text-brand-700"><Mail className="h-7 w-7" /></div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900">Your inbox at a glance</h3>
-                  <p className="mt-1 text-sm text-slate-500">Choose a shortcut or select a conversation to get started.</p>
-                </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  { label: 'Recent emails', icon: Clock3, action: () => { setActiveFolder('inbox'); setMessageFilter('all'); } },
-                  { label: 'Unread emails', icon: MailOpen, action: () => { setActiveFolder('inbox'); setMessageFilter('unread'); } },
-                  { label: 'Write an email', icon: Plus, action: openNewCompose },
-                  { label: 'Ask the assistant', icon: Sparkles, action: () => window.dispatchEvent(new CustomEvent('workspace-assistant-request', { detail: { prompt: 'Help me understand my email inbox and suggest what I should handle first.' } })) },
-                ].map(({ label, icon: Icon, action }) => (
-                  <button key={label} type="button" onClick={action} className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-500 transition group-hover:bg-brand-50 group-hover:text-brand-600"><Icon className="h-4 w-4" /></span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-bold text-slate-800">{label}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
+          <div className="flex flex-1 items-center justify-center p-8">
+            <div className="text-center">
+              <Mail className="mx-auto h-8 w-8 text-slate-300" />
+              <p className="mt-3 text-sm font-medium text-slate-500">There is nothing to see here.</p>
+              <button type="button" onClick={openNewCompose} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700">
+                <Plus className="h-4 w-4" />
+                Write an email
+              </button>
             </div>
           </div>
         </section>
@@ -1483,8 +1460,8 @@ export const EmailInboxPage: React.FC = () => {
               </div>
             ))}
           </div>
-          <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 p-3 print:hidden">
-            <form onSubmit={(event) => void sendInlineReply(event)} className="w-full rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-t border-slate-200 p-3 print:hidden">
+            <form onSubmit={(event) => void sendInlineReply(event)} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
               <div
                 ref={inlineReplyEditorRef}
                 contentEditable
@@ -1493,31 +1470,12 @@ export const EmailInboxPage: React.FC = () => {
                 aria-multiline="true"
                 onInput={(event) => setInlineReplyBody(event.currentTarget.innerHTML)}
                 data-placeholder="Write a reply…"
-                className="min-h-16 w-full rounded-t-2xl px-4 py-3 text-sm leading-6 text-slate-800 outline-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)] focus:ring-2 focus:ring-brand-500/10"
+                className="min-h-10 flex-1 px-1 py-2 text-sm leading-6 text-slate-800 outline-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)] focus:ring-2 focus:ring-brand-500/10"
               />
-              <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/70 px-3 py-2">
-                <p className="text-[11px] text-slate-400">Replying to {selectedMessage.sender_name || selectedMessage.sender_email}</p>
-                <button type="submit" disabled={!inlineReplyBody.replace(/<[^>]*>/g, '').trim() || inlineReplySending} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-50">
-                  {inlineReplySending ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                  Reply
-                </button>
-              </div>
+              <button type="submit" aria-label="Send reply" disabled={!inlineReplyBody.replace(/<[^>]*>/g, '').trim() || inlineReplySending} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50">
+                {inlineReplySending ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              </button>
             </form>
-            <div className="w-full rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Quick replies</p>
-              <div className="flex flex-wrap gap-2">
-                {['Thanks, I’ll take a look.', 'Sounds good — thank you.', 'Can we discuss this soon?'].map((quickReply) => (
-                  <button key={quickReply} type="button" onClick={() => prepareInlineReply(quickReply)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700">{quickReply}</button>
-                ))}
-              </div>
-            </div>
-            <button type="button" disabled={forwardBusy} onClick={() => void openForwardCompose()} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Forward className="h-3.5 w-3.5" /> Forward</button>
-            {forwardableChannels.length > 0 && (
-              <button type="button" disabled={forwardBusy} onClick={() => setChannelForwardOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Forward className="h-3.5 w-3.5" /> Share to channel</button>
-            )}
-            <button type="button" disabled={aiBusy} onClick={() => void runAiAction('summarize')} className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50 disabled:opacity-50"><Sparkles className="h-3.5 w-3.5" /> Summarize</button>
-            <button type="button" disabled={aiBusy} onClick={() => void runAiAction('draft')} className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50 disabled:opacity-50"><Sparkles className="h-3.5 w-3.5" /> Draft reply</button>
-            <p className="w-full text-[10px] text-slate-400">AI actions send this message to Azure OpenAI and save the result in the workspace.</p>
           </div>
         </section>
       )}
