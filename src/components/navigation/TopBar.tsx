@@ -18,6 +18,7 @@ export const TopBar: React.FC = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAppsOpen, setIsAppsOpen] = useState(false);
   const [selectedApp, setSelectedApp] = useState<string | null>(null);
+  const [appSearch, setAppSearch] = useState('');
   const notificationsRef = useRef<HTMLDivElement>(null);
   const appsRef = useRef<HTMLDivElement>(null);
   const {
@@ -58,48 +59,43 @@ export const TopBar: React.FC = () => {
   const currentChan = channels.find((channel) => channel.id === activeChannelId);
   const appDestinations = [
     {
-      id: 'communications',
-      name: 'Communications',
-      description: 'Messages, channels, meetings, and calendar',
+      id: 'home',
+      name: 'Home',
       icon: MessageSquare,
       accent: 'from-blue-500 to-cyan-600',
     },
     {
       id: 'drive',
-      name: 'Flown Drive',
-      description: 'Files, folders, and shared resources',
+      name: 'Drive',
       icon: HardDrive,
       accent: 'from-sky-500 to-blue-600',
     },
     {
       id: 'customers',
-      name: 'Customer management',
-      description: 'Relationships, contacts, and support',
+      name: 'Customers',
       icon: UsersRound,
       accent: 'from-violet-500 to-indigo-600',
     },
     {
       id: 'operations',
-      name: 'System management',
-      description: 'HR, planning, and internal operations',
+      name: 'Operations',
       icon: Settings2,
       accent: 'from-emerald-500 to-teal-600',
     },
     {
       id: 'finance',
-      name: 'Finance & grants',
-      description: 'Budgets, grants, and financial planning',
+      name: 'Finance',
       icon: Landmark,
       accent: 'from-amber-500 to-orange-600',
     },
     {
       id: 'engineering',
       name: 'Engineering',
-      description: 'Projects, systems, and technical operations',
       icon: Code2,
       accent: 'from-slate-600 to-slate-900',
     },
   ];
+  const visibleApps = appDestinations.filter((app) => app.name.toLowerCase().includes(appSearch.trim().toLowerCase()));
   const query = searchQuery.trim().toLowerCase();
   const searchResults = query
     ? [
@@ -180,7 +176,7 @@ export const TopBar: React.FC = () => {
         <div className="flex items-center text-sm font-semibold text-slate-800 tracking-tight">
           <span className="text-brand-600 font-bold">Flown</span>
           <span className="mx-2 text-slate-400">/</span>
-          <span className="text-slate-600 font-medium">{activeTab === 'home' ? 'Home' : activeTab === 'admin' ? 'People & access' : activeTab === 'inbox' ? 'Email inbox' : activeTab === 'drive' ? 'Flown Drive' : 'Communications'}</span>
+          <span className="text-slate-600 font-medium">{activeTab === 'home' ? 'Home' : activeTab === 'admin' ? 'People & access' : activeTab === 'inbox' ? 'Email inbox' : activeTab === 'drive' ? 'Flown Drive' : 'Home'}</span>
           <span className="mx-2 text-slate-400">/</span>
           <span className="text-slate-900 bg-brand-50 px-2 py-0.5 rounded-md text-xs font-semibold text-brand-700 border border-brand-100/80">
             {activeTab === 'home' ? 'Overview' : activeTab === 'messages' ? currentConv?.name : activeTab === 'channels' ? `#${currentChan?.name}` : activeTab === 'calendar' ? 'Schedule' : activeTab === 'inbox' ? 'Connected mailboxes' : activeTab === 'drive' ? 'My Drive' : 'Staff directory'}
@@ -246,6 +242,7 @@ export const TopBar: React.FC = () => {
               setIsAppsOpen((open) => !open);
               setIsNotificationsOpen(false);
               setSelectedApp(null);
+              setAppSearch('');
             }}
             aria-label="More Flown apps"
             aria-haspopup="dialog"
@@ -264,15 +261,13 @@ export const TopBar: React.FC = () => {
             </span>
           </button>
           {isAppsOpen && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200/90 bg-white/95 p-2 text-slate-800 shadow-2xl backdrop-blur-xl">
-              <div className="mb-2 flex items-center justify-between px-1">
-                <div>
-                  <p className="text-sm font-bold text-slate-900">Flown apps</p>
-                  <p className="text-[11px] text-slate-500">Your operations suite</p>
-                </div>
+            <div className="absolute right-0 top-full z-50 mt-2 w-[min(300px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3 text-slate-800 shadow-2xl">
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <input autoFocus value={appSearch} onChange={(event) => setAppSearch(event.target.value)} placeholder="Search and launch" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-brand-400 focus:bg-white" />
               </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {appDestinations.map((app) => {
+              <div className="grid grid-cols-3 gap-1">
+                {visibleApps.map((app) => {
                   const Icon = app.icon;
                   const isSelected = selectedApp === app.id;
                   return (
@@ -280,8 +275,8 @@ export const TopBar: React.FC = () => {
                       key={app.id}
                       type="button"
                       onClick={() => {
-                        if (app.id === 'communications') {
-                          setActiveTab('messages');
+                        if (app.id === 'home') {
+                          setActiveTab('home');
                           setIsAppsOpen(false);
                           setSelectedApp(null);
                         } else if (app.id === 'drive') {
@@ -292,31 +287,21 @@ export const TopBar: React.FC = () => {
                           setSelectedApp(isSelected ? null : app.id);
                         }
                       }}
-                      className={`rounded-lg border p-2.5 text-left transition-all ${
+                      className={`flex min-h-[78px] flex-col items-center justify-center rounded-xl border border-transparent p-2 text-center transition-all ${
                         isSelected
                           ? 'border-brand-300 bg-brand-50 shadow-sm'
-                          : 'border-slate-200/80 bg-white hover:border-brand-200 hover:bg-slate-50'
+                          : 'hover:border-slate-200 hover:bg-slate-50'
                       }`}
                     >
-                      <span className={`mb-1.5 flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${app.accent} text-white shadow-sm`}>
+                      <span className={`mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${app.accent} text-white shadow-sm`}>
                         <Icon className="h-4 w-4" />
                       </span>
-                      <span className="block text-[11px] font-bold leading-4 text-slate-900">{app.name}</span>
-                      <span className="mt-0.5 block text-[9px] leading-3 text-slate-500">{app.description}</span>
+                      <span className="block max-w-full truncate text-[10px] font-semibold leading-4 text-slate-700">{app.name}</span>
                     </button>
                   );
                 })}
               </div>
-              {selectedApp && (
-                <div className="mt-3 rounded-xl border border-brand-100 bg-brand-50/70 px-3 py-2.5">
-                  <p className="text-xs font-semibold text-brand-900">
-                    {appDestinations.find((app) => app.id === selectedApp)?.name} is coming soon.
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-brand-700/80">
-                    This app will use the same Flown navigation and workspace layout.
-                  </p>
-                </div>
-              )}
+              {visibleApps.length === 0 && <p className="px-2 py-6 text-center text-xs text-slate-400">No apps found</p>}
             </div>
           )}
         </div>
