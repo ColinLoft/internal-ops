@@ -9,6 +9,11 @@ import {
   MessageSquarePlus,
   MailPlus,
   CalendarPlus,
+  HardDrive,
+  FileText,
+  Presentation,
+  Table2,
+  Files,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { ProfilePopover } from '../profile/ProfilePopover';
@@ -35,6 +40,12 @@ export const Rail: React.FC = () => {
   // Calculate unread totals
   const totalUnreadMessages = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
   const totalUnreadChannels = channels.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+  const isDrive = activeTab === 'drive';
+
+  const openDriveView = (view: 'all' | 'documents' | 'presentations' | 'spreadsheets' | 'files') => {
+    setActiveTab('drive');
+    window.dispatchEvent(new CustomEvent('flown-drive-view', { detail: view }));
+  };
 
   // Close menus on outside click
   useEffect(() => {
@@ -55,7 +66,7 @@ export const Rail: React.FC = () => {
       {/* Top Brand Logo */}
       <div className="flex flex-col items-center gap-6">
         <div 
-          onClick={() => setActiveTab('messages')}
+          onClick={() => isDrive ? openDriveView('all') : setActiveTab('messages')}
           className="group relative cursor-pointer w-11 h-11 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-brand-500/25 transition-transform hover:scale-105 active:scale-95"
           title="Flown Workspace"
         >
@@ -65,6 +76,34 @@ export const Rail: React.FC = () => {
 
         {/* Navigation Item Tabs */}
         <nav className="flex flex-col items-center gap-2">
+          {isDrive ? (
+            <>
+              {[
+                { label: 'Drive', icon: HardDrive, view: 'all' as const },
+                { label: 'Docs', icon: FileText, view: 'documents' as const },
+                { label: 'Slides', icon: Presentation, view: 'presentations' as const },
+                { label: 'Sheets', icon: Table2, view: 'spreadsheets' as const },
+                { label: 'Files', icon: Files, view: 'files' as const },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => openDriveView(item.view)}
+                    className="group relative rounded-2xl p-3 text-slate-400 transition-all hover:bg-slate-800/70 hover:text-slate-100"
+                    title={`Flown Drive ${item.label}`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </>
+          ) : (
+          <>
           {/* Messages Item */}
           <button
             data-onboarding-target="nav-messages"
@@ -158,6 +197,8 @@ export const Rail: React.FC = () => {
                 People &amp; access
               </span>
             </button>
+          )}
+          </>
           )}
         </nav>
       </div>

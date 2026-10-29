@@ -68,6 +68,7 @@ export const DrivePage: React.FC = () => {
   const [section, setSection] = useState<'drive' | 'shared' | 'starred' | 'trash'>('drive');
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
+  const [driveView, setDriveView] = useState<'all' | 'documents' | 'presentations' | 'spreadsheets' | 'files'>('all');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const loadItems = async () => {
@@ -83,6 +84,16 @@ export const DrivePage: React.FC = () => {
 
   useEffect(() => {
     void loadItems();
+    const handleDriveView = (event: Event) => {
+      const view = (event as CustomEvent<string>).detail;
+      if (view === 'documents' || view === 'presentations' || view === 'spreadsheets' || view === 'files' || view === 'all') {
+        setDriveView(view);
+        setSection('drive');
+        setCurrentFolderId(null);
+        setSelectedItem(null);
+      }
+    };
+    window.addEventListener('flown-drive-view', handleDriveView);
     const channel = supabase
       .channel('drive-items-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'drive_items' }, () => {
@@ -90,6 +101,7 @@ export const DrivePage: React.FC = () => {
       })
       .subscribe();
     return () => {
+      window.removeEventListener('flown-drive-view', handleDriveView);
       void supabase.removeChannel(channel);
     };
   }, []);
@@ -101,6 +113,7 @@ export const DrivePage: React.FC = () => {
         ? Boolean(item.deleted_at)
         : !item.deleted_at
       && (section === 'drive' ? item.parent_id === currentFolderId : section === 'shared' ? item.owner_id !== currentUser.id : section === 'starred' ? item.is_starred : true)
+      && (driveView === 'all' || (driveView === 'documents' && item.item_type === 'document') || (driveView === 'presentations' && item.item_type === 'presentation') || (driveView === 'spreadsheets' && item.item_type === 'spreadsheet') || (driveView === 'files' && item.item_type === 'file'))
       && (!query || item.name.toLowerCase().includes(query))
     );
   }, [currentFolderId, currentUser.id, items, search, section]);
@@ -262,7 +275,7 @@ export const DrivePage: React.FC = () => {
             {currentFolderId && <button type="button" onClick={() => setCurrentFolderId(currentFolder?.parent_id || null)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"><ArrowLeft className="h-4 w-4" /></button>}
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-600">Flown Drive</p>
-              <h1 className="truncate text-lg font-bold text-slate-900">{section === 'shared' ? 'Shared with me' : section === 'starred' ? 'Starred' : section === 'trash' ? 'Trash' : currentFolder?.name || 'My Drive'}</h1>
+              <h1 className="truncate text-lg font-bold text-slate-900">{section === 'shared' ? 'Shared with me' : section === 'starred' ? 'Starred' : section === 'trash' ? 'Trash' : driveView === 'documents' ? 'Docs' : driveView === 'presentations' ? 'Slides' : driveView === 'spreadsheets' ? 'Sheets' : driveView === 'files' ? 'Files' : currentFolder?.name || 'My Drive'}</h1>
             </div>
           </div>
           <div className="flex items-center gap-2">
