@@ -98,6 +98,21 @@ export const DrivePage: React.FC = () => {
         setCurrentFolderId(null);
         setSelectedItem(null);
       }
+
+      if (driveView !== 'all' && section === 'drive') {
+        return (
+          <DriveCreationWorkspace
+            kind={driveView}
+            items={items}
+            onCreate={(type, name) => void createItem(type, name)}
+            onOpen={(item) => item.item_type === 'file' ? void downloadFile(item) : openEditor(item)}
+            onBack={() => {
+              setDriveView('all');
+              window.dispatchEvent(new CustomEvent('flown-drive-view', { detail: 'all' }));
+            }}
+          />
+        );
+      }
     };
     const handleRoute = () => {
       const match = window.location.pathname.match(/^\/(docs|slides|forms)\/([^/]+)/);
@@ -176,7 +191,11 @@ export const DrivePage: React.FC = () => {
     }
     if (data) {
       setItems((current) => [data as DriveItem, ...current]);
-      setSelectedItem(data as DriveItem);
+      if (itemType === 'document' || itemType === 'presentation' || itemType === 'form') {
+        openEditor(data as DriveItem);
+      } else {
+        setSelectedItem(data as DriveItem);
+      }
     }
     setIsCreateOpen(false);
   };
@@ -347,17 +366,84 @@ export const DrivePage: React.FC = () => {
       </section>
 
       {selectedItem && selectedItem.item_type !== 'folder' && <DriveEditor item={selectedItem} onClose={() => setSelectedItem(null)} onSave={updateDocument} onShare={() => setIsShareOpen(true)} onTrash={() => void moveToTrash(selectedItem)} onDownload={() => void downloadFile(selectedItem)} />}
-      {isCreateOpen && <CreateDriveItem onClose={() => setIsCreateOpen(false)} onCreate={createItem} />}
+      {isCreateOpen && <CreateDriveItem allowedTypes={['folder']} onClose={() => setIsCreateOpen(false)} onCreate={createItem} />}
       {isShareOpen && selectedItem && <ShareDialog item={selectedItem} onClose={() => setIsShareOpen(false)} onShare={shareItem} />}
       {isTemplateOpen && <TemplateDialog onClose={() => setIsTemplateOpen(false)} onCreate={(type, name) => { setIsTemplateOpen(false); void createItem(type, name); }} />}
     </main>
   );
 };
 
-const CreateDriveItem: React.FC<{ onClose: () => void; onCreate: (type: DriveItem['item_type'], name: string) => Promise<void> }> = ({ onClose, onCreate }) => {
+const DriveCreationWorkspace: React.FC<{
+  kind: 'documents' | 'presentations' | 'spreadsheets' | 'forms' | 'files';
+  items: DriveItem[];
+  onCreate: (type: DriveItem['item_type'], name: string) => void;
+  onOpen: (item: DriveItem) => void;
+  onBack: () => void;
+}> = ({ kind, items, onCreate, onOpen, onBack }) => {
+  const config = {
+    documents: {
+      label: 'Docs',
+      description: 'Create polished documents, plans, and internal knowledge.',
+      type: 'document' as const,
+      templates: ['Blank document', 'Project brief', 'Meeting notes', 'Policy document'],
+      icon: FileText,
+      color: 'from-sky-600 to-blue-700',
+    },
+    presentations: {
+      label: 'Slides',
+      description: 'Build clear presentations for teams, partners, and events.',
+      type: 'presentation' as const,
+      templates: ['Blank presentation', 'Team update', 'Board presentation', 'Event deck'],
+      icon: Presentation,
+      color: 'from-orange-500 to-rose-600',
+    },
+    spreadsheets: {
+      label: 'Sheets',
+      description: 'Organize budgets, plans, tracking, and operational data.',
+      type: 'spreadsheet' as const,
+      templates: ['Blank spreadsheet', 'Budget tracker', 'Project tracker', 'Grant pipeline'],
+      icon: Sheet,
+      color: 'from-emerald-500 to-teal-700',
+    },
+    forms: {
+      label: 'Forms',
+      description: 'Collect information with branded, intelligent forms.',
+      type: 'form' as const,
+      templates: ['Blank form', 'Staff intake', 'Event registration', 'Feedback form'],
+      icon: FileText,
+      color: 'from-fuchsia-500 to-purple-700',
+    },
+    files: {
+      label: 'Files',
+      description: 'Browse uploaded files from your Drive.',
+      type: 'file' as const,
+      templates: [],
+      icon: File,
+      color: 'from-slate-500 to-slate-700',
+    },
+  }[kind];
+  const Icon = config.icon;
+  const recent = items
+    .filter((item) => !item.deleted_at && item.item_type === config.type)
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+    .slice(0, 8);
+
+  return <main className="flex min-w-0 flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 via-white to-sky-50/60">
+    <div className="mx-auto w-full max-w-6xl px-6 py-8 sm:px-10">
+      <button type="button" onClick={onBack} className="mb-6 flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-brand-700"><ArrowLeft className="h-4 w-4" /> Back to Drive</button>
+      <div className="flex items-start gap-4">
+        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${config.color} text-white shadow-lg`}><Icon className="h-7 w-7" /></div>
+        <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-600">Flown workspace</p><h1 className="mt-1 text-3xl font-bold text-slate-900">{config.label}</h1><p className="mt-2 max-w-xl text-sm text-slate-500">{config.description}</p></div>
+      </div>
+      {kind !== 'files' && <section className="mt-10"><div className="mb-4 flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">Start something new</h2><span className="text-[11px] text-slate-400">Choose a template</span></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{config.templates.map((template, index) => <button key={template} type="button" onClick={() => onCreate(config.type, index === 0 ? `Untitled ${config.label.slice(0, -1).toLowerCase()}` : template)} className="group min-h-32 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg"><span className={`flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${config.color} text-white`}><Plus className="h-4 w-4" /></span><span className="mt-5 block text-xs font-bold text-slate-800">{template}</span><span className="mt-1 block text-[10px] text-slate-400">Open a {config.label.slice(0, -1).toLowerCase()} workspace</span></button>)}</div></section>}
+      <section className="mt-10"><div className="mb-4 flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">{kind === 'files' ? 'Uploaded files' : `Recent ${config.label.toLowerCase()}`}</h2><span className="text-[11px] text-slate-400">{recent.length} item{recent.length === 1 ? '' : 's'}</span></div>{recent.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-14 text-center"><Icon className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">Nothing here yet</p><p className="mt-1 text-xs text-slate-500">{kind === 'files' ? 'Upload files from the Drive workspace.' : `Create your first ${config.label.toLowerCase().replace(/s$/, '')} to get started.`}</p></div> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{recent.map((item) => <button key={item.id} type="button" onClick={() => item.item_type === 'file' ? onOpen(item) : onOpen(item)} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-brand-300 hover:shadow-md"><span className={`flex h-9 w-9 items-center justify-center rounded-xl ${itemColor(item.item_type)}`}><Icon className="h-4 w-4" /></span><span className="mt-4 block truncate text-xs font-bold text-slate-800">{item.name}</span><span className="mt-1 block text-[10px] text-slate-400">Updated {new Date(item.updated_at).toLocaleDateString()}</span></button>)}</div>}</section>
+    </div>
+  </main>;
+};
+
+const CreateDriveItem: React.FC<{ allowedTypes: Array<DriveItem['item_type']>; onClose: () => void; onCreate: (type: DriveItem['item_type'], name: string) => Promise<void> }> = ({ allowedTypes, onClose, onCreate }) => {
   const [name, setName] = useState('');
-  const [type, setType] = useState<DriveItem['item_type']>('document');
-  return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-sm"><div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">Create in Drive</h2><button type="button" onClick={onClose} className="text-xs text-slate-500">Cancel</button></div><div className="mt-4 grid grid-cols-2 gap-2">{(['document', 'presentation', 'spreadsheet', 'form', 'folder'] as const).map((option) => <button key={option} type="button" onClick={() => setType(option)} className={`rounded-xl border p-3 text-left text-xs font-semibold capitalize ${type === option ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600'}`}>{option}</button>)}</div><input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder={`${type} name`} className="mt-4 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-400" /><button type="button" disabled={!name.trim()} onClick={() => onCreate(type, name.trim())} className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white disabled:opacity-40">Create</button></div></div>;
+  return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-sm"><div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">Add to Drive</h2><button type="button" onClick={onClose} className="text-xs text-slate-500">Cancel</button></div><p className="mt-3 text-xs text-slate-500">Drive is for folders and uploaded files. Create Docs, Slides, Sheets, and Forms from their dedicated workspaces.</p><input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Folder name" className="mt-4 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-400" /><button type="button" disabled={!name.trim()} onClick={() => onCreate(allowedTypes[0], name.trim())} className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white disabled:opacity-40">Create folder</button></div></div>;
 };
 
 const DriveEditorWorkspace: React.FC<{
