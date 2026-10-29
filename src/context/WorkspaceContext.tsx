@@ -172,6 +172,25 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const STORAGE_PREFIX = 'beacon_v3_';
+type WorkspaceTab = 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin';
+
+const tabFromPath = (pathname: string): WorkspaceTab | null => {
+  const segment = pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
+  if (segment === 'messages') return 'messages';
+  if (segment === 'channels') return 'channels';
+  if (segment === 'calendar') return 'calendar';
+  if (segment === 'email' || segment === 'inbox') return 'inbox';
+  if (segment === 'admin') return 'admin';
+  return null;
+};
+
+const pathForTab = (tab: WorkspaceTab) => ({
+  messages: '/messages',
+  channels: '/channels',
+  calendar: '/calendar',
+  inbox: '/email',
+  admin: '/admin',
+}[tab]);
 
 const getFunctionError = async (error: unknown): Promise<Error> => {
   if (error instanceof Error && 'context' in error && error.context instanceof Response) {
@@ -411,11 +430,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings>(DEFAULT_WORKSPACE_SETTINGS);
 
   // Navigation
-  const [activeTab, setActiveTabState] = useState<'messages' | 'channels' | 'calendar' | 'inbox' | 'admin'>(() =>
-    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('mail_oauth') === 'callback'
-      ? 'inbox'
-      : 'channels'
-  );
+  const [activeTab, setActiveTabState] = useState<WorkspaceTab>(() => {
+    if (typeof window === 'undefined') return 'channels';
+    return tabFromPath(window.location.pathname)
+      || (new URLSearchParams(window.location.search).get('mail_oauth') === 'callback' ? 'inbox' : 'channels');
+  });
   const [activeConversationId, setActiveConversationId] = useState<string>('');
   const [activeChannelId, setActiveChannelId] = useState<string>('chan-announcements');
   const [activeThreadMessageId, setActiveThreadMessageId] = useState<string | null>(null);
@@ -837,9 +856,28 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     });
   };
 
-  const setActiveTab = (tab: 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin') => {
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handlePopState = () => {
+      const tab = tabFromPath(window.location.pathname);
+      if (tab) {
+        setActiveTabState(tab);
+        setActiveThreadMessageId(null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    if (!tabFromPath(window.location.pathname) && window.location.pathname === '/') {
+      window.history.replaceState({}, '', `${pathForTab(activeTab)}${window.location.search}${window.location.hash}`);
+    }
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const setActiveTab = (tab: WorkspaceTab) => {
     setActiveTabState(tab);
     setActiveThreadMessageId(null);
+    if (typeof window !== 'undefined' && window.location.pathname !== pathForTab(tab)) {
+      window.history.pushState({}, '', `${pathForTab(tab)}${window.location.search}${window.location.hash}`);
+    }
   };
 
   const requestEmailCompose = () => {
