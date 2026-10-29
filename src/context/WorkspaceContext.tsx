@@ -103,7 +103,7 @@ interface WorkspaceContextType {
   setFocusedEmailId: (id: string | null) => void;
   
   // Messaging actions
-  sendMessage: (text: string, attachments?: Attachment[], poll?: Poll) => Promise<void>;
+  sendMessage: (text: string, attachments?: Attachment[], poll?: Poll, targetConversationId?: string) => Promise<void>;
   postChannelMessage: (channelId: string, text: string, attachments?: Attachment[]) => Promise<void>;
   sendThreadReply: (parentId: string, text: string, attachments?: Attachment[]) => Promise<void>;
   votePoll: (messageId: string, optionId: string, parentId?: string) => void;
@@ -1278,9 +1278,9 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   // Messaging
-  const sendMessage = async (text: string, attachments?: Attachment[], poll?: Poll) => {
-    const isChannelMessage = activeTab === 'channels';
-    const targetId = isChannelMessage ? activeChannelId : activeConversationId;
+  const sendMessage = async (text: string, attachments?: Attachment[], poll?: Poll, targetConversationId?: string) => {
+    const isChannelMessage = !targetConversationId && activeTab === 'channels';
+    const targetId = targetConversationId || (isChannelMessage ? activeChannelId : activeConversationId);
     if (!targetId || (!text.trim() && !attachments?.length && !poll)) return;
     if (!currentUser.id) throw new Error('Sign in before sending messages.');
 

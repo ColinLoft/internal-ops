@@ -153,12 +153,9 @@ const encodeFile = async (file: File): Promise<EmailAttachment> => {
 const EmailHtmlBody: React.FC<{ html: string }> = ({ html }) => {
   const safeHtml = useMemo(() => sanitizeEmailHtml(html), [html]);
   return (
-    <iframe
-      title="Email content"
-      sandbox="allow-popups allow-popups-to-escape-sandbox"
-      referrerPolicy="no-referrer"
-      srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: http: data:; style-src 'unsafe-inline'"><style>body{font:14px/1.65 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#334155;overflow-wrap:anywhere}img{max-width:100%;height:auto}table{max-width:100%;border-collapse:collapse}td,th{padding:4px}a{color:#2563eb}</style></head><body>${safeHtml}</body></html>`}
-      className="mt-5 h-[min(78vh,1000px)] min-h-64 w-full rounded-lg border-0 bg-white"
+    <div
+      className="mt-5 w-full overflow-visible break-words rounded-lg bg-white text-sm leading-6 text-slate-700 [&_a]:text-blue-600 [&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:max-w-full [&_table]:border-collapse [&_td]:p-1 [&_th]:p-1"
+      dangerouslySetInnerHTML={{ __html: safeHtml }}
     />
   );
 };
@@ -1428,7 +1425,7 @@ export const EmailInboxPage: React.FC = () => {
 
       {selectedMessage && (
         <section id="email-print-content" className="flex min-w-0 flex-1 flex-col bg-white print:border-0 lg:w-[66%]">
-          <style>{`@media print { body * { visibility: hidden !important; } #email-print-content, #email-print-content * { visibility: visible !important; } #email-print-content { position: absolute; inset: 0; width: 100%; height: auto; overflow: visible !important; } #email-print-content iframe { height: auto !important; min-height: 500px; } }`}</style>
+          <style>{`@media print { body * { visibility: hidden !important; } #email-print-content, #email-print-content * { visibility: visible !important; } #email-print-content { position: absolute; inset: 0; width: 100%; height: auto; overflow: visible !important; } }`}</style>
           <div className="flex items-center gap-2 border-b border-slate-200/80 bg-white/90 px-5 py-3 print:hidden">
             <button type="button" onClick={() => setSelectedMessage(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 xl:hidden" aria-label="Back to list"><ArrowLeft className="h-4 w-4" /></button>
             <div className="min-w-0 flex-1">

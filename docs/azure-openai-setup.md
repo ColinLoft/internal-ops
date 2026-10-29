@@ -86,6 +86,8 @@ Changing Edge Function secrets does not require a redeploy, but make sure the la
 
    ```sh
    supabase functions deploy mail-ai
+   supabase functions deploy mail-sync
+   supabase functions deploy mail-webhook
    supabase functions deploy mail-ai
    ```
 

@@ -108,11 +108,9 @@ export const WorkspaceAssistant: React.FC = () => {
     setError('');
     try {
       if (proposal.type === 'post_channel') {
-        if (activeTab !== 'channels' || activeChannelId !== proposal.targetId) throw new Error('The channel changed. Ask the assistant again before posting.');
         await postChannelMessage(proposal.targetId, proposal.content);
       } else if (proposal.type === 'send_message') {
-        if (activeTab !== 'messages' || activeConversationId !== proposal.targetId) throw new Error('The conversation changed. Ask the assistant again before sending.');
-        await sendMessage(proposal.content);
+        await sendMessage(proposal.content, undefined, undefined, proposal.targetId);
       } else if (proposal.type === 'create_event') {
         const details = proposal.details || {};
         await createCalendarEvent({
@@ -138,7 +136,7 @@ export const WorkspaceAssistant: React.FC = () => {
           detail: { type: proposal.type, details: proposal.details || {}, content: proposal.content },
         })), 0);
       }
-      setMessages((items) => [...items, { role: 'assistant', content: `Done — I completed that action for ${proposal.targetName || 'the workspace'}.` }]);
+      setMessages((items) => [...items, { role: 'assistant', content: `Confirmed — I completed that action for ${proposal.targetName || 'the workspace'}.` }]);
       setProposal(null);
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : 'The action could not be completed.');

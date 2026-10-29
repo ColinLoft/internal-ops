@@ -33,6 +33,7 @@ export const EmailAdminPanel: React.FC = () => {
   const [users, setUsers] = useState<StaffMember[]>([]);
   const [grants, setGrants] = useState<Grant[]>([]);
   const [retentionDays, setRetentionDays] = useState(365);
+  const [aiSummariesEnabled, setAiSummariesEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -52,6 +53,7 @@ export const EmailAdminPanel: React.FC = () => {
       setUsers((data?.users || []) as StaffMember[]);
       setGrants((data?.grants || []) as Grant[]);
       setRetentionDays(Number(data?.retentionDays || 365));
+      setAiSummariesEnabled(data?.aiSummariesEnabled !== false);
       return true;
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Email administration could not be loaded.');
@@ -97,6 +99,11 @@ export const EmailAdminPanel: React.FC = () => {
     await invoke('retention', { retentionDays });
   };
 
+  const toggleAiSummaries = async (enabled: boolean) => {
+    setAiSummariesEnabled(enabled);
+    await invoke('ai-summaries', { enabled });
+  };
+
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -114,6 +121,13 @@ export const EmailAdminPanel: React.FC = () => {
 
       {error && <p role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-xs text-rose-700">{error}</p>}
       {notice && <p role="status" className="border-b border-emerald-100 bg-emerald-50 px-4 py-3 text-xs text-emerald-700">{notice}</p>}
+      <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-800">Automatic email summaries</p>
+          <p className="mt-0.5 text-xs text-slate-500">Generate a short summary when new inbox messages arrive.</p>
+        </div>
+        <input type="checkbox" checked={aiSummariesEnabled} onChange={(event) => void toggleAiSummaries(event.target.checked)} disabled={saving} className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+      </div>
 
       {loading ? (
         <p className="p-6 text-sm text-slate-500">Loading email administration…</p>

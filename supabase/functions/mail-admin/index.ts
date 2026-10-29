@@ -24,7 +24,7 @@ Deno.serve(async (request: Request) => {
           .eq('mailbox_type', 'shared')
           .order('email'),
         adminClient.from('profiles').select('id, name, email, system_role, account_status').order('name'),
-        adminClient.from('email_settings').select('retention_days').eq('id', true).single(),
+        adminClient.from('email_settings').select('retention_days, ai_summaries_enabled').eq('id', true).single(),
       ]);
       if (mailboxResult.error) return jsonResponse({ error: mailboxResult.error.message }, 500);
       if (userResult.error) return jsonResponse({ error: userResult.error.message }, 500);
@@ -40,6 +40,7 @@ Deno.serve(async (request: Request) => {
         users: (userResult.data || []).filter((item) => item.account_status === 'active'),
         grants: grantsResult.data || [],
         retentionDays: settingResult.data.retention_days,
+        aiSummariesEnabled: settingResult.data.ai_summaries_enabled !== false,
       });
     }
 
@@ -104,6 +105,18 @@ Deno.serve(async (request: Request) => {
       const retentionDays = Number(payload.retentionDays);
       if (!Number.isInteger(retentionDays) || retentionDays < 30 || retentionDays > 3650) {
         return jsonResponse({ error: 'Retention must be between 30 and 3650 days.' }, 400);
+      }
+
+      if (action === 'ai-summaries') {
+        const enabled = payload.enabled !== false;
+        const { error } = await adminClient.from('email_settings').upsert({
+          id: true,
+          ai_summaries_enabled: enabled,
+          updated_by: user.id,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' });
+        if (error) return jsonResponse({ error: error.message }, 400);
+        return jsonResponse({ success: true, aiSummariesEnabled: enabled });
       }
       const { error } = await adminClient.from('email_settings').upsert({
         id: true,
