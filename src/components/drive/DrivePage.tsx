@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
+import { ProfessionalEditor } from './ProfessionalEditor';
 
 type DriveItem = {
   id: string;
@@ -203,7 +204,7 @@ export const DrivePage: React.FC = () => {
   }, [currentFolderId, currentUser.id, items, search, section, driveView]);
 
   if (activeEditorItem && ['document', 'presentation', 'spreadsheet', 'form'].includes(activeEditorItem.item_type)) {
-    return <DriveEditorWorkspace item={activeEditorItem} onClose={closeEditor} onSave={async (content) => {
+    return <ProfessionalEditor item={activeEditorItem} onClose={closeEditor} onSave={async (content) => {
       const { error: saveError } = await supabase.from('drive_items').update({ content, updated_at: new Date().toISOString() }).eq('id', activeEditorItem.id);
       if (saveError) throw new Error(`Changes could not be saved: ${saveError.message}`);
       const updatedAt = new Date().toISOString();
