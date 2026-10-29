@@ -6,6 +6,8 @@ import {
   UsersRound,
   Settings2,
   Landmark,
+  MessageSquare,
+  Code2,
   PhoneCall,
   Video,
 } from 'lucide-react';
@@ -56,6 +58,13 @@ export const TopBar: React.FC = () => {
   const currentChan = channels.find((channel) => channel.id === activeChannelId);
   const appDestinations = [
     {
+      id: 'communications',
+      name: 'Communications',
+      description: 'Messages, channels, meetings, and calendar',
+      icon: MessageSquare,
+      accent: 'from-blue-500 to-cyan-600',
+    },
+    {
       id: 'drive',
       name: 'Flown Drive',
       description: 'Files, folders, and shared resources',
@@ -82,6 +91,13 @@ export const TopBar: React.FC = () => {
       description: 'Budgets, grants, and financial planning',
       icon: Landmark,
       accent: 'from-amber-500 to-orange-600',
+    },
+    {
+      id: 'engineering',
+      name: 'Engineering',
+      description: 'Projects, systems, and technical operations',
+      icon: Code2,
+      accent: 'from-slate-600 to-slate-900',
     },
   ];
   const query = searchQuery.trim().toLowerCase();
@@ -248,14 +264,14 @@ export const TopBar: React.FC = () => {
             </span>
           </button>
           {isAppsOpen && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 p-3 text-slate-800 shadow-2xl backdrop-blur-xl">
-              <div className="mb-3 flex items-center justify-between px-1">
+            <div className="absolute right-0 top-full z-50 mt-2 w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200/90 bg-white/95 p-2 text-slate-800 shadow-2xl backdrop-blur-xl">
+              <div className="mb-2 flex items-center justify-between px-1">
                 <div>
                   <p className="text-sm font-bold text-slate-900">Flown apps</p>
                   <p className="text-[11px] text-slate-500">Your operations suite</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-1.5">
                 {appDestinations.map((app) => {
                   const Icon = app.icon;
                   const isSelected = selectedApp === app.id;
@@ -264,7 +280,11 @@ export const TopBar: React.FC = () => {
                       key={app.id}
                       type="button"
                       onClick={() => {
-                        if (app.id === 'drive') {
+                        if (app.id === 'communications') {
+                          setActiveTab('messages');
+                          setIsAppsOpen(false);
+                          setSelectedApp(null);
+                        } else if (app.id === 'drive') {
                           setActiveTab('drive');
                           setIsAppsOpen(false);
                           setSelectedApp(null);
@@ -272,17 +292,17 @@ export const TopBar: React.FC = () => {
                           setSelectedApp(isSelected ? null : app.id);
                         }
                       }}
-                      className={`rounded-xl border p-3 text-left transition-all ${
+                      className={`rounded-lg border p-2.5 text-left transition-all ${
                         isSelected
                           ? 'border-brand-300 bg-brand-50 shadow-sm'
                           : 'border-slate-200/80 bg-white hover:border-brand-200 hover:bg-slate-50'
                       }`}
                     >
-                      <span className={`mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${app.accent} text-white shadow-sm`}>
+                      <span className={`mb-1.5 flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${app.accent} text-white shadow-sm`}>
                         <Icon className="h-4 w-4" />
                       </span>
-                      <span className="block text-xs font-bold leading-4 text-slate-900">{app.name}</span>
-                      <span className="mt-1 block text-[10px] leading-4 text-slate-500">{app.description}</span>
+                      <span className="block text-[11px] font-bold leading-4 text-slate-900">{app.name}</span>
+                      <span className="mt-0.5 block text-[9px] leading-3 text-slate-500">{app.description}</span>
                     </button>
                   );
                 })}
