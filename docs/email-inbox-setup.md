@@ -128,7 +128,7 @@ supabase functions deploy mail-connect
 supabase functions deploy mail-sync
 supabase functions deploy mail-api
 supabase functions deploy mail-ai
-supabase functions deploy workspace-ai
+supabase functions deploy mail-ai
 supabase functions deploy mail-admin
 ```
 
@@ -255,7 +255,7 @@ For the detailed Azure portal walkthrough, exact Supabase secret setup, deployme
 
    ```sh
    supabase functions deploy mail-ai
-   supabase functions deploy workspace-ai
+   supabase functions deploy mail-ai
    ```
 
 The app only sends a message to Azure OpenAI when a user selects **Summarize** or **Draft reply**. The generated result is saved in the workspace. Draft replies are not sent automatically.
@@ -279,7 +279,7 @@ The app only sends a message to Azure OpenAI when a user selects **Summarize** o
 - **The connection fails after Microsoft authorization**: The inbox displays the error returned by the Edge Function. Check that function's logs in Supabase under **Edge Functions → mail-connect → Logs**. Confirm Graph delegated permissions were added and admin consent was granted if required.
 - **The callback returns an error or the inbox does not connect**: Confirm the database migration was applied, the correct provider secret names were used, and the signed-in email domain matches a workspace profile.
 - **Mailbox connected but no new messages arrive automatically**: Manual refresh should still work. Check the provider-specific push setup, webhook URL, and maintenance schedule. Reconnect the mailbox after configuring the push values.
-- **AI action says Azure OpenAI is not configured**: Check the three required Azure secrets, confirm the deployment name is exact, and redeploy `mail-ai` and `workspace-ai`.
+- **AI action says Azure OpenAI is not configured**: Check the three required Azure secrets, confirm the deployment name is exact, and redeploy `mail-ai`. The email AI and Flown workspace assistant share this function.
 - **AI action reports an Azure OpenAI request error**: The inbox now includes the provider's HTTP status and error detail. In Foundry, verify the deployment is active and that `AZURE_OPENAI_DEPLOYMENT` exactly matches its deployment name. In the Azure portal, confirm the endpoint and key belong to that same resource, and confirm `AZURE_OPENAI_API_VERSION` is supported for the deployment. Replace rotated keys in Supabase Edge Function secrets and retry.
 - **Email images or formatting do not appear**: Confirm the latest migration has been applied and the `body_html` column exists. Sync the mailbox again to retrieve the HTML bodies. Remote images may still be blocked by the provider or the user's network.
 - **A message cannot be sent with attachments**: New-message attachments are limited to 10 files and 3 MB combined and are currently supported for Microsoft 365 mailboxes. Replies do not support attachments; start a new message instead.

@@ -17,10 +17,10 @@ const getAssistantErrorMessage = async (error: Error) => {
     if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') {
       return body.error;
     }
-    return `The assistant request failed with status ${error.context.status}. Check the workspace-ai Edge Function logs.`;
+    return `The assistant request failed with status ${error.context.status}. Check the mail-ai Edge Function logs.`;
   }
   if (error.name === 'FunctionsFetchError') {
-    return 'The assistant could not reach its Edge Function. Confirm workspace-ai is deployed and try again.';
+    return 'The assistant could not reach its Edge Function. Confirm mail-ai is deployed and try again.';
   }
   return error.message || 'The assistant could not respond.';
 };
@@ -68,8 +68,9 @@ export const WorkspaceAssistant: React.FC = () => {
     setMessages(nextMessages);
     setBusy(true);
     try {
-      const { data, error: invokeError } = await supabase.functions.invoke('workspace-ai', {
+      const { data, error: invokeError } = await supabase.functions.invoke('mail-ai', {
         body: {
+          action: 'assistant',
           prompt,
           history: messages,
           activeTab,

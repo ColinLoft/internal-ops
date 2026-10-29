@@ -86,10 +86,10 @@ Changing Edge Function secrets does not require a redeploy, but make sure the la
 
    ```sh
    supabase functions deploy mail-ai
-   supabase functions deploy workspace-ai
+   supabase functions deploy mail-ai
    ```
 
-5. In Supabase **Edge Functions**, confirm both `mail-ai` and `workspace-ai` show as deployed.
+5. In Supabase **Edge Functions**, confirm `mail-ai` is deployed. The email AI and Flown workspace assistant both use this function.
 
 Do not add `--no-verify-jwt` to this deployment. The function requires the signed-in workspace user's authentication.
 
@@ -109,7 +109,7 @@ Do not add `--no-verify-jwt` to this deployment. The function requires the signe
 4. Select **Cancel** and confirm no message was created.
 5. Ask it to prepare the update again, then select **Confirm**. Verify that one message is posted in the current channel.
 6. Change to another channel or conversation before confirming a proposal. The assistant must refuse to execute the stale proposal.
-7. If the assistant fails, inspect **Supabase Dashboard → Edge Functions → workspace-ai → Logs**.
+7. If the assistant fails, inspect **Supabase Dashboard → Edge Functions → mail-ai → Logs**.
 
 Start with a short test email. Avoid putting sensitive, regulated, or confidential email content into AI processing unless the organization's Azure configuration, policies, and data-handling approval explicitly permit it.
 
