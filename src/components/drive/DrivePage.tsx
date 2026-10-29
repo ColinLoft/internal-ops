@@ -111,20 +111,6 @@ export const DrivePage: React.FC = () => {
         setSelectedItem(null);
       }
 
-      if (driveView !== 'all' && section === 'drive') {
-        return (
-          <DriveCreationWorkspace
-            kind={driveView}
-            items={items}
-            onCreate={(type, name) => void createItem(type, name)}
-            onOpen={(item) => item.item_type === 'file' ? void downloadFile(item) : openEditor(item)}
-            onBack={() => {
-              setDriveView('all');
-              window.dispatchEvent(new CustomEvent('flown-drive-view', { detail: 'all' }));
-            }}
-          />
-        );
-      }
     };
     const handleRoute = () => {
       const match = window.location.pathname.match(/^\/(docs|slides|sheets|forms)\/([^/]+)/);
@@ -178,7 +164,7 @@ export const DrivePage: React.FC = () => {
       && (driveView === 'all' || (driveView === 'documents' && item.item_type === 'document') || (driveView === 'presentations' && item.item_type === 'presentation') || (driveView === 'spreadsheets' && item.item_type === 'spreadsheet') || (driveView === 'forms' && item.item_type === 'form') || (driveView === 'files' && item.item_type === 'file'))
       && (!query || item.name.toLowerCase().includes(query))
     );
-  }, [currentFolderId, currentUser.id, items, search, section]);
+  }, [currentFolderId, currentUser.id, items, search, section, driveView]);
 
   const createItem = async (itemType: DriveItem['item_type'], name: string) => {
     const { data, error: createError } = await supabase
@@ -309,6 +295,22 @@ export const DrivePage: React.FC = () => {
   };
 
   const currentFolder = items.find((item) => item.id === currentFolderId);
+
+  if (driveView !== 'all' && section === 'drive') {
+    return (
+      <DriveCreationWorkspace
+        kind={driveView}
+        items={items}
+        onCreate={(type, name) => void createItem(type, name)}
+        onOpen={(item) => item.item_type === 'file' ? void downloadFile(item) : openEditor(item)}
+        onBack={() => {
+          window.history.pushState({}, '', '/drive');
+          setDriveView('all');
+          window.dispatchEvent(new CustomEvent('flown-drive-view', { detail: 'all' }));
+        }}
+      />
+    );
+  }
 
   return (
     <main className="flex min-w-0 flex-1 overflow-hidden bg-white/40">
