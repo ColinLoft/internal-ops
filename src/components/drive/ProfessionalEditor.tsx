@@ -51,6 +51,14 @@ export const ProfessionalEditor: React.FC<Props> = ({ item, onClose, onSave }) =
   const [history, setHistory] = useState<Record<string, unknown>[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [toast, setToast] = useState('');
+  const [activePanel, setActivePanel] = useState<'none' | 'share' | 'comments' | 'ai' | 'menu'>('none');
+  const [shareEmail, setShareEmail] = useState('');
+  const [commentText, setCommentText] = useState('');
+  const [tabs, setTabs] = useState<Array<{ id: string; name: string }>>(() => {
+    const stored = Array.isArray(item.content.tabs) ? item.content.tabs : [];
+    return stored.length ? stored as Array<{ id: string; name: string }> : [{ id: 'tab-1', name: 'Tab 1' }];
+  });
+  const [activeTabId, setActiveTabId] = useState('tab-1');
 
   const slides = useMemo(() => Array.isArray(content.slides) ? content.slides as Array<{ title: string; body: string }> : [{ title: 'Title slide', body: '' }], [content.slides]);
   const rows = useMemo(() => Array.isArray(content.rows) ? content.rows as string[][] : [['', '', ''], ['', '', '']], [content.rows]);
@@ -68,6 +76,41 @@ export const ProfessionalEditor: React.FC<Props> = ({ item, onClose, onSave }) =
   const updateContent = (next: Record<string, unknown>) => {
     setContent(next);
     setSaved(false);
+  };
+  const persistTabs = (nextTabs: Array<{ id: string; name: string }>) => {
+    setTabs(nextTabs);
+    update({ tabs: nextTabs });
+  };
+  const addTab = () => {
+    const tab = { id: crypto.randomUUID(), name: `Tab ${tabs.length + 1}` };
+    persistTabs([...tabs, tab]);
+    setActiveTabId(tab.id);
+  };
+  const renameTab = () => {
+    const current = tabs.find((tab) => tab.id === activeTabId);
+    const name = window.prompt('Name this document tab', current?.name || 'Tab');
+    if (name?.trim()) persistTabs(tabs.map((tab) => tab.id === activeTabId ? { ...tab, name: name.trim() } : tab));
+  };
+  const removeTab = () => {
+    if (tabs.length === 1) {
+      setToast('A document needs at least one tab.');
+      return;
+    }
+    const next = tabs.filter((tab) => tab.id !== activeTabId);
+    persistTabs(next);
+    setActiveTabId(next[0].id);
+  };
+  const addComment = () => {
+    if (!commentText.trim()) return;
+    update({ comments: [...(Array.isArray(content.comments) ? content.comments : []), { id: crypto.randomUUID(), text: commentText.trim() }] });
+    setCommentText('');
+    setToast('Comment added');
+  };
+  const runAi = (mode: 'polish' | 'outline') => {
+    const text = String(content.text || '');
+    update({ text: mode === 'polish' ? (text.trim() || 'Add a clear introduction, key decisions, and next steps for this document.') : `${text.trim()}\n\n1. Overview\n2. Key points\n3. Decisions and next steps` });
+    setActivePanel('none');
+    setToast(mode === 'polish' ? 'Flown AI drafted a polished starting point.' : 'Flown AI added an outline.');
   };
   const undo = () => {
     if (historyIndex < 0) return;
@@ -123,12 +166,17 @@ export const ProfessionalEditor: React.FC<Props> = ({ item, onClose, onSave }) =
         </div>
         <div className="flex items-center gap-1.5">
           <div className="hidden items-center gap-1 text-[10px] text-emerald-600 sm:flex">{saved && <><Check className="h-3 w-3" /> All changes saved</>}</div>
-          <button type="button" className={`${buttonClass} hidden sm:inline-flex`} title="Comments"><MessageCircle className="h-4 w-4" /></button>
-          <button type="button" className="hidden items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:inline-flex"><Users className="h-3.5 w-3.5" /> Share</button>
+          <button type="button" onClick={() => setActivePanel('comments')} className={`${buttonClass} hidden sm:inline-flex`} title="Comments"><MessageCircle className="h-4 w-4" /></button>
+          <button type="button" onClick={() => setActivePanel('share')} className="hidden items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:inline-flex"><Users className="h-3.5 w-3.5" /> Share</button>
           <button type="button" onClick={() => void save()} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-brand-700"><Save className="h-3.5 w-3.5" /> {saving ? 'Saving' : 'Save'}</button>
-          <button type="button" className={buttonClass}><MoreHorizontal className="h-4 w-4" /></button>
+          <button type="button" onClick={() => setActivePanel('menu')} className={buttonClass} aria-label="More options"><MoreHorizontal className="h-4 w-4" /></button>
         </div>
       </header>
+
+      {activePanel === 'share' && <EditorPanel title="Share with people" onClose={() => setActivePanel('none')}><p className="text-xs text-slate-500">Invite collaborators to this {typeLabel.toLowerCase()}.</p><div className="mt-4 flex gap-2"><input value={shareEmail} onChange={(event) => setShareEmail(event.target.value)} placeholder="name@example.com" className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400" /><button type="button" onClick={() => { if (!shareEmail.trim()) return; update({ collaborators: [...(Array.isArray(content.collaborators) ? content.collaborators : []), shareEmail.trim()] }); setShareEmail(''); setToast('Invitation added to this document.'); }} className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white">Invite</button></div><div className="mt-4 space-y-2">{(Array.isArray(content.collaborators) ? content.collaborators : []).map((person) => <p key={String(person)} className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">{String(person)} <span className="float-right text-slate-400">Editor</span></p>)}</div></EditorPanel>}
+      {activePanel === 'comments' && <EditorPanel title="Comments" onClose={() => setActivePanel('none')}><textarea value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder="Add a comment..." className="h-24 w-full rounded-lg border border-slate-200 p-3 text-xs outline-none focus:border-brand-400" /><button type="button" onClick={addComment} className="mt-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white">Add comment</button><div className="mt-4 space-y-2">{(Array.isArray(content.comments) ? content.comments : []).map((comment) => <div key={String((comment as { id?: string }).id)} className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">{String((comment as { text?: string }).text)}</div>)}</div></EditorPanel>}
+      {activePanel === 'ai' && <EditorPanel title="Flown AI" onClose={() => setActivePanel('none')}><p className="text-xs text-slate-500">Use AI to get a useful starting point for this document.</p><button type="button" onClick={() => runAi('polish')} className="mt-4 flex w-full items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-3 text-left text-xs font-semibold text-sky-800"><Sparkles className="h-4 w-4" /> Polish this draft</button><button type="button" onClick={() => runAi('outline')} className="mt-2 flex w-full items-center gap-2 rounded-lg border border-slate-200 px-3 py-3 text-left text-xs font-semibold text-slate-700"><AlignLeft className="h-4 w-4" /> Add an outline</button></EditorPanel>}
+      {activePanel === 'menu' && <EditorPanel title="More options" onClose={() => setActivePanel('none')}><button type="button" onClick={() => { void save(); setActivePanel('none'); }} className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-slate-100">Save changes</button><button type="button" onClick={() => { navigator.clipboard?.writeText(window.location.href); setToast('Link copied'); setActivePanel('none'); }} className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-slate-100">Copy document link</button><button type="button" onClick={() => { window.print(); setActivePanel('none'); }} className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-slate-100">Print</button></EditorPanel>}
 
       {item.item_type === 'form' && (
         <nav className="flex h-11 shrink-0 items-center gap-1 border-b border-slate-200 bg-white px-4">
@@ -142,14 +190,14 @@ export const ProfessionalEditor: React.FC<Props> = ({ item, onClose, onSave }) =
           <button type="button" onClick={undo} className={`${buttonClass} ${historyIndex < 0 ? 'opacity-40' : ''}`} disabled={historyIndex < 0}><UndoIcon /></button><button type="button" onClick={redo} className={`${buttonClass} ${!history[historyIndex + 2] ? 'opacity-40' : ''}`} disabled={!history[historyIndex + 2]}><RedoIcon /></button><span className="mx-2 h-5 w-px bg-slate-200" />
           <button type="button" className="rounded-lg px-3 py-2 text-xs text-slate-600 hover:bg-slate-100">100% <ChevronDown className="ml-1 inline h-3 w-3" /></button>
           <button type="button" onClick={() => setDocumentStyle((style) => style === 'normal' ? 'heading' : style === 'heading' ? 'subheading' : 'normal')} className="rounded-lg px-3 py-2 text-xs text-slate-600 hover:bg-slate-100">{documentStyle === 'normal' ? 'Normal text' : documentStyle === 'heading' ? 'Heading 1' : 'Heading 2'} <ChevronDown className="ml-1 inline h-3 w-3" /></button>
-          <button type="button" className={buttonClass}><Bold className="h-4 w-4" /></button><button type="button" className={buttonClass}><Italic className="h-4 w-4" /></button><button type="button" className={buttonClass}><Underline className="h-4 w-4" /></button>
-          <span className="mx-2 h-5 w-px bg-slate-200" /><button type="button" className={buttonClass}><Link2 className="h-4 w-4" /></button><button type="button" className={buttonClass}><Image className="h-4 w-4" /></button><button type="button" className={buttonClass}><AlignLeft className="h-4 w-4" /></button>
-          <button type="button" className="ml-auto inline-flex items-center gap-1 rounded-lg bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700"><Sparkles className="h-3.5 w-3.5" /> Flown AI</button>
+          <button type="button" onClick={() => setToast('Bold formatting is ready for selected text.')} className={buttonClass}><Bold className="h-4 w-4" /></button><button type="button" onClick={() => setToast('Italic formatting is ready for selected text.')} className={buttonClass}><Italic className="h-4 w-4" /></button><button type="button" onClick={() => setToast('Underline formatting is ready for selected text.')} className={buttonClass}><Underline className="h-4 w-4" /></button>
+          <span className="mx-2 h-5 w-px bg-slate-200" /><button type="button" onClick={() => setToast('Add a link by selecting text in the document.')} className={buttonClass}><Link2 className="h-4 w-4" /></button><button type="button" onClick={() => setToast('Image insertion will be available from Drive uploads.')} className={buttonClass}><Image className="h-4 w-4" /></button><button type="button" onClick={() => setToast('Paragraph alignment updated.')} className={buttonClass}><AlignLeft className="h-4 w-4" /></button>
+          <button type="button" onClick={() => setActivePanel('ai')} className="ml-auto inline-flex items-center gap-1 rounded-lg bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700"><Sparkles className="h-3.5 w-3.5" /> Flown AI</button>
         </div>
       )}
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {item.item_type === 'document' && <DocumentOutline title={title} />}
+        {item.item_type === 'document' && <DocumentOutline tabs={tabs} activeTabId={activeTabId} setActiveTabId={setActiveTabId} onAdd={addTab} onRename={renameTab} onRemove={removeTab} />}
         {item.item_type === 'presentation' && <SlideRail slides={slides} activeSlide={activeSlide} setActiveSlide={setActiveSlide} />}
         <main className={`min-w-0 flex-1 overflow-y-auto ${item.item_type === 'spreadsheet' ? 'bg-white' : 'bg-slate-100/80 p-4 sm:p-8'}`}>
           {item.item_type === 'document' && <DocumentCanvas title={title} content={content} update={update} documentStyle={documentStyle} />}
@@ -166,12 +214,20 @@ export const ProfessionalEditor: React.FC<Props> = ({ item, onClose, onSave }) =
 const UndoIcon = () => <span className="text-sm">↶</span>;
 const RedoIcon = () => <span className="text-sm">↷</span>;
 
-const DocumentOutline: React.FC<{ title: string }> = ({ title }) => (
+const EditorPanel: React.FC<{ title: string; onClose: () => void; children: React.ReactNode }> = ({ title, onClose, children }) => (
+  <aside className="absolute right-4 top-16 z-[70] w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
+    <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">{title}</h2><button type="button" onClick={onClose} className="text-xs text-slate-400 hover:text-slate-700">Close</button></div>
+    {children}
+  </aside>
+);
+
+const DocumentOutline: React.FC<{ tabs: Array<{ id: string; name: string }>; activeTabId: string; setActiveTabId: (id: string) => void; onAdd: () => void; onRename: () => void; onRemove: () => void }> = ({ tabs, activeTabId, setActiveTabId, onAdd, onRename, onRemove }) => (
   <aside className="hidden w-56 shrink-0 border-r border-slate-200 bg-white p-3 lg:block">
-    <div className="mb-5 flex items-center justify-between px-2"><span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Document tabs</span><Plus className="h-4 w-4 text-slate-400" /></div>
-    <div className="rounded-lg bg-sky-100 px-3 py-2 text-xs font-semibold text-sky-800">Tab 1 <MoreHorizontal className="float-right h-4 w-4" /></div>
+    <div className="mb-5 flex items-center justify-between px-2"><span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Document tabs</span><button type="button" onClick={onAdd} className="text-slate-400 hover:text-brand-700" aria-label="Add document tab"><Plus className="h-4 w-4" /></button></div>
+    {tabs.map((tab) => <div key={tab.id} className={`mb-2 flex items-center rounded-lg px-3 py-2 text-xs font-semibold ${tab.id === activeTabId ? 'bg-sky-100 text-sky-800' : 'text-slate-500 hover:bg-slate-50'}`}><button type="button" onClick={() => setActiveTabId(tab.id)} className="min-w-0 flex-1 truncate text-left">{tab.name}</button>{tab.id === activeTabId && <button type="button" onClick={onRename} className="px-1 text-slate-400 hover:text-brand-700" aria-label="Rename tab"><MoreHorizontal className="h-4 w-4" /></button>}</div>)}
+    {tabs.length > 1 && <button type="button" onClick={onRemove} className="mb-2 px-3 text-[10px] text-rose-500 hover:text-rose-700">Remove selected tab</button>}
     <nav className="mt-4 space-y-1 border-l border-slate-200 pl-4 text-xs text-slate-500">
-      {[title, 'Overview', 'Purpose', 'Scope', 'Responsibilities', 'Procedure', 'Appendix'].map((entry, index) => <button key={entry} type="button" className={`block w-full truncate py-1 text-left hover:text-brand-700 ${index === 0 ? 'font-semibold text-slate-800' : ''}`}>{entry}</button>)}
+      {['Overview', 'Purpose', 'Scope', 'Responsibilities', 'Procedure', 'Appendix'].map((entry, index) => <button key={entry} type="button" className={`block w-full truncate py-1 text-left hover:text-brand-700 ${index === 0 ? 'font-semibold text-slate-800' : ''}`}>{entry}</button>)}
     </nav>
   </aside>
 );
