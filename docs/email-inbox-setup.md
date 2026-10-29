@@ -67,7 +67,9 @@ This applies the email tables, access policies, search index, retention cleanup 
 
    Review the migration list shown by the CLI and confirm when prompted.
 
-7. Verify it in Supabase: open **Table Editor** and check that tables beginning with `email_` are present, including `email_templates` and `email_scheduled_sends`. In `email_messages`, confirm the `body_html` column exists so formatted email content and images can display. If the CLI says there are no migrations to apply, verify that you linked the intended project.
+7. Verify it in Supabase: open **Table Editor** and check that tables beginning with `email_` are present, including `email_templates`, `email_scheduled_sends`, and `email_drafts`. In `email_messages`, confirm the `body_html` column exists so formatted email content and images can display. If the CLI says there are no migrations to apply, verify that you linked the intended project.
+
+The **Drafts** folder is now saved in Supabase automatically. Unfinished recipients, subject, and formatted body content are saved after a short pause while you type. Browser file attachments are intentionally not saved into drafts; reattach them when reopening a draft after a page reload.
 
 ## Step 3: Create Microsoft 365 OAuth credentials
 

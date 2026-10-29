@@ -20,7 +20,6 @@ import {
   Plus,
   Printer,
   RefreshCw,
-  Search,
   Send,
   Settings2,
   Sparkles,
@@ -73,6 +72,17 @@ type MessageFilter = 'all' | 'unread' | 'starred' | 'attachments';
 type EmailAttachment = { name: string; contentType: string; contentBytes: string; isInline?: boolean; contentId?: string };
 type EmailTemplate = { id: string; name: string; subject: string; body_html: string; created_by: string; is_shared: boolean };
 type ScheduledEmail = { id: string; action: 'send' | 'reply'; subject: string; scheduled_at: string; status: 'scheduled' | 'processing' | 'sent' | 'failed' | 'cancelled'; last_error: string | null };
+type EmailDraft = {
+  id: string;
+  mailbox_id: string;
+  reply_to_message_id: string | null;
+  to_recipients: string;
+  cc_recipients: string;
+  bcc_recipients: string;
+  subject: string;
+  body_html: string;
+  updated_at: string;
+};
 
 const sanitizeEmailHtml = (html: string) => {
   const document = new DOMParser().parseFromString(html, 'text/html');
@@ -148,7 +158,7 @@ const EmailHtmlBody: React.FC<{ html: string }> = ({ html }) => {
       sandbox="allow-popups allow-popups-to-escape-sandbox"
       referrerPolicy="no-referrer"
       srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: http: data:; style-src 'unsafe-inline'"><style>body{font:14px/1.65 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#334155;overflow-wrap:anywhere}img{max-width:100%;height:auto}table{max-width:100%;border-collapse:collapse}td,th{padding:4px}a{color:#2563eb}</style></head><body>${safeHtml}</body></html>`}
-      className="mt-5 h-[min(70vh,800px)] min-h-64 w-full rounded-lg border-0 bg-white"
+      className="mt-5 h-[min(78vh,1000px)] min-h-64 w-full rounded-lg border-0 bg-white"
     />
   );
 };
@@ -187,6 +197,7 @@ export const EmailInboxPage: React.FC = () => {
     recordSystemActivity,
     channels,
     postChannelMessage,
+    searchQuery,
     isEmailComposeRequested,
     setIsEmailComposeRequested,
   } = useWorkspace();
@@ -198,7 +209,6 @@ export const EmailInboxPage: React.FC = () => {
   const [messages, setMessages] = useState<EmailMessage[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<EmailMessage | null>(null);
   const [artifacts, setArtifacts] = useState<AiArtifact[]>([]);
-  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
@@ -233,6 +243,9 @@ export const EmailInboxPage: React.FC = () => {
   const [showScheduledSends, setShowScheduledSends] = useState(false);
   const [scheduledSends, setScheduledSends] = useState<ScheduledEmail[]>([]);
   const [scheduledLoading, setScheduledLoading] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [draftSaving, setDraftSaving] = useState(false);
+  const [drafts, setDrafts] = useState<EmailDraft[]>([]);
 
   const activeMailbox = mailboxes.find((mailbox) => mailbox.id === activeMailboxId) || null;
   const forwardableChannels = channels.filter((channel) =>
@@ -267,6 +280,17 @@ export const EmailInboxPage: React.FC = () => {
       setSelectedMessage(null);
       return;
     }
+    if (activeFolder === 'drafts') {
+      const { data, error: draftError } = await supabase.from('email_drafts')
+        .select('id, mailbox_id, reply_to_message_id, to_recipients, cc_recipients, bcc_recipients, subject, body_html, updated_at')
+        .eq('mailbox_id', mailboxId)
+        .order('updated_at', { ascending: false });
+      if (draftError) throw draftError;
+      setDrafts((data || []) as EmailDraft[]);
+      setMessages([]);
+      setSelectedMessage(null);
+      return;
+    }
     let query = supabase
       .from('email_messages')
       .select('id, mailbox_id, provider_message_id, provider_thread_id, folder, subject, sender_name, sender_email, to_recipients, cc_recipients, body_text, body_html, snippet, received_at, is_read, is_starred, has_attachments, labels')
@@ -274,7 +298,7 @@ export const EmailInboxPage: React.FC = () => {
       .eq('folder', activeFolder)
       .order('received_at', { ascending: false })
       .limit(100);
-    const cleanSearch = search.trim();
+    const cleanSearch = searchQuery.trim();
     if (cleanSearch) {
       query = query.textSearch('search_vector', cleanSearch, { type: 'plain', config: 'simple' });
     }
@@ -283,7 +307,7 @@ export const EmailInboxPage: React.FC = () => {
     const loaded = (data || []) as EmailMessage[];
     setMessages(loaded);
     setSelectedMessage((current) => current ? loaded.find((message) => message.id === current.id) || null : null);
-  }, [activeFolder, activeMailboxId, search]);
+  }, [activeFolder, activeMailboxId, searchQuery]);
 
   const refresh = useCallback(async (sync = false, requestedMailboxId?: string) => {
     setError('');
@@ -530,6 +554,7 @@ export const EmailInboxPage: React.FC = () => {
   };
 
   const openNewCompose = () => {
+    setDraftId(null);
     setReplyMode(false);
     setComposeTo('');
     setComposeCc('');
@@ -549,6 +574,7 @@ export const EmailInboxPage: React.FC = () => {
   };
 
   const openReplyCompose = (body = '') => {
+    setDraftId(null);
     setReplyMode(true);
     setComposeTo(selectedMessage?.sender_email || '');
     setComposeCc('');
@@ -564,6 +590,71 @@ export const EmailInboxPage: React.FC = () => {
     setShowBcc(false);
     setComposeOpen(true);
   };
+
+  const openDraft = async (draft: EmailDraft) => {
+    let replyTarget = draft.reply_to_message_id
+      ? messages.find((message) => message.id === draft.reply_to_message_id) || null
+      : null;
+    if (draft.reply_to_message_id && !replyTarget) {
+      const { data, error: targetError } = await supabase.from('email_messages')
+        .select('id, mailbox_id, provider_message_id, provider_thread_id, folder, subject, sender_name, sender_email, to_recipients, cc_recipients, body_text, body_html, snippet, received_at, is_read, is_starred, has_attachments, labels')
+        .eq('id', draft.reply_to_message_id)
+        .maybeSingle();
+      if (targetError) {
+        setError(`The draft reply target could not be loaded: ${targetError.message}`);
+      } else {
+        replyTarget = data as EmailMessage | null;
+      }
+    }
+    setSelectedMessage(replyTarget);
+    setDraftId(draft.id);
+    setReplyMode(Boolean(replyTarget));
+    setComposeTo(draft.to_recipients);
+    setComposeCc(draft.cc_recipients);
+    setComposeBcc(draft.bcc_recipients);
+    setComposeSubject(draft.subject);
+    setComposeBody(sanitizeEmailHtml(draft.body_html));
+    setComposeAttachments([]);
+    setComposeProviderAttachments([]);
+    setComposeScheduledAt('');
+    setShowCc(Boolean(draft.cc_recipients));
+    setShowBcc(Boolean(draft.bcc_recipients));
+    setComposeOpen(true);
+  };
+
+  const saveDraft = useCallback(async () => {
+    if (!activeMailboxId || !composeOpen || sending) return;
+    const bodyHtml = sanitizeEmailHtml((editorRef.current?.innerHTML || composeBody).trim());
+    const values = {
+      mailbox_id: activeMailboxId,
+      created_by: currentUser.id,
+      reply_to_message_id: replyMode ? selectedMessage?.id || null : null,
+      to_recipients: composeTo.trim(),
+      cc_recipients: composeCc.trim(),
+      bcc_recipients: composeBcc.trim(),
+      subject: composeSubject.trim(),
+      body_html: bodyHtml,
+      updated_at: new Date().toISOString(),
+    };
+    if (!values.to_recipients && !values.subject && !bodyHtml) return;
+    setDraftSaving(true);
+    const result = draftId
+      ? await supabase.from('email_drafts').update(values).eq('id', draftId).select('id, mailbox_id, reply_to_message_id, to_recipients, cc_recipients, bcc_recipients, subject, body_html, updated_at').single()
+      : await supabase.from('email_drafts').insert(values).select('id, mailbox_id, reply_to_message_id, to_recipients, cc_recipients, bcc_recipients, subject, body_html, updated_at').single();
+    setDraftSaving(false);
+    if (result.error) {
+      setError(`Draft could not be saved: ${result.error.message}`);
+      return;
+    }
+    setDraftId(result.data.id);
+    setDrafts((items) => [result.data as EmailDraft, ...items.filter((item) => item.id !== result.data.id)]);
+  }, [activeMailboxId, composeBcc, composeCc, composeBody, composeOpen, composeSubject, composeTo, currentUser.id, draftId, replyMode, selectedMessage?.id, sending]);
+
+  useEffect(() => {
+    if (!composeOpen) return;
+    const timeout = window.setTimeout(() => { void saveDraft(); }, 700);
+    return () => window.clearTimeout(timeout);
+  }, [composeOpen, composeTo, composeCc, composeBcc, composeSubject, composeBody, saveDraft]);
 
   const applyTemplate = (templateId: string) => {
     setSelectedTemplateId(templateId);
@@ -924,6 +1015,12 @@ export const EmailInboxPage: React.FC = () => {
       setComposeAttachments([]);
       setComposeProviderAttachments([]);
       setComposeScheduledAt('');
+      if (draftId) {
+        const { error: draftError } = await supabase.from('email_drafts').delete().eq('id', draftId);
+        if (draftError) setError(`Message sent, but the draft could not be removed: ${draftError.message}`);
+        setDrafts((items) => items.filter((item) => item.id !== draftId));
+        setDraftId(null);
+      }
       setNotice(scheduledAt
         ? `Email scheduled for ${scheduledAt.toLocaleString()}.`
         : 'Message sent.');
@@ -935,9 +1032,6 @@ export const EmailInboxPage: React.FC = () => {
     }
   };
 
-  const title = selectedMessage?.subject || (showScheduledSends
-    ? 'Scheduled'
-    : activeFolder === 'inbox' ? 'Inbox' : folders.find((folder) => folder.id === activeFolder)?.label || 'Email');
   const sharedMailboxControl = mailboxes.length > 0 && currentUser.systemRole === 'admin' ? (
     <div className="relative">
       <button
@@ -1015,6 +1109,17 @@ export const EmailInboxPage: React.FC = () => {
               {id === 'inbox' && unreadCount > 0 && <span className="rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px]">{unreadCount}</span>}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => { setShowScheduledSends(false); setActiveFolder('drafts'); setSelectedMessage(null); }}
+            className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold ${
+              activeFolder === 'drafts' ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <FileText className="h-4 w-4" />
+            <span className="flex-1">Drafts</span>
+            {drafts.length > 0 && <span className="rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px]">{drafts.length}</span>}
+          </button>
           {activeMailbox && (
             <button
               type="button"
@@ -1033,6 +1138,16 @@ export const EmailInboxPage: React.FC = () => {
         </div>
         <div className="mt-auto border-t border-slate-100 pt-3">
           {sharedMailboxControl}
+          <div className="mt-3 flex items-center justify-center gap-1">
+            {activeMailbox?.connected_by === currentUser.id && (
+              <button type="button" onClick={() => setRulesOpen(true)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" title="Inbox rules" aria-label="Inbox rules">
+                <Settings2 className="h-4 w-4" />
+              </button>
+            )}
+            <button type="button" onClick={() => void refresh(true)} disabled={!activeMailbox || syncing} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50" title="Sync inbox" aria-label="Sync inbox">
+              {syncing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            </button>
+          </div>
           {activeMailbox && (
             <p className="mt-3 truncate text-center text-[10px] text-slate-400" title={activeMailbox.email}>
               {activeMailbox.mailbox_type === 'shared' ? 'Shared mailbox · ' : ''}{activeMailbox.email} · Microsoft 365
@@ -1041,13 +1156,8 @@ export const EmailInboxPage: React.FC = () => {
         </div>
       </aside>
 
-      <section className={`flex min-w-0 flex-1 flex-col print:hidden ${selectedMessage ? 'hidden xl:flex' : ''}`}>
-        <div className="flex items-center gap-3 border-b border-slate-200 bg-white/90 px-4 py-3">
-          <h2 className="min-w-0 flex-1 truncate text-sm font-bold text-slate-800">{title}</h2>
-          {!showScheduledSends && <label className="relative hidden w-64 sm:block">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search this mailbox" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-brand-500" />
-          </label>}
+      <section className={`flex min-w-0 flex-1 flex-col print:hidden ${selectedMessage ? 'hidden' : ''}`}>
+        <div className="flex items-center gap-3 border-b border-slate-200 bg-white/90 px-4 py-2">
           {!activeMailbox && mailboxes.length === 0 && !loading && (
             <button
               type="button"
@@ -1058,14 +1168,6 @@ export const EmailInboxPage: React.FC = () => {
               Connect Microsoft 365
             </button>
           )}
-          {!showScheduledSends && activeMailbox?.connected_by === currentUser.id && (
-            <button type="button" onClick={() => setRulesOpen(true)} aria-label="Manage inbox rules" title="Inbox rules" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
-              <Settings2 className="h-4 w-4" />
-            </button>
-          )}
-          {!showScheduledSends && <button type="button" onClick={() => void refresh(true)} disabled={!activeMailbox || syncing} aria-label="Sync inbox" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50">
-            {syncing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          </button>}
         </div>
         {error && <div role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</div>}
         {notice && <div role="status" className="border-b border-emerald-100 bg-emerald-50 px-4 py-2 text-xs text-emerald-700">{notice}<button type="button" onClick={() => setNotice('')} className="ml-2 underline">Dismiss</button></div>}
@@ -1128,6 +1230,22 @@ export const EmailInboxPage: React.FC = () => {
                       <button type="button" onClick={() => void cancelScheduledSend(schedule)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
                     )}
                   </article>
+                ))}
+              </div>
+            )
+          ) : activeFolder === 'drafts' ? (
+            drafts.length === 0 ? (
+              <div className="p-12 text-center text-sm text-slate-500">No saved drafts.</div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {drafts.map((draft) => (
+                  <button key={draft.id} type="button" onClick={() => openDraft(draft)} className="flex w-full items-start gap-4 bg-white px-5 py-4 text-left hover:bg-slate-50">
+                    <FileText className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-slate-800">{draft.subject || '(no subject)'}</span>
+                      <span className="mt-1 block truncate text-xs text-slate-500">{draft.to_recipients || 'No recipient yet'} · {new Date(draft.updated_at).toLocaleString()}</span>
+                    </span>
+                  </button>
                 ))}
               </div>
             )
@@ -1216,9 +1334,9 @@ export const EmailInboxPage: React.FC = () => {
             <button type="button" onClick={() => void toggleRead(selectedMessage)} title={selectedMessage.is_read ? 'Mark unread' : 'Mark read'} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">{selectedMessage.is_read ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}</button>
             <button type="button" onClick={() => setSelectedMessage(null)} title="Close" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>
           </div>
-          <div className="flex-1 overflow-y-auto bg-slate-50/50 p-4 sm:p-6 print:overflow-visible print:bg-white print:p-0">
+          <div className="flex-1 overflow-y-auto bg-slate-50/50 p-4 sm:p-8 print:overflow-visible print:bg-white print:p-0">
             {selectedThreadMessages.map((threadMessage) => (
-            <article key={threadMessage.id} className="mx-auto mb-4 max-w-4xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7 print:break-inside-avoid print:border-0 print:shadow-none">
+            <article key={threadMessage.id} className="mx-auto mb-4 w-full max-w-6xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8 print:break-inside-avoid print:border-0 print:shadow-none">
               <h1 className="mb-5 text-xl font-bold leading-7 text-slate-900">{threadMessage.subject || '(no subject)'}</h1>
               <div className="flex items-start gap-3 border-b border-slate-100 pb-5">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
@@ -1319,7 +1437,9 @@ export const EmailInboxPage: React.FC = () => {
                 <h3 className="text-sm font-bold text-slate-900">{replyMode ? 'Reply' : 'New message'}</h3>
                 <p className="text-[11px] text-slate-400">From {activeMailbox.email}</p>
               </div>
-              <button type="button" onClick={() => { setComposeOpen(false); setReplyMode(false); setComposeAttachments([]); }} aria-label="Close" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+              <button type="button" onClick={() => { void saveDraft(); setComposeOpen(false); setReplyMode(false); setComposeAttachments([]); }} aria-label="Close" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100">
+                {draftSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+              </button>
             </div>
             <div className="max-h-[70vh] space-y-3 overflow-y-auto p-5">
               {replyMode ? (

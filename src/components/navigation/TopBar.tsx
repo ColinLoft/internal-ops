@@ -147,7 +147,7 @@ export const TopBar: React.FC = () => {
               setSearchQuery('');
             }
           }}
-          placeholder="Search anything... ⌘+S Quick search"
+          placeholder="Search everything... ⌘+S Quick search"
           className="w-full pl-9 pr-14 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white text-xs font-medium text-slate-900 placeholder:text-slate-400 rounded-xl border border-transparent focus:border-brand-500/50 focus:ring-4 focus:ring-brand-500/10 transition-all outline-none"
         />
         <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
