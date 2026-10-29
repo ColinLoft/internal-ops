@@ -360,17 +360,16 @@ export const EmailInboxPage: React.FC = () => {
   useEffect(() => {
     let active = true;
     void loadMailboxes()
-      .then((available) => {
-        if (!active) return;
-        const mailboxId = available.find((mailbox) => mailbox.id === activeMailboxId)?.id
-          || available[0]?.id
-          || '';
-        return loadMessages(mailboxId);
-      })
       .catch((loadError) => active && setError(loadError instanceof Error ? loadError.message : 'Email could not be loaded.'))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [activeMailboxId, loadMailboxes, loadMessages]);
+  }, [loadMailboxes]);
+
+  useEffect(() => {
+    if (!activeMailboxId) return;
+    void loadMessages(activeMailboxId)
+      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : 'Email could not be loaded.'));
+  }, [activeMailboxId, activeFolder, searchQuery, loadMessages]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -598,6 +597,41 @@ export const EmailInboxPage: React.FC = () => {
     setShowBcc(false);
     setComposeOpen(true);
   };
+
+  useEffect(() => {
+    const handleAssistantEmailAction = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        type?: string;
+        content?: string;
+        details?: Record<string, string>;
+      }>).detail || {};
+      const details = detail.details || {};
+      if (!detail.type) return;
+      if (detail.type === 'compose_email') {
+        openNewCompose();
+        setComposeTo(details.to || '');
+        setComposeCc(details.cc || '');
+        setComposeBcc(details.bcc || '');
+        setComposeSubject(details.subject || '');
+        setComposeBody(details.bodyHtml || detail.content || '');
+        setShowCc(Boolean(details.cc));
+        setShowBcc(Boolean(details.bcc));
+        return;
+      }
+      if (!activeMailboxId || !['send_email', 'schedule_email'].includes(detail.type)) return;
+      void invokeMailboxAction(detail.type === 'schedule_email' ? 'schedule' : 'send', {
+        to: details.to || '',
+        cc: details.cc || '',
+        bcc: details.bcc || '',
+        subject: details.subject || '',
+        bodyHtml: details.bodyHtml || detail.content || '',
+        scheduledAt: details.scheduledAt || '',
+      }).then(() => setNotice(detail.type === 'schedule_email' ? 'Email scheduled.' : 'Email sent.'))
+        .catch((actionError: unknown) => setError(actionError instanceof Error ? actionError.message : 'Email action failed.'));
+    };
+    window.addEventListener('workspace-email-action', handleAssistantEmailAction);
+    return () => window.removeEventListener('workspace-email-action', handleAssistantEmailAction);
+  }, [activeMailboxId, invokeMailboxAction]);
 
   const openDraft = async (draft: EmailDraft) => {
     let replyTarget = draft.reply_to_message_id

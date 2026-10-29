@@ -5,10 +5,11 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 
 type AssistantMessage = { role: 'user' | 'assistant'; content: string };
 type AssistantAction = {
-  type: 'post_channel' | 'send_message';
+  type: 'post_channel' | 'send_message' | 'create_event' | 'compose_email' | 'send_email' | 'schedule_email' | 'open_view';
   targetId: string;
   targetName: string;
   content: string;
+  details?: Record<string, string>;
 };
 
 const getAssistantErrorMessage = async (error: Error) => {
@@ -35,6 +36,10 @@ export const WorkspaceAssistant: React.FC = () => {
     conversations,
     postChannelMessage,
     sendMessage,
+    createCalendarEvent,
+    setActiveTab,
+    setActiveChannelId,
+    setActiveConversationId,
   } = useWorkspace();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -105,11 +110,35 @@ export const WorkspaceAssistant: React.FC = () => {
       if (proposal.type === 'post_channel') {
         if (activeTab !== 'channels' || activeChannelId !== proposal.targetId) throw new Error('The channel changed. Ask the assistant again before posting.');
         await postChannelMessage(proposal.targetId, proposal.content);
-      } else {
+      } else if (proposal.type === 'send_message') {
         if (activeTab !== 'messages' || activeConversationId !== proposal.targetId) throw new Error('The conversation changed. Ask the assistant again before sending.');
         await sendMessage(proposal.content);
+      } else if (proposal.type === 'create_event') {
+        const details = proposal.details || {};
+        await createCalendarEvent({
+          title: details.title || proposal.content,
+          description: details.description || '',
+          date: details.date || new Date().toISOString().slice(0, 10),
+          startTime: details.startTime || '09:00',
+          endTime: details.endTime || '10:00',
+          scope: details.scope === 'personal' ? 'personal' : 'team',
+          category: details.category || 'General',
+          location: details.location || '',
+          color: details.color || '#2563eb',
+        });
+        setActiveTab('calendar');
+      } else if (proposal.type === 'open_view') {
+        const details = proposal.details || {};
+        setActiveTab((details.tab as 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin') || 'messages');
+        if (details.channelId) setActiveChannelId(details.channelId);
+        if (details.conversationId) setActiveConversationId(details.conversationId);
+      } else if (proposal.type === 'compose_email' || proposal.type === 'send_email' || proposal.type === 'schedule_email') {
+        setActiveTab('inbox');
+        window.setTimeout(() => window.dispatchEvent(new CustomEvent('workspace-email-action', {
+          detail: { type: proposal.type, details: proposal.details || {}, content: proposal.content },
+        })), 0);
       }
-      setMessages((items) => [...items, { role: 'assistant', content: `Done — I ${proposal.type === 'post_channel' ? 'posted in' : 'sent a message to'} ${proposal.targetName}.` }]);
+      setMessages((items) => [...items, { role: 'assistant', content: `Done — I completed that action for ${proposal.targetName || 'the workspace'}.` }]);
       setProposal(null);
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : 'The action could not be completed.');
