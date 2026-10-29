@@ -214,6 +214,7 @@ export const EmailInboxPage: React.FC = () => {
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(() => new Set());
   const [messages, setMessages] = useState<EmailMessage[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<EmailMessage | null>(null);
+  const [expandedThreadMessageIds, setExpandedThreadMessageIds] = useState<Set<string>>(() => new Set());
   const [artifacts, setArtifacts] = useState<AiArtifact[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -430,6 +431,7 @@ export const EmailInboxPage: React.FC = () => {
 
   useEffect(() => {
     setFocusedEmailId(selectedMessage?.id || null);
+    setExpandedThreadMessageIds(selectedMessage ? new Set([selectedMessage.id]) : new Set());
     setInlineReplyBody('');
     if (inlineReplyEditorRef.current) inlineReplyEditorRef.current.innerHTML = '';
     return () => setFocusedEmailId(null);
@@ -1443,13 +1445,32 @@ export const EmailInboxPage: React.FC = () => {
             <button type="button" onClick={() => setSelectedMessage(null)} title="Close" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>
           </div>
           <div className="flex-1 overflow-y-auto bg-slate-50/50 p-4 sm:p-8 print:overflow-visible print:bg-white print:p-0">
-            {selectedThreadMessages.map((threadMessage) => (
-            <article key={threadMessage.id} className="mx-auto mb-4 w-full max-w-6xl rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_28px_rgba(15,23,42,0.04)] sm:p-8 print:break-inside-avoid print:border-0 print:shadow-none">
+            {selectedThreadMessages.map((threadMessage) => {
+            const expanded = expandedThreadMessageIds.has(threadMessage.id);
+            return (
+            <article key={threadMessage.id} className={`mx-auto mb-3 w-full max-w-6xl rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_28px_rgba(15,23,42,0.04)] sm:p-6 print:break-inside-avoid print:border-0 print:shadow-none ${expanded ? '' : 'cursor-pointer'}`}>
+              <button type="button" onClick={() => setExpandedThreadMessageIds((current) => {
+                const next = new Set(current);
+                if (next.has(threadMessage.id)) next.delete(threadMessage.id);
+                else next.add(threadMessage.id);
+                return next;
+              })} className="flex w-full items-center justify-between gap-4 text-left">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-100 to-brand-100 text-xs font-bold text-brand-700">{senderInitials(threadMessage)}</div>
+                <div className="min-w-0">
+                  <h1 className="truncate text-sm font-bold leading-5 text-slate-900">{threadMessage.sender_name || threadMessage.sender_email}</h1>
+                  <p className="truncate text-xs text-slate-500">{threadMessage.subject || '(no subject)'}</p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <time className="hidden text-right text-[11px] text-slate-400 sm:block" dateTime={threadMessage.received_at}>{new Date(threadMessage.received_at).toLocaleString()}</time>
+                {expanded ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
+              </div>
+              </button>
+              {expanded && <div className="mt-4">
               <div className="mb-5 flex items-center justify-between gap-4">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-100 to-brand-100 text-sm font-bold text-brand-700">{senderInitials(threadMessage)}</div>
                   <div className="min-w-0">
-                    <h1 className="truncate text-base font-bold leading-6 text-slate-900">{threadMessage.sender_name || threadMessage.sender_email}</h1>
                     <p className="truncate text-xs text-slate-500">{threadMessage.sender_email}</p>
                   </div>
                 </div>
@@ -1483,8 +1504,10 @@ export const EmailInboxPage: React.FC = () => {
                   This message has attachments. Open it in Microsoft 365 to download them.
                 </div>
               )}
+              </div>}
             </article>
-            ))}
+            );
+            })}
             {artifacts.map((artifact) => (
               <div key={artifact.id} className="mx-auto mt-5 max-w-4xl rounded-xl border border-violet-100 bg-violet-50/70 p-4">
                 <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-violet-800"><Sparkles className="h-3.5 w-3.5" /> Saved AI {artifact.artifact_type === 'summary' ? 'summary' : 'draft'}</p>

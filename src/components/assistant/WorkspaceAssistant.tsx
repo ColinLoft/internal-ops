@@ -108,7 +108,11 @@ export const WorkspaceAssistant: React.FC = () => {
     setError('');
     try {
       if (proposal.type === 'post_channel') {
-        await postChannelMessage(proposal.targetId, proposal.content);
+        const channelTarget = channels.some((channel) => channel.id === proposal.targetId)
+          ? proposal.targetId
+          : channels.find((channel) => channel.name.toLowerCase() === proposal.targetName.replace(/^#/, '').toLowerCase())?.id;
+        if (!channelTarget) throw new Error('The selected channel is no longer available. Ask the assistant again.');
+        await postChannelMessage(channelTarget, proposal.content);
       } else if (proposal.type === 'send_message') {
         await sendMessage(proposal.content, undefined, undefined, proposal.targetId);
       } else if (proposal.type === 'create_event') {

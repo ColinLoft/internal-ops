@@ -78,6 +78,9 @@ Deno.serve(async (request: Request) => {
           ? `You may propose posting to the current channel only: ${channel.name} (${channel.id}).`
           : 'The current channel is read-only for this user; do not propose a post action.';
       } else if (activeTab === 'messages' && activeConversationId) {
+        const { data: membershipMessage } = await adminClient.from('messages').select('id')
+          .eq('conversation_id', activeConversationId).eq('sender_id', user.id).limit(1).maybeSingle();
+        if (!membershipMessage) return jsonResponse({ error: 'You do not have access to the selected conversation.' }, 403);
         const { data: conversationMessages } = await adminClient.from('messages').select('sender_name, text')
           .eq('conversation_id', activeConversationId).is('parent_id', null).order('created_at', { ascending: false }).limit(20);
         viewContext = `Current conversation recent messages:\n${(conversationMessages || []).reverse().map((item) => `${item.sender_name}: ${String(item.text || '').slice(0, 800)}`).join('\n')}`;
