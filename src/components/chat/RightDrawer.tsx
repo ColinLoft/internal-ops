@@ -60,7 +60,7 @@ export const RightDrawer: React.FC = () => {
   );
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(`https://beaconwork.org/invite/${isChannel ? currentChan?.name : currentConv?.id}`);
+    navigator.clipboard.writeText(`${window.location.origin}/invite/${isChannel ? currentChan?.name : currentConv?.id}`);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
   };

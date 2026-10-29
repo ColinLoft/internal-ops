@@ -121,7 +121,7 @@ export const TopBar: React.FC = () => {
       {/* Breadcrumb / Title */}
       <div className="flex items-center gap-3">
         <div className="flex items-center text-sm font-semibold text-slate-800 tracking-tight">
-          <span className="text-brand-600 font-bold">Season Report</span>
+          <span className="text-brand-600 font-bold">Flown</span>
           <span className="mx-2 text-slate-400">/</span>
           <span className="text-slate-600 font-medium capitalize">{activeTab === 'admin' ? 'People & access' : activeTab === 'inbox' ? 'Email inbox' : activeTab}</span>
           <span className="mx-2 text-slate-400">/</span>

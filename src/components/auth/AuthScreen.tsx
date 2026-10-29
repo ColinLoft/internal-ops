@@ -45,10 +45,10 @@ export const AuthScreen: React.FC = () => {
         {/* Top Brand Banner */}
         <div className="bg-gradient-to-r from-brand-600 via-brand-700 to-brand-800 p-6 text-white text-center relative">
           <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-black/10">
-            <img src="/brand-icon.png" alt="Season Report" className="w-8 h-8 object-contain" />
+            <img src="/brand-icon.png" alt="Flown" className="w-8 h-8 object-contain" />
           </div>
-          <h2 className="text-xl font-bold tracking-tight">Season Report</h2>
-          <p className="text-brand-100 text-xs mt-1">Season Report's Operation Platform</p>
+          <h2 className="text-xl font-bold tracking-tight">Flown</h2>
+          <p className="text-brand-100 text-xs mt-1">Flown's Operations Platform</p>
 
         </div>
 
@@ -80,7 +80,7 @@ export const AuthScreen: React.FC = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="firstname@seasonreport.org"
+                  placeholder="firstname@yourorganization.org"
                   required
                   className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all"
                 />

@@ -111,7 +111,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
       size: 'GPS Coordinates',
       url: 'https://maps.google.com',
       locationData: {
-        label: 'Beacon Community Center, 1850 Mission St, San Francisco, CA',
+        label: 'Flown Community Center, 1850 Mission St, San Francisco, CA',
         latitude: 37.7668,
         longitude: -122.4194,
       },

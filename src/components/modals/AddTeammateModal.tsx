@@ -85,7 +85,7 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="jordan@beaconwork.org"
+                placeholder="jordan@yourorganization.org"
                 required
                 className="w-full px-3 py-2 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
               />
