@@ -68,6 +68,42 @@ const itemColor = (type: DriveItem['item_type']) => ({
   file: 'text-slate-500 bg-slate-100',
 }[type]);
 
+const normalizeEditorContent = (item: DriveItem): Record<string, unknown> => {
+  const content = item.content && typeof item.content === 'object' && !Array.isArray(item.content)
+    ? item.content
+    : {};
+  if (item.item_type === 'document') {
+    return { ...content, title: typeof content.title === 'string' ? content.title : item.name, text: typeof content.text === 'string' ? content.text : '' };
+  }
+  if (item.item_type === 'presentation') {
+    const slides = Array.isArray(content.slides)
+      ? content.slides.filter((slide): slide is Record<string, unknown> => Boolean(slide) && typeof slide === 'object')
+        .map((slide) => ({ title: typeof slide.title === 'string' ? slide.title : 'Untitled slide', body: typeof slide.body === 'string' ? slide.body : '' }))
+      : [];
+    return { ...content, slides: slides.length ? slides : [{ title: 'Untitled slide', body: '' }] };
+  }
+  if (item.item_type === 'spreadsheet') {
+    const rows = Array.isArray(content.rows)
+      ? content.rows.map((row) => Array.isArray(row) ? row.map((cell) => typeof cell === 'string' ? cell : '') : ['', '', ''])
+      : [];
+    return { ...content, rows: rows.length ? rows : [['', '', ''], ['', '', '']] };
+  }
+  if (item.item_type === 'form') {
+    const questions = Array.isArray(content.questions)
+      ? content.questions.filter((question): question is Record<string, unknown> => Boolean(question) && typeof question === 'object')
+        .map((question, index) => ({
+          id: typeof question.id === 'string' ? question.id : crypto.randomUUID(),
+          type: typeof question.type === 'string' ? question.type : 'short_text',
+          label: typeof question.label === 'string' ? question.label : `Question ${index + 1}`,
+          required: question.required === true,
+          options: Array.isArray(question.options) ? question.options.filter((option): option is string => typeof option === 'string') : [],
+        }))
+      : [];
+    return { ...content, title: typeof content.title === 'string' ? content.title : item.name, description: typeof content.description === 'string' ? content.description : '', questions };
+  }
+  return content;
+};
+
 export const DrivePage: React.FC = () => {
   const { currentUser } = useWorkspace();
   const [items, setItems] = useState<DriveItem[]>([]);
@@ -138,7 +174,7 @@ export const DrivePage: React.FC = () => {
   const openEditor = (item: DriveItem) => {
     const segment = item.item_type === 'document' ? 'docs' : item.item_type === 'presentation' ? 'slides' : item.item_type === 'spreadsheet' ? 'sheets' : 'forms';
     window.history.pushState({}, '', `/${segment}/${item.id}`);
-    setEditorItem({ ...item, content: item.content && typeof item.content === 'object' ? item.content : {} });
+    setEditorItem({ ...item, content: normalizeEditorContent(item) });
     setEditorItemId(item.id);
   };
 
@@ -149,7 +185,11 @@ export const DrivePage: React.FC = () => {
   };
 
   const routedEditorItem = items.find((item) => item.id === editorItemId);
-  const activeEditorItem = editorItem?.id === editorItemId ? editorItem : routedEditorItem;
+  const activeEditorItem = editorItem?.id === editorItemId
+    ? editorItem
+    : routedEditorItem
+      ? { ...routedEditorItem, content: normalizeEditorContent(routedEditorItem) }
+      : null;
   if (activeEditorItem && ['document', 'presentation', 'spreadsheet', 'form'].includes(activeEditorItem.item_type)) {
     return <DriveEditorWorkspace item={activeEditorItem} onClose={closeEditor} onSave={async (content) => {
       const { error: saveError } = await supabase.from('drive_items').update({ content, updated_at: new Date().toISOString() }).eq('id', activeEditorItem.id);
