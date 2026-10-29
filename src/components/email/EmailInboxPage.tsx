@@ -26,7 +26,6 @@ import {
   Settings2,
   Sparkles,
   Star,
-  Tag,
   Underline,
   List,
   ListOrdered,
@@ -71,7 +70,7 @@ type EmailMessage = {
 };
 
 type AiArtifact = { id: string; artifact_type: 'summary' | 'draft'; content: string; created_at: string };
-type MessageFilter = 'all' | 'unread' | 'starred' | 'attachments';
+type MessageFilter = 'all' | 'unread' | 'starred' | 'attachments' | 'today';
 type EmailAttachment = { name: string; contentType: string; contentBytes: string; isInline?: boolean; contentId?: string };
 type EmailTemplate = { id: string; name: string; subject: string; body_html: string; created_by: string; is_shared: boolean };
 type ScheduledEmail = { id: string; action: 'send' | 'reply'; subject: string; scheduled_at: string; status: 'scheduled' | 'processing' | 'sent' | 'failed' | 'cancelled'; last_error: string | null };
@@ -238,6 +237,8 @@ export const EmailInboxPage: React.FC = () => {
   const [composeAttachments, setComposeAttachments] = useState<File[]>([]);
   const [composeProviderAttachments, setComposeProviderAttachments] = useState<EmailAttachment[]>([]);
   const [composeScheduledAt, setComposeScheduledAt] = useState('');
+  const [inlineReplyBody, setInlineReplyBody] = useState('');
+  const [inlineReplySending, setInlineReplySending] = useState(false);
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [shareTemplate, setShareTemplate] = useState(false);
@@ -251,6 +252,7 @@ export const EmailInboxPage: React.FC = () => {
   const [aiBusy, setAiBusy] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const editorRef = React.useRef<HTMLDivElement>(null);
+  const inlineReplyEditorRef = React.useRef<HTMLDivElement>(null);
   const [showScheduledSends, setShowScheduledSends] = useState(false);
   const [scheduledSends, setScheduledSends] = useState<ScheduledEmail[]>([]);
   const [scheduledLoading, setScheduledLoading] = useState(false);
@@ -427,6 +429,8 @@ export const EmailInboxPage: React.FC = () => {
 
   useEffect(() => {
     setFocusedEmailId(selectedMessage?.id || null);
+    setInlineReplyBody('');
+    if (inlineReplyEditorRef.current) inlineReplyEditorRef.current.innerHTML = '';
     return () => setFocusedEmailId(null);
   }, [selectedMessage?.id, setFocusedEmailId]);
 
@@ -496,6 +500,7 @@ export const EmailInboxPage: React.FC = () => {
     if (messageFilter === 'unread') return !message.is_read;
     if (messageFilter === 'starred') return message.is_starred;
     if (messageFilter === 'attachments') return message.has_attachments;
+    if (messageFilter === 'today') return new Date(message.received_at).toDateString() === new Date().toDateString();
     return true;
   }), [messageFilter, messages]);
   const groupedMessages = useMemo(() => {
@@ -584,24 +589,6 @@ export const EmailInboxPage: React.FC = () => {
     setTemplateName('');
     setShowTemplateSave(false);
     setShareTemplate(false);
-    setShowCc(false);
-    setShowBcc(false);
-    setComposeOpen(true);
-  };
-
-  const openReplyCompose = (body = '') => {
-    setDraftId(null);
-    setReplyMode(true);
-    setComposeTo(selectedMessage?.sender_email || '');
-    setComposeCc('');
-    setComposeBcc('');
-    setComposeSubject(selectedMessage
-      ? `Re: ${selectedMessage.subject.replace(/^Re:\s*/i, '')}`
-      : '');
-    setComposeBody(body);
-    setComposeAttachments([]);
-    setComposeProviderAttachments([]);
-    setComposeScheduledAt('');
     setShowCc(false);
     setShowBcc(false);
     setComposeOpen(true);
@@ -970,7 +957,7 @@ export const EmailInboxPage: React.FC = () => {
       if (data?.activityLogWarning) setError(data.activityLogWarning);
       if (action === 'draft') {
         setArtifacts((current) => [data as AiArtifact, ...current.filter((artifact) => artifact.id !== data.id)]);
-        openReplyCompose(data.content || '');
+        prepareInlineReply(data.content || '');
       } else {
         const { data: saved, error: saveError } = await supabase
           .from('email_ai_artifacts')
@@ -985,6 +972,43 @@ export const EmailInboxPage: React.FC = () => {
     } finally {
       setAiBusy(false);
     }
+  };
+
+  const sendInlineReply = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedMessage || !activeMailboxId || inlineReplySending) return;
+    const bodyHtml = sanitizeEmailHtml((inlineReplyEditorRef.current?.innerHTML || inlineReplyBody).trim());
+    const bodyText = (inlineReplyEditorRef.current?.innerText || '').trim();
+    if (!bodyText) {
+      setError('Write a reply before sending.');
+      return;
+    }
+    setInlineReplySending(true);
+    setError('');
+    try {
+      await invokeMailboxAction('reply', {
+        sendAction: 'reply',
+        to: selectedMessage.sender_email,
+        subject: `Re: ${selectedMessage.subject.replace(/^Re:\s*/i, '')}`,
+        body: bodyText,
+        bodyHtml,
+        replyToMessageId: selectedMessage.id,
+      });
+      setInlineReplyBody('');
+      if (inlineReplyEditorRef.current) inlineReplyEditorRef.current.innerHTML = '';
+      setNotice('Reply sent.');
+      await refresh(true);
+    } catch (replyError) {
+      setError(replyError instanceof Error ? replyError.message : 'The reply could not be sent.');
+    } finally {
+      setInlineReplySending(false);
+    }
+  };
+
+  const prepareInlineReply = (body = '') => {
+    setInlineReplyBody(body);
+    if (inlineReplyEditorRef.current) inlineReplyEditorRef.current.innerHTML = body;
+    window.setTimeout(() => inlineReplyEditorRef.current?.focus(), 0);
   };
 
   const submitMessage = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -1159,6 +1183,18 @@ export const EmailInboxPage: React.FC = () => {
           )}
         </div>
         <div className="mt-4 border-t border-slate-100 pt-4">
+          <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Quick views</p>
+          {[
+            { label: 'Recent', icon: Clock3, filter: 'all' as MessageFilter },
+            { label: 'Unread', icon: MailOpen, filter: 'unread' as MessageFilter },
+            { label: 'Today', icon: Inbox, filter: 'today' as MessageFilter },
+          ].map(({ label, icon: Icon, filter }) => (
+            <button key={label} type="button" onClick={() => { setShowScheduledSends(false); setActiveFolder('inbox'); setMessageFilter(filter); setSelectedMessage(null); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-semibold text-slate-600 transition hover:bg-slate-100">
+              <Icon className="h-4 w-4 text-slate-400" /> {label}
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 border-t border-slate-100 pt-4">
           <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Workspace tools</p>
           <button type="button" onClick={() => setRulesOpen(true)} disabled={!activeMailbox || activeMailbox.connected_by !== currentUser.id} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
             <Settings2 className="h-4 w-4 text-slate-400" /> Inbox rules <ChevronRight className="ml-auto h-3.5 w-3.5 text-slate-300" />
@@ -1177,7 +1213,7 @@ export const EmailInboxPage: React.FC = () => {
         </div>
       </aside>
 
-      <section className={`flex min-w-0 flex-1 flex-col print:hidden ${selectedMessage ? 'hidden' : ''}`}>
+      <section className={`flex min-w-0 flex-1 flex-col border-r border-slate-200/80 print:hidden ${selectedMessage ? 'hidden lg:flex lg:w-[43%]' : 'lg:w-[48%]'}`}>
         <div className="flex items-center gap-3 border-b border-slate-200/80 bg-white/85 px-5 py-3 backdrop-blur">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-600">{showScheduledSends ? 'Planning' : activeFolder === 'drafts' ? 'Unfinished work' : 'Mailbox'}</p>
@@ -1210,6 +1246,7 @@ export const EmailInboxPage: React.FC = () => {
               ['unread', 'Unread', unreadCount],
               ['starred', 'Starred', messages.filter((message) => message.is_starred).length],
               ['attachments', 'Attachments', messages.filter((message) => message.has_attachments).length],
+              ['today', 'Today', messages.filter((message) => new Date(message.received_at).toDateString() === new Date().toDateString()).length],
             ] as const).map(([filter, label, count]) => (
               <button
                 key={filter}
@@ -1224,7 +1261,6 @@ export const EmailInboxPage: React.FC = () => {
                 {label}<span className="ml-1.5 opacity-70">{count}</span>
               </button>
             ))}
-            <span className="ml-auto hidden text-[11px] text-slate-400 lg:inline">{groupedMessages.length} conversations · newest first</span>
             {selectedMessageIds.size > 0 && (
               <div className="ml-auto flex flex-wrap items-center gap-1 border-l border-slate-200 pl-2">
                 <span className="mr-1 text-[11px] font-medium text-slate-500">{selectedMessageIds.size} selected</span>
@@ -1320,7 +1356,6 @@ export const EmailInboxPage: React.FC = () => {
                 >
                   <Check className="h-3 w-3" />
                 </button>
-                <span className="text-[11px] font-medium text-slate-400">Select conversations for bulk actions</span>
                 <span className="ml-auto hidden text-[11px] text-slate-400 sm:inline">{activeMailbox.email}</span>
               </div>
               {groupedMessages.map(({ latest: message, messages: thread }) => (
@@ -1358,8 +1393,48 @@ export const EmailInboxPage: React.FC = () => {
         </div>
       </section>
 
+      {!selectedMessage && (
+        <section className="hidden min-w-0 flex-1 flex-col bg-white/45 lg:flex print:hidden">
+          <div className="flex items-center border-b border-slate-200/80 bg-white/75 px-6 py-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-600">Email overview</p>
+              <h2 className="mt-1 text-lg font-bold tracking-tight text-slate-900">What would you like to do?</h2>
+            </div>
+          </div>
+          <div className="flex flex-1 items-center justify-center overflow-y-auto p-8">
+            <div className="w-full max-w-xl">
+              <div className="mb-6 flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-100 text-brand-700"><Mail className="h-7 w-7" /></div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Your inbox at a glance</h3>
+                  <p className="mt-1 text-sm text-slate-500">Choose a shortcut or select a conversation to get started.</p>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  { label: 'Recent emails', detail: 'See your latest conversations', icon: Clock3, action: () => { setActiveFolder('inbox'); setMessageFilter('all'); } },
+                  { label: 'Unread emails', detail: 'Catch up on what needs attention', icon: MailOpen, action: () => { setActiveFolder('inbox'); setMessageFilter('unread'); } },
+                  { label: "Today's emails", detail: 'Review messages received today', icon: Inbox, action: () => { setActiveFolder('inbox'); setMessageFilter('today'); } },
+                  { label: 'Starred emails', detail: 'Open your important messages', icon: Star, action: () => { setActiveFolder('inbox'); setMessageFilter('starred'); } },
+                  { label: 'Attachments', detail: 'Find emails with files', icon: Paperclip, action: () => { setActiveFolder('inbox'); setMessageFilter('attachments'); } },
+                  { label: 'Start a new email', detail: 'Compose a message', icon: Plus, action: openNewCompose },
+                ].map(({ label, detail, icon: Icon, action }) => (
+                  <button key={label} type="button" onClick={action} className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-500 transition group-hover:bg-brand-50 group-hover:text-brand-600"><Icon className="h-4 w-4" /></span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-bold text-slate-800">{label}</span>
+                      <span className="mt-0.5 block text-xs text-slate-500">{detail}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {selectedMessage && (
-        <section id="email-print-content" className="flex min-w-0 flex-1 flex-col border-l border-slate-200 bg-white print:border-0">
+        <section id="email-print-content" className="flex min-w-0 flex-1 flex-col bg-white print:border-0 lg:w-[57%]">
           <style>{`@media print { body * { visibility: hidden !important; } #email-print-content, #email-print-content * { visibility: visible !important; } #email-print-content { position: absolute; inset: 0; width: 100%; height: auto; overflow: visible !important; } #email-print-content iframe { height: auto !important; min-height: 500px; } }`}</style>
           <div className="flex items-center gap-2 border-b border-slate-200/80 bg-white/90 px-5 py-3 print:hidden">
             <button type="button" onClick={() => setSelectedMessage(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 xl:hidden" aria-label="Back to list"><ArrowLeft className="h-4 w-4" /></button>
@@ -1425,7 +1500,7 @@ export const EmailInboxPage: React.FC = () => {
                 <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-violet-800"><Sparkles className="h-3.5 w-3.5" /> Saved AI {artifact.artifact_type === 'summary' ? 'summary' : 'draft'}</p>
                 <p className="whitespace-pre-wrap text-xs leading-5 text-violet-900">{artifact.content}</p>
                 {artifact.artifact_type === 'draft' && (
-                  <button type="button" onClick={() => openReplyCompose(artifact.content)} className="mt-3 text-xs font-semibold text-violet-800 underline">
+                  <button type="button" onClick={() => prepareInlineReply(artifact.content)} className="mt-3 text-xs font-semibold text-violet-800 underline">
                     Use this draft
                   </button>
                 )}
@@ -1433,15 +1508,33 @@ export const EmailInboxPage: React.FC = () => {
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 p-3 print:hidden">
+            <form onSubmit={(event) => void sendInlineReply(event)} className="w-full rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div
+                ref={inlineReplyEditorRef}
+                contentEditable
+                role="textbox"
+                aria-label="Reply message"
+                aria-multiline="true"
+                onInput={(event) => setInlineReplyBody(event.currentTarget.innerHTML)}
+                data-placeholder="Write a reply…"
+                className="min-h-16 w-full rounded-t-2xl px-4 py-3 text-sm leading-6 text-slate-800 outline-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)] focus:ring-2 focus:ring-brand-500/10"
+              />
+              <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/70 px-3 py-2">
+                <p className="text-[11px] text-slate-400">Replying to {selectedMessage.sender_name || selectedMessage.sender_email}</p>
+                <button type="submit" disabled={!inlineReplyBody.replace(/<[^>]*>/g, '').trim() || inlineReplySending} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-50">
+                  {inlineReplySending ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  Reply
+                </button>
+              </div>
+            </form>
             <div className="w-full rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Quick reply</p>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Quick replies</p>
               <div className="flex flex-wrap gap-2">
                 {['Thanks, I’ll take a look.', 'Sounds good — thank you.', 'Can we discuss this soon?'].map((quickReply) => (
-                  <button key={quickReply} type="button" onClick={() => openReplyCompose(quickReply)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700">{quickReply}</button>
+                  <button key={quickReply} type="button" onClick={() => prepareInlineReply(quickReply)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700">{quickReply}</button>
                 ))}
               </div>
             </div>
-            <button type="button" onClick={() => openReplyCompose()} className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700"><ArrowUpRight className="h-3.5 w-3.5" /> Reply</button>
             <button type="button" disabled={forwardBusy} onClick={() => void openForwardCompose()} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Forward className="h-3.5 w-3.5" /> Forward</button>
             {forwardableChannels.length > 0 && (
               <button type="button" disabled={forwardBusy} onClick={() => setChannelForwardOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Forward className="h-3.5 w-3.5" /> Share to channel</button>
