@@ -8,7 +8,7 @@ import { ChatFeed } from './components/chat/ChatFeed';
 import { ThreadPanel } from './components/chat/ThreadPanel';
 import { RightDrawer } from './components/chat/RightDrawer';
 import { CalendarView } from './components/calendar/CalendarView';
-import { AdminPage } from './components/admin/AdminPage';
+import { OrganizationAdminPage } from './components/admin/OrganizationAdminPage';
 
 // Auth & Modals
 import { AuthScreen } from './components/auth/AuthScreen';
@@ -34,7 +34,7 @@ const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
 }));
 
-const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
+const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
 
 const WorkspaceShell: React.FC = () => {
   const {
@@ -110,7 +110,7 @@ const WorkspaceShell: React.FC = () => {
 
           {activeTab === 'calendar' && <CalendarView />}
           {activeTab === 'inbox' && <EmailInboxPage />}
-          {activeTab === 'admin' && <AdminPage />}
+          {activeTab === 'admin' && <OrganizationAdminPage />}
           {activeTab === 'drive' && <DrivePage />}
         </div>
       </div>
