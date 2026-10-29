@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Clock3,
   Forward,
-  Filter,
   FileText,
   Italic,
   Inbox,
@@ -213,6 +212,7 @@ export const EmailInboxPage: React.FC = () => {
   } = useWorkspace();
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
   const [activeMailboxId, setActiveMailboxId] = useState('');
+  const [mailboxMenuOpen, setMailboxMenuOpen] = useState(false);
   const [activeFolder, setActiveFolder] = useState('inbox');
   const [messageFilter, setMessageFilter] = useState<MessageFilter>('all');
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(() => new Set());
@@ -1107,7 +1107,7 @@ export const EmailInboxPage: React.FC = () => {
 
   return (
     <main className="flex min-w-0 flex-1 overflow-hidden bg-[linear-gradient(135deg,#f8fbff_0%,#eef6ff_52%,#f8fafc_100%)] print:bg-white">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200/80 bg-white/90 p-2.5 shadow-[4px_0_24px_rgba(30,64,175,0.04)] print:hidden">
+      <aside className="flex w-52 shrink-0 flex-col border-r border-slate-200/80 bg-white/90 p-2 shadow-[4px_0_24px_rgba(30,64,175,0.04)] print:hidden">
         <div className="mb-3 flex items-center justify-between rounded-xl bg-gradient-to-br from-brand-600 to-sky-600 p-2.5 text-white shadow-lg shadow-brand-500/15">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/70">Workspace mail</p>
@@ -1123,20 +1123,23 @@ export const EmailInboxPage: React.FC = () => {
         </div>
         <div className="relative mb-4">
           <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <select
-            aria-label="Select mailbox"
-            value={activeMailboxId}
-            onChange={(event) => { setActiveMailboxId(event.target.value); setSelectedMessage(null); }}
-            className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-xs font-semibold text-slate-700 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10"
-          >
-            <option value="">Choose a mailbox</option>
-            {mailboxes.map((mailbox) => (
-              <option key={mailbox.id} value={mailbox.id}>
-                {mailbox.mailbox_type === 'shared' ? 'Shared · ' : ''}{mailbox.display_name || mailbox.email}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <button type="button" aria-label="Select mailbox" aria-expanded={mailboxMenuOpen} onClick={() => setMailboxMenuOpen((open) => !open)} className="flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-2 text-left text-xs font-semibold text-slate-700 outline-none transition hover:border-brand-300 hover:bg-white focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10">
+            <span className="min-w-0 flex-1 truncate">{activeMailbox?.display_name || activeMailbox?.email || 'Choose a mailbox'}</span>
+            <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition ${mailboxMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {mailboxMenuOpen && (
+            <div className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+              {mailboxes.length === 0 ? (
+                <p className="px-3 py-2 text-xs text-slate-400">No mailboxes connected</p>
+              ) : mailboxes.map((mailbox) => (
+                <button key={mailbox.id} type="button" onClick={() => { setActiveMailboxId(mailbox.id); setSelectedMessage(null); setMailboxMenuOpen(false); }} className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition ${activeMailboxId === mailbox.id ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50'}`}>
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${mailbox.mailbox_type === 'shared' ? 'bg-violet-500' : 'bg-emerald-500'}`} />
+                  <span className="min-w-0 flex-1 truncate">{mailbox.mailbox_type === 'shared' ? 'Shared · ' : ''}{mailbox.display_name || mailbox.email}</span>
+                  {activeMailboxId === mailbox.id && <Check className="h-3.5 w-3.5 shrink-0" />}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Folders</div>
         <div className="space-y-1">
@@ -1212,7 +1215,7 @@ export const EmailInboxPage: React.FC = () => {
         </div>
       </aside>
 
-      <section className={`flex min-w-0 flex-1 flex-col border-r border-slate-200/80 print:hidden ${selectedMessage ? 'hidden lg:flex lg:w-[39%]' : 'lg:w-[40%]'}`}>
+      <section className={`flex min-w-0 flex-col border-r border-slate-200/80 print:hidden ${selectedMessage ? 'hidden lg:flex lg:w-[34%]' : 'lg:w-[35%]'}`}>
         <div className="flex items-center gap-3 border-b border-slate-200/80 bg-white/85 px-5 py-3 backdrop-blur">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-600">{showScheduledSends ? 'Planning' : activeFolder === 'drafts' ? 'Unfinished work' : 'Mailbox'}</p>
@@ -1237,30 +1240,8 @@ export const EmailInboxPage: React.FC = () => {
         </div>
         {error && <div role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</div>}
         {notice && <div role="status" className="border-b border-emerald-100 bg-emerald-50 px-4 py-2 text-xs text-emerald-700">{notice}<button type="button" onClick={() => setNotice('')} className="ml-2 underline">Dismiss</button></div>}
-        {activeMailbox && !showScheduledSends && (
-          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 bg-white/75 px-5 py-3">
-            <Filter className="mr-1 h-4 w-4 text-slate-400" />
-            {([
-              ['all', 'All mail', messages.length],
-              ['unread', 'Unread', unreadCount],
-              ['starred', 'Starred', messages.filter((message) => message.is_starred).length],
-              ['attachments', 'Attachments', messages.filter((message) => message.has_attachments).length],
-              ['today', 'Today', messages.filter((message) => new Date(message.received_at).toDateString() === new Date().toDateString()).length],
-            ] as const).map(([filter, label, count]) => (
-              <button
-                key={filter}
-                type="button"
-                onClick={() => setMessageFilter(filter)}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                  messageFilter === filter
-                    ? 'bg-brand-100 text-brand-700'
-                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-                }`}
-              >
-                {label}<span className="ml-1.5 opacity-70">{count}</span>
-              </button>
-            ))}
-            {selectedMessageIds.size > 0 && (
+        {activeMailbox && !showScheduledSends && selectedMessageIds.size > 0 && (
+            <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 bg-white/75 px-5 py-2.5">
               <div className="ml-auto flex flex-wrap items-center gap-1 border-l border-slate-200 pl-2">
                 <span className="mr-1 text-[11px] font-medium text-slate-500">{selectedMessageIds.size} selected</span>
                 <button type="button" onClick={() => void runBulkAction('read')} disabled={syncing} title="Mark selected as read" aria-label="Mark selected as read" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"><MailOpen className="h-4 w-4" /></button>
@@ -1269,8 +1250,7 @@ export const EmailInboxPage: React.FC = () => {
                 <button type="button" onClick={() => void runBulkAction('archive')} disabled={syncing} title="Archive selected" aria-label="Archive selected" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"><Archive className="h-4 w-4" /></button>
                 <button type="button" onClick={() => setSelectedMessageIds(new Set())} title="Clear selection" aria-label="Clear selection" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>
               </div>
-            )}
-          </div>
+            </div>
         )}
         <div className="flex-1 overflow-y-auto">
           {showScheduledSends ? (
@@ -1393,7 +1373,7 @@ export const EmailInboxPage: React.FC = () => {
       </section>
 
       {!selectedMessage && (
-        <section className="hidden min-w-0 flex-1 flex-col bg-white/45 lg:flex print:hidden">
+        <section className="hidden min-w-0 flex-1 flex-col bg-white/45 lg:flex print:hidden lg:w-[65%]">
           <div className="flex items-center border-b border-slate-200/80 bg-white/75 px-6 py-4">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-600">Email overview</p>
@@ -1430,7 +1410,7 @@ export const EmailInboxPage: React.FC = () => {
       )}
 
       {selectedMessage && (
-        <section id="email-print-content" className="flex min-w-0 flex-1 flex-col bg-white print:border-0 lg:w-[57%]">
+        <section id="email-print-content" className="flex min-w-0 flex-1 flex-col bg-white print:border-0 lg:w-[66%]">
           <style>{`@media print { body * { visibility: hidden !important; } #email-print-content, #email-print-content * { visibility: visible !important; } #email-print-content { position: absolute; inset: 0; width: 100%; height: auto; overflow: visible !important; } #email-print-content iframe { height: auto !important; min-height: 500px; } }`}</style>
           <div className="flex items-center gap-2 border-b border-slate-200/80 bg-white/90 px-5 py-3 print:hidden">
             <button type="button" onClick={() => setSelectedMessage(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 xl:hidden" aria-label="Back to list"><ArrowLeft className="h-4 w-4" /></button>
