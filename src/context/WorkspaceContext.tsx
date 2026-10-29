@@ -182,7 +182,7 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
   if (segment === 'email' || segment === 'inbox') return 'inbox';
   if (segment === 'admin') return 'admin';
   if (segment === 'drive') return 'drive';
-  if (segment === 'docs' || segment === 'slides' || segment === 'sheets' || segment === 'forms' || segment === 'files') return 'drive';
+  if (segment === 'docs' || segment === 'slides' || segment === 'sheets' || segment === 'forms') return 'drive';
   return null;
 };
 

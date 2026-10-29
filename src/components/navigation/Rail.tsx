@@ -13,7 +13,6 @@ import {
   FileText,
   Presentation,
   Table2,
-  Files,
   ClipboardList,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -43,14 +42,13 @@ export const Rail: React.FC = () => {
   const totalUnreadChannels = channels.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
   const isDrive = activeTab === 'drive';
 
-  const openDriveView = (view: 'all' | 'documents' | 'presentations' | 'spreadsheets' | 'forms' | 'files') => {
+  const openDriveView = (view: 'all' | 'documents' | 'presentations' | 'spreadsheets' | 'forms') => {
     const pathForView = {
       all: '/drive',
       documents: '/docs',
       presentations: '/slides',
       spreadsheets: '/sheets',
       forms: '/forms',
-      files: '/files',
     }[view];
     setActiveTab('drive');
     if (window.location.pathname !== pathForView) {
@@ -96,7 +94,6 @@ export const Rail: React.FC = () => {
                 { label: 'Slides', icon: Presentation, view: 'presentations' as const },
                 { label: 'Sheets', icon: Table2, view: 'spreadsheets' as const },
                 { label: 'Forms', icon: ClipboardList, view: 'forms' as const },
-                { label: 'Files', icon: Files, view: 'files' as const },
               ].map((item) => {
                 const Icon = item.icon;
                 return (

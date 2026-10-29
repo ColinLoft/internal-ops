@@ -39,7 +39,7 @@ type DriveItem = {
   updated_at: string;
 };
 
-type DriveWorkspaceKind = 'documents' | 'presentations' | 'spreadsheets' | 'forms' | 'files';
+type DriveWorkspaceKind = 'documents' | 'presentations' | 'spreadsheets' | 'forms';
 
 const workspaceKindFromPath = (pathname: string): DriveWorkspaceKind | null => {
   const segment = pathname.replace(/^\/+/, '').split('/')[0];
@@ -47,7 +47,6 @@ const workspaceKindFromPath = (pathname: string): DriveWorkspaceKind | null => {
   if (segment === 'slides') return 'presentations';
   if (segment === 'sheets') return 'spreadsheets';
   if (segment === 'forms') return 'forms';
-  if (segment === 'files') return 'files';
   return null;
 };
 
@@ -83,6 +82,7 @@ export const DrivePage: React.FC = () => {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
   const [driveView, setDriveView] = useState<'all' | DriveWorkspaceKind>(() => workspaceKindFromPath(window.location.pathname) || 'all');
+  const [editorItem, setEditorItem] = useState<DriveItem | null>(null);
   const [editorItemId, setEditorItemId] = useState<string | null>(() => {
     const match = window.location.pathname.match(/^\/(docs|slides|sheets|forms)\/([^/]+)/);
     return match?.[2] || null;
@@ -104,7 +104,7 @@ export const DrivePage: React.FC = () => {
     void loadItems();
     const handleDriveView = (event: Event) => {
       const view = (event as CustomEvent<string>).detail;
-      if (view === 'documents' || view === 'presentations' || view === 'spreadsheets' || view === 'forms' || view === 'files' || view === 'all') {
+      if (view === 'documents' || view === 'presentations' || view === 'spreadsheets' || view === 'forms' || view === 'all') {
         setDriveView(view);
         setSection('drive');
         setCurrentFolderId(null);
@@ -118,6 +118,7 @@ export const DrivePage: React.FC = () => {
       const workspace = workspaceKindFromPath(window.location.pathname);
       if (workspace) setDriveView(workspace);
       else if (window.location.pathname === '/drive') setDriveView('all');
+      if (!match) setEditorItem(null);
     };
     window.addEventListener('flown-drive-view', handleDriveView);
     window.addEventListener('popstate', handleRoute);
@@ -137,20 +138,26 @@ export const DrivePage: React.FC = () => {
   const openEditor = (item: DriveItem) => {
     const segment = item.item_type === 'document' ? 'docs' : item.item_type === 'presentation' ? 'slides' : item.item_type === 'spreadsheet' ? 'sheets' : 'forms';
     window.history.pushState({}, '', `/${segment}/${item.id}`);
+    setEditorItem({ ...item, content: item.content && typeof item.content === 'object' ? item.content : {} });
     setEditorItemId(item.id);
   };
 
   const closeEditor = () => {
     window.history.pushState({}, '', '/drive');
+    setEditorItem(null);
     setEditorItemId(null);
   };
 
-  const editorItem = items.find((item) => item.id === editorItemId);
-  if (editorItem && ['document', 'presentation', 'spreadsheet', 'form'].includes(editorItem.item_type)) {
-    return <DriveEditorWorkspace item={editorItem} onClose={closeEditor} onSave={async (content) => {
-      const { error: saveError } = await supabase.from('drive_items').update({ content, updated_at: new Date().toISOString() }).eq('id', editorItem.id);
+  const routedEditorItem = items.find((item) => item.id === editorItemId);
+  const activeEditorItem = editorItem?.id === editorItemId ? editorItem : routedEditorItem;
+  if (activeEditorItem && ['document', 'presentation', 'spreadsheet', 'form'].includes(activeEditorItem.item_type)) {
+    return <DriveEditorWorkspace item={activeEditorItem} onClose={closeEditor} onSave={async (content) => {
+      const { error: saveError } = await supabase.from('drive_items').update({ content, updated_at: new Date().toISOString() }).eq('id', activeEditorItem.id);
       if (saveError) throw new Error(`Changes could not be saved: ${saveError.message}`);
-      setItems((current) => current.map((entry) => entry.id === editorItem.id ? { ...entry, content, updated_at: new Date().toISOString() } : entry));
+      const updatedAt = new Date().toISOString();
+      const updated = { ...activeEditorItem, content, updated_at: updatedAt };
+      setEditorItem(updated);
+      setItems((current) => current.map((entry) => entry.id === updated.id ? updated : entry));
     }} />;
   }
 
@@ -161,7 +168,7 @@ export const DrivePage: React.FC = () => {
         ? Boolean(item.deleted_at)
         : !item.deleted_at
       && (section === 'drive' ? item.parent_id === currentFolderId : section === 'shared' ? item.owner_id !== currentUser.id : section === 'starred' ? item.is_starred : true)
-      && (driveView === 'all' || (driveView === 'documents' && item.item_type === 'document') || (driveView === 'presentations' && item.item_type === 'presentation') || (driveView === 'spreadsheets' && item.item_type === 'spreadsheet') || (driveView === 'forms' && item.item_type === 'form') || (driveView === 'files' && item.item_type === 'file'))
+      && (driveView === 'all' || (driveView === 'documents' && item.item_type === 'document') || (driveView === 'presentations' && item.item_type === 'presentation') || (driveView === 'spreadsheets' && item.item_type === 'spreadsheet') || (driveView === 'forms' && item.item_type === 'form'))
       && (!query || item.name.toLowerCase().includes(query))
     );
   }, [currentFolderId, currentUser.id, items, search, section, driveView]);
@@ -192,7 +199,7 @@ export const DrivePage: React.FC = () => {
     }
     if (data) {
       setItems((current) => [data as DriveItem, ...current]);
-      if (itemType === 'document' || itemType === 'presentation' || itemType === 'form') {
+      if (itemType === 'document' || itemType === 'presentation' || itemType === 'spreadsheet' || itemType === 'form') {
         openEditor(data as DriveItem);
       } else {
         setSelectedItem(data as DriveItem);
@@ -345,7 +352,7 @@ export const DrivePage: React.FC = () => {
             {currentFolderId && <button type="button" onClick={() => setCurrentFolderId(currentFolder?.parent_id || null)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"><ArrowLeft className="h-4 w-4" /></button>}
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-600">Flown Drive</p>
-              <h1 className="truncate text-lg font-bold text-slate-900">{section === 'shared' ? 'Shared with me' : section === 'starred' ? 'Starred' : section === 'trash' ? 'Trash' : driveView === 'documents' ? 'Docs' : driveView === 'presentations' ? 'Slides' : driveView === 'spreadsheets' ? 'Sheets' : driveView === 'forms' ? 'Forms' : driveView === 'files' ? 'Files' : currentFolder?.name || 'My Drive'}</h1>
+              <h1 className="truncate text-lg font-bold text-slate-900">{section === 'shared' ? 'Shared with me' : section === 'starred' ? 'Starred' : section === 'trash' ? 'Trash' : driveView === 'documents' ? 'Docs' : driveView === 'presentations' ? 'Slides' : driveView === 'spreadsheets' ? 'Sheets' : driveView === 'forms' ? 'Forms' : currentFolder?.name || 'My Drive'}</h1>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -391,7 +398,7 @@ export const DrivePage: React.FC = () => {
 };
 
 const DriveCreationWorkspace: React.FC<{
-  kind: 'documents' | 'presentations' | 'spreadsheets' | 'forms' | 'files';
+  kind: 'documents' | 'presentations' | 'spreadsheets' | 'forms';
   items: DriveItem[];
   onCreate: (type: DriveItem['item_type'], name: string) => void;
   onOpen: (item: DriveItem) => void;
@@ -430,14 +437,6 @@ const DriveCreationWorkspace: React.FC<{
       icon: FileText,
       color: 'from-fuchsia-500 to-purple-700',
     },
-    files: {
-      label: 'Files',
-      description: 'Browse uploaded files from your Drive.',
-      type: 'file' as const,
-      templates: [],
-      icon: File,
-      color: 'from-slate-500 to-slate-700',
-    },
   }[kind];
   const Icon = config.icon;
   const recent = items
@@ -452,8 +451,7 @@ const DriveCreationWorkspace: React.FC<{
         <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${config.color} text-white shadow-lg`}><Icon className="h-7 w-7" /></div>
         <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-600">Flown workspace</p><h1 className="mt-1 text-3xl font-bold text-slate-900">{config.label}</h1><p className="mt-2 max-w-xl text-sm text-slate-500">{config.description}</p></div>
       </div>
-      {kind !== 'files' && <section className="mt-10"><div className="mb-4 flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">Start something new</h2><span className="text-[11px] text-slate-400">Choose a template</span></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{config.templates.map((template, index) => <button key={template} type="button" onClick={() => onCreate(config.type, index === 0 ? `Untitled ${config.label.slice(0, -1).toLowerCase()}` : template)} className="group min-h-32 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg"><span className={`flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${config.color} text-white`}><Plus className="h-4 w-4" /></span><span className="mt-5 block text-xs font-bold text-slate-800">{template}</span><span className="mt-1 block text-[10px] text-slate-400">Open a {config.label.slice(0, -1).toLowerCase()} workspace</span></button>)}</div></section>}
-      <section className="mt-10"><div className="mb-4 flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">{kind === 'files' ? 'Uploaded files' : `Recent ${config.label.toLowerCase()}`}</h2><span className="text-[11px] text-slate-400">{recent.length} item{recent.length === 1 ? '' : 's'}</span></div>{recent.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-14 text-center"><Icon className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">Nothing here yet</p><p className="mt-1 text-xs text-slate-500">{kind === 'files' ? 'Upload files from the Drive workspace.' : `Create your first ${config.label.toLowerCase().replace(/s$/, '')} to get started.`}</p></div> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{recent.map((item) => <button key={item.id} type="button" onClick={() => item.item_type === 'file' ? onOpen(item) : onOpen(item)} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-brand-300 hover:shadow-md"><span className={`flex h-9 w-9 items-center justify-center rounded-xl ${itemColor(item.item_type)}`}><Icon className="h-4 w-4" /></span><span className="mt-4 block truncate text-xs font-bold text-slate-800">{item.name}</span><span className="mt-1 block text-[10px] text-slate-400">Updated {new Date(item.updated_at).toLocaleDateString()}</span></button>)}</div>}</section>
+      <section className="mt-10"><div className="mb-4 flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">{`Recent ${config.label.toLowerCase()}`}</h2><span className="text-[11px] text-slate-400">{recent.length} item{recent.length === 1 ? '' : 's'}</span></div>{recent.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-14 text-center"><Icon className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">Nothing here yet</p><p className="mt-1 text-xs text-slate-500">{`Create your first ${config.label.toLowerCase().replace(/s$/, '')} to get started.`}</p></div> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{recent.map((item) => <button key={item.id} type="button" onClick={() => onOpen(item)} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-brand-300 hover:shadow-md"><span className={`flex h-9 w-9 items-center justify-center rounded-xl ${itemColor(item.item_type)}`}><Icon className="h-4 w-4" /></span><span className="mt-4 block truncate text-xs font-bold text-slate-800">{item.name}</span><span className="mt-1 block text-[10px] text-slate-400">Updated {new Date(item.updated_at).toLocaleDateString()}</span></button>)}</div>}</section>
     </div>
   </main>;
 };
