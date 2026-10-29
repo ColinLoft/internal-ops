@@ -78,7 +78,7 @@ export const TopBar: React.FC = () => {
     },
     {
       id: 'operations',
-      name: 'Organization & admin',
+      name: 'Systems',
       icon: Settings2,
       accent: 'from-emerald-500 to-teal-600',
     },
@@ -176,7 +176,7 @@ export const TopBar: React.FC = () => {
         <div className="flex items-center text-sm font-semibold text-slate-800 tracking-tight">
           <span className="text-brand-600 font-bold">Flown</span>
           <span className="mx-2 text-slate-400">/</span>
-          <span className="text-slate-600 font-medium">{activeTab === 'customers' ? 'Customers' : activeTab === 'home' ? 'Home' : activeTab === 'admin' ? 'Organization & admin' : activeTab === 'inbox' ? 'Email inbox' : activeTab === 'drive' ? 'Flown Drive' : 'Home'}</span>
+          <span className="text-slate-600 font-medium">{activeTab === 'customers' ? 'Customers' : activeTab === 'home' ? 'Home' : activeTab === 'admin' ? 'Systems' : activeTab === 'inbox' ? 'Email inbox' : activeTab === 'drive' ? 'Flown Drive' : 'Home'}</span>
           <span className="mx-2 text-slate-400">/</span>
           <span className="text-slate-900 bg-brand-50 px-2 py-0.5 rounded-md text-xs font-semibold text-brand-700 border border-brand-100/80">
             {activeTab === 'customers' ? 'Overview' : activeTab === 'home' ? 'Overview' : activeTab === 'messages' ? currentConv?.name : activeTab === 'channels' ? `#${currentChan?.name}` : activeTab === 'calendar' ? 'Schedule' : activeTab === 'inbox' ? 'Connected mailboxes' : activeTab === 'drive' ? 'My Drive' : 'Staff directory'}
