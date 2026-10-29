@@ -30,7 +30,7 @@ type DriveItem = {
   parent_id: string | null;
   owner_id: string;
   name: string;
-  item_type: 'folder' | 'document' | 'presentation' | 'spreadsheet' | 'file';
+  item_type: 'folder' | 'document' | 'presentation' | 'spreadsheet' | 'form' | 'file';
   mime_type: string | null;
   content: Record<string, unknown>;
   storage_path?: string | null;
@@ -44,6 +44,7 @@ const itemIcon = (type: DriveItem['item_type']) => {
   if (type === 'document') return FileText;
   if (type === 'presentation') return Presentation;
   if (type === 'spreadsheet') return Sheet;
+  if (type === 'form') return FileText;
   return File;
 };
 
@@ -52,6 +53,7 @@ const itemColor = (type: DriveItem['item_type']) => ({
   document: 'text-sky-600 bg-sky-50',
   presentation: 'text-orange-600 bg-orange-50',
   spreadsheet: 'text-emerald-600 bg-emerald-50',
+  form: 'text-fuchsia-600 bg-fuchsia-50',
   file: 'text-slate-500 bg-slate-100',
 }[type]);
 
@@ -68,7 +70,11 @@ export const DrivePage: React.FC = () => {
   const [section, setSection] = useState<'drive' | 'shared' | 'starred' | 'trash'>('drive');
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
-  const [driveView, setDriveView] = useState<'all' | 'documents' | 'presentations' | 'spreadsheets' | 'files'>('all');
+  const [driveView, setDriveView] = useState<'all' | 'documents' | 'presentations' | 'spreadsheets' | 'forms' | 'files'>('all');
+  const [editorItemId, setEditorItemId] = useState<string | null>(() => {
+    const match = window.location.pathname.match(/^\/(docs|slides|forms)\/([^/]+)/);
+    return match?.[2] || null;
+  });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const loadItems = async () => {
@@ -86,14 +92,19 @@ export const DrivePage: React.FC = () => {
     void loadItems();
     const handleDriveView = (event: Event) => {
       const view = (event as CustomEvent<string>).detail;
-      if (view === 'documents' || view === 'presentations' || view === 'spreadsheets' || view === 'files' || view === 'all') {
+      if (view === 'documents' || view === 'presentations' || view === 'spreadsheets' || view === 'forms' || view === 'files' || view === 'all') {
         setDriveView(view);
         setSection('drive');
         setCurrentFolderId(null);
         setSelectedItem(null);
       }
     };
+    const handleRoute = () => {
+      const match = window.location.pathname.match(/^\/(docs|slides|forms)\/([^/]+)/);
+      setEditorItemId(match?.[2] || null);
+    };
     window.addEventListener('flown-drive-view', handleDriveView);
+    window.addEventListener('popstate', handleRoute);
     const channel = supabase
       .channel('drive-items-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'drive_items' }, () => {
@@ -102,9 +113,30 @@ export const DrivePage: React.FC = () => {
       .subscribe();
     return () => {
       window.removeEventListener('flown-drive-view', handleDriveView);
+      window.removeEventListener('popstate', handleRoute);
       void supabase.removeChannel(channel);
     };
   }, []);
+
+  const openEditor = (item: DriveItem) => {
+    const segment = item.item_type === 'document' ? 'docs' : item.item_type === 'presentation' ? 'slides' : 'forms';
+    window.history.pushState({}, '', `/${segment}/${item.id}`);
+    setEditorItemId(item.id);
+  };
+
+  const closeEditor = () => {
+    window.history.pushState({}, '', '/drive');
+    setEditorItemId(null);
+  };
+
+  const editorItem = items.find((item) => item.id === editorItemId);
+  if (editorItem && ['document', 'presentation', 'form'].includes(editorItem.item_type)) {
+    return <DriveEditorWorkspace item={editorItem} onClose={closeEditor} onSave={async (content) => {
+      const { error: saveError } = await supabase.from('drive_items').update({ content, updated_at: new Date().toISOString() }).eq('id', editorItem.id);
+      if (saveError) throw new Error(`Changes could not be saved: ${saveError.message}`);
+      setItems((current) => current.map((entry) => entry.id === editorItem.id ? { ...entry, content, updated_at: new Date().toISOString() } : entry));
+    }} />;
+  }
 
   const visibleItems = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -113,7 +145,7 @@ export const DrivePage: React.FC = () => {
         ? Boolean(item.deleted_at)
         : !item.deleted_at
       && (section === 'drive' ? item.parent_id === currentFolderId : section === 'shared' ? item.owner_id !== currentUser.id : section === 'starred' ? item.is_starred : true)
-      && (driveView === 'all' || (driveView === 'documents' && item.item_type === 'document') || (driveView === 'presentations' && item.item_type === 'presentation') || (driveView === 'spreadsheets' && item.item_type === 'spreadsheet') || (driveView === 'files' && item.item_type === 'file'))
+      && (driveView === 'all' || (driveView === 'documents' && item.item_type === 'document') || (driveView === 'presentations' && item.item_type === 'presentation') || (driveView === 'spreadsheets' && item.item_type === 'spreadsheet') || (driveView === 'forms' && item.item_type === 'form') || (driveView === 'files' && item.item_type === 'file'))
       && (!query || item.name.toLowerCase().includes(query))
     );
   }, [currentFolderId, currentUser.id, items, search, section]);
@@ -132,6 +164,8 @@ export const DrivePage: React.FC = () => {
             ? { slides: [{ title: 'Untitled slide', body: '' }] }
             : itemType === 'spreadsheet'
               ? { rows: [['', '', ''], ['', '', ''], ['', '', '']] }
+              : itemType === 'form'
+                ? { title: name, description: '', questions: [{ id: crypto.randomUUID(), type: 'short_text', label: 'Question 1', required: false, options: [] }], settings: { acceptingResponses: true } }
               : {},
       })
       .select('id, parent_id, owner_id, name, item_type, mime_type, storage_path, content, is_starred, deleted_at, updated_at')
@@ -275,7 +309,7 @@ export const DrivePage: React.FC = () => {
             {currentFolderId && <button type="button" onClick={() => setCurrentFolderId(currentFolder?.parent_id || null)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"><ArrowLeft className="h-4 w-4" /></button>}
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-600">Flown Drive</p>
-              <h1 className="truncate text-lg font-bold text-slate-900">{section === 'shared' ? 'Shared with me' : section === 'starred' ? 'Starred' : section === 'trash' ? 'Trash' : driveView === 'documents' ? 'Docs' : driveView === 'presentations' ? 'Slides' : driveView === 'spreadsheets' ? 'Sheets' : driveView === 'files' ? 'Files' : currentFolder?.name || 'My Drive'}</h1>
+              <h1 className="truncate text-lg font-bold text-slate-900">{section === 'shared' ? 'Shared with me' : section === 'starred' ? 'Starred' : section === 'trash' ? 'Trash' : driveView === 'documents' ? 'Docs' : driveView === 'presentations' ? 'Slides' : driveView === 'spreadsheets' ? 'Sheets' : driveView === 'forms' ? 'Forms' : driveView === 'files' ? 'Files' : currentFolder?.name || 'My Drive'}</h1>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -301,7 +335,7 @@ export const DrivePage: React.FC = () => {
             <div className={view === 'grid' ? 'grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4' : 'space-y-2'}>
               {visibleItems.map((item) => {
                 const Icon = itemIcon(item.item_type);
-                return <button key={item.id} type="button" onDoubleClick={() => item.item_type === 'folder' ? setCurrentFolderId(item.id) : setSelectedItem(item)} onClick={() => setSelectedItem(item)} className={`group flex text-left ${view === 'grid' ? 'flex-col rounded-2xl border border-slate-200/80 bg-white p-4 hover:border-brand-200 hover:shadow-md' : 'items-center gap-3 rounded-xl border border-slate-200/70 bg-white px-4 py-3 hover:border-brand-200'}`}>
+                return <button key={item.id} type="button" onDoubleClick={() => item.item_type === 'folder' ? setCurrentFolderId(item.id) : ['document', 'presentation', 'form'].includes(item.item_type) ? openEditor(item) : setSelectedItem(item)} onClick={() => setSelectedItem(item)} className={`group flex text-left ${view === 'grid' ? 'flex-col rounded-2xl border border-slate-200/80 bg-white p-4 hover:border-brand-200 hover:shadow-md' : 'items-center gap-3 rounded-xl border border-slate-200/70 bg-white px-4 py-3 hover:border-brand-200'}`}>
                   <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${itemColor(item.item_type)}`}><Icon className="h-5 w-5" /></span>
                   <span className={`${view === 'grid' ? 'mt-4' : 'flex-1'} min-w-0`}><span className="block truncate text-xs font-bold text-slate-800">{item.name}</span><span className="mt-1 block text-[10px] capitalize text-slate-400">{item.item_type} · {new Date(item.updated_at).toLocaleDateString()}</span></span>
                   {section === 'trash' ? <span className="ml-auto flex items-center gap-1"><span onClick={(event) => { event.stopPropagation(); void restoreItem(item); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600" title="Restore"><RotateCcw className="h-4 w-4" /></span><span onClick={(event) => { event.stopPropagation(); void permanentlyDelete(item); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Delete permanently"><Trash2 className="h-4 w-4" /></span></span> : <span className="ml-auto flex items-center gap-1"><span onClick={async (event) => { event.stopPropagation(); const next = !item.is_starred; const { error: starError } = await supabase.from('drive_items').update({ is_starred: next }).eq('id', item.id); if (starError) setError(`Could not update star: ${starError.message}`); else setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, is_starred: next } : entry)); }} className={`rounded-lg p-1.5 ${item.is_starred ? 'text-amber-500' : 'text-slate-300 hover:text-amber-500'}`} title={item.is_starred ? 'Remove star' : 'Star item'}><Star className="h-4 w-4" fill={item.is_starred ? 'currentColor' : 'none'} /></span>{view === 'list' && <MoreHorizontal className="h-4 w-4 text-slate-400" />}</span>}
@@ -323,7 +357,61 @@ export const DrivePage: React.FC = () => {
 const CreateDriveItem: React.FC<{ onClose: () => void; onCreate: (type: DriveItem['item_type'], name: string) => Promise<void> }> = ({ onClose, onCreate }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState<DriveItem['item_type']>('document');
-  return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-sm"><div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">Create in Drive</h2><button type="button" onClick={onClose} className="text-xs text-slate-500">Cancel</button></div><div className="mt-4 grid grid-cols-2 gap-2">{(['document', 'presentation', 'spreadsheet', 'folder'] as const).map((option) => <button key={option} type="button" onClick={() => setType(option)} className={`rounded-xl border p-3 text-left text-xs font-semibold capitalize ${type === option ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600'}`}>{option}</button>)}</div><input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder={`${type} name`} className="mt-4 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-400" /><button type="button" disabled={!name.trim()} onClick={() => onCreate(type, name.trim())} className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white disabled:opacity-40">Create</button></div></div>;
+  return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-sm"><div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">Create in Drive</h2><button type="button" onClick={onClose} className="text-xs text-slate-500">Cancel</button></div><div className="mt-4 grid grid-cols-2 gap-2">{(['document', 'presentation', 'spreadsheet', 'form', 'folder'] as const).map((option) => <button key={option} type="button" onClick={() => setType(option)} className={`rounded-xl border p-3 text-left text-xs font-semibold capitalize ${type === option ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600'}`}>{option}</button>)}</div><input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder={`${type} name`} className="mt-4 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-400" /><button type="button" disabled={!name.trim()} onClick={() => onCreate(type, name.trim())} className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white disabled:opacity-40">Create</button></div></div>;
+};
+
+const DriveEditorWorkspace: React.FC<{
+  item: DriveItem;
+  onClose: () => void;
+  onSave: (content: Record<string, unknown>) => Promise<void>;
+}> = ({ item, onClose, onSave }) => {
+  const [content, setContent] = useState(item.content);
+  const [activePanel, setActivePanel] = useState<'edit' | 'preview' | 'responses'>('edit');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const questions = Array.isArray(content.questions) ? content.questions as Array<{ id: string; type: string; label: string; required: boolean; options: string[] }> : [];
+  const slides = Array.isArray(content.slides) ? content.slides as Array<{ title: string; body: string }> : [{ title: 'Title slide', body: '' }];
+  const rows = Array.isArray(content.rows) ? content.rows as string[][] : [['', '', ''], ['', '', '']];
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await onSave(content);
+      setMessage('Saved');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not save changes.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addQuestion = () => setContent((current) => ({
+    ...current,
+    questions: [...questions, { id: crypto.randomUUID(), type: 'short_text', label: `Question ${questions.length + 1}`, required: false, options: [] }],
+  }));
+  const updateQuestion = (id: string, patch: Partial<typeof questions[number]>) => setContent((current) => ({
+    ...current,
+    questions: questions.map((question) => question.id === id ? { ...question, ...patch } : question),
+  }));
+
+  return <div className="fixed inset-0 z-[60] flex flex-col bg-slate-50">
+    <header className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
+      <div className="flex items-center gap-3"><button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><ArrowLeft className="h-4 w-4" /></button><div><p className="text-sm font-bold text-slate-900">{item.name}</p><p className="text-[10px] capitalize text-slate-400">{item.item_type} · saved in Flown Drive</p></div></div>
+      <div className="flex items-center gap-2"><span className="hidden text-xs text-emerald-600 sm:block">{message}</span><button type="button" onClick={() => void save()} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white">{saving ? 'Saving...' : 'Save'}</button></div>
+    </header>
+    {item.item_type === 'form' && <nav className="flex items-center gap-1 border-b border-slate-200 bg-white px-5 py-2"><button type="button" onClick={() => setActivePanel('edit')} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${activePanel === 'edit' ? 'bg-brand-50 text-brand-700' : 'text-slate-500'}`}>Build form</button><button type="button" onClick={() => setActivePanel('preview')} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${activePanel === 'preview' ? 'bg-brand-50 text-brand-700' : 'text-slate-500'}`}>Preview</button><button type="button" onClick={() => setActivePanel('responses')} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${activePanel === 'responses' ? 'bg-brand-50 text-brand-700' : 'text-slate-500'}`}>Responses</button></nav>}
+    <div className="flex min-h-0 flex-1 overflow-hidden">
+      <main className="flex-1 overflow-y-auto p-5 sm:p-10">
+        {item.item_type === 'document' && <div className="mx-auto max-w-4xl rounded-xl bg-white p-8 shadow-sm sm:p-14"><div className="mb-5 flex flex-wrap gap-1 border-b border-slate-100 pb-3"><button type="button" className="rounded px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100">B</button><button type="button" className="rounded px-2 py-1 text-xs italic text-slate-600 hover:bg-slate-100">I</button><button type="button" className="rounded px-2 py-1 text-xs text-slate-600 hover:bg-slate-100">H1</button><button type="button" className="rounded px-2 py-1 text-xs text-slate-600 hover:bg-slate-100">H2</button><button type="button" className="rounded px-2 py-1 text-xs text-slate-600 hover:bg-slate-100">Table</button><span className="ml-auto text-[10px] text-slate-400">Document editor</span></div><input value={String(content.title || item.name)} onChange={(event) => setContent({ ...content, title: event.target.value })} className="mb-5 w-full border-0 text-3xl font-bold text-slate-900 outline-none" /><textarea value={String(content.text || '')} onChange={(event) => setContent({ ...content, text: event.target.value })} placeholder="Start writing your document..." className="min-h-[65vh] w-full resize-none border-0 text-base leading-8 text-slate-800 outline-none placeholder:text-slate-300" /></div>}
+        {item.item_type === 'presentation' && <div className="mx-auto max-w-5xl"><div className="mb-4 flex items-center justify-between"><span className="text-xs font-semibold text-slate-500">Theme: Flown Light</span><button type="button" onClick={() => setContent({ ...content, slides: [...slides, { title: `Slide ${slides.length + 1}`, body: '' }] })} className="rounded-lg border border-brand-200 bg-white px-3 py-2 text-xs font-bold text-brand-700">+ New slide</button></div><div className="space-y-5">{slides.map((slide, index) => <section key={index} className="aspect-video rounded-2xl bg-gradient-to-br from-white to-sky-50 p-8 shadow-md ring-1 ring-slate-200"><span className="text-[10px] font-bold uppercase tracking-widest text-brand-600">Slide {index + 1}</span><input value={slide.title} onChange={(event) => setContent({ ...content, slides: slides.map((entry, position) => position === index ? { ...entry, title: event.target.value } : entry) })} className="mt-8 block w-full border-0 bg-transparent text-3xl font-bold outline-none" /><textarea value={slide.body} onChange={(event) => setContent({ ...content, slides: slides.map((entry, position) => position === index ? { ...entry, body: event.target.value } : entry) })} placeholder="Add text, images, or speaker notes..." className="mt-5 h-32 w-full resize-none border-0 bg-transparent text-lg leading-7 outline-none" /></section>)}</div></div>}
+        {item.item_type === 'spreadsheet' && <div className="mx-auto max-w-5xl rounded-xl bg-white p-5 shadow-sm"><div className="mb-4 flex items-center gap-2 text-xs font-semibold text-slate-500"><span className="rounded bg-emerald-50 px-2 py-1 text-emerald-700">Sheet1</span><button type="button" onClick={() => setContent({ ...content, rows: [...rows, Array(rows[0]?.length || 3).fill('')] })} className="rounded-lg border border-slate-200 px-2 py-1">+ Row</button><button type="button" onClick={() => setContent({ ...content, rows: rows.map((row) => [...row, '']) })} className="rounded-lg border border-slate-200 px-2 py-1">+ Column</button></div><table className="w-full border-collapse text-sm"><tbody>{rows.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex} className="min-w-36 border border-slate-200 p-0"><input value={cell} onChange={(event) => setContent({ ...content, rows: rows.map((currentRow, index) => index === rowIndex ? currentRow.map((value, position) => position === cellIndex ? event.target.value : value) : currentRow) })} className="w-full px-3 py-2 outline-none focus:bg-brand-50" /></td>)}</tr>)}</tbody></table></div>}
+        {item.item_type === 'form' && activePanel === 'edit' && <div className="mx-auto max-w-3xl space-y-4"><div className="rounded-2xl bg-gradient-to-br from-brand-600 to-sky-500 p-7 text-white"><input value={String(content.title || item.name)} onChange={(event) => setContent({ ...content, title: event.target.value })} className="w-full border-0 bg-transparent text-3xl font-bold outline-none placeholder:text-white/70" /><textarea value={String(content.description || '')} onChange={(event) => setContent({ ...content, description: event.target.value })} placeholder="Tell people what this form is for..." className="mt-3 w-full resize-none border-0 bg-transparent text-sm outline-none placeholder:text-white/70" /></div>{questions.map((question, index) => <div key={question.id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"><div className="flex gap-3"><span className="mt-2 text-xs font-bold text-slate-400">{index + 1}</span><div className="min-w-0 flex-1"><input value={question.label} onChange={(event) => updateQuestion(question.id, { label: event.target.value })} className="w-full border-0 text-sm font-bold outline-none" /><div className="mt-3 flex flex-wrap gap-2"><select value={question.type} onChange={(event) => updateQuestion(question.id, { type: event.target.value })} className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs"><option value="short_text">Short answer</option><option value="long_text">Paragraph</option><option value="multiple_choice">Multiple choice</option><option value="checkboxes">Checkboxes</option><option value="date">Date</option><option value="rating">Rating</option></select><label className="flex items-center gap-2 text-xs text-slate-500"><input type="checkbox" checked={question.required} onChange={(event) => updateQuestion(question.id, { required: event.target.checked })} /> Required</label></div></div></div></div>)}<button type="button" onClick={addQuestion} className="w-full rounded-xl border border-dashed border-brand-300 bg-brand-50/40 py-3 text-xs font-bold text-brand-700">+ Add question</button></div>}
+        {item.item_type === 'form' && activePanel === 'preview' && <div className="mx-auto max-w-2xl rounded-2xl bg-white p-8 shadow-sm"><h2 className="text-2xl font-bold text-slate-900">{String(content.title || item.name)}</h2><p className="mt-2 text-sm text-slate-500">{String(content.description || '')}</p><div className="mt-8 space-y-5">{questions.map((question) => <label key={question.id} className="block text-sm font-semibold text-slate-800">{question.label}{question.required && <span className="text-rose-500"> *</span>}<input className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal outline-none focus:border-brand-400" placeholder="Your answer" /></label>)}</div><button type="button" className="mt-7 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-bold text-white">Submit response</button></div>}
+        {item.item_type === 'form' && activePanel === 'responses' && <div className="mx-auto max-w-4xl rounded-2xl bg-white p-6 shadow-sm"><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-brand-50 p-4"><p className="text-2xl font-bold text-brand-700">0</p><p className="text-xs text-slate-500">Responses</p></div><div className="rounded-xl bg-sky-50 p-4"><p className="text-2xl font-bold text-sky-700">—</p><p className="text-xs text-slate-500">Average time</p></div><div className="rounded-xl bg-emerald-50 p-4"><p className="text-2xl font-bold text-emerald-700">—</p><p className="text-xs text-slate-500">Latest response</p></div></div><div className="mt-8 rounded-xl border border-dashed border-slate-300 p-10 text-center text-xs text-slate-500">Responses, completion time, dates, and answer analytics will appear here.</div></div>}
+      </main>
+      <aside className="hidden w-56 border-l border-slate-200 bg-white p-4 lg:block"><p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Workspace</p><div className="mt-3 space-y-1 text-xs text-slate-600"><p>Saved in My Drive</p><p>Private by default</p><p>Version history enabled</p>{item.item_type === 'form' && <p>Responses connected</p>}</div></aside>
+    </div>
+  </div>;
 };
 
 const DriveEditor: React.FC<{ item: DriveItem; onClose: () => void; onSave: (content: Record<string, unknown>) => Promise<void>; onShare: () => void; onTrash: () => void; onDownload: () => void }> = ({ item, onClose, onSave, onShare, onTrash, onDownload }) => {

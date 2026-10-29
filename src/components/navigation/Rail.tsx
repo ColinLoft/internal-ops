@@ -14,6 +14,7 @@ import {
   Presentation,
   Table2,
   Files,
+  ClipboardList,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { ProfilePopover } from '../profile/ProfilePopover';
@@ -42,7 +43,7 @@ export const Rail: React.FC = () => {
   const totalUnreadChannels = channels.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
   const isDrive = activeTab === 'drive';
 
-  const openDriveView = (view: 'all' | 'documents' | 'presentations' | 'spreadsheets' | 'files') => {
+  const openDriveView = (view: 'all' | 'documents' | 'presentations' | 'spreadsheets' | 'forms' | 'files') => {
     setActiveTab('drive');
     window.dispatchEvent(new CustomEvent('flown-drive-view', { detail: view }));
   };
@@ -83,6 +84,7 @@ export const Rail: React.FC = () => {
                 { label: 'Docs', icon: FileText, view: 'documents' as const },
                 { label: 'Slides', icon: Presentation, view: 'presentations' as const },
                 { label: 'Sheets', icon: Table2, view: 'spreadsheets' as const },
+                { label: 'Forms', icon: ClipboardList, view: 'forms' as const },
                 { label: 'Files', icon: Files, view: 'files' as const },
               ].map((item) => {
                 const Icon = item.icon;

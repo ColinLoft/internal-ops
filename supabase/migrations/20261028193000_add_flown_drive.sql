@@ -3,7 +3,7 @@ create table if not exists public.drive_items (
   parent_id uuid references public.drive_items(id) on delete cascade,
   owner_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
-  item_type text not null check (item_type in ('folder', 'document', 'presentation', 'spreadsheet', 'file')),
+  item_type text not null check (item_type in ('folder', 'document', 'presentation', 'spreadsheet', 'form', 'file')),
   mime_type text,
   storage_path text,
   content jsonb not null default '{}'::jsonb,
@@ -34,6 +34,51 @@ create table if not exists public.drive_versions (
   content jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
+
+create table if not exists public.drive_form_responses (
+  id uuid primary key default gen_random_uuid(),
+  form_item_id uuid not null references public.drive_items(id) on delete cascade,
+  submitted_at timestamptz not null default now(),
+  duration_seconds integer,
+  answers jsonb not null default '{}'::jsonb,
+  respondent_email text,
+  respondent_name text
+);
+
+create index if not exists drive_form_responses_form_idx
+  on public.drive_form_responses(form_item_id, submitted_at desc);
+
+alter table public.drive_form_responses enable row level security;
+
+drop policy if exists "Form owners and collaborators can view responses" on public.drive_form_responses;
+create policy "Form owners and collaborators can view responses"
+  on public.drive_form_responses for select to authenticated
+  using (
+    exists (
+      select 1 from public.drive_items
+      where drive_items.id = form_item_id
+        and (
+          drive_items.owner_id = auth.uid()
+          or exists (
+            select 1 from public.drive_shares
+            where drive_shares.item_id = drive_items.id
+              and drive_shares.shared_with_user_id = auth.uid()
+          )
+        )
+    )
+  );
+
+drop policy if exists "Anyone can submit an active form" on public.drive_form_responses;
+create policy "Anyone can submit an active form"
+  on public.drive_form_responses for insert to anon, authenticated
+  with check (
+    exists (
+      select 1 from public.drive_items
+      where drive_items.id = form_item_id
+        and drive_items.item_type = 'form'
+        and drive_items.deleted_at is null
+    )
+  );
 
 insert into storage.buckets (id, name, public)
 values ('drive-files', 'drive-files', false)

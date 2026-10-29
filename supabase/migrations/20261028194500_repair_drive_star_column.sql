@@ -27,6 +27,11 @@ begin
   end if;
 end $$;
 
+alter table public.drive_items drop constraint if exists drive_items_item_type_check;
+alter table public.drive_items
+  add constraint drive_items_item_type_check
+  check (item_type in ('folder', 'document', 'presentation', 'spreadsheet', 'form', 'file'));
+
 drop policy if exists "Drive items can be edited by collaborators" on public.drive_items;
 create policy "Drive items can be edited by collaborators"
   on public.drive_items for update to authenticated
