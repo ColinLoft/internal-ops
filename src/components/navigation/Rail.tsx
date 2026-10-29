@@ -21,6 +21,10 @@ import {
   ListChecks,
   BookOpen,
   BarChart3,
+  Users,
+  ShieldCheck,
+  CheckCircle2,
+  Settings,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { ProfilePopover } from '../profile/ProfilePopover';
@@ -49,6 +53,7 @@ export const Rail: React.FC = () => {
   const totalUnreadChannels = channels.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
   const isDrive = activeTab === 'drive';
   const isCustomers = activeTab === 'customers';
+  const isSystems = activeTab === 'admin';
 
   const openDriveView = (view: 'all' | 'documents' | 'presentations' | 'spreadsheets' | 'forms') => {
     const pathForView = {
@@ -130,6 +135,16 @@ export const Rail: React.FC = () => {
               { label: 'Knowledge', icon: BookOpen, path: '/customers/knowledge' },
               { label: 'Reports', icon: BarChart3, path: '/customers/reports' },
             ].map((item) => { const Icon = item.icon; return <button key={item.label} type="button" onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className="group relative rounded-2xl p-3 text-slate-400 transition-all hover:bg-slate-800/70 hover:text-slate-100" title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+          ) : isSystems ? (
+            <>{[
+              { label: 'Overview', icon: House, path: '/admin' },
+              { label: 'People & teams', icon: Users, path: '/admin/people' },
+              { label: 'Roles & permissions', icon: ShieldCheck, path: '/admin/roles' },
+              { label: 'Onboarding', icon: ClipboardList, path: '/admin/onboarding' },
+              { label: 'Approvals', icon: CheckCircle2, path: '/admin/approvals' },
+              { label: 'Policies', icon: BookOpen, path: '/admin/policies' },
+              { label: 'Settings & audit', icon: Settings, path: '/admin/settings' },
+            ].map((item) => { const Icon = item.icon; return <button key={item.label} type="button" onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className="group relative rounded-2xl p-3 text-slate-400 transition-all hover:bg-slate-800/70 hover:text-slate-100" title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
           ) : (
           <>
           <button type="button" onClick={() => setActiveTab('home')} className={`group relative p-3 rounded-2xl transition-all duration-200 ${activeTab === 'home' ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'}`} title="Home"><House className="w-5 h-5" /><span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Home</span></button>
@@ -210,23 +225,6 @@ export const Rail: React.FC = () => {
             </span>
           </button>
 
-          {currentUser.systemRole === 'admin' && (
-            <button
-              onClick={() => setActiveTab('admin')}
-              className={`group relative p-3 rounded-2xl transition-all duration-200 ${
-                activeTab === 'admin'
-                  ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40'
-                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
-              }`}
-              title="Systems"
-              aria-label="Systems"
-            >
-              <UserRound className="w-5 h-5" />
-              <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                People &amp; access
-              </span>
-            </button>
-          )}
           </>
           )}
         </nav>

@@ -77,7 +77,7 @@ export const TopBar: React.FC = () => {
       accent: 'from-violet-500 to-indigo-600',
     },
     {
-      id: 'operations',
+      id: 'systems',
       name: 'Systems',
       icon: Settings2,
       accent: 'from-emerald-500 to-teal-600',
@@ -281,6 +281,10 @@ export const TopBar: React.FC = () => {
                           setSelectedApp(null);
                         } else if (app.id === 'customers') {
                           setActiveTab('customers');
+                          setIsAppsOpen(false);
+                          setSelectedApp(null);
+                        } else if (app.id === 'systems') {
+                          setActiveTab('admin');
                           setIsAppsOpen(false);
                           setSelectedApp(null);
                         } else if (app.id === 'drive') {
