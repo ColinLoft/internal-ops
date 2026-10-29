@@ -355,16 +355,22 @@ export const EmailInboxPage: React.FC = () => {
       setLoading(false);
       setSyncing(false);
     }
-  }, [activeMailboxId, loadMailboxes, loadMessages]);
+  }, [loadMailboxes]);
 
   useEffect(() => {
     let active = true;
     void loadMailboxes()
-      .then(() => active && loadMessages())
+      .then((available) => {
+        if (!active) return;
+        const mailboxId = available.find((mailbox) => mailbox.id === activeMailboxId)?.id
+          || available[0]?.id
+          || '';
+        return loadMessages(mailboxId);
+      })
       .catch((loadError) => active && setError(loadError instanceof Error ? loadError.message : 'Email could not be loaded.'))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [loadMailboxes, loadMessages]);
+  }, [activeMailboxId, loadMailboxes, loadMessages]);
 
   useEffect(() => {
     const url = new URL(window.location.href);

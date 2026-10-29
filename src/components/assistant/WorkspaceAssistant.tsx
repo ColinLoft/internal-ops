@@ -11,6 +11,20 @@ type AssistantAction = {
   content: string;
 };
 
+const getAssistantErrorMessage = async (error: Error) => {
+  if ('context' in error && error.context instanceof Response) {
+    const body: unknown = await error.context.clone().json().catch(() => null);
+    if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') {
+      return body.error;
+    }
+    return `The assistant request failed with status ${error.context.status}. Check the workspace-ai Edge Function logs.`;
+  }
+  if (error.name === 'FunctionsFetchError') {
+    return 'The assistant could not reach its Edge Function. Confirm workspace-ai is deployed and try again.';
+  }
+  return error.message || 'The assistant could not respond.';
+};
+
 export const WorkspaceAssistant: React.FC = () => {
   const {
     activeTab,
@@ -69,7 +83,9 @@ export const WorkspaceAssistant: React.FC = () => {
       setMessages((items) => [...items, { role: 'assistant', content: String(data?.message || 'I could not answer that.') }]);
       setProposal(data?.action || null);
     } catch (assistantError) {
-      setError(assistantError instanceof Error ? assistantError.message : 'The assistant could not respond.');
+      setError(assistantError instanceof Error
+        ? await getAssistantErrorMessage(assistantError)
+        : 'The assistant could not respond.');
     } finally {
       setBusy(false);
     }

@@ -126,7 +126,7 @@ Deno.serve(async (request: Request) => {
         && !(await adminClient.from('email_mailbox_access').select('user_id').eq('mailbox_id', mailbox.id).eq('user_id', user.id).maybeSingle()).data)) {
         return jsonResponse({ error: 'You do not have access to the selected email.' }, 403);
       }
-      viewContext = `Current email from ${email.sender_name} <${email.sender_email}> on ${email.received_at}.\nSubject: ${email.subject}\n\n${String(email.body_text || email.snippet || '').slice(0, 30000)}`;
+      viewContext = `Current email from ${email.sender_name} <${email.sender_email}> on ${email.received_at}.\nSubject: ${email.subject}\n\n${String(email.body_text || email.snippet || '').slice(0, 12000)}`;
     }
 
     const endpoint = Deno.env.get('AZURE_OPENAI_ENDPOINT')?.replace(/\/+$/, '');
@@ -142,6 +142,7 @@ Deno.serve(async (request: Request) => {
       {
         method: 'POST',
         headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(30000),
         body: JSON.stringify({
           temperature: 0.3,
           max_tokens: 1200,
@@ -171,6 +172,11 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ success: true, ...parsed });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Workspace assistant failed.';
-    return jsonResponse({ error: message }, message === 'Authentication required.' ? 401 : 400);
+    const status = message === 'Authentication required.'
+      ? 401
+      : message.includes('timed out') || message.includes('TIMEOUT') || message.includes('aborted')
+        ? 504
+        : 500;
+    return jsonResponse({ error: message }, status);
   }
 });
