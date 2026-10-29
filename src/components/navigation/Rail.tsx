@@ -44,7 +44,18 @@ export const Rail: React.FC = () => {
   const isDrive = activeTab === 'drive';
 
   const openDriveView = (view: 'all' | 'documents' | 'presentations' | 'spreadsheets' | 'forms' | 'files') => {
+    const pathForView = {
+      all: '/drive',
+      documents: '/docs',
+      presentations: '/slides',
+      spreadsheets: '/sheets',
+      forms: '/forms',
+      files: '/files',
+    }[view];
     setActiveTab('drive');
+    if (window.location.pathname !== pathForView) {
+      window.history.pushState({}, '', pathForView);
+    }
     window.dispatchEvent(new CustomEvent('flown-drive-view', { detail: view }));
   };
 

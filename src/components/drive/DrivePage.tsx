@@ -129,6 +129,9 @@ export const DrivePage: React.FC = () => {
     const handleRoute = () => {
       const match = window.location.pathname.match(/^\/(docs|slides|sheets|forms)\/([^/]+)/);
       setEditorItemId(match?.[2] || null);
+      const workspace = workspaceKindFromPath(window.location.pathname);
+      if (workspace) setDriveView(workspace);
+      else if (window.location.pathname === '/drive') setDriveView('all');
     };
     window.addEventListener('flown-drive-view', handleDriveView);
     window.addEventListener('popstate', handleRoute);
