@@ -26,13 +26,14 @@ import { InviteReadyModal } from './components/modals/InviteReadyModal';
 import { EmailInboxPage } from './components/email/EmailInboxPage';
 import { WorkspaceAssistant } from './components/assistant/WorkspaceAssistant';
 import { DrivePage } from './components/drive/DrivePage';
+import { HomePage } from './components/home/HomePage';
 import { NotFoundPage } from './components/NotFoundPage';
 
 const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
 }));
 
-const isKnownPath = (pathname: string) => /^\/?(|messages|channels|calendar|email|inbox|admin|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
+const isKnownPath = (pathname: string) => /^\/?(|home|messages|channels|calendar|email|inbox|admin|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
 
 const WorkspaceShell: React.FC = () => {
   const {
@@ -63,7 +64,7 @@ const WorkspaceShell: React.FC = () => {
 
   if (!isKnownPath(window.location.pathname)) {
     return <NotFoundPage onGoHome={() => {
-      window.history.pushState({}, '', '/messages');
+      window.history.pushState({}, '', '/home');
       window.dispatchEvent(new PopStateEvent('popstate'));
     }} />;
   }
@@ -80,6 +81,7 @@ const WorkspaceShell: React.FC = () => {
 
         {/* Workspace Body */}
         <div className="flex-1 flex min-w-0 h-full overflow-hidden">
+          {activeTab === 'home' && <HomePage />}
           {activeTab === 'messages' && (
             <>
               {/* Messages Sidebar */}
