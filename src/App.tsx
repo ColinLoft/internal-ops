@@ -26,10 +26,13 @@ import { InviteReadyModal } from './components/modals/InviteReadyModal';
 import { EmailInboxPage } from './components/email/EmailInboxPage';
 import { WorkspaceAssistant } from './components/assistant/WorkspaceAssistant';
 import { DrivePage } from './components/drive/DrivePage';
+import { NotFoundPage } from './components/NotFoundPage';
 
 const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
 }));
+
+const isKnownPath = (pathname: string) => /^\/?(|messages|channels|calendar|email|inbox|admin|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
 
 const WorkspaceShell: React.FC = () => {
   const {
@@ -56,6 +59,13 @@ const WorkspaceShell: React.FC = () => {
 
   if (!isAuthenticated) {
     return <AuthScreen />;
+  }
+
+  if (!isKnownPath(window.location.pathname)) {
+    return <NotFoundPage onGoHome={() => {
+      window.history.pushState({}, '', '/messages');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }} />;
   }
 
   return (
