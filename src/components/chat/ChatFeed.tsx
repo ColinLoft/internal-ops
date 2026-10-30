@@ -85,7 +85,7 @@ export const ChatFeed: React.FC = () => {
         <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-brand-600 to-brand-500 text-white flex items-center justify-center shadow-lg shadow-brand-500/25 mb-4">
           <MessageSquare className="w-8 h-8" />
         </div>
-        <h3 className="text-lg font-bold text-slate-900">Your Messages</h3>
+        <h3 className="text-lg font-bold text-slate-900">GTM</h3>
         <p className="text-xs text-slate-500 max-w-sm mt-1 mb-6 leading-relaxed">
           Connect with team members, coordinate operations, hold audio/video calls, and share files.
         </p>
