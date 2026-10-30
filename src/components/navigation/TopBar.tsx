@@ -278,6 +278,33 @@ export const TopBar: React.FC = () => {
 
       {/* Right controls */}
       <div className="flex items-center gap-3">
+        <div className="relative" ref={notificationsRef}>
+          <button
+            type="button"
+            onClick={() => setIsNotificationsOpen((open) => !open)}
+            aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ''}`}
+            aria-haspopup="dialog"
+            aria-expanded={isNotificationsOpen}
+            title="Notifications"
+            className={`relative rounded-xl border p-2 transition-all ${
+              isNotificationsOpen
+                ? 'border-brand-200 bg-brand-50 text-brand-700'
+                : 'border-slate-200 bg-white/70 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+            }`}
+          >
+            <Bell className="h-4 w-4" />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-white">
+                {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+              </span>
+            )}
+          </button>
+          {isNotificationsOpen && (
+            <div className="absolute right-0 top-full z-50 mt-2">
+              <NotificationCenter onClose={() => setIsNotificationsOpen(false)} />
+            </div>
+          )}
+        </div>
         <div className="relative" ref={appsRef}>
           <button
             type="button"
@@ -368,34 +395,6 @@ export const TopBar: React.FC = () => {
             </div>
           )}
         </div>
-        <div className="relative" ref={notificationsRef}>
-          <button
-            type="button"
-            onClick={() => setIsNotificationsOpen((open) => !open)}
-            aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ''}`}
-            aria-haspopup="dialog"
-            aria-expanded={isNotificationsOpen}
-            title="Notifications"
-            className={`relative rounded-xl border p-2 transition-all ${
-              isNotificationsOpen
-                ? 'border-brand-200 bg-brand-50 text-brand-700'
-                : 'border-slate-200 bg-white/70 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-            }`}
-          >
-            <Bell className="h-4 w-4" />
-            {unreadNotificationCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-white">
-                {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
-              </span>
-            )}
-          </button>
-          {isNotificationsOpen && (
-            <div className="absolute right-0 top-full z-50 mt-2">
-              <NotificationCenter onClose={() => setIsNotificationsOpen(false)} />
-            </div>
-          )}
-        </div>
-
         {/* Call quick status if active */}
         {callSession.active && (
           <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-200 rounded-xl text-brand-700 text-xs font-semibold animate-pulse">
