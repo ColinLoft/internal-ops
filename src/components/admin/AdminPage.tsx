@@ -111,8 +111,8 @@ export const AdminPage: React.FC = () => {
   if (currentUser.systemRole !== 'admin') {
     return (
       <main className="flex-1 overflow-y-auto p-6 lg:p-10">
-        <div className="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
-          <ShieldCheck className="mx-auto mb-3 h-8 w-8 text-amber-600" />
+        <div className="mx-auto max-w-xl rounded-2xl border border-brand-200 bg-brand-50 p-6 text-center">
+          <ShieldCheck className="mx-auto mb-3 h-8 w-8 text-brand-600" />
           <h1 className="text-lg font-bold text-slate-900">Administrator access required</h1>
           <p className="mt-1 text-sm text-slate-600">Your account does not have permission to manage staff.</p>
         </div>
@@ -230,18 +230,18 @@ export const AdminPage: React.FC = () => {
                       <p className="truncate text-sm font-semibold text-slate-900">{user.name}</p>
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
                         user.accountStatus === 'suspended'
-                          ? 'bg-amber-100 text-amber-700'
+                          ? 'bg-brand-100 text-brand-700'
                           : user.systemRole === 'admin'
-                            ? 'bg-violet-100 text-violet-700'
+                            ? 'bg-brand-100 text-brand-700'
                             : user.systemRole === 'coordinator'
-                              ? 'bg-blue-100 text-blue-700'
+                              ? 'bg-brand-100 text-brand-700'
                               : 'bg-slate-100 text-slate-600'
                       }`}>{user.accountStatus === 'suspended' ? 'Suspended' : roleLabels[user.systemRole]}</span>
                     </div>
                     <p className="truncate text-xs text-slate-500">{user.email}</p>
                     <p className="truncate text-xs text-slate-400">{user.role} · {user.department}</p>
                     {user.accountStatus === 'suspended' && (
-                      <p className="mt-1 text-xs font-medium text-amber-700">
+                      <p className="mt-1 text-xs font-medium text-brand-700">
                         {user.suspendedUntil
                           ? `Suspended until ${new Date(user.suspendedUntil).toLocaleString()}`
                           : 'Suspended indefinitely'}
@@ -267,7 +267,7 @@ export const AdminPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => void handleUserAction(user.id, 'reactivate')}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-100"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" /> Reactivate
                       </button>
@@ -291,7 +291,7 @@ export const AdminPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => void handleUserAction(user.id, 'suspend')}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-100"
                         >
                           <Ban className="h-3.5 w-3.5" /> Suspend
                         </button>
@@ -459,7 +459,7 @@ export const AdminPage: React.FC = () => {
                 />
               </label>
               {savedPassword ? (
-                <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Password updated. Share it securely with the staff member.</p>
+                <p role="status" className="rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-700">Password updated. Share it securely with the staff member.</p>
               ) : (
                 <button type="button" onClick={generatePassword} className="text-xs font-semibold text-brand-700 hover:underline">Generate a secure password</button>
               )}

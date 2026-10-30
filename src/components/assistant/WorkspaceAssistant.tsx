@@ -126,7 +126,7 @@ export const WorkspaceAssistant: React.FC = () => {
           scope: details.scope === 'personal' ? 'personal' : 'team',
           category: details.category || 'General',
           location: details.location || '',
-          color: details.color || '#2563eb',
+          color: details.color || '#2569F5',
         });
         setActiveTab('calendar');
       } else if (proposal.type === 'open_view') {
@@ -162,7 +162,7 @@ export const WorkspaceAssistant: React.FC = () => {
       </button>
       {open && (
         <div className="fixed bottom-4 right-4 z-[80] flex h-[min(500px,calc(100vh-2rem))] w-[min(340px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
-          <header className="flex items-center gap-2.5 border-b border-slate-100 bg-gradient-to-r from-brand-600 to-sky-600 px-3 py-2.5 text-white">
+          <header className="flex items-center gap-2.5 border-b border-slate-100 bg-gradient-to-r from-brand-600 to-brand-600 px-3 py-2.5 text-white">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15"><Bot className="h-4 w-4" /></div>
             <div className="min-w-0 flex-1">
               <h2 className="text-xs font-bold">Workspace assistant</h2>
@@ -184,13 +184,13 @@ export const WorkspaceAssistant: React.FC = () => {
               </div>
             ))}
             {proposal && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-amber-800">Confirmation required</p>
-                <p className="mt-1 text-xs text-amber-900">{proposal.type === 'post_channel' ? 'Post this in' : 'Send this to'} <strong>{proposal.targetName}</strong>?</p>
+              <div className="rounded-xl border border-brand-200 bg-brand-50 p-3">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-brand-800">Confirmation required</p>
+                <p className="mt-1 text-xs text-brand-900">{proposal.type === 'post_channel' ? 'Post this in' : 'Send this to'} <strong>{proposal.targetName}</strong>?</p>
                 <p className="mt-2 whitespace-pre-wrap rounded-lg bg-white/70 p-2 text-xs text-slate-700">{proposal.content}</p>
                 <div className="mt-3 flex gap-2">
-                  <button type="button" disabled={busy} onClick={() => void confirmAction()} className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50"><Check className="h-3.5 w-3.5" /> Confirm</button>
-                  <button type="button" disabled={busy} onClick={() => setProposal(null)} className="rounded-lg border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100">Cancel</button>
+                  <button type="button" disabled={busy} onClick={() => void confirmAction()} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"><Check className="h-3.5 w-3.5" /> Confirm</button>
+                  <button type="button" disabled={busy} onClick={() => setProposal(null)} className="rounded-lg border border-brand-200 px-3 py-2 text-xs font-semibold text-brand-800 hover:bg-brand-100">Cancel</button>
                 </div>
               </div>
             )}

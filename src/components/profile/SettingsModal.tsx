@@ -245,7 +245,7 @@ export const SettingsModal: React.FC = () => {
                 </select>
               </label>
             </div>
-            {deviceError && <p role="alert" className="text-xs text-amber-700 mt-3">{deviceError}</p>}
+            {deviceError && <p role="alert" className="text-xs text-brand-700 mt-3">{deviceError}</p>}
             <div className="mt-2 divide-y divide-slate-100">
               <Toggle
                 label="Show my camera preview"

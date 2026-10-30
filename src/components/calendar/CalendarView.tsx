@@ -139,7 +139,7 @@ export const CalendarView: React.FC = () => {
                     className={`group/chip relative px-2 py-1 rounded-lg text-[11px] font-semibold flex items-center justify-between gap-1 shadow-2xs border ${
                       evt.scope === 'team'
                         ? 'bg-brand-50 border-brand-200 text-brand-800'
-                        : 'bg-purple-50 border-purple-200 text-purple-800'
+                        : 'bg-brand-50 border-brand-200 text-brand-800'
                     }`}
                   >
                     <div className="flex items-center gap-1 min-w-0">
@@ -223,7 +223,7 @@ export const CalendarView: React.FC = () => {
                         className={`p-1.5 rounded-xl border text-[11px] font-semibold shadow-2xs leading-tight ${
                           evt.scope === 'team'
                             ? 'bg-brand-50 border-brand-200 text-brand-900'
-                            : 'bg-purple-50 border-purple-200 text-purple-900'
+                            : 'bg-brand-50 border-brand-200 text-brand-900'
                         }`}
                       >
                         <p className="truncate font-bold">{evt.title}</p>
@@ -284,7 +284,7 @@ export const CalendarView: React.FC = () => {
                 className={`p-4 rounded-2xl border shadow-xs flex items-center justify-between ${
                   evt.scope === 'team'
                     ? 'bg-brand-50/70 border-brand-200'
-                    : 'bg-purple-50/70 border-purple-200'
+                    : 'bg-brand-50/70 border-brand-200'
                 }`}
               >
                 <div className="space-y-1">
@@ -293,7 +293,7 @@ export const CalendarView: React.FC = () => {
                       className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                         evt.scope === 'team'
                           ? 'bg-brand-600 text-white'
-                          : 'bg-purple-600 text-white'
+                          : 'bg-brand-600 text-white'
                       }`}
                     >
                       {evt.scope === 'team' ? 'Whole Team Event' : 'Personal Event'}
@@ -369,12 +369,12 @@ export const CalendarView: React.FC = () => {
               onClick={() => setScopeFilter('personal')}
               className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                 scopeFilter === 'personal'
-                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                  ? 'bg-brand-50 text-brand-700 border border-brand-200'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               <div className="flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-purple-600" />
+                <Lock className="w-3.5 h-3.5 text-brand-600" />
                 <span>Personal Events</span>
               </div>
               <span className="text-[10px] bg-white px-1.5 py-0.5 rounded-full border border-slate-200 font-bold">
@@ -461,7 +461,7 @@ export const CalendarView: React.FC = () => {
                       className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded ${
                         evt.scope === 'team'
                           ? 'bg-brand-50 text-brand-700'
-                          : 'bg-purple-50 text-purple-700'
+                          : 'bg-brand-50 text-brand-700'
                       }`}
                     >
                       {evt.scope === 'team' ? 'Whole Team' : 'Personal'}

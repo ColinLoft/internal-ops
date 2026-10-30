@@ -154,7 +154,7 @@ const EmailHtmlBody: React.FC<{ html: string }> = ({ html }) => {
   const safeHtml = useMemo(() => sanitizeEmailHtml(html), [html]);
   return (
     <div
-      className="mt-5 w-full overflow-visible break-words rounded-lg bg-white text-sm leading-6 text-slate-700 [&_a]:text-blue-600 [&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:max-w-full [&_table]:border-collapse [&_td]:p-1 [&_th]:p-1"
+      className="mt-5 w-full overflow-visible break-words rounded-lg bg-white text-sm leading-6 text-slate-700 [&_a]:text-brand-600 [&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:max-w-full [&_table]:border-collapse [&_td]:p-1 [&_th]:p-1"
       dangerouslySetInnerHTML={{ __html: safeHtml }}
     />
   );
@@ -1146,7 +1146,7 @@ export const EmailInboxPage: React.FC = () => {
   return (
     <main className="flex min-w-0 flex-1 overflow-hidden bg-[linear-gradient(135deg,#f8fbff_0%,#eef6ff_52%,#f8fafc_100%)] print:bg-white">
       <aside className="flex w-52 shrink-0 flex-col border-r border-slate-200/80 bg-white/90 p-2 shadow-[4px_0_24px_rgba(30,64,175,0.04)] print:hidden">
-        <div className="mb-3 flex items-center justify-between rounded-xl bg-gradient-to-br from-brand-600 to-sky-600 p-2.5 text-white shadow-lg shadow-brand-500/15">
+        <div className="mb-3 flex items-center justify-between rounded-xl bg-gradient-to-br from-brand-600 to-brand-600 p-2.5 text-white shadow-lg shadow-brand-500/15">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/70">Workspace mail</p>
             <h1 className="mt-0.5 text-base font-bold">Inbox</h1>
@@ -1171,7 +1171,7 @@ export const EmailInboxPage: React.FC = () => {
                 <p className="px-3 py-2 text-xs text-slate-400">No mailboxes connected</p>
               ) : mailboxes.map((mailbox) => (
                 <button key={mailbox.id} type="button" onClick={() => { setActiveMailboxId(mailbox.id); setSelectedMessage(null); setMailboxMenuOpen(false); }} className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition ${activeMailboxId === mailbox.id ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50'}`}>
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${mailbox.mailbox_type === 'shared' ? 'bg-violet-500' : 'bg-emerald-500'}`} />
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${mailbox.mailbox_type === 'shared' ? 'bg-brand-500' : 'bg-brand-500'}`} />
                   <span className="min-w-0 flex-1 truncate">{mailbox.mailbox_type === 'shared' ? 'Shared · ' : ''}{mailbox.display_name || mailbox.email}</span>
                   {activeMailboxId === mailbox.id && <Check className="h-3.5 w-3.5 shrink-0" />}
                 </button>
@@ -1261,7 +1261,7 @@ export const EmailInboxPage: React.FC = () => {
           </div>
           {!showScheduledSends && activeMailbox && (
             <div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-500 md:flex">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="h-2 w-2 rounded-full bg-brand-500" />
               {activeMailbox.display_name || activeMailbox.email}
             </div>
           )}
@@ -1277,7 +1277,7 @@ export const EmailInboxPage: React.FC = () => {
           )}
         </div>
         {error && <div role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</div>}
-        {notice && <div role="status" className="border-b border-emerald-100 bg-emerald-50 px-4 py-2 text-xs text-emerald-700">{notice}<button type="button" onClick={() => setNotice('')} className="ml-2 underline">Dismiss</button></div>}
+        {notice && <div role="status" className="border-b border-brand-100 bg-brand-50 px-4 py-2 text-xs text-brand-700">{notice}<button type="button" onClick={() => setNotice('')} className="ml-2 underline">Dismiss</button></div>}
         {activeMailbox && !showScheduledSends && selectedMessageIds.size > 0 && (
             <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 bg-white/75 px-5 py-2.5">
               <div className="ml-auto flex flex-wrap items-center gap-1 border-l border-slate-200 pl-2">
@@ -1306,9 +1306,9 @@ export const EmailInboxPage: React.FC = () => {
                       {schedule.status === 'failed' && schedule.last_error && <p className="mt-1 text-xs text-rose-600">{schedule.last_error}</p>}
                     </div>
                     <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                      schedule.status === 'sent' ? 'bg-emerald-50 text-emerald-700'
+                      schedule.status === 'sent' ? 'bg-brand-50 text-brand-700'
                         : schedule.status === 'failed' ? 'bg-rose-50 text-rose-700'
-                          : schedule.status === 'scheduled' ? 'bg-blue-50 text-blue-700'
+                          : schedule.status === 'scheduled' ? 'bg-brand-50 text-brand-700'
                             : 'bg-slate-100 text-slate-600'
                     }`}>{schedule.status}</span>
                     {schedule.status === 'scheduled' && (
@@ -1336,14 +1336,14 @@ export const EmailInboxPage: React.FC = () => {
             )
           ) : !activeMailbox ? (
             <div className="mx-auto mt-10 max-w-xl rounded-3xl border border-slate-200/80 bg-white p-8 text-center shadow-[0_12px_40px_rgba(37,99,235,0.08)] sm:p-10">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-600 to-sky-500 text-white shadow-lg shadow-brand-500/20"><Mail className="h-8 w-8" /></div>
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-600 to-brand-500 text-white shadow-lg shadow-brand-500/20"><Mail className="h-8 w-8" /></div>
               <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.16em] text-brand-600">A calmer inbox starts here</p>
               <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Connect your work email</h3>
               <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-500">Bring your Microsoft 365 inbox into the workspace. Threads, rich content, drafts, scheduled sends, templates, and AI tools stay together in one organized place.</p>
               <div className="mx-auto mt-6 grid max-w-md grid-cols-3 gap-2 text-[10px] font-semibold text-slate-500">
-                <span className="rounded-xl bg-sky-50 px-2 py-3 text-sky-700">Organized threads</span>
-                <span className="rounded-xl bg-violet-50 px-2 py-3 text-violet-700">Smart drafts</span>
-                <span className="rounded-xl bg-emerald-50 px-2 py-3 text-emerald-700">Secure sync</span>
+                <span className="rounded-xl bg-brand-50 px-2 py-3 text-brand-700">Organized threads</span>
+                <span className="rounded-xl bg-brand-50 px-2 py-3 text-brand-700">Smart drafts</span>
+                <span className="rounded-xl bg-brand-50 px-2 py-3 text-brand-700">Secure sync</span>
               </div>
               <button
                 type="button"
@@ -1387,21 +1387,21 @@ export const EmailInboxPage: React.FC = () => {
               </button>
               <button type="button" onClick={() => void openMessage(message)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
                 <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${message.is_read ? 'bg-transparent' : 'bg-brand-600'}`} />
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-100 to-brand-100 text-[11px] font-bold text-brand-700 ring-1 ring-white">{senderInitials(message)}</span>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-100 to-brand-100 text-[11px] font-bold text-brand-700 ring-1 ring-white">{senderInitials(message)}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className={`truncate text-sm ${message.is_read ? 'font-medium text-slate-600' : 'font-bold text-slate-900'}`}>{message.sender_name || message.sender_email}</span>
                     {thread.length > 1 && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">{thread.length}</span>}
                     {message.has_attachments && <ArrowUpRight className="h-3 w-3 shrink-0 text-slate-400" />}
-                    {message.labels.map((label) => <span key={label} className="rounded-full bg-sky-50 px-1.5 py-0.5 text-[9px] text-sky-700">{label}</span>)}
+                    {message.labels.map((label) => <span key={label} className="rounded-full bg-brand-50 px-1.5 py-0.5 text-[9px] text-brand-700">{label}</span>)}
                     <time className="ml-auto shrink-0 text-[10px] text-slate-400">{new Date(message.received_at).toLocaleDateString()}</time>
                   </div>
                   <p className={`mt-1 truncate text-[13px] ${message.is_read ? 'text-slate-600' : 'font-semibold text-slate-800'}`}>{message.subject || '(no subject)'}</p>
                   <p className="mt-1 truncate text-xs text-slate-400">{message.snippet || message.body_text}</p>
                 </div>
               </button>
-              <button type="button" onClick={(event) => { event.stopPropagation(); void toggleStar(message); }} aria-label={message.is_starred ? 'Unstar email' : 'Star email'} className="rounded-lg p-2 text-slate-300 opacity-60 transition group-hover:opacity-100 hover:bg-amber-50 hover:text-amber-500">
-                <Star className={`h-4 w-4 ${message.is_starred ? 'fill-amber-400 text-amber-500' : ''}`} />
+              <button type="button" onClick={(event) => { event.stopPropagation(); void toggleStar(message); }} aria-label={message.is_starred ? 'Unstar email' : 'Star email'} className="rounded-lg p-2 text-slate-300 opacity-60 transition group-hover:opacity-100 hover:bg-brand-50 hover:text-brand-500">
+                <Star className={`h-4 w-4 ${message.is_starred ? 'fill-brand-400 text-brand-500' : ''}`} />
               </button>
             </div>
               ))}
@@ -1436,8 +1436,8 @@ export const EmailInboxPage: React.FC = () => {
             </div>
             {selectedThreadMessages.length > 1 && <span className="text-xs text-slate-500">{selectedThreadMessages.length} messages in thread</span>}
             <button type="button" onClick={() => window.print()} title="Print conversation" aria-label="Print conversation" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><Printer className="h-4 w-4" /></button>
-            <button type="button" onClick={() => void toggleStar(selectedMessage)} title={selectedMessage.is_starred ? 'Unstar' : 'Star'} aria-label={selectedMessage.is_starred ? 'Unstar email' : 'Star email'} className="rounded-lg p-2 text-slate-500 hover:bg-amber-50 hover:text-amber-600">
-              <Star className={`h-4 w-4 ${selectedMessage.is_starred ? 'fill-amber-400 text-amber-500' : ''}`} />
+            <button type="button" onClick={() => void toggleStar(selectedMessage)} title={selectedMessage.is_starred ? 'Unstar' : 'Star'} aria-label={selectedMessage.is_starred ? 'Unstar email' : 'Star email'} className="rounded-lg p-2 text-slate-500 hover:bg-brand-50 hover:text-brand-600">
+              <Star className={`h-4 w-4 ${selectedMessage.is_starred ? 'fill-brand-400 text-brand-500' : ''}`} />
             </button>
             <button type="button" onClick={() => void archiveMessage(selectedMessage)} title="Archive" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><Archive className="h-4 w-4" /></button>
             <button type="button" onClick={() => void toggleRead(selectedMessage)} title={selectedMessage.is_read ? 'Mark unread' : 'Mark read'} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">{selectedMessage.is_read ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}</button>
@@ -1456,7 +1456,7 @@ export const EmailInboxPage: React.FC = () => {
                 return next;
               })} className="flex w-full items-center justify-between gap-4 text-left">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-100 to-brand-100 text-xs font-bold text-brand-700">{senderInitials(threadMessage)}</div>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-100 to-brand-100 text-xs font-bold text-brand-700">{senderInitials(threadMessage)}</div>
                 <div className="min-w-0">
                   <h1 className="truncate text-sm font-bold leading-5 text-slate-900">{threadMessage.sender_name || threadMessage.sender_email}</h1>
                   <p className="truncate text-xs text-slate-500">{threadMessage.subject || '(no subject)'}</p>
@@ -1509,11 +1509,11 @@ export const EmailInboxPage: React.FC = () => {
             );
             })}
             {artifacts.map((artifact) => (
-              <div key={artifact.id} className="mx-auto mt-5 max-w-4xl rounded-xl border border-violet-100 bg-violet-50/70 p-4">
-                <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-violet-800"><Sparkles className="h-3.5 w-3.5" /> Saved AI {artifact.artifact_type === 'summary' ? 'summary' : 'draft'}</p>
-                <p className="whitespace-pre-wrap text-xs leading-5 text-violet-900">{artifact.content}</p>
+              <div key={artifact.id} className="mx-auto mt-5 max-w-4xl rounded-xl border border-brand-100 bg-brand-50/70 p-4">
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-brand-800"><Sparkles className="h-3.5 w-3.5" /> Saved AI {artifact.artifact_type === 'summary' ? 'summary' : 'draft'}</p>
+                <p className="whitespace-pre-wrap text-xs leading-5 text-brand-900">{artifact.content}</p>
                 {artifact.artifact_type === 'draft' && (
-                  <button type="button" onClick={() => prepareInlineReply(artifact.content)} className="mt-3 text-xs font-semibold text-violet-800 underline">
+                  <button type="button" onClick={() => prepareInlineReply(artifact.content)} className="mt-3 text-xs font-semibold text-brand-800 underline">
                     Use this draft
                   </button>
                 )}
@@ -1557,7 +1557,7 @@ export const EmailInboxPage: React.FC = () => {
                 {forwardableChannels.map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}
               </select>
             </label>
-            <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+            <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs leading-5 text-brand-800">
               Channel members may see this email and any attached files. Check the channel before sharing confidential content.
             </p>
             <div className="mt-5 flex justify-end gap-2">

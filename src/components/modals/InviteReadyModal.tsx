@@ -39,19 +39,19 @@ export const InviteReadyModal: React.FC<InviteReadyModalProps> = ({
     <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Banner */}
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-5 text-white flex items-center justify-between">
+        <div className="bg-gradient-to-r from-brand-600 to-brand-600 p-5 text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md">
               <UserCheck className="w-5 h-5 text-white" />
             </div>
             <div>
               <h3 className="font-bold text-base">Staff Account Created</h3>
-              <p className="text-emerald-100 text-xs">Temporary sign-in details</p>
+              <p className="text-brand-100 text-xs">Temporary sign-in details</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-full text-emerald-100 hover:text-white hover:bg-white/20 transition-colors"
+            className="p-1 rounded-full text-brand-100 hover:text-white hover:bg-white/20 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

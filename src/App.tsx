@@ -57,7 +57,7 @@ const WorkspaceShell: React.FC = () => {
 
   // If not authenticated, render the Auth Portal
   if (isAuthLoading) {
-    return <div className="min-h-screen bg-gradient-to-br from-slate-100 via-sky-50/70 to-blue-50/90" aria-label="Loading session" />;
+    return <div className="min-h-screen bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90" aria-label="Loading session" />;
   }
 
   if (!isAuthenticated) {
@@ -72,7 +72,7 @@ const WorkspaceShell: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-screen h-full w-screen overflow-hidden bg-gradient-to-br from-slate-100 via-sky-50/70 to-blue-50/90 select-none">
+    <div className="flex min-h-screen h-full w-screen overflow-hidden bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90 select-none">
       {/* 1. Left Icon Rail */}
       <Rail />
 

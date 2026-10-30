@@ -71,11 +71,11 @@ export const ConversationList: React.FC = () => {
             <span
               className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${
                 partner?.status === 'online'
-                  ? 'bg-emerald-500'
+                  ? 'bg-brand-500'
                   : partner?.status === 'busy'
                   ? 'bg-rose-500'
                   : partner?.status === 'away'
-                  ? 'bg-amber-500'
+                  ? 'bg-brand-500'
                   : 'bg-slate-400'
               }`}
             />

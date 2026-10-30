@@ -96,12 +96,12 @@ export const AddEventModal: React.FC = () => {
                 onClick={() => setScope('personal')}
                 className={`p-3 rounded-2xl border text-left transition-all ${
                   scope === 'personal'
-                    ? 'border-purple-500 bg-purple-50/70 ring-2 ring-purple-400/20'
+                    ? 'border-brand-500 bg-brand-50/70 ring-2 ring-brand-400/20'
                     : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <Lock className="w-4 h-4 text-purple-600" />
+                  <Lock className="w-4 h-4 text-brand-600" />
                   <span className="text-xs font-bold text-slate-900">Personal Event</span>
                 </div>
                 <p className="text-[11px] text-slate-500 leading-snug">

@@ -155,12 +155,12 @@ export const CreateChannelModal: React.FC = () => {
                 }}
                 className={`p-3 rounded-2xl border text-left transition-all ${
                   type === 'announcement'
-                    ? 'border-amber-500 bg-amber-50/70 ring-2 ring-amber-400/20'
+                    ? 'border-brand-500 bg-brand-50/70 ring-2 ring-brand-400/20'
                     : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <Megaphone className="w-4 h-4 text-amber-600" />
+                  <Megaphone className="w-4 h-4 text-brand-600" />
                   <span className="text-xs font-bold text-slate-900">Announcement</span>
                 </div>
                 <p className="text-[11px] text-slate-500 leading-snug">

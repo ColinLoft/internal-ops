@@ -35,7 +35,7 @@ export const AuthScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-sky-50/70 to-blue-50/90 p-4 select-none relative overflow-hidden">
+    <div className="min-h-screen w-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90 p-4 select-none relative overflow-hidden">
       {/* Decorative ambient glowing orbs in brand blue */}
       <div className="absolute top-1/4 -left-32 w-96 h-96 bg-brand-500/15 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-brand-400/10 rounded-full blur-3xl pointer-events-none" />

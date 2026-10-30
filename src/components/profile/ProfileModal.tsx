@@ -66,11 +66,11 @@ export const ProfileModal: React.FC = () => {
               <span
                 className={`absolute bottom-1 right-1 w-5 h-5 rounded-full border-2 border-white ${
                   activeProfileModalUser.status === 'online'
-                    ? 'bg-emerald-500'
+                    ? 'bg-brand-500'
                     : activeProfileModalUser.status === 'busy'
                     ? 'bg-rose-500'
                     : activeProfileModalUser.status === 'away'
-                    ? 'bg-amber-500'
+                    ? 'bg-brand-500'
                     : 'bg-slate-400'
                 }`}
                 title={`Status: ${activeProfileModalUser.status}`}
@@ -89,14 +89,14 @@ export const ProfileModal: React.FC = () => {
                 </button>
                 <button
                   onClick={handleVoiceCall}
-                  className="p-2.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 transition-colors shadow-xs"
+                  className="p-2.5 rounded-2xl bg-brand-50 hover:bg-brand-100 text-brand-600 transition-colors shadow-xs"
                   title="Voice Call"
                 >
                   <Phone className="w-4 h-4" />
                 </button>
                 <button
                   onClick={handleVideoCall}
-                  className="p-2.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 transition-colors shadow-xs"
+                  className="p-2.5 rounded-2xl bg-brand-50 hover:bg-brand-100 text-brand-600 transition-colors shadow-xs"
                   title="Video Call"
                 >
                   <Video className="w-4 h-4" />
@@ -132,7 +132,7 @@ export const ProfileModal: React.FC = () => {
               <span
                 className={`w-2 h-2 rounded-full ${
                   activeProfileModalUser.status === 'online'
-                    ? 'bg-emerald-500'
+                    ? 'bg-brand-500'
                     : 'bg-slate-400'
                 }`}
               />

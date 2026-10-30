@@ -83,22 +83,22 @@ html[data-theme='dark'] #root [class~='bg-brand-50/70'],
 html[data-theme='dark'] #root [class~='bg-brand-50/40'],
 html[data-theme='dark'] #root [class~='bg-brand-100'],
 html[data-theme='dark'] #root [class~='bg-brand-100/70'],
-html[data-theme='dark'] #root [class~='bg-indigo-50'],
-html[data-theme='dark'] #root [class~='bg-indigo-100'],
-html[data-theme='dark'] #root [class~='bg-sky-50'],
-html[data-theme='dark'] #root [class~='bg-sky-100'],
-html[data-theme='dark'] #root [class~='bg-emerald-50'],
-html[data-theme='dark'] #root [class~='bg-emerald-100'],
-html[data-theme='dark'] #root [class~='bg-teal-50'],
-html[data-theme='dark'] #root [class~='bg-teal-100'],
-html[data-theme='dark'] #root [class~='bg-amber-50'],
-html[data-theme='dark'] #root [class~='bg-amber-100'],
+html[data-theme='dark'] #root [class~='bg-brand-50'],
+html[data-theme='dark'] #root [class~='bg-brand-100'],
+html[data-theme='dark'] #root [class~='bg-brand-50'],
+html[data-theme='dark'] #root [class~='bg-brand-100'],
+html[data-theme='dark'] #root [class~='bg-brand-50'],
+html[data-theme='dark'] #root [class~='bg-brand-100'],
+html[data-theme='dark'] #root [class~='bg-brand-50'],
+html[data-theme='dark'] #root [class~='bg-brand-100'],
+html[data-theme='dark'] #root [class~='bg-brand-50'],
+html[data-theme='dark'] #root [class~='bg-brand-100'],
 html[data-theme='dark'] #root [class~='bg-rose-50'],
 html[data-theme='dark'] #root [class~='bg-rose-100'],
-html[data-theme='dark'] #root [class~='bg-purple-50'],
-html[data-theme='dark'] #root [class~='bg-purple-100'],
-html[data-theme='dark'] #root [class~='bg-orange-50'],
-html[data-theme='dark'] #root [class~='bg-orange-100'] {
+html[data-theme='dark'] #root [class~='bg-brand-50'],
+html[data-theme='dark'] #root [class~='bg-brand-100'],
+html[data-theme='dark'] #root [class~='bg-brand-50'],
+html[data-theme='dark'] #root [class~='bg-brand-100'] {
   background-color: #172941 !important;
 }
 
@@ -120,20 +120,20 @@ html[data-theme='dark'] #root [class~='text-slate-400'] {
 html[data-theme='dark'] #root [class~='text-brand-700'],
 html[data-theme='dark'] #root [class~='text-brand-800'],
 html[data-theme='dark'] #root [class~='text-brand-900'],
-html[data-theme='dark'] #root [class~='text-indigo-600'],
-html[data-theme='dark'] #root [class~='text-indigo-700'],
-html[data-theme='dark'] #root [class~='text-emerald-600'],
-html[data-theme='dark'] #root [class~='text-emerald-700'],
-html[data-theme='dark'] #root [class~='text-teal-600'],
-html[data-theme='dark'] #root [class~='text-teal-700'],
-html[data-theme='dark'] #root [class~='text-amber-600'],
-html[data-theme='dark'] #root [class~='text-amber-700'],
+html[data-theme='dark'] #root [class~='text-brand-600'],
+html[data-theme='dark'] #root [class~='text-brand-700'],
+html[data-theme='dark'] #root [class~='text-brand-600'],
+html[data-theme='dark'] #root [class~='text-brand-700'],
+html[data-theme='dark'] #root [class~='text-brand-600'],
+html[data-theme='dark'] #root [class~='text-brand-700'],
+html[data-theme='dark'] #root [class~='text-brand-600'],
+html[data-theme='dark'] #root [class~='text-brand-700'],
 html[data-theme='dark'] #root [class~='text-rose-600'],
 html[data-theme='dark'] #root [class~='text-rose-700'],
-html[data-theme='dark'] #root [class~='text-purple-600'],
-html[data-theme='dark'] #root [class~='text-purple-700'],
-html[data-theme='dark'] #root [class~='text-orange-600'],
-html[data-theme='dark'] #root [class~='text-orange-700'] {
+html[data-theme='dark'] #root [class~='text-brand-600'],
+html[data-theme='dark'] #root [class~='text-brand-700'],
+html[data-theme='dark'] #root [class~='text-brand-600'],
+html[data-theme='dark'] #root [class~='text-brand-700'] {
   color: #bfdbfe;
 }
 
@@ -151,13 +151,13 @@ html[data-theme='dark'] #root [class~='border-brand-100'],
 html[data-theme='dark'] #root [class~='border-brand-200'],
 html[data-theme='dark'] #root [class~='border-brand-200/60'],
 html[data-theme='dark'] #root [class~='border-brand-300'],
-html[data-theme='dark'] #root [class~='border-indigo-200'],
-html[data-theme='dark'] #root [class~='border-emerald-200'],
-html[data-theme='dark'] #root [class~='border-teal-200'],
-html[data-theme='dark'] #root [class~='border-amber-200'],
+html[data-theme='dark'] #root [class~='border-brand-200'],
+html[data-theme='dark'] #root [class~='border-brand-200'],
+html[data-theme='dark'] #root [class~='border-brand-200'],
+html[data-theme='dark'] #root [class~='border-brand-200'],
 html[data-theme='dark'] #root [class~='border-rose-200'],
-html[data-theme='dark'] #root [class~='border-purple-200'],
-html[data-theme='dark'] #root [class~='border-orange-200'] {
+html[data-theme='dark'] #root [class~='border-brand-200'],
+html[data-theme='dark'] #root [class~='border-brand-200'] {
   border-color: #34506f;
 }
 
@@ -178,33 +178,33 @@ html[data-theme='dark'] #root [class*='hover:bg-slate-50']:hover,
 html[data-theme='dark'] #root [class*='hover:bg-slate-100']:hover,
 html[data-theme='dark'] #root [class*='hover:bg-brand-50']:hover,
 html[data-theme='dark'] #root [class*='hover:bg-brand-100']:hover,
-html[data-theme='dark'] #root [class*='hover:bg-indigo-50']:hover,
+html[data-theme='dark'] #root [class*='hover:bg-brand-50']:hover,
 html[data-theme='dark'] #root [class*='hover:bg-rose-50']:hover {
   background-color: #203551 !important;
 }
 
 html[data-theme='dark'] #root [class~='bg-brand-600'] {
-  background-color: var(--brand-accent, #2563eb);
+  background-color: var(--brand-accent, #2569F5);
 }
 
 html[data-theme='dark'] #root [class~='text-brand-600'] {
-  color: var(--brand-accent, #60a5fa);
+  color: var(--brand-accent, #5695FA);
 }
 
 html[data-theme='dark'] #root [class~='border-brand-500'],
 html[data-theme='dark'] #root [class~='border-brand-600'] {
-  border-color: var(--brand-accent, #2563eb);
+  border-color: var(--brand-accent, #2569F5);
 }
 
 html[data-theme='light'] #root [class~='bg-brand-600'] {
-  background-color: var(--brand-accent, #2563eb);
+  background-color: var(--brand-accent, #2569F5);
 }
 
 html[data-theme='light'] #root [class~='text-brand-600'] {
-  color: var(--brand-accent, #2563eb);
+  color: var(--brand-accent, #2569F5);
 }
 
 html[data-theme='light'] #root [class~='border-brand-500'],
 html[data-theme='light'] #root [class~='border-brand-600'] {
-  border-color: var(--brand-accent, #2563eb);
+  border-color: var(--brand-accent, #2569F5);
 }

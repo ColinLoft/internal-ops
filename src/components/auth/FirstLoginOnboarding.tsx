@@ -207,7 +207,7 @@ export const FirstLoginOnboarding: React.FC = () => {
           {spotlightRect && (
             <div
               aria-hidden="true"
-              className="absolute rounded-2xl border-2 border-sky-300 shadow-[0_0_0_9999px_rgba(15,23,42,0.56)] transition-all duration-300"
+              className="absolute rounded-2xl border-2 border-brand-300 shadow-[0_0_0_9999px_rgba(15,23,42,0.56)] transition-all duration-300"
               style={{
                 top: spotlightRect.top,
                 left: spotlightRect.left,
@@ -228,14 +228,14 @@ export const FirstLoginOnboarding: React.FC = () => {
             : 'pointer-events-auto fixed bottom-4 right-4 max-h-[calc(100vh-2rem)] max-w-sm overflow-y-auto sm:bottom-6 sm:right-6'
         }`}
       >
-        <div className="h-1.5 bg-gradient-to-r from-sky-500 via-blue-500 to-cyan-400" />
+        <div className="h-1.5 bg-gradient-to-r from-brand-500 via-brand-500 to-brand-400" />
         {stage === 'profile' ? (
           <>
             <div className="p-6 pb-4 sm:p-8 sm:pb-5">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
                 <UserRound className="h-6 w-6" />
               </div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-700">Welcome to your workspace</p>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Welcome to your workspace</p>
               <h1 id="onboarding-title" className="mt-2 text-2xl font-bold text-slate-900">Set up your profile</h1>
               <p className="mt-1 text-sm text-slate-500">Help your teammates recognize you and know what you do.</p>
             </div>
@@ -245,7 +245,7 @@ export const FirstLoginOnboarding: React.FC = () => {
                 {avatar ? (
                   <img src={avatar} alt="" className="h-16 w-16 rounded-2xl border border-slate-200 object-cover" />
                 ) : (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-100 text-brand-700">
                     <ImagePlus className="h-6 w-6" />
                   </div>
                 )}
@@ -263,7 +263,7 @@ export const FirstLoginOnboarding: React.FC = () => {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
-                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-sky-700 hover:text-sky-800 disabled:opacity-50"
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-brand-700 hover:text-brand-800 disabled:opacity-50"
                   >
                     {uploading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
                     {uploading ? 'Uploading photo…' : 'Upload photo'}
@@ -283,7 +283,7 @@ export const FirstLoginOnboarding: React.FC = () => {
                     value={banner}
                     onChange={(event) => setBanner(event.target.value as ProfileBanner)}
                     required
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-sky-500"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
                   >
                     {PROFILE_BANNERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
@@ -298,7 +298,7 @@ export const FirstLoginOnboarding: React.FC = () => {
                   rows={2}
                   maxLength={300}
                   placeholder="What do you work on, or what can teammates come to you for?"
-                  className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-sky-500"
+                  className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
                 />
               </label>
 
@@ -311,7 +311,7 @@ export const FirstLoginOnboarding: React.FC = () => {
                 type="button"
                 onClick={() => void saveProfileAndStartTour()}
                 disabled={saving || uploading}
-                className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sky-700 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60"
               >
                 {saving ? 'Saving profile…' : 'Continue to tour'}
                 {!saving && <ArrowRight className="h-4 w-4" />}
@@ -322,10 +322,10 @@ export const FirstLoginOnboarding: React.FC = () => {
           <>
             <div className="p-5 pb-4">
               <div className="mb-5 flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-700">Workspace tour</p>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Workspace tour</p>
                 <span className="text-xs font-semibold text-slate-400">Step {tourIndex + 1} of {tourSteps.length}</span>
               </div>
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
                 {TourIcon && <TourIcon className="h-7 w-7" />}
               </div>
               <h1 id="onboarding-title" className="text-2xl font-bold text-slate-900">{activeStep?.title}</h1>
@@ -337,7 +337,7 @@ export const FirstLoginOnboarding: React.FC = () => {
                 <div
                   key={step.title}
                   aria-label={`Tour step ${index + 1}`}
-                  className={`h-1.5 rounded-full ${index === tourIndex ? 'bg-sky-600' : index < tourIndex ? 'bg-sky-200' : 'bg-slate-100'}`}
+                  className={`h-1.5 rounded-full ${index === tourIndex ? 'bg-brand-600' : index < tourIndex ? 'bg-brand-200' : 'bg-slate-100'}`}
                 />
               ))}
             </div>
@@ -356,7 +356,7 @@ export const FirstLoginOnboarding: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => moveTour(1)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sky-700"
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-brand-700"
                 >
                   {activeStep?.action || 'Next'} <ArrowRight className="h-4 w-4" />
                 </button>
@@ -365,7 +365,7 @@ export const FirstLoginOnboarding: React.FC = () => {
                   type="button"
                   onClick={() => void finishTour()}
                   disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sky-700 disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60"
                 >
                   {saving ? 'Finishing…' : 'Finish onboarding'}
                   {!saving && <Check className="h-4 w-4" />}
@@ -392,7 +392,7 @@ const OnboardingField: React.FC<{
       onChange={(event) => onChange(event.target.value)}
       required={required}
       maxLength={100}
-      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-sky-500"
+      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
     />
   </label>
 );

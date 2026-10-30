@@ -34,11 +34,11 @@ export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose 
   const getIcon = (type: string) => {
     switch (type) {
       case 'announcement':
-        return <Megaphone className="w-4 h-4 text-amber-600" />;
+        return <Megaphone className="w-4 h-4 text-brand-600" />;
       case 'mention':
         return <AtSign className="w-4 h-4 text-brand-600" />;
       case 'calendar':
-        return <Calendar className="w-4 h-4 text-emerald-600" />;
+        return <Calendar className="w-4 h-4 text-brand-600" />;
       default:
         return <MessageSquare className="w-4 h-4 text-brand-600" />;
     }

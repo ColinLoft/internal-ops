@@ -120,7 +120,7 @@ export const EmailAdminPanel: React.FC = () => {
       </div>
 
       {error && <p role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-xs text-rose-700">{error}</p>}
-      {notice && <p role="status" className="border-b border-emerald-100 bg-emerald-50 px-4 py-3 text-xs text-emerald-700">{notice}</p>}
+      {notice && <p role="status" className="border-b border-brand-100 bg-brand-50 px-4 py-3 text-xs text-brand-700">{notice}</p>}
       <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-4 py-3">
         <div>
           <p className="text-sm font-semibold text-slate-800">Automatic email summaries</p>
@@ -152,7 +152,7 @@ export const EmailAdminPanel: React.FC = () => {
                         ? `active until ${new Date(mailbox.push_expires_at).toLocaleDateString()}`
                         : 'not configured or expired'}
                     </p>
-                    {mailbox.push_error && <p role="alert" className="mt-1 text-[11px] text-amber-700">{mailbox.push_error}</p>}
+                    {mailbox.push_error && <p role="alert" className="mt-1 text-[11px] text-brand-700">{mailbox.push_error}</p>}
                   </div>
                   <button type="button" disabled={saving} onClick={() => {
                     if (window.confirm(`Disconnect ${mailbox.email} and remove its synced email from this workspace?`)) {
@@ -169,7 +169,7 @@ export const EmailAdminPanel: React.FC = () => {
                     if (!staff) return null;
                     return (
                       <div key={grant.user_id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
-                        <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+                        <ShieldCheck className="h-4 w-4 shrink-0 text-brand-600" />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-xs font-semibold text-slate-800">{staff.name}</p>
                           <p className="truncate text-[10px] text-slate-500">{staff.email}</p>

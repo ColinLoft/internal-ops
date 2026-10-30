@@ -80,11 +80,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         <span
           className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
             sender.status === 'online'
-              ? 'bg-emerald-500'
+              ? 'bg-brand-500'
               : sender.status === 'busy'
               ? 'bg-rose-500'
               : sender.status === 'away'
-              ? 'bg-amber-500'
+              ? 'bg-brand-500'
               : 'bg-slate-400'
           }`}
           title={`Status: ${sender.status}`}
@@ -289,7 +289,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="p-2 bg-indigo-500 text-white rounded-lg">
+                          <div className="p-2 bg-brand-500 text-white rounded-lg">
                             <FileText className="w-4 h-4" />
                           </div>
                           <div className="min-w-0">

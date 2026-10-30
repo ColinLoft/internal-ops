@@ -13,11 +13,11 @@ export const RINGTONES: { value: Ringtone; label: string; description: string }[
 ];
 
 export const PROFILE_BANNERS: { value: ProfileBanner; label: string; className: string }[] = [
-  { value: 'ocean', label: 'Ocean blue', className: 'bg-gradient-to-r from-blue-600 via-cyan-600 to-sky-500' },
-  { value: 'violet', label: 'Violet', className: 'bg-gradient-to-r from-violet-700 via-purple-600 to-fuchsia-500' },
-  { value: 'forest', label: 'Forest', className: 'bg-gradient-to-r from-emerald-700 via-teal-600 to-lime-500' },
-  { value: 'sunset', label: 'Sunset', className: 'bg-gradient-to-r from-orange-600 via-rose-600 to-pink-500' },
-  { value: 'rose', label: 'Rose', className: 'bg-gradient-to-r from-rose-700 via-pink-600 to-purple-500' },
+  { value: 'ocean', label: 'Ocean blue', className: 'bg-gradient-to-r from-brand-600 via-brand-600 to-brand-500' },
+  { value: 'violet', label: 'Violet', className: 'bg-gradient-to-r from-brand-700 via-brand-600 to-fuchsia-500' },
+  { value: 'forest', label: 'Forest', className: 'bg-gradient-to-r from-brand-700 via-brand-600 to-lime-500' },
+  { value: 'sunset', label: 'Sunset', className: 'bg-gradient-to-r from-brand-600 via-rose-600 to-pink-500' },
+  { value: 'rose', label: 'Rose', className: 'bg-gradient-to-r from-rose-700 via-pink-600 to-brand-500' },
 ];
 
 export interface User {
@@ -77,7 +77,7 @@ export interface WorkspaceSettings {
 
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   theme: 'light',
-  accentColor: '#2563eb',
+  accentColor: '#2569F5',
   autoBusyInCalls: true,
   autoBusyDuringEvents: true,
   microphoneDeviceId: '',

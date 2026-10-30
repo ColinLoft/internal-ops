@@ -269,11 +269,11 @@ export const EditProfileModal: React.FC = () => {
                     />
                     <span className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
                       currentUser.status === 'online'
-                        ? 'bg-emerald-500'
+                        ? 'bg-brand-500'
                         : currentUser.status === 'busy'
                         ? 'bg-rose-500'
                         : currentUser.status === 'away'
-                        ? 'bg-amber-500'
+                        ? 'bg-brand-500'
                         : 'bg-slate-400'
                     }`} />
                   </div>

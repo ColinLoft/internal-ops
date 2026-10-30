@@ -82,7 +82,7 @@ export const ChatFeed: React.FC = () => {
   if (!isChannel && !currentConv) {
     return (
       <div data-onboarding-target="message-feed" className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50/50 backdrop-blur-md text-center">
-        <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-brand-600 to-indigo-500 text-white flex items-center justify-center shadow-lg shadow-brand-500/25 mb-4">
+        <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-brand-600 to-brand-500 text-white flex items-center justify-center shadow-lg shadow-brand-500/25 mb-4">
           <MessageSquare className="w-8 h-8" />
         </div>
         <h3 className="text-lg font-bold text-slate-900">Your Messages</h3>
@@ -141,11 +141,11 @@ export const ChatFeed: React.FC = () => {
                 <span
                   className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
                     partnerUser.status === 'online'
-                      ? 'bg-emerald-500'
+                      ? 'bg-brand-500'
                       : partnerUser.status === 'busy'
                       ? 'bg-rose-500'
                       : partnerUser.status === 'away'
-                      ? 'bg-amber-500'
+                      ? 'bg-brand-500'
                       : 'bg-slate-400'
                   }`}
                 />
@@ -175,8 +175,8 @@ export const ChatFeed: React.FC = () => {
                   <span className="truncate">{partnerUser.role}</span>
                   <span>•</span>
                   {partnerUser.status === 'online' ? (
-                    <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-brand-600 font-semibold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse" />
                       Online
                     </span>
                   ) : (

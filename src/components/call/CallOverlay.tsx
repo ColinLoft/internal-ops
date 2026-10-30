@@ -284,7 +284,7 @@ export const CallOverlay: React.FC = () => {
       {incomingCall && !callSession.active && (
         <div className="fixed bottom-6 right-6 z-[65] w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-slate-700 bg-slate-900 p-4 text-white shadow-2xl">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-500/20 text-brand-300">
               {incomingCall.call_type === 'video' ? <VideoIcon className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </div>
             <div className="min-w-0 flex-1">
@@ -294,7 +294,7 @@ export const CallOverlay: React.FC = () => {
           </div>
           <div className="mt-4 flex justify-end gap-2">
             <button type="button" onClick={dismissIncomingCall} className="rounded-xl bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-600">Not now</button>
-            <button type="button" onClick={acceptIncomingCall} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-500">Join call</button>
+            <button type="button" onClick={acceptIncomingCall} className="rounded-xl bg-brand-600 px-4 py-2 text-xs font-bold text-white hover:bg-brand-500">Join call</button>
           </div>
         </div>
       )}
@@ -303,7 +303,7 @@ export const CallOverlay: React.FC = () => {
         <div className={`fixed ${callSession.isMinimized ? 'bottom-6 right-6 w-[min(25rem,calc(100vw-2rem))]' : 'inset-3 sm:inset-6'} z-50 flex flex-col overflow-hidden rounded-3xl border border-slate-700 bg-slate-950 text-white shadow-2xl`}>
           <header className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-4 py-3 sm:px-5">
             <div className="flex min-w-0 items-center gap-3">
-              <span className={`h-2.5 w-2.5 rounded-full ${connectionState === ConnectionState.Connected ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
+              <span className={`h-2.5 w-2.5 rounded-full ${connectionState === ConnectionState.Connected ? 'bg-brand-400' : 'bg-brand-400 animate-pulse'}`} />
               <div className="min-w-0">
                 <h2 className="truncate text-sm font-bold">
                   {callSession.targetChannel ? `#${callSession.targetChannel.name}` : callSession.peerUser?.name || 'Team call'}
@@ -331,7 +331,7 @@ export const CallOverlay: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => void enableAudioPlayback()}
-                    className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950"
+                    className="rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-slate-950"
                   >
                     Enable call audio
                   </button>
@@ -351,7 +351,7 @@ export const CallOverlay: React.FC = () => {
                 {!sharedScreen && !localScreenTrack && (
                   <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {remoteMedia.map((participant) => (
-                      <div key={participant.identity} className={`relative min-h-40 overflow-hidden rounded-2xl border bg-slate-900 ${participant.speaking ? 'border-emerald-400' : 'border-slate-800'}`}>
+                      <div key={participant.identity} className={`relative min-h-40 overflow-hidden rounded-2xl border bg-slate-900 ${participant.speaking ? 'border-brand-400' : 'border-slate-800'}`}>
                         {participant.camera ? (
                           <AttachedVideo track={participant.camera} className="h-full w-full object-cover" />
                         ) : (

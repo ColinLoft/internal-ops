@@ -107,7 +107,7 @@ export const RightDrawer: React.FC = () => {
               onClick={handleCopyLink}
               className="flex items-center gap-1 text-[11px] font-bold text-brand-600 hover:text-brand-700 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-2xs"
             >
-              {copiedLink ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+              {copiedLink ? <Check className="w-3 h-3 text-brand-500" /> : <Copy className="w-3 h-3" />}
               <span>{copiedLink ? 'Copied' : 'Copy'}</span>
             </button>
           </div>
@@ -239,11 +239,11 @@ export const RightDrawer: React.FC = () => {
                     <span
                       className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
                         member.status === 'online'
-                          ? 'bg-emerald-500'
+                          ? 'bg-brand-500'
                           : member.status === 'busy'
                           ? 'bg-rose-500'
                           : member.status === 'away'
-                          ? 'bg-amber-500'
+                          ? 'bg-brand-500'
                           : 'bg-slate-400'
                       }`}
                     />
@@ -271,7 +271,7 @@ export const RightDrawer: React.FC = () => {
                         e.stopPropagation();
                         startCall('audio', member);
                       }}
-                      className="p-1 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors"
+                      className="p-1 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600 transition-colors"
                       title="Voice Call"
                     >
                       <Phone className="w-3 h-3" />

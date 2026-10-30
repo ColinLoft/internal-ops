@@ -113,7 +113,7 @@ export const NewMessageModal: React.FC = () => {
                       <img src={u.avatar} alt={u.name} className="w-9 h-9 rounded-xl object-cover" />
                       <span
                         className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                          u.status === 'online' ? 'bg-emerald-500' : 'bg-slate-400'
+                          u.status === 'online' ? 'bg-brand-500' : 'bg-slate-400'
                         }`}
                       />
                     </div>

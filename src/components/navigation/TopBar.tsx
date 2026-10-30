@@ -62,31 +62,31 @@ export const TopBar: React.FC = () => {
       id: 'home',
       name: 'Home',
       icon: MessageSquare,
-      accent: 'from-blue-500 to-cyan-600',
+      accent: 'from-brand-500 to-brand-600',
     },
     {
       id: 'drive',
       name: 'Drive',
       icon: HardDrive,
-      accent: 'from-sky-500 to-blue-600',
+      accent: 'from-brand-500 to-brand-600',
     },
     {
       id: 'customers',
       name: 'Customers',
       icon: UsersRound,
-      accent: 'from-violet-500 to-indigo-600',
+      accent: 'from-brand-500 to-brand-600',
     },
     {
       id: 'systems',
       name: 'Systems',
       icon: Settings2,
-      accent: 'from-emerald-500 to-teal-600',
+      accent: 'from-brand-500 to-brand-600',
     },
     {
       id: 'finance',
       name: 'Finance',
       icon: Landmark,
-      accent: 'from-amber-500 to-orange-600',
+      accent: 'from-brand-500 to-brand-600',
     },
     {
       id: 'engineering',
@@ -347,8 +347,8 @@ export const TopBar: React.FC = () => {
 
         {/* Call quick status if active */}
         {callSession.active && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-semibold animate-pulse">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-200 rounded-xl text-brand-700 text-xs font-semibold animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-brand-500 animate-ping" />
             <span>Call in progress ({Math.floor(callSession.durationSeconds / 60)}:{(callSession.durationSeconds % 60).toString().padStart(2, '0')})</span>
           </div>
         )}

@@ -23,9 +23,9 @@ export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) =
   const [isStatusSaved, setIsStatusSaved] = useState(false);
 
   const statuses: { label: string; value: UserStatus; color: string }[] = [
-    { label: 'Online', value: 'online', color: 'bg-emerald-500' },
+    { label: 'Online', value: 'online', color: 'bg-brand-500' },
     { label: 'Busy', value: 'busy', color: 'bg-rose-500' },
-    { label: 'Away', value: 'away', color: 'bg-amber-500' },
+    { label: 'Away', value: 'away', color: 'bg-brand-500' },
     { label: 'Offline', value: 'offline', color: 'bg-slate-400' },
   ];
   const currentStatus = statuses.find((status) => status.value === currentUser.status) || statuses[3];
