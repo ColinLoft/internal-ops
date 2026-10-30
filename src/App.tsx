@@ -3,7 +3,6 @@ import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext';
 import { Rail } from './components/navigation/Rail';
 import { TopBar } from './components/navigation/TopBar';
 import { ConversationList } from './components/chat/ConversationList';
-import { ChannelList } from './components/chat/ChannelList';
 import { ChatFeed } from './components/chat/ChatFeed';
 import { ThreadPanel } from './components/chat/ThreadPanel';
 import { RightDrawer } from './components/chat/RightDrawer';
@@ -92,7 +91,7 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'legal' && <LegalPage />}
           {activeTab === 'messages' && (
             <>
-              {/* Messages Sidebar */}
+              {/* Combined channels and direct messages sidebar */}
               <ConversationList />
               {/* Chat Feed */}
               <ChatFeed />
@@ -104,8 +103,8 @@ const WorkspaceShell: React.FC = () => {
 
           {activeTab === 'channels' && (
             <>
-              {/* Channels Sidebar */}
-              <ChannelList />
+              {/* Combined channels and direct messages sidebar */}
+              <ConversationList />
               {/* Channel Feed */}
               <ChatFeed />
               {/* Thread Side Panel or Info Drawer */}

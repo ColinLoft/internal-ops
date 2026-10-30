@@ -149,7 +149,7 @@ export const Rail: React.FC = () => {
           <>
           <button type="button" onClick={() => setActiveTab('home')} className={`group relative p-3 rounded-2xl transition-all duration-200 ${activeTab === 'home' ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'}`} title="Home"><House className="w-5 h-5" /><span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Home</span></button>
           <button type="button" onClick={() => setActiveTab('drive')} className={`group relative p-3 rounded-2xl transition-all duration-200 ${isDrive ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'}`} title="Drive"><HardDrive className="w-5 h-5" /><span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Drive</span></button>
-          {/* Go-to-market team */}
+          {/* Direct messages */}
           <button
             data-onboarding-target="nav-messages"
             onClick={() => setActiveTab('messages')}
@@ -158,16 +158,16 @@ export const Rail: React.FC = () => {
                 ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40'
                 : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
             }`}
-            title="GTM"
+            title="Direct messages"
           >
-            <Megaphone className="w-5 h-5" />
+            <MessageSquare className="w-5 h-5" />
             {totalUnreadMessages > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-slate-900 animate-pulse">
                 {totalUnreadMessages}
               </span>
             )}
             <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-              GTM
+              Direct messages
             </span>
           </button>
 
