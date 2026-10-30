@@ -109,9 +109,7 @@ export const Rail: React.FC = () => {
 
         {/* Navigation Item Tabs */}
         <nav className="flex flex-col items-center gap-2">
-          {isDrive ? (
-            <button type="button" onClick={() => openDriveView('all')} className="group relative rounded-2xl bg-brand-600 p-3 text-white shadow-lg shadow-brand-600/30" title="Drive"><HardDrive className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">Drive</span></button>
-          ) : isCustomers ? (
+          {isCustomers ? (
             <>{[
               { label: 'Overview', icon: House, path: '/customers' },
               { label: 'Contacts', icon: ContactRound, path: '/customers/contacts' },
@@ -148,8 +146,8 @@ export const Rail: React.FC = () => {
             <><button type="button" className="group relative rounded-2xl bg-brand-600 p-3 text-white" title="Legal"><Scale className="h-5 w-5" /></button></>
           ) : (
           <>
-          <button type="button" onClick={() => setActiveTab('home')} className="group relative p-3 rounded-2xl transition-all duration-200 text-slate-400 hover:text-slate-100 hover:bg-slate-800/70" title="Home"><House className="w-5 h-5" /><span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Home</span></button>
-          <button type="button" onClick={() => setActiveTab('drive')} className="group relative p-3 rounded-2xl transition-all duration-200 text-slate-400 hover:text-slate-100 hover:bg-slate-800/70" title="Drive"><HardDrive className="w-5 h-5" /><span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Drive</span></button>
+          <button type="button" onClick={() => setActiveTab('home')} className={`group relative p-3 rounded-2xl transition-all duration-200 ${activeTab === 'home' ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'}`} title="Home"><House className="w-5 h-5" /><span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Home</span></button>
+          <button type="button" onClick={() => setActiveTab('drive')} className={`group relative p-3 rounded-2xl transition-all duration-200 ${isDrive ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'}`} title="Drive"><HardDrive className="w-5 h-5" /><span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Drive</span></button>
           {/* Messages Item */}
           <button
             data-onboarding-target="nav-messages"
