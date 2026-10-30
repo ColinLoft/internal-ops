@@ -47,7 +47,7 @@ interface WorkspaceContextType {
   isSupabaseConnected: boolean;
   
   // Navigation & Views
-  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance';
+  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal';
   activeConversationId: string;
   activeChannelId: string;
   activeThreadMessageId: string | null;
@@ -92,7 +92,7 @@ interface WorkspaceContextType {
   completeOnboarding: () => Promise<void>;
   
   // Navigation actions
-  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance') => void;
+  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal') => void;
   setActiveConversationId: (id: string) => void;
   setActiveChannelId: (id: string) => void;
   openThread: (messageId: string) => void;
@@ -172,13 +172,15 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const STORAGE_PREFIX = 'beacon_v3_';
-type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance';
+type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal';
 
 const tabFromPath = (pathname: string): WorkspaceTab | null => {
   const segment = pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
-  if (segment === 'home') return 'home';
+  if (segment === 'home') return 'drive';
   if (segment === 'customers') return 'customers';
   if (segment === 'finance') return 'finance';
+  if (segment === 'operations') return 'operations';
+  if (segment === 'legal') return 'legal';
   if (segment === 'messages') return 'messages';
   if (segment === 'channels') return 'channels';
   if (segment === 'calendar') return 'calendar';
@@ -193,6 +195,8 @@ const pathForTab = (tab: WorkspaceTab) => ({
   home: '/home',
   customers: '/customers',
   finance: '/finance',
+  operations: '/operations',
+  legal: '/legal',
   messages: '/messages',
   channels: '/channels',
   calendar: '/calendar',
@@ -442,7 +446,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [activeTab, setActiveTabState] = useState<WorkspaceTab>(() => {
     if (typeof window === 'undefined') return 'home';
     return tabFromPath(window.location.pathname)
-      || (new URLSearchParams(window.location.search).get('mail_oauth') === 'callback' ? 'inbox' : 'home');
+      || (new URLSearchParams(window.location.search).get('mail_oauth') === 'callback' ? 'inbox' : 'drive');
   });
   const [activeConversationId, setActiveConversationId] = useState<string>('');
   const [activeChannelId, setActiveChannelId] = useState<string>('chan-announcements');
