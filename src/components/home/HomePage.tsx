@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
+import { DrivePage } from '../drive/DrivePage';
 
 type RecentFile = { id: string; name: string; item_type: string; updated_at: string };
 
@@ -61,6 +62,14 @@ export const HomePage: React.FC = () => {
         </div>
 
         <section className="mt-7"><HomeCard title="Recent communication" icon={<MessageSquare className="h-4 w-4" />} tone="slate" onRemove={() => undefined}><div className="grid gap-2 md:grid-cols-2">{latestConversation.map((conversation) => <button key={conversation.id} type="button" onClick={() => { setActiveConversationId(conversation.id); setActiveTab('messages'); }} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3 text-left hover:border-brand-200 hover:bg-brand-50/40"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500"><Users className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold text-slate-800">{conversation.name}</span><span className="mt-0.5 block truncate text-[11px] text-slate-500">{conversation.lastMessage?.text || 'Open conversation'}</span></span><ChevronRight className="h-4 w-4 text-slate-300" /></button>)}{!latestConversation.length && <EmptyState text="Your recent conversations will appear here." action="Open Communications" onClick={() => setActiveTab('messages')} />}</div></HomeCard></section>
+
+        <section className="mt-7 overflow-hidden rounded-3xl border border-slate-200 bg-white">
+          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-600">Files & creation</p><h2 className="mt-1 text-xl font-bold text-slate-900">Drive</h2><p className="mt-1 text-xs text-slate-500">Create documents, slides, sheets, and forms, all from your Home workspace.</p></div>
+            <FolderOpen className="h-5 w-5 text-brand-600" />
+          </div>
+          <div className="min-h-[520px]"><DrivePage /></div>
+        </section>
       </div>
     </main>
   );

@@ -30,6 +30,7 @@ import { CustomerPage } from './components/customers/CustomerPage';
 import { FinancePage } from './components/finance/FinancePage';
 import { OperationsPage } from './components/operations/OperationsPage';
 import { LegalPage } from './components/legal/LegalPage';
+import { HomePage } from './components/home/HomePage';
 import { NotFoundPage } from './components/NotFoundPage';
 
 const CallOverlay = lazy(async () => ({
@@ -84,7 +85,7 @@ const WorkspaceShell: React.FC = () => {
 
         {/* Workspace Body */}
         <div className="flex-1 flex min-w-0 h-full overflow-hidden">
-          {activeTab === 'home' && <DrivePage />}
+          {activeTab === 'home' && <HomePage />}
           {activeTab === 'customers' && <CustomerPage />}
           {activeTab === 'finance' && <FinancePage />}
           {activeTab === 'operations' && <OperationsPage />}

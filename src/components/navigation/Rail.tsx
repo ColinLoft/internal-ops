@@ -148,7 +148,7 @@ export const Rail: React.FC = () => {
             <><button type="button" className="group relative rounded-2xl bg-brand-600 p-3 text-white" title="Legal"><Scale className="h-5 w-5" /></button></>
           ) : (
           <>
-          <button type="button" onClick={() => { setActiveTab('drive'); window.history.pushState({}, '', '/drive'); }} className="group relative p-3 rounded-2xl transition-all duration-200 text-slate-400 hover:text-slate-100 hover:bg-slate-800/70" title="Drive"><HardDrive className="w-5 h-5" /><span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Drive</span></button>
+          <button type="button" onClick={() => setActiveTab('home')} className="group relative p-3 rounded-2xl transition-all duration-200 text-slate-400 hover:text-slate-100 hover:bg-slate-800/70" title="Home"><House className="w-5 h-5" /><span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Home</span></button>
           {/* Messages Item */}
           <button
             data-onboarding-target="nav-messages"

@@ -176,7 +176,7 @@ type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'a
 
 const tabFromPath = (pathname: string): WorkspaceTab | null => {
   const segment = pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
-  if (segment === 'home') return 'drive';
+  if (segment === 'home') return 'home';
   if (segment === 'customers') return 'customers';
   if (segment === 'finance') return 'finance';
   if (segment === 'operations') return 'operations';
@@ -446,7 +446,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [activeTab, setActiveTabState] = useState<WorkspaceTab>(() => {
     if (typeof window === 'undefined') return 'home';
     return tabFromPath(window.location.pathname)
-      || (new URLSearchParams(window.location.search).get('mail_oauth') === 'callback' ? 'inbox' : 'drive');
+      || (new URLSearchParams(window.location.search).get('mail_oauth') === 'callback' ? 'inbox' : 'home');
   });
   const [activeConversationId, setActiveConversationId] = useState<string>('');
   const [activeChannelId, setActiveChannelId] = useState<string>('chan-announcements');
