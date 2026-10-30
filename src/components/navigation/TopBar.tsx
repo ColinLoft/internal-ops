@@ -12,6 +12,11 @@ import {
   PhoneCall,
   Video,
   Megaphone,
+  FolderKanban,
+  Network,
+  Code2,
+  Lightbulb,
+  CircleHelp,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { NotificationCenter } from '../notifications/NotificationCenter';
@@ -100,6 +105,36 @@ export const TopBar: React.FC = () => {
       id: 'finance',
       name: 'Finance',
       icon: Landmark,
+      accent: 'from-brand-500 to-brand-600',
+    },
+    {
+      id: 'projects',
+      name: 'Projects',
+      icon: FolderKanban,
+      accent: 'from-brand-500 to-brand-600',
+    },
+    {
+      id: 'organization',
+      name: 'Organization',
+      icon: Network,
+      accent: 'from-brand-500 to-brand-600',
+    },
+    {
+      id: 'engineering',
+      name: 'Engineering',
+      icon: Code2,
+      accent: 'from-brand-500 to-brand-600',
+    },
+    {
+      id: 'insights',
+      name: 'Insights',
+      icon: Lightbulb,
+      accent: 'from-brand-500 to-brand-600',
+    },
+    {
+      id: 'help',
+      name: 'Help',
+      icon: CircleHelp,
       accent: 'from-brand-500 to-brand-600',
     },
   ];
