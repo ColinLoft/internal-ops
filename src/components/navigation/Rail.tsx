@@ -29,6 +29,7 @@ import {
   Target,
   WalletCards,
   Receipt,
+  CreditCard,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { ProfilePopover } from '../profile/ProfilePopover';
@@ -153,6 +154,7 @@ export const Rail: React.FC = () => {
           ) : isFinance ? (
             <>{[
               { label: 'Overview', icon: House, path: '/finance' },
+              { label: 'Accounts & cards', icon: CreditCard, path: '/finance/banking' },
               { label: 'Funding opportunities', icon: Target, path: '/finance/opportunities' },
               { label: 'Applications & awards', icon: Landmark, path: '/finance/applications' },
               { label: 'Budgets & restrictions', icon: WalletCards, path: '/finance/budgets' },
