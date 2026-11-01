@@ -935,7 +935,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   const updateCurrentUser = async (updates: Partial<User>) => {
-    const updated = { ...currentUser, ...updates };
+    const { id: _ignoredId, ...safeUpdates } = updates;
+    const updated = { ...currentUser, ...safeUpdates, id: currentUser.id };
     setCurrentUser(updated);
     setUsers((prevUsers) =>
       prevUsers.map((u) => (u.id === currentUser.id ? updated : u))
@@ -962,8 +963,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       console.error('Unable to persist profile changes:', error);
       return;
     }
-    if (updated.id === currentUser.id && updates.id === undefined) {
-      const changedFields = Object.keys(updates).filter((field) => field === 'status' || field === 'statusMessage');
+    if (updated.id === currentUser.id) {
+      const changedFields = Object.keys(safeUpdates).filter((field) => field === 'status' || field === 'statusMessage');
       if (changedFields.length) {
         await recordSystemActivity({
           eventType: 'availability_updated',

@@ -4,7 +4,6 @@ import {
   LogOut,
   Settings,
   UserRound,
-  Users,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { UserStatus } from '../../types';
@@ -12,7 +11,6 @@ import { UserStatus } from '../../types';
 export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const {
     currentUser,
-    users,
     updateCurrentUser,
     setIsProfileSettingsOpen,
     setIsWorkspaceSettingsOpen,
@@ -118,47 +116,6 @@ export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) =
           <span>Settings</span>
         </button>
 
-        {users.length > 1 && (
-          <div className="pt-2 border-t border-slate-200/70">
-            <div className="px-2 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Users className="w-3 h-3" /> Switch Staff Account
-            </div>
-            <div className="flex items-center gap-1.5 px-1 py-1 overflow-x-auto">
-              {users.map((user) => (
-                <button
-                  key={user.id}
-                  onClick={() => {
-                    updateCurrentUser({
-                      id: user.id,
-                      name: user.name,
-                      role: user.role,
-                      email: user.email,
-                      avatar: user.avatar,
-                      phone: user.phone,
-                      department: user.department,
-                      systemRole: user.systemRole,
-                      status: user.status,
-                      statusMessage: user.statusMessage,
-                      bio: user.bio,
-                      location: user.location,
-                      banner: user.banner,
-                      preferences: user.preferences,
-                    });
-                    onClose();
-                  }}
-                  className={`p-1 rounded-lg border transition-all ${
-                    currentUser.id === user.id
-                      ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-400/20'
-                      : 'border-slate-200 hover:border-slate-300'
-                  }`}
-                  title={`Switch to ${user.name} (${user.role})`}
-                >
-                  <img src={user.avatar} alt={user.name} className="w-7 h-7 rounded-full object-cover" />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="p-2 border-t border-slate-100 bg-slate-50/70 flex items-center justify-end">
