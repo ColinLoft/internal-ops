@@ -71,8 +71,9 @@ Deno.serve(async (request: Request) => {
   const siteUrl = Deno.env.get('SITE_URL');
   if (!siteUrl) return jsonResponse({ error: 'The invitation function requires the SITE_URL secret.' }, 500);
 
-  const randomBytes = crypto.getRandomValues(new Uint8Array(24));
-  const temporaryPassword = `${Array.from(randomBytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}Aa1!`;
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  const randomBytes = crypto.getRandomValues(new Uint8Array(8));
+  const temporaryPassword = Array.from(randomBytes, (byte) => alphabet[byte % alphabet.length]).join('');
   const { data: existingProfile, error: existingProfileError } = await adminClient
     .from('profiles')
     .select('id')

@@ -232,8 +232,8 @@ Deno.serve(async (request: Request) => {
 
   if (payload.action === 'set-password') {
     const password = typeof payload.password === 'string' ? payload.password : '';
-    if (password.length < 12) {
-      return jsonResponse({ error: 'Temporary passwords must be at least 12 characters.' }, 400);
+    if (password.length < 6 || password.length > 8) {
+      return jsonResponse({ error: 'Temporary passwords must be 6 to 8 characters.' }, 400);
     }
     const { data: { user }, error: userError } = await adminClient.auth.admin.getUserById(userId);
     if (userError || !user) return jsonResponse({ error: userError?.message || 'Staff account was not found.' }, 404);

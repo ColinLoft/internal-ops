@@ -1817,6 +1817,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       unreadCount: 0,
     };
 
+    void supabase.from('conversation_participants').upsert(
+      newConv.participants.map((userId) => ({ conversation_id: newId, user_id: userId })),
+      { onConflict: 'conversation_id,user_id' },
+    ).then(({ error }) => {
+      if (error) console.error('Unable to persist conversation participants:', error);
+    });
     setConversations((prev) => [newConv, ...prev]);
     setActiveConversationId(newId);
     setActiveTab('messages');
