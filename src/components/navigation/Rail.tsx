@@ -192,13 +192,12 @@ export const Rail: React.FC = () => {
           ) : isFinance ? (
             <>{[
               { label: 'Overview', icon: House, path: '/finance' },
-              { label: 'Accounts & cards', icon: CreditCard, path: '/finance/banking' },
-              { label: 'Funding opportunities', icon: Target, path: '/finance/opportunities' },
-              { label: 'Applications & awards', icon: Landmark, path: '/finance/applications' },
-              { label: 'Budgets & restrictions', icon: WalletCards, path: '/finance/budgets' },
-              { label: 'Expenses & requests', icon: Receipt, path: '/finance/expenses' },
-              { label: 'Supporters', icon: Users, path: '/finance/supporters' },
-              { label: 'Reports & exports', icon: BarChart3, path: '/finance/reports' },
+              { label: 'Budgets', icon: WalletCards, path: '/finance/budgets' },
+              { label: 'Grants', icon: Landmark, path: '/finance/grants' },
+              { label: 'Funding Requests', icon: Target, path: '/finance/funding-requests' },
+              { label: 'Expenses', icon: Receipt, path: '/finance/expenses' },
+              { label: 'Procurement', icon: CreditCard, path: '/finance/procurement' },
+              { label: 'Accounting & Reports', icon: BarChart3, path: '/finance/accounting-reports' },
             ].map((item) => { const Icon = item.icon; return <button key={item.label} type="button" onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className="group relative rounded-2xl p-3 text-slate-400 transition-all hover:bg-slate-800/70 hover:text-slate-100" title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
           ) : isGtm ? (
             <>{[
