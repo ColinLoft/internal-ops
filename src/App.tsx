@@ -85,7 +85,7 @@ const WorkspaceShell: React.FC = () => {
       {/* 2. Main Workspace Layout */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Bar with Search and Shortcuts */}
-        {activeTab !== 'organization' && <TopBar />}
+        <TopBar />
 
         {/* Workspace Body */}
         <div className="flex-1 flex min-w-0 h-full overflow-hidden">

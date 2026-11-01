@@ -108,6 +108,12 @@ begin
   end loop;
 end $$;
 
+drop policy if exists "Staff can view own onboarding tasks" on public.organization_onboarding_tasks;
+drop policy if exists "Workspace admins can manage onboarding tasks" on public.organization_onboarding_tasks;
+drop policy if exists "Staff can view and submit own leave requests" on public.organization_leave_requests;
+drop policy if exists "Staff can request leave" on public.organization_leave_requests;
+drop policy if exists "Workspace admins can review leave requests" on public.organization_leave_requests;
+
 create policy "Staff can view own onboarding tasks"
   on public.organization_onboarding_tasks for select to authenticated using (
     employee_id = auth.uid()::text
@@ -175,6 +181,15 @@ alter table public.organization_documents enable row level security;
 alter table public.organization_document_responses enable row level security;
 alter table public.organization_document_assignments enable row level security;
 
+drop policy if exists "Authenticated staff can view organization documents" on public.organization_documents;
+drop policy if exists "Workspace admins can manage organization documents" on public.organization_documents;
+drop policy if exists "Staff can view document responses" on public.organization_document_responses;
+drop policy if exists "Staff can submit document responses" on public.organization_document_responses;
+drop policy if exists "Staff can update document responses" on public.organization_document_responses;
+drop policy if exists "Staff can view assigned documents" on public.organization_document_assignments;
+drop policy if exists "Workspace admins can manage document assignments" on public.organization_document_assignments;
+drop policy if exists "Staff can complete assigned documents" on public.organization_document_assignments;
+
 create policy "Authenticated staff can view organization documents"
   on public.organization_documents for select to authenticated using (status = 'published' or created_by = auth.uid()::text);
 create policy "Workspace admins can manage organization documents"
@@ -207,6 +222,9 @@ create policy "Staff can complete assigned documents"
 insert into storage.buckets (id, name, public)
 values ('organization-documents', 'organization-documents', false)
 on conflict (id) do nothing;
+
+drop policy if exists "Authenticated staff can read organization documents" on storage.objects;
+drop policy if exists "Authenticated staff can upload organization documents" on storage.objects;
 
 create policy "Authenticated staff can read organization documents"
   on storage.objects for select to authenticated
