@@ -254,7 +254,7 @@ Deno.serve(async (request: Request) => {
 
   const input = payload.profile as Record<string, unknown>;
   const updates: Record<string, unknown> = {};
-  for (const field of ['name', 'role', 'department', 'phone', 'avatar_url', 'status_message', 'bio', 'location', 'banner'] as const) {
+  for (const field of ['name', 'email', 'role', 'department', 'phone', 'avatar_url', 'status_message', 'bio', 'location', 'banner'] as const) {
     if (field in input) {
       if (input[field] !== null && typeof input[field] !== 'string') {
         return jsonResponse({ error: `Invalid ${field} value.` }, 400);
@@ -295,10 +295,21 @@ Deno.serve(async (request: Request) => {
   if (typeof updates.name === 'string' && !updates.name.trim()) {
     return jsonResponse({ error: 'Staff name cannot be blank.' }, 400);
   }
+  if (typeof updates.email === 'string' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updates.email)) {
+    return jsonResponse({ error: 'Staff email must be valid.' }, 400);
+  }
   if (typeof updates.banner === 'string' && !['ocean', 'violet', 'forest', 'sunset', 'rose'].includes(updates.banner)) {
     return jsonResponse({ error: 'Invalid profile banner.' }, 400);
   }
   if (Object.keys(updates).length === 0) return jsonResponse({ error: 'No profile changes were provided.' }, 400);
+
+  if (typeof updates.email === 'string') {
+    const { error: authEmailError } = await adminClient.auth.admin.updateUserById(userId, {
+      email: updates.email,
+      email_confirm: true,
+    });
+    if (authEmailError) return jsonResponse({ error: authEmailError.message }, 400);
+  }
 
   const { data: updatedProfile, error: updateError } = await adminClient
     .from('profiles')

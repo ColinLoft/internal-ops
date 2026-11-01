@@ -1159,6 +1159,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         userId,
         profile: {
           name: updates.name,
+          email: updates.email,
           role: updates.role,
           department: updates.department,
           phone: updates.phone,
