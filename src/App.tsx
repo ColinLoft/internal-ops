@@ -33,12 +33,13 @@ import { HomePage } from './components/home/HomePage';
 import { NotFoundPage } from './components/NotFoundPage';
 import { HelpPage } from './components/help/HelpPage';
 import { InsightsPage } from './components/insights/InsightsPage';
+import { OrganizationPage } from './components/organization/OrganizationPage';
 
 const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
 }));
 
-const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|finance(?:\/[^/]+)?|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|help|insights(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
+const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|finance(?:\/[^/]+)?|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|help|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
 
 const WorkspaceShell: React.FC = () => {
   const {
@@ -93,6 +94,7 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'legal' && <LegalPage />}
           {activeTab === 'help' && <HelpPage />}
           {activeTab === 'insights' && <InsightsPage />}
+          {activeTab === 'organization' && <OrganizationPage />}
           {activeTab === 'messages' && (
             <>
               {/* Combined channels and direct messages sidebar */}

@@ -70,6 +70,7 @@ export const Rail: React.FC = () => {
   const isOperations = activeTab === 'operations';
   const isLegal = activeTab === 'legal';
   const isInsights = activeTab === 'insights';
+  const isOrganization = activeTab === 'organization';
 
   const openInsightsSection = (section: string) => {
     const path = section === 'overview' ? '/insights' : `/insights/${section}`;
@@ -121,7 +122,17 @@ export const Rail: React.FC = () => {
 
         {/* Navigation Item Tabs */}
         <nav className="flex flex-col items-center gap-2">
-          {isInsights ? (
+          {isOrganization ? (
+            <>{[
+              { label: 'Organization chart', icon: Network, section: 'chart' },
+              { label: 'Employees', icon: Users, section: 'employees' },
+              { label: 'Departments', icon: Building2, section: 'departments' },
+              { label: 'Positions & roles', icon: UserRound, section: 'positions' },
+              { label: 'Onboarding', icon: ClipboardList, section: 'onboarding' },
+              { label: 'Absence & leave', icon: CalendarIcon, section: 'absence' },
+              { label: 'Organizational records', icon: FileText, section: 'records' },
+            ].map((item) => { const Icon = item.icon; return <button key={item.label} type="button" onClick={() => { const path = item.section === 'chart' ? '/organization' : `/organization/${item.section}`; window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className="group relative rounded-2xl p-3 text-slate-400 transition-all hover:bg-slate-800/70 hover:text-slate-100" title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+          ) : isInsights ? (
             <>{[
               { label: 'Overview', icon: House, section: 'overview' },
               { label: 'Activity', icon: Activity, section: 'activity' },
