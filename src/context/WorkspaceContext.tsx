@@ -47,7 +47,7 @@ interface WorkspaceContextType {
   isSupabaseConnected: boolean;
   
   // Navigation & Views
-  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help' | 'insights' | 'organization';
+  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help' | 'insights' | 'organization' | 'programs';
   activeConversationId: string;
   activeChannelId: string;
   activeThreadMessageId: string | null;
@@ -92,7 +92,7 @@ interface WorkspaceContextType {
   completeOnboarding: () => Promise<void>;
   
   // Navigation actions
-  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help' | 'insights' | 'organization') => void;
+  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help' | 'insights' | 'organization' | 'programs') => void;
   setActiveConversationId: (id: string) => void;
   setActiveChannelId: (id: string) => void;
   openThread: (messageId: string) => void;
@@ -173,7 +173,7 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const STORAGE_PREFIX = 'beacon_v3_';
-type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help';
+type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help' | 'insights' | 'organization' | 'programs';
 
 const tabFromPath = (pathname: string): WorkspaceTab | null => {
   const segment = pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
@@ -185,6 +185,7 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
   if (segment === 'help') return 'help';
   if (segment === 'insights') return 'insights';
   if (segment === 'organization') return 'organization';
+  if (segment === 'programs') return 'programs';
   if (segment === 'messages') return 'messages';
   if (segment === 'channels') return 'channels';
   if (segment === 'calendar') return 'calendar';
@@ -204,6 +205,7 @@ const pathForTab = (tab: WorkspaceTab) => ({
   help: '/help',
   insights: '/insights',
   organization: '/organization',
+  programs: '/programs',
   messages: '/messages',
   channels: '/channels',
   calendar: '/calendar',

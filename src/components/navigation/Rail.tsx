@@ -39,6 +39,7 @@ import {
   Lightbulb,
   CircleHelp,
   Megaphone,
+  Gauge,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { ProfilePopover } from '../profile/ProfilePopover';
@@ -71,6 +72,7 @@ export const Rail: React.FC = () => {
   const isLegal = activeTab === 'legal';
   const isInsights = activeTab === 'insights';
   const isOrganization = activeTab === 'organization';
+  const isPrograms = activeTab === 'programs';
 
   const openInsightsSection = (section: string) => {
     const path = section === 'overview' ? '/insights' : `/insights/${section}`;
@@ -122,7 +124,17 @@ export const Rail: React.FC = () => {
 
         {/* Navigation Item Tabs */}
         <nav className="flex flex-col items-center gap-2">
-          {isOrganization ? (
+          {isPrograms ? (
+            <>{[
+              { label: 'Overview', icon: Gauge, section: 'overview' },
+              { label: 'Divisions & teams', icon: Network, section: 'divisions' },
+              { label: 'Projects', icon: FolderKanban, section: 'projects' },
+              { label: 'Tasks & milestones', icon: ClipboardList, section: 'tasks' },
+              { label: 'Budgets', icon: WalletCards, section: 'budgets' },
+              { label: 'Documentation', icon: BookOpen, section: 'documents' },
+              { label: 'Performance', icon: BarChart3, section: 'performance' },
+            ].map((item) => { const Icon = item.icon; const path = item.section === 'overview' ? '/programs' : `/programs/${item.section}`; const selected = window.location.pathname === path; return <button key={item.label} type="button" onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+          ) : isOrganization ? (
             <>{[
               { label: 'Overview & chart', icon: Network, section: 'overview' },
               { label: 'People & teams', icon: Users, section: 'people' },
