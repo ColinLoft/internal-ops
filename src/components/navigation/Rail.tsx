@@ -58,6 +58,7 @@ export const Rail: React.FC = () => {
 
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState(false);
+  const [routePath, setRoutePath] = useState(() => window.location.pathname);
   
   const quickActionsRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -108,6 +109,11 @@ export const Rail: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+  useEffect(() => {
+    const handleRoute = () => setRoutePath(window.location.pathname);
+    window.addEventListener('popstate', handleRoute);
+    return () => window.removeEventListener('popstate', handleRoute);
+  }, []);
 
   return (
     <aside className="h-screen w-[72px] shrink-0 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/80 flex flex-col items-center py-4 justify-between z-30 select-none shadow-2xl">
@@ -134,7 +140,7 @@ export const Rail: React.FC = () => {
               { label: 'Budgets', icon: WalletCards, section: 'budgets' },
               { label: 'Documentation', icon: BookOpen, section: 'documents' },
               { label: 'Performance', icon: BarChart3, section: 'performance' },
-              ].map((item) => { const Icon = item.icon; const path = item.section === 'overview' ? '/programs' : `/programs/${item.section}`; const selected = window.location.pathname === path; return <button key={item.label} type="button" onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}
+              ].map((item) => { const Icon = item.icon; const path = item.section === 'overview' ? '/programs' : `/programs/${item.section}`; const selected = routePath === path; return <button key={item.label} type="button" onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}
             </>
           ) : isOrganization ? (
             <>{[
@@ -145,7 +151,7 @@ export const Rail: React.FC = () => {
               { label: 'Approvals', icon: CheckCircle2, section: 'approvals' },
               { label: 'Policies & resources', icon: BookOpen, section: 'policies' },
               { label: 'Audit logs', icon: Activity, section: 'audit' },
-            ].map((item) => { const Icon = item.icon; const path = item.section === 'overview' ? '/organization' : `/organization/${item.section}`; const selected = window.location.pathname === path; return <button key={item.label} type="button" onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+            ].map((item) => { const Icon = item.icon; const path = item.section === 'overview' ? '/organization' : `/organization/${item.section}`; const selected = routePath === path; return <button key={item.label} type="button" onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
           ) : isInsights ? (
             <>{[
               { label: 'Overview', icon: House, section: 'overview' },
