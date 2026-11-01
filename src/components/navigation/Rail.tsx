@@ -124,13 +124,14 @@ export const Rail: React.FC = () => {
         <nav className="flex flex-col items-center gap-2">
           {isOrganization ? (
             <>{[
-              { label: 'Organization chart', icon: Network, section: 'chart' },
-              { label: 'Employees', icon: Users, section: 'employees' },
-              { label: 'Departments', icon: Building2, section: 'departments' },
-              { label: 'Positions & roles', icon: UserRound, section: 'positions' },
-              { label: 'Onboarding', icon: ClipboardList, section: 'onboarding' },
-              { label: 'Absence & leave', icon: CalendarIcon, section: 'absence' },
-            ].map((item) => { const Icon = item.icon; return <button key={item.label} type="button" onClick={() => { const path = item.section === 'chart' ? '/organization' : `/organization/${item.section}`; window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className="group relative rounded-2xl p-3 text-slate-400 transition-all hover:bg-slate-800/70 hover:text-slate-100" title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+              { label: 'Overview & chart', icon: Network, section: 'overview' },
+              { label: 'People & teams', icon: Users, section: 'people' },
+              { label: 'Roles & access', icon: ShieldCheck, section: 'access' },
+              { label: 'Onboarding & leave', icon: ClipboardList, section: 'onboarding' },
+              { label: 'Approvals', icon: CheckCircle2, section: 'approvals' },
+              { label: 'Policies & resources', icon: BookOpen, section: 'policies' },
+              { label: 'Settings & audit', icon: Settings, section: 'settings' },
+            ].map((item) => { const Icon = item.icon; const path = item.section === 'overview' ? '/organization' : `/organization/${item.section}`; const selected = window.location.pathname === path; return <button key={item.label} type="button" onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
           ) : isInsights ? (
             <>{[
               { label: 'Overview', icon: House, section: 'overview' },
