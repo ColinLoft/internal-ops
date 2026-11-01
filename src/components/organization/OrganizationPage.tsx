@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity, Building2, CalendarDays, CheckCircle2, ClipboardCheck, FileText,
-  KeyRound, Network, Plus, Search, Settings2, ShieldCheck, UserRound, Users,
+  KeyRound, Network, Plus, Search, ShieldCheck, UserRound, Users,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
-import type { User } from '../../types';
+import type { SystemActivityLog, User } from '../../types';
 
-type View = 'overview' | 'people' | 'access' | 'onboarding' | 'approvals' | 'policies' | 'settings';
+type View = 'overview' | 'people' | 'access' | 'onboarding' | 'approvals' | 'policies' | 'audit';
 type Department = { id: string; name: string; description: string | null; head_id: string | null };
 type Position = { id: string; title: string; department_id: string | null; reports_to_id: string | null; status: string };
 type EmployeeRecord = { user_id: string; position_id: string | null; manager_id: string | null; employment_type: string; start_date: string | null };
@@ -21,7 +21,7 @@ const nav: { id: View; label: string; icon: React.ElementType }[] = [
   { id: 'onboarding', label: 'Onboarding & leave', icon: ClipboardCheck },
   { id: 'approvals', label: 'Approvals', icon: CheckCircle2 },
   { id: 'policies', label: 'Policies & resources', icon: FileText },
-  { id: 'settings', label: 'Settings & audit', icon: Settings2 },
+  { id: 'audit', label: 'Audit logs', icon: Activity },
 ];
 
 export const OrganizationPage: React.FC = () => {
@@ -71,7 +71,7 @@ export const OrganizationPage: React.FC = () => {
     {view === 'onboarding' && <Onboarding users={users} onboarding={onboarding} absences={absences} userById={userById} />}
     {view === 'approvals' && <Approvals />}
     {view === 'policies' && <Policies />}
-    {view === 'settings' && <Settings logs={systemActivityLogs} />}
+    {view === 'audit' && <AuditLogs logs={systemActivityLogs} />}
     </div></main>;
 };
 
@@ -82,7 +82,59 @@ const Access: React.FC<{ users: User[] }> = ({ users }) => <div className="grid 
 const Onboarding: React.FC<{ users: User[]; onboarding: Onboarding[]; absences: Absence[]; userById: (id: string | null | undefined) => User | undefined }> = ({ onboarding, absences, userById }) => <div className="grid gap-5 lg:grid-cols-2"><Panel title="Onboarding & offboarding" icon={ClipboardCheck}>{onboarding.length ? onboarding.map((item) => <Row key={item.id} title={item.title} detail={`${userById(item.employee_id)?.name || 'Employee'} · ${item.status}${item.due_date ? ` · due ${item.due_date}` : ''}`} />) : <Empty text="No onboarding checklists yet." />}</Panel><Panel title="Absence & leave" icon={CalendarDays}>{absences.length ? absences.map((item) => <Row key={item.id} title={`${userById(item.employee_id)?.name || 'Employee'} · ${item.leave_type}`} detail={`${item.starts_on} to ${item.ends_on} · ${item.status}`} />) : <Empty text="No leave records yet." />}</Panel></div>;
 const Approvals: React.FC = () => <Panel title="Approvals" icon={CheckCircle2}><Empty text="No pending organization approvals. Approval workflows for access changes, sensitive exports, and spend requests will appear here." /></Panel>;
 const Policies: React.FC = () => <Panel title="Policies & resources" icon={FileText}><Empty text="No policies published yet. Store source documents in Drive and link published versions here." /></Panel>;
-const Settings: React.FC<{ logs: { id: string; event_type: string; summary: string; created_at: string }[] }> = ({ logs }) => <div className="grid gap-5 lg:grid-cols-2"><Panel title="Organization settings" icon={Settings2}>{['Organization name', 'Default notification email', 'Timezone', 'Require approval for sensitive exports'].map((label) => <label key={label} className="block border-b border-slate-100 py-3 text-xs font-semibold text-slate-600">{label}<input className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" /></label>)}</Panel><Panel title="Audit trail" icon={Activity}>{logs.slice(0, 8).map((log) => <Row key={log.id} title={log.event_type} detail={log.summary} />)}</Panel></div>;
+const AuditLogs: React.FC<{ logs: SystemActivityLog[] }> = ({ logs }) => {
+  const [query, setQuery] = useState('');
+  const [eventType, setEventType] = useState('all');
+  const [actor, setActor] = useState('all');
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const eventTypes = useMemo(() => [...new Set(logs.map((log) => log.event_type))].sort(), [logs]);
+  const actors = useMemo(() => [...new Set(logs.map((log) => log.actor_name))].sort(), [logs]);
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return logs.filter((log) => {
+      const searchable = [
+        log.id, log.actor_name, log.event_type, log.target_type || '', log.target_id || '',
+        log.target_name || '', log.summary, JSON.stringify(log.metadata),
+      ].join(' ').toLowerCase();
+      return (eventType === 'all' || log.event_type === eventType)
+        && (actor === 'all' || log.actor_name === actor)
+        && (!needle || searchable.includes(needle));
+    });
+  }, [actor, eventType, logs, query]);
+  const metadataValue = (log: SystemActivityLog, key: string) => {
+    const value = log.metadata?.[key];
+    return typeof value === 'string' || typeof value === 'number' ? String(value) : '';
+  };
+  return <section className="space-y-5">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div><div className="flex items-center gap-2"><Activity className="h-4 w-4 text-brand-600" /><h2 className="text-sm font-bold text-slate-900">Organization audit logs</h2></div><p className="mt-1 text-xs text-slate-500">A complete record of who did what, where, and when across the company.</p></div>
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">{filtered.length} of {logs.length} events</span>
+      </div>
+      <div className="mt-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+        <label className="relative block"><Search className="pointer-events-none absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search tracking number, person, action, target, or details..." className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-xs outline-none focus:border-brand-400" /></label>
+        <select value={eventType} onChange={(event) => setEventType(event.target.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600"><option value="all">All actions</option>{eventTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select>
+        <select value={actor} onChange={(event) => setActor(event.target.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600"><option value="all">All people</option>{actors.map((name) => <option key={name} value={name}>{name}</option>)}</select>
+      </div>
+    </div>
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {filtered.length ? filtered.map((log) => {
+        const location = metadataValue(log, 'location') || metadataValue(log, 'source') || 'Workspace';
+        const trackingNumber = log.id;
+        return <div key={log.id} className="border-b border-slate-100 p-4 last:border-0">
+          <button type="button" onClick={() => setExpanded(expanded === log.id ? null : log.id)} className="w-full text-left">
+            <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+              <div className="min-w-0 flex-1"><p className="text-xs font-bold text-slate-900">{log.summary}</p><p className="mt-1 text-[10px] text-slate-500">{log.actor_name} · {log.event_type}{log.target_name ? ` · ${log.target_name}` : ''}</p></div>
+              <div className="text-right text-[10px] text-slate-500"><p>{new Date(log.created_at).toLocaleString()}</p><p className="mt-1 font-mono text-[9px] text-slate-400">#{trackingNumber}</p></div>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-slate-500"><span className="rounded-full bg-slate-100 px-2 py-1">Where: {location}</span>{log.target_id && <span className="rounded-full bg-slate-100 px-2 py-1">Target: {log.target_id}</span>}</div>
+          </button>
+          {expanded === log.id && <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-950 p-3 text-[10px] leading-5 text-slate-200">{JSON.stringify({ trackingNumber, actor: { id: log.actor_id, name: log.actor_name }, action: log.event_type, target: { type: log.target_type, id: log.target_id, name: log.target_name }, occurredAt: log.created_at, location, metadata: log.metadata }, null, 2)}</pre>}
+        </div>;
+      }) : <div className="p-8 text-center text-xs text-slate-500">No audit events match these filters.</div>}
+    </div>
+  </section>;
+};
 const Person: React.FC<{ user: User }> = ({ user }) => <div className="flex items-center gap-3"><img src={user.avatar} alt="" className="h-10 w-10 rounded-xl object-cover" /><div><p className="text-xs font-bold text-slate-900">{user.name}</p><p className="text-[10px] text-slate-500">{user.role} · {user.department}</p></div></div>;
 const Panel: React.FC<{ title: string; icon: React.ElementType; children: React.ReactNode }> = ({ title, icon: Icon, children }) => <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-4 flex items-center gap-2"><Icon className="h-4 w-4 text-brand-600" /><h2 className="text-sm font-bold text-slate-900">{title}</h2></div>{children}</section>;
 const Row: React.FC<{ title: string; detail: string }> = ({ title, detail }) => <div className="border-b border-slate-100 py-3"><p className="text-xs font-semibold text-slate-700">{title}</p><p className="mt-1 text-[10px] text-slate-500">{detail}</p></div>;
