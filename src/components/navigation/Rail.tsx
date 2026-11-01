@@ -33,6 +33,7 @@ import {
   BriefcaseBusiness,
   Scale,
   Activity,
+  Clock3,
   FolderKanban,
   Network,
   Code2,
@@ -192,7 +193,15 @@ export const Rail: React.FC = () => {
               { label: 'Reports & exports', icon: BarChart3, path: '/finance/reports' },
             ].map((item) => { const Icon = item.icon; return <button key={item.label} type="button" onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className="group relative rounded-2xl p-3 text-slate-400 transition-all hover:bg-slate-800/70 hover:text-slate-100" title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
           ) : isOperations ? (
-            <><button type="button" className="group relative rounded-2xl bg-brand-600 p-3 text-white" title="Operations"><BriefcaseBusiness className="h-5 w-5" /></button></>
+            <>{[
+              { label: 'Overview', path: '/operations', icon: House },
+              { label: 'Workstreams', path: '/operations/workstreams', icon: ListChecks },
+              { label: 'Tasks', path: '/operations/tasks', icon: CheckCircle2 },
+              { label: 'Team operations', path: '/operations/team', icon: Users },
+              { label: 'Approvals', path: '/operations/approvals', icon: Clock3 },
+              { label: 'Activity history', path: '/operations/activity', icon: Activity },
+              { label: 'Resources', path: '/operations/resources', icon: BriefcaseBusiness },
+            ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <button key={item.label} type="button" onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
           ) : isLegal ? (
             <><button type="button" className="group relative rounded-2xl bg-brand-600 p-3 text-white" title="Legal"><Scale className="h-5 w-5" /></button></>
           ) : (
