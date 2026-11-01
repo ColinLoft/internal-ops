@@ -47,7 +47,7 @@ interface WorkspaceContextType {
   isSupabaseConnected: boolean;
   
   // Navigation & Views
-  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help' | 'insights' | 'organization' | 'programs' | 'gtm';
+  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'engineering' | 'help' | 'insights' | 'organization' | 'programs' | 'gtm';
   activeConversationId: string;
   activeChannelId: string;
   activeThreadMessageId: string | null;
@@ -92,7 +92,7 @@ interface WorkspaceContextType {
   completeOnboarding: () => Promise<void>;
   
   // Navigation actions
-  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help' | 'insights' | 'organization' | 'programs' | 'gtm') => void;
+  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'engineering' | 'help' | 'insights' | 'organization' | 'programs' | 'gtm') => void;
   setActiveConversationId: (id: string) => void;
   setActiveChannelId: (id: string) => void;
   openThread: (messageId: string) => void;
@@ -173,7 +173,7 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const STORAGE_PREFIX = 'beacon_v3_';
-type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help' | 'insights' | 'organization' | 'programs' | 'gtm';
+type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'engineering' | 'help' | 'insights' | 'organization' | 'programs' | 'gtm';
 
 const tabFromPath = (pathname: string): WorkspaceTab | null => {
   const segment = pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
@@ -182,6 +182,7 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
   if (segment === 'finance') return 'finance';
   if (segment === 'operations') return 'operations';
   if (segment === 'legal') return 'legal';
+  if (segment === 'engineering') return 'engineering';
   if (segment === 'help') return 'help';
   if (segment === 'insights') return 'insights';
   if (segment === 'organization') return 'organization';
@@ -203,6 +204,7 @@ const pathForTab = (tab: WorkspaceTab) => ({
   finance: '/finance',
   operations: '/operations',
   legal: '/legal',
+  engineering: '/engineering',
   help: '/help',
   insights: '/insights',
   organization: '/organization',

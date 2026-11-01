@@ -42,6 +42,9 @@ import {
   Megaphone,
   Gauge,
   AlertTriangle,
+  Layers3,
+  FileCheck2,
+  GitBranch,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { ProfilePopover } from '../profile/ProfilePopover';
@@ -73,6 +76,7 @@ export const Rail: React.FC = () => {
   const isFinance = activeTab === 'finance';
   const isOperations = activeTab === 'operations';
   const isLegal = activeTab === 'legal';
+  const isEngineering = activeTab === 'engineering';
   const isInsights = activeTab === 'insights';
   const isOrganization = activeTab === 'organization';
   const isPrograms = activeTab === 'programs';
@@ -218,6 +222,17 @@ export const Rail: React.FC = () => {
               { label: 'Policies & Procedures', path: '/operations/policies', icon: BookOpen },
               { label: 'Resource Coordination', path: '/operations/resources', icon: BriefcaseBusiness },
               { label: 'Internal Workflows', path: '/operations/workflows', icon: CheckCircle2 },
+            ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <button key={item.label} type="button" onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+          ) : isEngineering ? (
+            <>{[
+              { label: 'Overview', path: '/engineering', icon: House },
+              { label: 'Products & Systems', path: '/engineering/products', icon: Layers3 },
+              { label: 'Requirements', path: '/engineering/requirements', icon: FileCheck2 },
+              { label: 'Design Documentation', path: '/engineering/design', icon: BookOpen },
+              { label: 'CAD & PCB Records', path: '/engineering/cad-pcb', icon: Code2 },
+              { label: 'Testing & Validation', path: '/engineering/testing', icon: CheckCircle2 },
+              { label: 'Engineering Changes', path: '/engineering/changes', icon: GitBranch },
+              { label: 'Technical Reviews', path: '/engineering/reviews', icon: ShieldCheck },
             ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <button key={item.label} type="button" onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
           ) : isLegal ? (
             <>{[
