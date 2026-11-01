@@ -77,7 +77,7 @@ export const Rail: React.FC = () => {
   const isPrograms = activeTab === 'programs';
 
   const openInsightsSection = (section: string) => {
-    const path = section === 'overview' ? '/insights' : `/insights/${section}`;
+    const path = section === 'executive' ? '/insights' : `/insights/${section}`;
     if (window.location.pathname !== path) window.history.pushState({}, '', path);
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
@@ -134,34 +134,33 @@ export const Rail: React.FC = () => {
           {isPrograms ? (
             <>
               {[
-              { label: 'Overview', icon: Gauge, section: 'overview' },
-              { label: 'Divisions & teams', icon: Network, section: 'divisions' },
-              { label: 'Projects', icon: FolderKanban, section: 'projects' },
-              { label: 'Tasks & milestones', icon: ClipboardList, section: 'tasks' },
-              { label: 'Budgets', icon: WalletCards, section: 'budgets' },
+              { label: 'All Programs', icon: Gauge, section: 'all' },
+              { label: 'Program Overview', icon: Network, section: 'overview' },
+              { label: 'Projects & Tasks', icon: FolderKanban, section: 'projects' },
+              { label: 'Team & Personnel', icon: Users, section: 'team' },
+              { label: 'Budget & Funding', icon: WalletCards, section: 'budgets' },
+              { label: 'Milestones', icon: Target, section: 'milestones' },
               { label: 'Documentation', icon: BookOpen, section: 'documents' },
-              { label: 'Performance', icon: BarChart3, section: 'performance' },
-              ].map((item) => { const Icon = item.icon; const segments = routePath.split('/'); const programId = segments[2] === 'program' ? segments[3] : null; const path = programId ? `/programs/program/${programId}/${item.section === 'overview' ? '' : item.section}`.replace(/\/$/, '') : item.section === 'overview' ? '/programs' : `/programs/${item.section}`; const selected = routePath === path; return <button key={item.label} type="button" onClick={() => { if (routePath !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}
+              { label: 'Reports', icon: BarChart3, section: 'reports' },
+              ].map((item) => { const Icon = item.icon; const segments = routePath.split('/'); const programId = segments[2] === 'program' ? segments[3] : null; const path = item.section === 'all' ? '/programs' : programId ? `/programs/program/${programId}/${item.section === 'overview' ? '' : item.section}`.replace(/\/$/, '') : `/programs/${item.section}`; const selected = routePath === path; return <button key={item.label} type="button" onClick={() => { if (routePath !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}
             </>
           ) : isOrganization ? (
             <>{[
-              { label: 'Overview & chart', icon: Network, section: 'overview' },
-              { label: 'People & teams', icon: Users, section: 'people' },
-              { label: 'Programs', icon: FolderKanban, section: 'programs' },
-              { label: 'Roles & access', icon: ShieldCheck, section: 'access' },
-              { label: 'Onboarding & leave', icon: ClipboardList, section: 'onboarding' },
-              { label: 'Approvals', icon: CheckCircle2, section: 'approvals' },
-              { label: 'Policies & resources', icon: BookOpen, section: 'policies' },
-              { label: 'Audit logs', icon: Activity, section: 'audit' },
+              { label: 'Directory', icon: Users, section: 'people' },
+              { label: 'Organizational Chart', icon: Network, section: 'overview' },
+              { label: 'Departments', icon: Building2, section: 'departments' },
+              { label: 'Positions & Roles', icon: BriefcaseBusiness, section: 'positions' },
+              { label: 'Onboarding', icon: ClipboardList, section: 'onboarding' },
+              { label: 'Personnel Records', icon: FileText, section: 'records' },
             ].map((item) => { const Icon = item.icon; const path = item.section === 'overview' ? '/organization' : `/organization/${item.section}`; const selected = routePath === path; return <button key={item.label} type="button" onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
           ) : isInsights ? (
             <>{[
-              { label: 'Overview', icon: House, section: 'overview' },
-              { label: 'Activity', icon: Activity, section: 'activity' },
-              { label: 'Customers', icon: ContactRound, section: 'customers' },
-              { label: 'Finance', icon: Landmark, section: 'finance' },
-              { label: 'Programs', icon: FolderKanban, section: 'programs' },
-            ].map((item) => { const Icon = item.icon; const selected = (window.location.pathname.split('/')[2] || 'overview') === item.section; return <button key={item.label} type="button" onClick={() => openInsightsSection(item.section)} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+              { label: 'Executive Overview', icon: House, section: 'executive' },
+              { label: 'Program Performance', icon: Target, section: 'programs' },
+              { label: 'Financial Reports', icon: Landmark, section: 'financial' },
+              { label: 'Project Reports', icon: FolderKanban, section: 'projects' },
+              { label: 'Custom Reports', icon: BarChart3, section: 'custom' },
+            ].map((item) => { const Icon = item.icon; const selected = (window.location.pathname.split('/')[2] || 'executive') === item.section; return <button key={item.label} type="button" onClick={() => openInsightsSection(item.section)} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
           ) : isCustomers ? (
             <>{[
               { label: 'Overview', icon: House, path: '/customers' },
