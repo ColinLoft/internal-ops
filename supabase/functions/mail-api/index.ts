@@ -58,6 +58,8 @@ const encodeBase64Url = (text: string) => {
   return bytesToBase64Url(bytes);
 };
 
+const formatMimeBase64 = (value: string) => value.replace(/(.{1,76})/g, '$1\r\n').trim();
+
 const getMessageAttachments = async (
   accessToken: string,
   mailbox: Record<string, any>,
@@ -314,9 +316,6 @@ Deno.serve(async (request: Request) => {
       }
       const accessToken = await getAccessToken(adminClient, mailbox);
       if (mailbox.provider === 'google') {
-        if (attachments.length > 0) {
-          return jsonResponse({ error: 'File attachments are currently supported for Microsoft 365 mailboxes only.' }, 400);
-        }
         const replyHeaders: string[] = [];
         if (sendAction === 'reply' && replyMessage) {
           const originalUrl = new URL(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(replyMessage.provider_message_id)}`);
@@ -338,16 +337,34 @@ Deno.serve(async (request: Request) => {
             replyHeaders.push(`References: ${[referencesHeader, messageIdHeader].filter(Boolean).join(' ')}`);
           }
         }
+        const boundary = `=_flown_${crypto.randomUUID()}`;
+        const mimeParts = [
+          `--${boundary}`,
+          'Content-Type: text/html; charset="UTF-8"',
+          'Content-Transfer-Encoding: 8bit',
+          '',
+          content,
+          ...attachments.flatMap((attachment) => [
+            `--${boundary}`,
+            `Content-Type: ${attachment.contentType}; name="${attachment.name}"`,
+            `Content-Disposition: ${attachment.isInline ? 'inline' : 'attachment'}; filename="${attachment.name}"`,
+            'Content-Transfer-Encoding: base64',
+            ...(attachment.contentId ? [`Content-ID: <${attachment.contentId}>`] : []),
+            '',
+            formatMimeBase64(attachment.contentBytes),
+          ]),
+          `--${boundary}--`,
+        ].join('\r\n');
         const mime = [
           `To: ${to.join(', ')}`,
           ...(cc.length ? [`Cc: ${cc.join(', ')}`] : []),
           ...(bcc.length ? [`Bcc: ${bcc.join(', ')}`] : []),
           `Subject: ${subject}`,
           ...replyHeaders,
-          'Content-Type: text/html; charset="UTF-8"',
+          `Content-Type: multipart/mixed; boundary="${boundary}"`,
           'MIME-Version: 1.0',
           '',
-          content,
+          mimeParts,
         ].join('\r\n');
         const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
           method: 'POST',

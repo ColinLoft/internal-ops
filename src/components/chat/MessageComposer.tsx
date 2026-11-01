@@ -70,8 +70,9 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
 
         setIsRecording(true);
 
-        recognition.onresult = (event: SpeechRecognitionEvent) => {
-          const transcript = event.results[0][0].transcript;
+        recognition.onresult = (event: Event) => {
+          const resultEvent = event as Event & { results: SpeechRecognitionResultList };
+          const transcript = resultEvent.results[0][0].transcript;
           setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
           setIsRecording(false);
         };

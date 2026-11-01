@@ -75,6 +75,7 @@ export const Rail: React.FC = () => {
   const isInsights = activeTab === 'insights';
   const isOrganization = activeTab === 'organization';
   const isPrograms = activeTab === 'programs';
+  const isGtm = activeTab === 'gtm';
 
   const openInsightsSection = (section: string) => {
     const path = section === 'executive' ? '/insights' : `/insights/${section}`;
@@ -121,7 +122,15 @@ export const Rail: React.FC = () => {
       {/* Top Brand Logo */}
       <div className="flex flex-col items-center gap-6">
         <div 
-          onClick={() => isDrive ? openDriveView('all') : setActiveTab('messages')}
+          onClick={() => {
+            if (isDrive) {
+              openDriveView('all');
+              return;
+            }
+            setActiveTab('home');
+            if (window.location.pathname !== '/home') window.history.pushState({}, '', '/home');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }}
           className="group relative cursor-pointer w-11 h-11 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-500 flex items-center justify-center text-white shadow-lg shadow-brand-500/25 transition-transform hover:scale-105 active:scale-95"
           title="Flown Workspace"
         >
@@ -191,15 +200,24 @@ export const Rail: React.FC = () => {
               { label: 'Supporters', icon: Users, path: '/finance/supporters' },
               { label: 'Reports & exports', icon: BarChart3, path: '/finance/reports' },
             ].map((item) => { const Icon = item.icon; return <button key={item.label} type="button" onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className="group relative rounded-2xl p-3 text-slate-400 transition-all hover:bg-slate-800/70 hover:text-slate-100" title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+          ) : isGtm ? (
+            <>{[
+              { label: 'Overview', path: '/gtm', icon: House },
+              { label: 'Marketing', path: '/gtm/marketing', icon: Target },
+              { label: 'Communications', path: '/gtm/communications', icon: Megaphone },
+              { label: 'Brand Management', path: '/gtm/brand', icon: Network },
+              { label: 'Media & Content', path: '/gtm/content', icon: FileText },
+              { label: 'Partnerships', path: '/gtm/partnerships', icon: Users },
+              { label: 'Business Development', path: '/gtm/business-development', icon: BriefcaseBusiness },
+            ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <button key={item.label} type="button" onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
           ) : isOperations ? (
             <>{[
               { label: 'Overview', path: '/operations', icon: House },
-              { label: 'Workstreams', path: '/operations/workstreams', icon: ListChecks },
-              { label: 'Tasks', path: '/operations/tasks', icon: CheckCircle2 },
-              { label: 'Team operations', path: '/operations/team', icon: Users },
-              { label: 'Approvals', path: '/operations/approvals', icon: Clock3 },
-              { label: 'Activity history', path: '/operations/activity', icon: Activity },
-              { label: 'Resources', path: '/operations/resources', icon: BriefcaseBusiness },
+              { label: 'Administration', path: '/operations/administration', icon: ListChecks },
+              { label: 'People Operations', path: '/operations/people', icon: Users },
+              { label: 'Policies & Procedures', path: '/operations/policies', icon: BookOpen },
+              { label: 'Resource Coordination', path: '/operations/resources', icon: BriefcaseBusiness },
+              { label: 'Internal Workflows', path: '/operations/workflows', icon: CheckCircle2 },
             ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <button key={item.label} type="button" onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
           ) : isLegal ? (
             <><button type="button" className="group relative rounded-2xl bg-brand-600 p-3 text-white" title="Legal"><Scale className="h-5 w-5" /></button></>

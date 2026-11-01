@@ -95,6 +95,7 @@ export interface Attachment {
   type: 'image' | 'file' | 'audio' | 'location';
   previewUrl?: string;
   storagePath?: string;
+  storageBucket?: string;
   locationData?: {
     label: string;
     latitude: number;

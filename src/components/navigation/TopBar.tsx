@@ -90,6 +90,12 @@ export const TopBar: React.FC = () => {
       accent: 'from-brand-500 to-brand-600',
     },
     {
+      id: 'gtm',
+      name: 'GTM',
+      icon: Megaphone,
+      accent: 'from-brand-500 to-brand-600',
+    },
+    {
       id: 'operations',
       name: 'Operations',
       icon: BriefcaseBusiness,
@@ -219,7 +225,7 @@ export const TopBar: React.FC = () => {
         <div className="flex items-center text-sm font-semibold text-slate-800 tracking-tight">
           <span className="text-brand-600 font-bold">Flown</span>
           <span className="mx-2 text-slate-400">/</span>
-          <span className="text-slate-600 font-medium">{activeTab === 'operations' ? 'Operations' : activeTab === 'legal' ? 'Legal' : activeTab === 'finance' ? 'Finance' : activeTab === 'customers' ? 'Customers' : activeTab === 'programs' ? 'Programs' : activeTab === 'home' ? 'Home' : activeTab === 'admin' ? 'Administration' : activeTab === 'help' ? 'Help Center' : activeTab === 'insights' ? `Insights${window.location.pathname.split('/')[2] ? ` / ${window.location.pathname.split('/')[2]}` : ''}` : activeTab === 'organization' ? 'Organization' : activeTab === 'inbox' ? 'Email inbox' : activeTab === 'drive' ? 'Drive' : activeTab === 'messages' ? 'Direct messages' : activeTab === 'channels' ? 'Channels' : 'Workspace'}</span>
+          <span className="text-slate-600 font-medium">{activeTab === 'operations' ? 'Operations' : activeTab === 'gtm' ? 'GTM' : activeTab === 'legal' ? 'Legal' : activeTab === 'finance' ? 'Finance' : activeTab === 'customers' ? 'Customers' : activeTab === 'programs' ? 'Programs' : activeTab === 'home' ? 'Home' : activeTab === 'admin' ? 'Administration' : activeTab === 'help' ? 'Help Center' : activeTab === 'insights' ? `Insights${window.location.pathname.split('/')[2] ? ` / ${window.location.pathname.split('/')[2]}` : ''}` : activeTab === 'organization' ? 'Organization' : activeTab === 'inbox' ? 'Email inbox' : activeTab === 'drive' ? 'Drive' : activeTab === 'messages' ? 'Direct messages' : activeTab === 'channels' ? 'Channels' : 'Workspace'}</span>
           <span className="mx-2 text-slate-400">/</span>
           <span className="text-slate-900 bg-brand-50 px-2 py-0.5 rounded-md text-xs font-semibold text-brand-700 border border-brand-100/80">
             {activeTab === 'operations' ? (window.location.pathname.split('/')[2] || 'Overview').replace(/^\w/, (value) => value.toUpperCase()) : activeTab === 'customers' ? 'Overview' : activeTab === 'home' ? 'Overview' : activeTab === 'messages' ? currentConv?.name : activeTab === 'channels' ? `#${currentChan?.name}` : activeTab === 'calendar' ? 'Schedule' : activeTab === 'inbox' ? 'Connected mailboxes' : activeTab === 'drive' ? 'My Drive' : 'Staff directory'}
@@ -385,6 +391,10 @@ export const TopBar: React.FC = () => {
                           setSelectedApp(null);
                         } else if (app.id === 'programs') {
                           setActiveTab('programs');
+                          setIsAppsOpen(false);
+                          setSelectedApp(null);
+                        } else if (app.id === 'gtm') {
+                          setActiveTab('gtm');
                           setIsAppsOpen(false);
                           setSelectedApp(null);
                         } else {

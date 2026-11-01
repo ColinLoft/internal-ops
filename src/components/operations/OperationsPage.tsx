@@ -1,24 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Activity, BriefcaseBusiness, CheckCircle2, Clock3, ListChecks, Plus, Search, Users, X } from 'lucide-react';
+import { Activity, BriefcaseBusiness, CheckCircle2, Clock3, FileText, ListChecks, Plus, Search, Users, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import type { User } from '../../types';
 
-type View = 'overview' | 'workstreams' | 'tasks' | 'team' | 'approvals' | 'activity' | 'resources';
+type View = 'overview' | 'administration' | 'people' | 'policies' | 'resources' | 'workflows';
 type Workstream = { id: string; name: string; description: string | null; owner_id: string | null; status: string };
 type Task = { id: string; workstream_id: string | null; title: string; description: string | null; assignee_id: string | null; status: string; priority: string; due_date: string | null };
 type Approval = { id: string; task_id: string | null; title: string; requester_id: string | null; reviewer_id: string | null; status: string; due_date: string | null; notes: string | null };
 type Resource = { id: string; name: string; resource_type: string; owner_id: string | null; status: string; notes: string | null };
 type ActivityItem = { id: string; action: string; entity_type: string; entity_id: string | null; actor_id: string | null; metadata: Record<string, unknown> | null; created_at: string };
+type Department = { id: string; name: string; description: string | null; head_id: string | null };
+type Position = { id: string; title: string; department_id: string | null; status: string };
+type Policy = { id: string; title: string; record_type: string; status: string; description: string | null };
 
 const nav: { id: View; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview', icon: BriefcaseBusiness },
-  { id: 'workstreams', label: 'Workstreams', icon: ListChecks },
-  { id: 'tasks', label: 'Tasks', icon: CheckCircle2 },
-  { id: 'team', label: 'Team operations', icon: Users },
-  { id: 'approvals', label: 'Approvals', icon: Clock3 },
-  { id: 'activity', label: 'Activity history', icon: Activity },
-  { id: 'resources', label: 'Resources', icon: BriefcaseBusiness },
+  { id: 'administration', label: 'Administration', icon: ListChecks },
+  { id: 'people', label: 'People Operations', icon: Users },
+  { id: 'policies', label: 'Policies & Procedures', icon: FileText },
+  { id: 'resources', label: 'Resource Coordination', icon: BriefcaseBusiness },
+  { id: 'workflows', label: 'Internal Workflows', icon: CheckCircle2 },
 ];
 
 export const OperationsPage: React.FC = () => {
@@ -29,6 +31,9 @@ export const OperationsPage: React.FC = () => {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [policies, setPolicies] = useState<Policy[]>([]);
   const [error, setError] = useState('');
   const load = async () => {
     const results = await Promise.all([
@@ -37,6 +42,9 @@ export const OperationsPage: React.FC = () => {
       supabase.from('operation_approvals').select('id,task_id,title,requester_id,reviewer_id,status,due_date,notes').order('created_at', { ascending: false }),
       supabase.from('operation_resources').select('id,name,resource_type,owner_id,status,notes').order('name'),
       supabase.from('operation_activity').select('id,action,entity_type,entity_id,actor_id,metadata,created_at').order('created_at', { ascending: false }).limit(100),
+      supabase.from('organization_departments').select('id,name,description,head_id').order('name'),
+      supabase.from('organization_positions').select('id,title,department_id,status').order('title'),
+      supabase.from('organization_records').select('id,title,record_type,status,description').order('created_at', { ascending: false }),
     ]);
     const failed = results.find((result) => result.error);
     if (failed?.error) { setError(failed.error.message); return; }
@@ -45,29 +53,35 @@ export const OperationsPage: React.FC = () => {
     setApprovals((results[2].data || []) as Approval[]);
     setResources((results[3].data || []) as Resource[]);
     setActivity((results[4].data || []) as ActivityItem[]);
+    setDepartments((results[5].data || []) as Department[]);
+    setPositions((results[6].data || []) as Position[]);
+    setPolicies((results[7].data || []) as Policy[]);
   };
   useEffect(() => { void load(); const onRoute = () => setView(viewFromPath(window.location.pathname)); window.addEventListener('popstate', onRoute); return () => window.removeEventListener('popstate', onRoute); }, []);
   const navigate = (next: View) => { const path = next === 'overview' ? '/operations' : `/operations/${next}`; window.history.pushState({}, '', path); setView(next); };
   const userName = (id: string | null | undefined) => users.find((user) => user.id === id)?.name || 'Unassigned';
   return <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
-    <header className="border-b border-slate-200 bg-white px-5 py-5 sm:px-8"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-600">Internal operations</p><h1 className="mt-1 text-xl font-bold text-slate-900">{nav.find((item) => item.id === view)?.label}</h1><p className="mt-1 text-xs text-slate-500">Coordinate work, ownership, reviews, resources, and operational follow-through.</p></div><button type="button" onClick={() => navigate(view === 'workstreams' ? 'workstreams' : 'tasks')} className="rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white"><Plus className="mr-1 inline h-3.5 w-3.5" /> New {view === 'workstreams' ? 'workstream' : 'task'}</button></div></header>
+    <header className="border-b border-slate-200 bg-white px-5 py-5 sm:px-8"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-600">Internal operations</p><h1 className="mt-1 text-xl font-bold text-slate-900">{nav.find((item) => item.id === view)?.label}</h1><p className="mt-1 text-xs text-slate-500">Coordinate administration, people, procedures, resources, and internal workflows.</p></div><button type="button" onClick={() => navigate('workflows')} className="rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white"><Plus className="mr-1 inline h-3.5 w-3.5" /> New workflow</button></div></header>
     <div className="border-b border-slate-200 bg-white px-5 sm:px-8"><div className="flex gap-1 overflow-x-auto">{nav.map((item) => { const Icon = item.icon; return <button key={item.id} type="button" onClick={() => navigate(item.id)} className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-xs font-semibold ${view === item.id ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><Icon className="h-3.5 w-3.5" />{item.label}</button>; })}</div></div>
     <div className="mx-auto max-w-7xl p-5 sm:p-8">{error && <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
       {view === 'overview' && <Overview workstreams={workstreams} tasks={tasks} approvals={approvals} resources={resources} onNavigate={navigate} />}
-      {view === 'workstreams' && <Workstreams workstreams={workstreams} tasks={tasks} users={users} currentUser={currentUser} onChanged={load} />}
-      {view === 'tasks' && <Tasks tasks={tasks} workstreams={workstreams} users={users} currentUser={currentUser} onChanged={load} />}
-      {view === 'team' && <Team users={users} tasks={tasks} workstreams={workstreams} userName={userName} />}
-      {view === 'approvals' && <Approvals approvals={approvals} tasks={tasks} users={users} currentUser={currentUser} onChanged={load} />}
-      {view === 'activity' && <ActivityHistory activity={activity} users={users} userName={userName} />}
+      {view === 'administration' && <Administration departments={departments} positions={positions} users={users} />}
+      {view === 'people' && <PeopleOperations users={users} tasks={tasks} workstreams={workstreams} />}
+      {view === 'policies' && <Policies policies={policies} />}
       {view === 'resources' && <Resources resources={resources} users={users} currentUser={currentUser} onChanged={load} />}
+      {view === 'workflows' && <InternalWorkflows tasks={tasks} approvals={approvals} activity={activity} users={users} />}
     </div>
   </main>;
 };
 
 const viewFromPath = (path: string): View => { const value = path.split('/')[2] as View; return nav.some((item) => item.id === value) ? value : 'overview'; };
+const Administration: React.FC<{ departments: Department[]; positions: Position[]; users: User[] }> = ({ departments, positions, users }) => <div className="space-y-5"><h2 className="text-sm font-bold text-slate-900">Administration</h2><p className="text-xs text-slate-500">Coordinate departments, positions, and operational ownership.</p><div className="grid gap-3 sm:grid-cols-3"><Metric label="Departments" value={String(departments.length)} detail="Organizational units" icon={ListChecks} /><Metric label="Positions" value={String(positions.length)} detail="Configured roles" icon={BriefcaseBusiness} /><Metric label="Staff" value={String(users.filter((user) => user.accountStatus !== 'removed').length)} detail="Directory records" icon={Users} /></div><div className="grid gap-5 lg:grid-cols-2"><Panel title="Departments">{departments.map((item) => <div key={item.id} className="flex border-b border-slate-100 py-3 text-xs"><span className="flex-1 font-semibold text-slate-700">{item.name}</span><span className="text-slate-400">{users.find((user) => user.id === item.head_id)?.name || 'No head'}</span></div>)}</Panel><Panel title="Positions & roles">{positions.map((item) => <div key={item.id} className="flex border-b border-slate-100 py-3 text-xs"><span className="flex-1 font-semibold text-slate-700">{item.title}</span><span className="text-slate-400">{item.status}</span></div>)}</Panel></div></div>;
+const PeopleOperations: React.FC<{ users: User[]; tasks: Task[]; workstreams: Workstream[] }> = ({ users, tasks, workstreams }) => <div className="space-y-5"><h2 className="text-sm font-bold text-slate-900">People operations</h2><p className="text-xs text-slate-500">Directory, operational ownership, and current workload.</p><div className="grid gap-3 sm:grid-cols-3"><Metric label="People" value={String(users.filter((user) => user.accountStatus !== 'removed').length)} detail="Active directory" icon={Users} /><Metric label="Assigned work" value={String(tasks.filter((task) => task.assignee_id).length)} detail="Tasks with owners" icon={CheckCircle2} /><Metric label="Workstream owners" value={String(workstreams.filter((item) => item.owner_id).length)} detail="Accountability assigned" icon={BriefcaseBusiness} /></div></div>;
+const Policies: React.FC<{ policies: Policy[] }> = ({ policies }) => <div className="space-y-4"><h2 className="text-sm font-bold text-slate-900">Policies & procedures</h2><p className="text-xs text-slate-500">Internal procedures and operational reference records.</p><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{policies.map((item) => <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4"><FileText className="h-4 w-4 text-brand-600" /><p className="mt-3 text-sm font-bold text-slate-900">{item.title}</p><p className="mt-1 text-[10px] uppercase text-brand-600">{item.record_type} · {item.status}</p><p className="mt-3 text-xs text-slate-500">{item.description || 'No description added.'}</p></article>)}</div>{!policies.length && <Empty text="No policy or procedure records yet." />}</div>;
+const InternalWorkflows: React.FC<{ tasks: Task[]; approvals: Approval[]; activity: ActivityItem[]; users: User[] }> = ({ tasks, approvals, activity, users }) => <div className="space-y-5"><h2 className="text-sm font-bold text-slate-900">Internal workflows</h2><p className="text-xs text-slate-500">Tasks, approvals, due dates, and activity history.</p><div className="grid gap-3 sm:grid-cols-3"><Metric label="Open tasks" value={String(tasks.filter((task) => task.status !== 'completed').length)} detail="Awaiting action" icon={CheckCircle2} /><Metric label="Pending approvals" value={String(approvals.filter((item) => approvalIsOpen(item.status)).length)} detail="Needs review" icon={Clock3} /><Metric label="Recent activity" value={String(activity.length)} detail="Operational entries" icon={Activity} /></div><Panel title="Current workflow queue">{tasks.slice(0, 10).map((task) => <div key={task.id} className="flex border-b border-slate-100 py-3 text-xs"><span className="flex-1 font-semibold text-slate-700">{task.title}</span><span className="text-slate-400">{users.find((user) => user.id === task.assignee_id)?.name || 'Unassigned'} · {task.status}</span></div>)}</Panel></div>;
 const Metric: React.FC<{ label: string; value: string; detail: string; icon: React.ElementType }> = ({ label, value, detail, icon: Icon }) => <div className="rounded-2xl border border-slate-200 bg-white p-4"><Icon className="h-4 w-4 text-brand-600" /><p className="mt-3 text-xs text-slate-500">{label}</p><p className="mt-1 text-2xl font-bold text-slate-900">{value}</p><p className="mt-1 text-[10px] text-slate-400">{detail}</p></div>;
 const Panel: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-sm font-bold text-slate-900">{title}</h2><div className="mt-3">{children}</div></section>;
-const Overview: React.FC<{ workstreams: Workstream[]; tasks: Task[]; approvals: Approval[]; resources: Resource[]; onNavigate: (view: View) => void }> = ({ workstreams, tasks, approvals, resources, onNavigate }) => <div className="space-y-5"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Active workstreams" value={String(workstreams.filter((item) => item.status === 'active').length)} detail="Operational work in progress" icon={BriefcaseBusiness} /><Metric label="Open tasks" value={String(tasks.filter((item) => !['completed', 'cancelled'].includes(item.status)).length)} detail="Assigned and awaiting action" icon={CheckCircle2} /><Metric label="Waiting on review" value={String(approvals.filter((item) => approvalIsOpen(item.status)).length)} detail="Needs an owner decision" icon={Clock3} /><Metric label="Shared resources" value={String(resources.filter((item) => item.status === 'available').length)} detail="Available to coordinate" icon={Users} /></div><div className="grid gap-5 lg:grid-cols-2"><Panel title="Current workstreams"><div className="space-y-1">{workstreams.slice(0, 5).map((item) => <button key={item.id} type="button" onClick={() => onNavigate('workstreams')} className="flex w-full items-center gap-3 rounded-lg border-b border-slate-100 py-3 text-left hover:bg-slate-50"><BriefcaseBusiness className="h-4 w-4 text-brand-600" /><span className="flex-1 text-xs font-semibold text-slate-700">{item.name}</span><span className="text-[10px] text-slate-400">{tasks.filter((task) => task.workstream_id === item.id).length} tasks</span></button>)}</div></Panel><Panel title="Needs attention"><div className="space-y-2">{tasks.filter((task) => task.status !== 'completed').slice(0, 5).map((task) => <button key={task.id} type="button" onClick={() => onNavigate('tasks')} className="flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-slate-50"><span className={`h-2 w-2 rounded-full ${task.priority === 'high' ? 'bg-rose-500' : 'bg-amber-400'}`} /><span className="flex-1 text-xs text-slate-700">{task.title}</span><span className="text-[10px] text-slate-400">{task.due_date || 'No due date'}</span></button>)}</div></Panel></div></div>;
+const Overview: React.FC<{ workstreams: Workstream[]; tasks: Task[]; approvals: Approval[]; resources: Resource[]; onNavigate: (view: View) => void }> = ({ workstreams, tasks, approvals, resources, onNavigate }) => <div className="space-y-5"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Active workstreams" value={String(workstreams.filter((item) => item.status === 'active').length)} detail="Operational work in progress" icon={BriefcaseBusiness} /><Metric label="Open tasks" value={String(tasks.filter((item) => !['completed', 'cancelled'].includes(item.status)).length)} detail="Assigned and awaiting action" icon={CheckCircle2} /><Metric label="Waiting on review" value={String(approvals.filter((item) => approvalIsOpen(item.status)).length)} detail="Needs an owner decision" icon={Clock3} /><Metric label="Shared resources" value={String(resources.filter((item) => item.status === 'available').length)} detail="Available to coordinate" icon={Users} /></div><div className="grid gap-5 lg:grid-cols-2"><Panel title="Current workstreams"><div className="space-y-1">{workstreams.slice(0, 5).map((item) => <button key={item.id} type="button" onClick={() => onNavigate('workflows')} className="flex w-full items-center gap-3 rounded-lg border-b border-slate-100 py-3 text-left hover:bg-slate-50"><BriefcaseBusiness className="h-4 w-4 text-brand-600" /><span className="flex-1 text-xs font-semibold text-slate-700">{item.name}</span><span className="text-[10px] text-slate-400">{tasks.filter((task) => task.workstream_id === item.id).length} tasks</span></button>)}</div></Panel><Panel title="Needs attention"><div className="space-y-2">{tasks.filter((task) => task.status !== 'completed').slice(0, 5).map((task) => <button key={task.id} type="button" onClick={() => onNavigate('workflows')} className="flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-slate-50"><span className={`h-2 w-2 rounded-full ${task.priority === 'high' ? 'bg-rose-500' : 'bg-amber-400'}`} /><span className="flex-1 text-xs text-slate-700">{task.title}</span><span className="text-[10px] text-slate-400">{task.due_date || 'No due date'}</span></button>)}</div></Panel></div></div>;
 
 const Workstreams: React.FC<{ workstreams: Workstream[]; tasks: Task[]; users: User[]; currentUser: User; onChanged: () => Promise<void> }> = ({ workstreams, tasks, users, currentUser, onChanged }) => <CrudList title="Workstreams" empty="No workstreams yet." items={workstreams} users={users} currentUser={currentUser} onChanged={onChanged} kind="workstream" count={(item) => tasks.filter((task) => task.workstream_id === item.id).length} />;
 const Tasks: React.FC<{ tasks: Task[]; workstreams: Workstream[]; users: User[]; currentUser: User; onChanged: () => Promise<void> }> = ({ tasks, workstreams, users, currentUser, onChanged }) => <CrudList title="Tasks" empty="No tasks yet." items={tasks} users={users} currentUser={currentUser} onChanged={onChanged} kind="task" workstreams={workstreams} />;

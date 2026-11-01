@@ -24,6 +24,14 @@ export const CalendarView: React.FC = () => {
   const [scopeFilter, setScopeFilter] = useState<'all' | 'team' | 'personal'>('all');
   const [search, setSearch] = useState('');
 
+  const formatTime = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return time;
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
   // Format today's date string YYYY-MM-DD
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -150,7 +158,7 @@ export const CalendarView: React.FC = () => {
                       <span className="truncate">{evt.title}</span>
                     </div>
                     <span className="text-[9px] font-medium opacity-70 whitespace-nowrap">
-                      {evt.startTime}
+                      {formatTime(evt.startTime)}
                     </span>
                     <button
                       onClick={(e) => {
@@ -208,7 +216,7 @@ export const CalendarView: React.FC = () => {
           {hours.map((hr, idx) => (
             <div key={idx} className="grid grid-cols-8 min-h-[58px] border-b border-slate-100">
               <div className="text-center text-[11px] text-slate-400 font-semibold py-2 border-r border-slate-100">
-                {hr}
+                {formatTime(hr)}
               </div>
               {weekDays.map((day, dIdx) => {
                 const hourEvents = filteredEvents.filter(
@@ -227,7 +235,7 @@ export const CalendarView: React.FC = () => {
                         }`}
                       >
                         <p className="truncate font-bold">{evt.title}</p>
-                        <p className="text-[10px] opacity-75">{evt.startTime} - {evt.endTime}</p>
+                        <p className="text-[10px] opacity-75">{formatTime(evt.startTime)} - {formatTime(evt.endTime)}</p>
                       </div>
                     ))}
                   </div>
@@ -299,7 +307,7 @@ export const CalendarView: React.FC = () => {
                       {evt.scope === 'team' ? 'Whole Team Event' : 'Personal Event'}
                     </span>
                     <span className="text-xs font-bold text-slate-500">
-                      {evt.startTime} - {evt.endTime}
+                      {formatTime(evt.startTime)} - {formatTime(evt.endTime)}
                     </span>
                   </div>
                   <h4 className="text-sm font-bold text-slate-900">{evt.title}</h4>
@@ -466,7 +474,7 @@ export const CalendarView: React.FC = () => {
                     >
                       {evt.scope === 'team' ? 'Whole Team' : 'Personal'}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-medium">{evt.startTime}</span>
+                    <span className="text-[10px] text-slate-400 font-medium">{formatTime(evt.startTime)}</span>
                   </div>
                   <h5 className="text-xs font-bold text-slate-800 truncate">{evt.title}</h5>
                   <p className="text-[11px] text-slate-400 truncate">{evt.date}</p>

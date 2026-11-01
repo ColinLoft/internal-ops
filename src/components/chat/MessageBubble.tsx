@@ -16,6 +16,7 @@ import {
   Download,
   Vote,
   Sparkles,
+  CheckCheck,
 } from 'lucide-react';
 
 interface MessageBubbleProps {

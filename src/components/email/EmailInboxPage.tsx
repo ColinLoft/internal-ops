@@ -1102,7 +1102,10 @@ export const EmailInboxPage: React.FC = () => {
       setNotice(scheduledAt
         ? `Email scheduled for ${scheduledAt.toLocaleString()}.`
         : 'Message sent.');
-      if (!scheduledAt) await refresh(true);
+      if (!scheduledAt) {
+        await refresh(true);
+        setActiveFolder('sent');
+      }
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : 'The message could not be sent.');
     } finally {

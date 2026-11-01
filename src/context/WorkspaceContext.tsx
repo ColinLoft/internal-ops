@@ -47,7 +47,7 @@ interface WorkspaceContextType {
   isSupabaseConnected: boolean;
   
   // Navigation & Views
-  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help' | 'insights' | 'organization' | 'programs';
+  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help' | 'insights' | 'organization' | 'programs' | 'gtm';
   activeConversationId: string;
   activeChannelId: string;
   activeThreadMessageId: string | null;
@@ -92,7 +92,7 @@ interface WorkspaceContextType {
   completeOnboarding: () => Promise<void>;
   
   // Navigation actions
-  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help' | 'insights' | 'organization' | 'programs') => void;
+  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help' | 'insights' | 'organization' | 'programs' | 'gtm') => void;
   setActiveConversationId: (id: string) => void;
   setActiveChannelId: (id: string) => void;
   openThread: (messageId: string) => void;
@@ -173,7 +173,7 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const STORAGE_PREFIX = 'beacon_v3_';
-type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help' | 'insights' | 'organization' | 'programs';
+type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'operations' | 'legal' | 'help' | 'insights' | 'organization' | 'programs' | 'gtm';
 
 const tabFromPath = (pathname: string): WorkspaceTab | null => {
   const segment = pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
@@ -186,6 +186,7 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
   if (segment === 'insights') return 'insights';
   if (segment === 'organization') return 'organization';
   if (segment === 'programs') return 'programs';
+  if (segment === 'gtm') return 'gtm';
   if (segment === 'messages') return 'messages';
   if (segment === 'channels') return 'channels';
   if (segment === 'calendar') return 'calendar';
@@ -206,6 +207,7 @@ const pathForTab = (tab: WorkspaceTab) => ({
   insights: '/insights',
   organization: '/organization',
   programs: '/programs',
+  gtm: '/gtm',
   messages: '/messages',
   channels: '/channels',
   calendar: '/calendar',
@@ -368,7 +370,7 @@ const loadSupabaseWorkspaceData = async (userIds: string[]) => {
       const attachments = await Promise.all((Array.isArray(row.attachments) ? row.attachments : []).map(async (attachment: Attachment) => {
         if (!attachment.storagePath) return attachment;
         const { data, error } = await supabase.storage
-          .from('channel-attachments')
+          .from(attachment.storageBucket || 'channel-attachments')
           .createSignedUrl(attachment.storagePath, 60 * 60);
         if (error) throw new Error(`Channel attachment "${attachment.name}" could not be opened: ${error.message}`);
         return { ...attachment, url: data.signedUrl };
@@ -1310,14 +1312,40 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   // Messaging
+  const persistAttachments = async (conversationId: string, messageId: string, attachments: Attachment[] = []) => {
+    return Promise.all(attachments.map(async (attachment) => {
+      if (attachment.storagePath || !attachment.url.startsWith('blob:') || attachment.type === 'location') {
+        return attachment;
+      }
+      const response = await fetch(attachment.url);
+      if (!response.ok) throw new Error(`Attachment "${attachment.name}" could not be read.`);
+      const blob = await response.blob();
+      const safeName = attachment.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const storagePath = `${currentUser.id}/${conversationId}/${messageId}/${safeName}`;
+      const { error } = await supabase.storage.from('message-attachments').upload(storagePath, blob, {
+        contentType: blob.type || 'application/octet-stream',
+        upsert: false,
+      });
+      if (error) throw new Error(`Attachment "${attachment.name}" could not be saved: ${error.message}`);
+      const { data: signedUrl, error: signedUrlError } = await supabase.storage
+        .from('message-attachments')
+        .createSignedUrl(storagePath, 60 * 60);
+      if (signedUrlError) throw new Error(`Attachment "${attachment.name}" could not be opened: ${signedUrlError.message}`);
+      URL.revokeObjectURL(attachment.url);
+      return { ...attachment, url: signedUrl.signedUrl, storagePath, storageBucket: 'message-attachments' };
+    }));
+  };
+
   const sendMessage = async (text: string, attachments?: Attachment[], poll?: Poll, targetConversationId?: string) => {
     const isChannelMessage = !targetConversationId && activeTab === 'channels';
     const targetId = targetConversationId || (isChannelMessage ? activeChannelId : activeConversationId);
     if (!targetId || (!text.trim() && !attachments?.length && !poll)) return;
     if (!currentUser.id) throw new Error('Sign in before sending messages.');
 
+    const messageId = `msg-${crypto.randomUUID()}`;
+    const persistedAttachments = await persistAttachments(targetId, messageId, attachments);
     const newMsg: Message = {
-      id: `msg-${crypto.randomUUID()}`,
+      id: messageId,
       conversationId: targetId,
       senderId: currentUser.id,
       senderName: currentUser.name,
@@ -1327,7 +1355,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
       seenBy: [currentUser.id],
       reactions: [],
-      attachments: attachments || [],
+      attachments: persistedAttachments,
       poll: poll,
     };
 
@@ -1340,7 +1368,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       sender_role: currentUser.role,
       text: newMsg.text,
       timestamp: newMsg.timestamp,
-      attachments: newMsg.attachments,
+      attachments: persistedAttachments,
       poll: newMsg.poll,
       reactions: newMsg.reactions,
       seen_by: newMsg.seenBy,
@@ -1411,7 +1439,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
             description: `${currentUser.name} pinged the channel`,
             timestamp: 'Just now',
             isRead: false,
-            linkTab: activeTab === 'admin' || activeTab === 'inbox' ? 'channels' : activeTab,
+            linkTab: activeTab === 'channels' ? 'channels' : activeTab === 'organization' ? 'organization' : 'messages',
             targetId,
           },
           ...prev,
@@ -1432,8 +1460,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (!text.trim() && attachments.length === 0) return;
     if (!currentUser.id) throw new Error('Sign in before sending messages.');
 
+    const messageId = `msg-${crypto.randomUUID()}`;
+    const persistedAttachments = await persistAttachments(channelId, messageId, attachments);
     const newMsg: Message = {
-      id: `msg-${crypto.randomUUID()}`,
+      id: messageId,
       conversationId: channelId,
       senderId: currentUser.id,
       senderName: currentUser.name,
@@ -1443,7 +1473,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
       seenBy: [currentUser.id],
       reactions: [],
-      attachments,
+      attachments: persistedAttachments,
     };
     const { error } = await supabase.from('messages').insert({
       id: newMsg.id,
@@ -1454,7 +1484,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       sender_role: currentUser.role,
       text: newMsg.text,
       timestamp: newMsg.timestamp,
-      attachments,
+      attachments: persistedAttachments,
       reactions: [],
       seen_by: [currentUser.id],
       is_call_record: false,
@@ -1481,8 +1511,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (!currentUser.id) throw new Error('Sign in before sending messages.');
 
     const targetId = activeTab === 'channels' ? activeChannelId : activeConversationId;
+    const messageId = `msg-${crypto.randomUUID()}`;
+    const persistedAttachments = await persistAttachments(targetId, messageId, attachments);
     const newReply: Message = {
-      id: `msg-${crypto.randomUUID()}`,
+      id: messageId,
       conversationId: targetId,
       parentId,
       senderId: currentUser.id,
@@ -1493,7 +1525,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
       seenBy: [currentUser.id],
       reactions: [],
-      attachments: attachments || [],
+      attachments: persistedAttachments,
     };
 
     const { error } = await supabase.from('messages').insert({
@@ -1506,7 +1538,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       sender_role: currentUser.role,
       text: newReply.text,
       timestamp: newReply.timestamp,
-      attachments: newReply.attachments,
+      attachments: persistedAttachments,
       reactions: newReply.reactions,
       seen_by: newReply.seenBy,
     });
