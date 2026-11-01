@@ -7,7 +7,7 @@ import { ChatFeed } from './components/chat/ChatFeed';
 import { ThreadPanel } from './components/chat/ThreadPanel';
 import { RightDrawer } from './components/chat/RightDrawer';
 import { CalendarView } from './components/calendar/CalendarView';
-import { OrganizationAdminPage } from './components/admin/OrganizationAdminPage';
+import { AdministrationPage } from './components/admin/AdministrationPage';
 
 // Auth & Modals
 import { AuthScreen } from './components/auth/AuthScreen';
@@ -125,7 +125,7 @@ const WorkspaceShell: React.FC = () => {
 
           {activeTab === 'calendar' && <CalendarView />}
           {activeTab === 'inbox' && <EmailInboxPage />}
-          {activeTab === 'admin' && <OrganizationAdminPage />}
+          {activeTab === 'admin' && <AdministrationPage />}
           {activeTab === 'drive' && <DrivePage />}
         </div>
       </div>

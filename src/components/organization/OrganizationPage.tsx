@@ -11,7 +11,7 @@ import type { SystemActivityLog, User } from '../../types';
 import { DocumentSigningDialog, OrganizationDocument } from './PolicySigning';
 import { LeaveRequestModal } from './LeaveRequestModal';
 
-type View = 'overview' | 'people' | 'programs' | 'access' | 'onboarding' | 'approvals' | 'policies' | 'audit';
+type View = 'overview' | 'people' | 'programs' | 'access' | 'onboarding' | 'approvals' | 'policies' | 'resources' | 'audit';
 type Department = { id: string; name: string; description: string | null; head_id: string | null };
 type Position = { id: string; title: string; department_id: string | null; reports_to_id: string | null; status: string };
 type EmployeeRecord = { user_id: string; position_id: string | null; manager_id: string | null; employment_type: string; start_date: string | null };
@@ -21,7 +21,7 @@ type OnboardingTask = { id: string; employee_id: string; title: string; task_typ
 type LeaveRequest = { id: string; employee_id: string; leave_type: string; starts_on: string; ends_on: string; reason: string | null; status: string; reviewed_at: string | null };
 type ProgramRecord = { id: string; name: string; description: string | null; director_id: string | null; status: string };
 
-const nav: { id: View; label: string; icon: React.ElementType }[] = [
+const organizationNav: { id: View; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview & chart', icon: Network },
   { id: 'people', label: 'People & teams', icon: Users },
   { id: 'programs', label: 'Programs', icon: FolderKanban },
@@ -32,12 +32,23 @@ const nav: { id: View; label: string; icon: React.ElementType }[] = [
   { id: 'audit', label: 'Audit logs', icon: Activity },
 ];
 
-export const OrganizationPage: React.FC = () => {
+const administrationNav: { id: View; label: string; icon: React.ElementType }[] = [
+  { id: 'overview', label: 'Administration overview', icon: Network },
+  { id: 'people', label: 'Personnel operations', icon: Users },
+  { id: 'policies', label: 'Policies & procedures', icon: FileText },
+  { id: 'approvals', label: 'Workflows & approvals', icon: CheckCircle2 },
+  { id: 'resources', label: 'Resource coordination', icon: BriefcaseBusiness },
+  { id: 'audit', label: 'Audit logs', icon: Activity },
+];
+
+type OrganizationPageProps = { basePath?: '/organization' | '/admin'; administrationMode?: boolean };
+
+export const OrganizationPage: React.FC<OrganizationPageProps> = ({ basePath = '/organization', administrationMode = false }) => {
   const {
     users, currentUser, setIsAddTeammateOpen, updateStaffUser, manageStaffAccount,
     systemActivityLogs, refreshSystemActivityLogs, addNotification,
   } = useWorkspace();
-  const [view, setView] = useState<View>(() => viewFromPath(window.location.pathname));
+  const [view, setView] = useState<View>(() => viewFromPath(window.location.pathname, basePath));
   const [departments, setDepartments] = useState<Department[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
@@ -47,6 +58,7 @@ export const OrganizationPage: React.FC = () => {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [documents, setDocuments] = useState<OrganizationDocument[]>([]);
   const [programs, setPrograms] = useState<ProgramRecord[]>([]);
+  const [resources, setResources] = useState<{ id: string; title: string; record_type: string; owner_id: string | null; status: string; description: string | null }[]>([]);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<User | null>(null);
   const [error, setError] = useState('');
@@ -61,6 +73,7 @@ export const OrganizationPage: React.FC = () => {
       supabase.from('organization_onboarding_tasks').select('id,employee_id,title,task_type,status,due_date,notes,completed_at').order('due_date'),
       supabase.from('organization_leave_requests').select('id,employee_id,leave_type,starts_on,ends_on,reason,status,reviewed_at').order('created_at', { ascending: false }),
       supabase.from('program_divisions').select('id,name,description,director_id,status').order('name'),
+      supabase.from('organization_records').select('id,title,record_type,owner_id,status,description').order('created_at', { ascending: false }),
     ]);
     const failed = results.find((result) => result.error);
     if (failed?.error) { setError('Apply the Organization Supabase migration to enable organization records. Existing staff management remains available.'); return; }
@@ -72,13 +85,15 @@ export const OrganizationPage: React.FC = () => {
     setTasks((results[5].data || []) as OnboardingTask[]);
     setLeaveRequests((results[6].data || []) as LeaveRequest[]);
     setPrograms((results[7].data || []) as ProgramRecord[]);
+    setResources((results[8].data || []) as typeof resources);
   };
   const loadDocuments = async () => {
     const { data, error: documentError } = await supabase.from('organization_documents').select('*').order('created_at', { ascending: false });
     if (!documentError) setDocuments((data || []) as OrganizationDocument[]);
   };
-  useEffect(() => { void load(); void loadDocuments(); refreshSystemActivityLogs().catch(() => undefined); const onRoute = () => setView(viewFromPath(window.location.pathname)); window.addEventListener('popstate', onRoute); return () => window.removeEventListener('popstate', onRoute); }, [refreshSystemActivityLogs]);
-  const navigate = (next: View) => { window.history.pushState({}, '', next === 'overview' ? '/organization' : `/organization/${next}`); setView(next); };
+  useEffect(() => { void load(); void loadDocuments(); refreshSystemActivityLogs().catch(() => undefined); const onRoute = () => setView(viewFromPath(window.location.pathname, basePath)); window.addEventListener('popstate', onRoute); return () => window.removeEventListener('popstate', onRoute); }, [basePath, refreshSystemActivityLogs]);
+  const navigate = (next: View) => { window.history.pushState({}, '', next === 'overview' ? basePath : `${basePath}/${next}`); setView(next); };
+  const activeNav = administrationMode ? administrationNav : organizationNav;
   const userById = (id: string | null | undefined) => users.find((user) => user.id === id);
   const visibleUsers = useMemo(() => users.filter((user) => `${user.name} ${user.email} ${user.department} ${user.role}`.toLowerCase().includes(query.toLowerCase())), [users, query]);
   const updateManager = async (user: User, managerId: string) => {
@@ -86,19 +101,63 @@ export const OrganizationPage: React.FC = () => {
     if (updateError) setError(updateError.message); else await load();
   };
 
-  return <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]"><header className="border-b border-slate-200 bg-white px-5 py-5 sm:px-8"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-600">People and structure</p><h1 className="mt-1 text-xl font-bold text-slate-900">{nav.find((item) => item.id === view)?.label}</h1><p className="mt-1 text-xs text-slate-500">Manage personnel, departments, leadership, access, onboarding, and organizational operations.</p></div>{view === 'people' && <button type="button" onClick={() => setIsAddTeammateOpen(true)} className="rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white"><Plus className="mr-1 inline h-3.5 w-3.5" /> Invite staff</button>}</div></header><div className="mx-auto max-w-7xl p-5 sm:p-8">{error && <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</div>}
+  return <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]"><header className="border-b border-slate-200 bg-white px-5 py-5 sm:px-8"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-600">{administrationMode ? 'Internal administration' : 'People and structure'}</p><h1 className="mt-1 text-xl font-bold text-slate-900">{activeNav.find((item) => item.id === view)?.label}</h1><p className="mt-1 text-xs text-slate-500">{administrationMode ? 'Personnel operations, procedures, workflows, and shared internal resources.' : 'Manage personnel, departments, leadership, access, onboarding, and organizational operations.'}</p></div>{view === 'people' && <button type="button" onClick={() => setIsAddTeammateOpen(true)} className="rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white"><Plus className="mr-1 inline h-3.5 w-3.5" /> Invite staff</button>}</div></header><div className="mx-auto max-w-7xl p-5 sm:p-8">{error && <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</div>}
     {view === 'overview' && <Overview users={users} employees={employees} departments={departments} userById={userById} onAddStaff={() => setIsAddTeammateOpen(true)} />}
     {view === 'people' && <People users={visibleUsers} query={query} setQuery={setQuery} selected={selected} setSelected={setSelected} updateStaffUser={updateStaffUser} manageStaffAccount={manageStaffAccount} currentUser={currentUser} userById={userById} updateManager={updateManager} />}
-    {view === 'programs' && <OrganizationPrograms programs={programs} users={users} onChanged={load} />}
+    {!administrationMode && view === 'programs' && <OrganizationPrograms programs={programs} users={users} onChanged={load} />}
     {view === 'access' && <Access users={users} />}
     {view === 'onboarding' && <Onboarding users={users} currentUser={currentUser} onboarding={onboarding} tasks={tasks} absences={absences} leaveRequests={leaveRequests} userById={userById} addNotification={addNotification} onChanged={load} />}
     {view === 'approvals' && <Approvals />}
     {view === 'policies' && <Policies documents={documents} user={currentUser} users={users} onChanged={loadDocuments} />}
+    {view === 'resources' && <ResourceCoordination resources={resources} users={users} onChanged={load} />}
     {view === 'audit' && <AuditLogs logs={systemActivityLogs} />}
     </div></main>;
 };
 
-const viewFromPath = (path: string): View => { const value = path.split('/')[2] as View; return nav.some((item) => item.id === value) ? value : 'overview'; };
+const viewFromPath = (path: string, basePath: string): View => { const value = path.replace(`${basePath}/`, '').split('/')[0] as View; const available = basePath === '/admin' ? administrationNav : organizationNav; return available.some((item) => item.id === value) ? value : 'overview'; };
+const ResourceCoordination: React.FC<{ resources: { id: string; title: string; record_type: string; owner_id: string | null; status: string; description: string | null }[]; users: User[]; onChanged: () => Promise<void> }> = ({ resources, users, onChanged }) => {
+  const [form, setForm] = useState({ title: '', record_type: 'shared_resource', description: '', owner_id: '' });
+  const [showForm, setShowForm] = useState(false);
+  const [query, setQuery] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const visible = resources.filter((resource) => `${resource.title} ${resource.record_type} ${resource.description || ''}`.toLowerCase().includes(query.toLowerCase()));
+  const save = async () => {
+    if (!form.title.trim()) { setError('Resource name is required.'); return; }
+    setSaving(true);
+    setError('');
+    const { error: insertError } = await supabase.from('organization_records').insert({
+      title: form.title.trim(),
+      record_type: form.record_type,
+      description: form.description.trim() || null,
+      owner_id: form.owner_id || null,
+    });
+    setSaving(false);
+    if (insertError) { setError(insertError.message); return; }
+    setForm({ title: '', record_type: 'shared_resource', description: '', owner_id: '' });
+    setShowForm(false);
+    await onChanged();
+  };
+  return <div className="space-y-5">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div><h2 className="text-sm font-bold text-slate-900">Shared resources</h2><p className="mt-1 text-xs text-slate-500">Coordinate equipment, facilities, internal records, and ownership across the organization.</p></div>
+      <button type="button" onClick={() => setShowForm((open) => !open)} className="rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white"><Plus className="mr-1 inline h-3.5 w-3.5" /> Add resource</button>
+    </div>
+    {showForm && <section className="rounded-2xl border border-brand-100 bg-brand-50/40 p-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-xs font-semibold text-slate-600">Resource name<input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" placeholder="Laptop pool, conference room, vehicle..." /></label>
+        <label className="text-xs font-semibold text-slate-600">Type<select value={form.record_type} onChange={(event) => setForm((current) => ({ ...current, record_type: event.target.value }))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"><option value="shared_resource">Shared resource</option><option value="facility">Facility</option><option value="equipment">Equipment</option><option value="procedure">Procedure</option></select></label>
+        <label className="text-xs font-semibold text-slate-600">Owner<select value={form.owner_id} onChange={(event) => setForm((current) => ({ ...current, owner_id: event.target.value }))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"><option value="">Unassigned</option>{users.filter((user) => user.accountStatus !== 'removed').map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></label>
+        <label className="text-xs font-semibold text-slate-600">Description<textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} className="mt-1 min-h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" /></label>
+      </div>
+      {error && <p className="mt-3 text-xs text-rose-700">{error}</p>}
+      <button type="button" disabled={saving} onClick={() => void save()} className="mt-3 rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">{saving ? 'Saving...' : 'Save resource'}</button>
+    </section>}
+    <div className="relative max-w-md"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search resources and owners" className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs" /></div>
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{visible.map((resource) => { const owner = users.find((user) => user.id === resource.owner_id); return <article key={resource.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold text-slate-900">{resource.title}</p><p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-brand-600">{resource.record_type.replace('_', ' ')}</p></div><span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">{resource.status}</span></div><p className="mt-3 text-xs text-slate-500">{resource.description || 'No description added.'}</p><p className="mt-4 border-t border-slate-100 pt-3 text-[10px] text-slate-400">Owner: {owner?.name || 'Unassigned'}</p></article>; })}</div>
+    {!visible.length && <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-xs text-slate-500">No resources match your search.</div>}
+  </div>;
+};
 const Overview: React.FC<{ users: User[]; employees: EmployeeRecord[]; departments: Department[]; userById: (id: string | null | undefined) => User | undefined; onAddStaff: () => void }> = ({ users, employees, departments, userById, onAddStaff }) => {
   const [query, setQuery] = useState('');
   const [department, setDepartment] = useState('all');
