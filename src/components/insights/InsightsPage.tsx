@@ -13,7 +13,6 @@ import {
   TrendingUp,
   Users,
   Activity,
-  BriefcaseBusiness,
   Building2,
   FolderKanban,
   Landmark,
@@ -57,11 +56,10 @@ export const InsightsPage: React.FC = () => {
 
   const sectionContent: Record<string, { title: string; description: string; icon: React.ElementType }> = {
     overview: { title: 'Overview', description: 'A high-level view of organizational health and momentum.', icon: BarChart3 },
-    business: { title: 'Business', description: 'Organization performance, goals, and operating health.', icon: BriefcaseBusiness },
-    activity: { title: 'Activity & employees', description: 'Trends across work, communication, engagement, and team participation.', icon: Activity },
+    activity: { title: 'Activity', description: 'Trends across work, communication, engagement, and team participation.', icon: Activity },
     customers: { title: 'Customers', description: 'Customer relationships, support health, and outcomes.', icon: Building2 },
     finance: { title: 'Finance', description: 'Funding, expenses, budgets, and financial performance.', icon: Landmark },
-    programs: { title: 'Programs & reports', description: 'Program delivery, outcomes, and reusable reports for stakeholders.', icon: FolderKanban },
+    programs: { title: 'Programs', description: 'Program delivery, outcomes, and reusable reports for stakeholders.', icon: FolderKanban },
   };
   const activeSection = sectionContent[section] || sectionContent.overview;
   const ActiveIcon = activeSection.icon;
