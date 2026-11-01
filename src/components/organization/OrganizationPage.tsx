@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity, Building2, CalendarDays, CheckCircle2, ClipboardCheck, FileText,
-  KeyRound, Network, Plus, Search, ShieldCheck, UserRound, Users,
+  KeyRound, Network, Plus, Search, ShieldCheck, UserRound, Users, Upload, X,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import type { SystemActivityLog, User } from '../../types';
+import { DocumentSigningDialog, OrganizationDocument } from './PolicySigning';
 
 type View = 'overview' | 'people' | 'access' | 'onboarding' | 'approvals' | 'policies' | 'audit';
 type Department = { id: string; name: string; description: string | null; head_id: string | null };
@@ -35,6 +36,7 @@ export const OrganizationPage: React.FC = () => {
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [onboarding, setOnboarding] = useState<Onboarding[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
+  const [documents, setDocuments] = useState<OrganizationDocument[]>([]);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<User | null>(null);
   const [error, setError] = useState('');
@@ -55,7 +57,11 @@ export const OrganizationPage: React.FC = () => {
     setOnboarding((results[3].data || []) as Onboarding[]);
     setAbsences((results[4].data || []) as Absence[]);
   };
-  useEffect(() => { void load(); refreshSystemActivityLogs().catch(() => undefined); const onRoute = () => setView(viewFromPath(window.location.pathname)); window.addEventListener('popstate', onRoute); return () => window.removeEventListener('popstate', onRoute); }, [refreshSystemActivityLogs]);
+  const loadDocuments = async () => {
+    const { data, error: documentError } = await supabase.from('organization_documents').select('*').order('created_at', { ascending: false });
+    if (!documentError) setDocuments((data || []) as OrganizationDocument[]);
+  };
+  useEffect(() => { void load(); void loadDocuments(); refreshSystemActivityLogs().catch(() => undefined); const onRoute = () => setView(viewFromPath(window.location.pathname)); window.addEventListener('popstate', onRoute); return () => window.removeEventListener('popstate', onRoute); }, [refreshSystemActivityLogs]);
   const navigate = (next: View) => { window.history.pushState({}, '', next === 'overview' ? '/organization' : `/organization/${next}`); setView(next); };
   const userById = (id: string | null | undefined) => users.find((user) => user.id === id);
   const visibleUsers = useMemo(() => users.filter((user) => `${user.name} ${user.email} ${user.department} ${user.role}`.toLowerCase().includes(query.toLowerCase())), [users, query]);
@@ -70,7 +76,7 @@ export const OrganizationPage: React.FC = () => {
     {view === 'access' && <Access users={users} />}
     {view === 'onboarding' && <Onboarding users={users} onboarding={onboarding} absences={absences} userById={userById} />}
     {view === 'approvals' && <Approvals />}
-    {view === 'policies' && <Policies />}
+    {view === 'policies' && <Policies documents={documents} user={currentUser} users={users} onChanged={loadDocuments} />}
     {view === 'audit' && <AuditLogs logs={systemActivityLogs} />}
     </div></main>;
 };
@@ -81,7 +87,46 @@ const People: React.FC<{ users: User[]; query: string; setQuery: (value: string)
 const Access: React.FC<{ users: User[] }> = ({ users }) => <div className="grid gap-5 lg:grid-cols-2"><Panel title="Role templates" icon={ShieldCheck}>{['Admin', 'Team member', 'Finance reviewer', 'Scoped guest'].map((role) => <div key={role} className="border-b border-slate-100 py-3 text-xs font-semibold text-slate-700">{role}<span className="mt-1 block text-[10px] font-normal text-slate-400">View, edit, and approve permissions can be scoped by module.</span></div>)}</Panel><Panel title="People access matrix" icon={KeyRound}>{users.slice(0, 8).map((user) => <div key={user.id} className="flex items-center gap-3 border-b border-slate-100 py-3"><span className="flex-1 text-xs font-semibold text-slate-700">{user.name}</span><span className="rounded-full bg-brand-50 px-2 py-1 text-[10px] font-bold text-brand-700">{user.systemRole}</span></div>)}</Panel></div>;
 const Onboarding: React.FC<{ users: User[]; onboarding: Onboarding[]; absences: Absence[]; userById: (id: string | null | undefined) => User | undefined }> = ({ onboarding, absences, userById }) => <div className="grid gap-5 lg:grid-cols-2"><Panel title="Onboarding & offboarding" icon={ClipboardCheck}>{onboarding.length ? onboarding.map((item) => <Row key={item.id} title={item.title} detail={`${userById(item.employee_id)?.name || 'Employee'} · ${item.status}${item.due_date ? ` · due ${item.due_date}` : ''}`} />) : <Empty text="No onboarding checklists yet." />}</Panel><Panel title="Absence & leave" icon={CalendarDays}>{absences.length ? absences.map((item) => <Row key={item.id} title={`${userById(item.employee_id)?.name || 'Employee'} · ${item.leave_type}`} detail={`${item.starts_on} to ${item.ends_on} · ${item.status}`} />) : <Empty text="No leave records yet." />}</Panel></div>;
 const Approvals: React.FC = () => <Panel title="Approvals" icon={CheckCircle2}><Empty text="No pending organization approvals. Approval workflows for access changes, sensitive exports, and spend requests will appear here." /></Panel>;
-const Policies: React.FC = () => <Panel title="Policies & resources" icon={FileText}><Empty text="No policies published yet. Store source documents in Drive and link published versions here." /></Panel>;
+const Policies: React.FC<{ documents: OrganizationDocument[]; user: User; users: User[]; onChanged: () => Promise<void> }> = ({ documents, user, users, onChanged }) => {
+  const [tab, setTab] = useState<'library' | 'results'>('library');
+  const [selected, setSelected] = useState<OrganizationDocument | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const isAdmin = user.systemRole === 'admin';
+  return <section className="space-y-5">
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-sm font-bold text-slate-900">Policies & resources</h2><p className="mt-1 text-xs text-slate-500">Create, publish, sign, and acknowledge company documents without leaving Organization.</p></div>{isAdmin && <button type="button" onClick={() => setShowCreate(true)} className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white"><Plus className="mr-1 inline h-3.5 w-3.5" /> New document</button>}</div>
+    <div className="flex gap-2 border-b border-slate-200"><button type="button" onClick={() => setTab('library')} className={`border-b-2 px-3 py-2 text-xs font-bold ${tab === 'library' ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500'}`}>Document library</button>{isAdmin && <button type="button" onClick={() => setTab('results')} className={`border-b-2 px-3 py-2 text-xs font-bold ${tab === 'results' ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500'}`}>Signed & acknowledged results</button>}</div>
+    {tab === 'library' ? <div className="grid gap-3 md:grid-cols-2">{documents.filter((document) => document.status !== 'archived').map((document) => <button key={document.id} type="button" onClick={() => setSelected(document)} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-brand-300"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-wide text-brand-600">{document.document_type} · v{document.version}</p><h3 className="mt-1 text-sm font-bold text-slate-900">{document.title}</h3></div>{document.required_onboarding && <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-700">Onboarding</span>}</div><p className="mt-2 line-clamp-2 text-xs text-slate-500">{document.description || document.content || 'Open document'}</p><p className="mt-3 text-[10px] font-semibold text-slate-400">{document.requires_signature ? 'Signature required' : 'Acknowledgement required'}</p></button>)}{!documents.length && <div className="md:col-span-2"><Panel title="Document library" icon={FileText}><Empty text="No policies or resources have been published yet." /></Panel></div>}</div> : <DocumentResults documents={documents} users={users} />}
+    {selected && <DocumentSigningDialog document={selected} userId={user.id} onClose={() => setSelected(null)} onComplete={() => { setSelected(null); }} />}
+    {showCreate && <DocumentEditor user={user} onClose={() => setShowCreate(false)} onSaved={async () => { setShowCreate(false); await onChanged(); }} />}
+  </section>;
+};
+
+const DocumentResults: React.FC<{ documents: OrganizationDocument[]; users: User[] }> = ({ documents, users }) => {
+  const [responses, setResponses] = useState<Record<string, { user_id: string; response_type: string; signed_name: string | null; signed_at: string | null; acknowledged_at: string | null }[]>>({});
+  useEffect(() => { void (async () => { const { data } = await supabase.from('organization_document_responses').select('document_id,user_id,response_type,signed_name,signed_at,acknowledged_at'); const grouped: typeof responses = {}; (data || []).forEach((item) => { grouped[item.document_id] = [...(grouped[item.document_id] || []), item]; }); setResponses(grouped); })(); }, []);
+  return <div className="space-y-3">{documents.map((document) => <div key={document.id} className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex items-center justify-between"><div><h3 className="text-sm font-bold text-slate-900">{document.title}</h3><p className="text-[10px] text-slate-500">{document.document_type} · {responses[document.id]?.length || 0} responses</p></div><span className="text-[10px] font-semibold text-slate-500">{document.required_onboarding ? 'Onboarding item' : 'General item'}</span></div>{responses[document.id]?.length ? <div className="mt-3 space-y-2">{responses[document.id].map((response) => <div key={response.user_id} className="flex flex-wrap justify-between gap-2 rounded-lg bg-slate-50 p-2 text-[10px]"><span className="font-semibold text-slate-700">{response.signed_name || users.find((user) => user.id === response.user_id)?.name || response.user_id}</span><span className="text-slate-500">{response.response_type} · {new Date(response.signed_at || response.acknowledged_at || '').toLocaleString()}</span></div>)}</div> : <p className="mt-3 text-xs text-slate-400">No responses yet.</p>}</div>)}</div>;
+};
+
+const DocumentEditor: React.FC<{ user: User; onClose: () => void; onSaved: () => Promise<void> }> = ({ user, onClose, onSaved }) => {
+  const [title, setTitle] = useState('');
+  const [type, setType] = useState('policy');
+  const [description, setDescription] = useState('');
+  const [content, setContent] = useState('');
+  const [requiredOnboarding, setRequiredOnboarding] = useState(false);
+  const [requiresSignature, setRequiresSignature] = useState(false);
+  const [requiresAcknowledgement, setRequiresAcknowledgement] = useState(true);
+  const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState('');
+  const save = async () => {
+    if (!title.trim()) return setError('Add a document title.');
+    let storagePath: string | null = null;
+    if (file) { storagePath = `${user.id}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, '_')}`; const { error: uploadError } = await supabase.storage.from('organization-documents').upload(storagePath, file); if (uploadError) return setError(uploadError.message); }
+    const { error: insertError } = await supabase.from('organization_documents').insert({ title: title.trim(), document_type: type, description: description.trim() || null, content: content.trim() || null, storage_path: storagePath, required_onboarding: requiredOnboarding, requires_signature: requiresSignature, requires_acknowledgement: requiresAcknowledgement, status: 'published', created_by: user.id, published_at: new Date().toISOString() });
+    if (insertError) return setError(insertError.message);
+    await onSaved();
+  };
+  return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4"><div className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-lg font-bold text-slate-900">Create policy or resource</h2><button type="button" onClick={onClose}><X className="h-4 w-4 text-slate-400" /></button></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title" className="rounded-lg border border-slate-200 px-3 py-2 text-xs sm:col-span-2" /><select value={type} onChange={(event) => setType(event.target.value)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs"><option value="policy">Policy</option><option value="contract">Contract</option><option value="handbook">Handbook</option><option value="form">Form</option></select><input type="file" onChange={(event) => setFile(event.target.files?.[0] || null)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs" /><textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Short description" className="min-h-16 rounded-lg border border-slate-200 px-3 py-2 text-xs sm:col-span-2" /><textarea value={content} onChange={(event) => setContent(event.target.value)} placeholder="Document text or instructions" className="min-h-32 rounded-lg border border-slate-200 px-3 py-2 text-xs sm:col-span-2" /></div><div className="mt-4 space-y-2 text-xs text-slate-600"><label className="flex gap-2"><input type="checkbox" checked={requiredOnboarding} onChange={(event) => setRequiredOnboarding(event.target.checked)} /> Required during onboarding and tour</label><label className="flex gap-2"><input type="checkbox" checked={requiresSignature} onChange={(event) => setRequiresSignature(event.target.checked)} /> Require drawn signature and date</label><label className="flex gap-2"><input type="checkbox" checked={requiresAcknowledgement} onChange={(event) => setRequiresAcknowledgement(event.target.checked)} /> Require acknowledgement</label></div>{error && <p className="mt-3 text-xs text-rose-700">{error}</p>}<button type="button" onClick={() => void save()} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white"><Upload className="h-3.5 w-3.5" /> Publish document</button></div></div>;
+};
 const AuditLogs: React.FC<{ logs: SystemActivityLog[] }> = ({ logs }) => {
   const [query, setQuery] = useState('');
   const [eventType, setEventType] = useState('all');

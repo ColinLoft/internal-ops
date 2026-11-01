@@ -11,7 +11,8 @@ import {
   UserRound,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { uploadAvatarToSupabase } from '../../lib/supabase';
+import { supabase, uploadAvatarToSupabase } from '../../lib/supabase';
+import { DocumentSigningDialog, OrganizationDocument } from '../organization/PolicySigning';
 import { PROFILE_BANNERS, ProfileBanner } from '../../types';
 
 type TourStep = {
@@ -82,7 +83,9 @@ export const FirstLoginOnboarding: React.FC = () => {
     completeOnboarding,
     setActiveTab,
   } = useWorkspace();
-  const [stage, setStage] = useState<'profile' | 'tour'>('profile');
+  const [stage, setStage] = useState<'profile' | 'policy' | 'tour'>('profile');
+  const [requiredDocuments, setRequiredDocuments] = useState<OrganizationDocument[]>([]);
+  const [documentIndex, setDocumentIndex] = useState(0);
   const [tourIndex, setTourIndex] = useState(0);
   const [name, setName] = useState(currentUser.name);
   const [role, setRole] = useState(currentUser.role === 'Staff Specialist' ? '' : currentUser.role);
@@ -168,8 +171,15 @@ export const FirstLoginOnboarding: React.FC = () => {
         avatar,
         banner,
       });
-      setStage('tour');
-      setActiveTab(tourSteps[0].tab || 'channels');
+      const { data: documents } = await supabase.from('organization_documents').select('*').eq('status', 'published').eq('required_onboarding', true).order('created_at');
+      setRequiredDocuments((documents || []) as OrganizationDocument[]);
+      setDocumentIndex(0);
+      if (documents?.length) {
+        setStage('policy');
+      } else {
+        setStage('tour');
+        setActiveTab(tourSteps[0].tab || 'channels');
+      }
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Could not save your profile.');
     } finally {
@@ -198,6 +208,21 @@ export const FirstLoginOnboarding: React.FC = () => {
 
   const activeStep = tourSteps[tourIndex];
   const TourIcon = activeStep?.icon;
+
+  if (stage === 'policy' && requiredDocuments[documentIndex]) {
+    return <DocumentSigningDialog
+      document={requiredDocuments[documentIndex]}
+      userId={currentUser.id}
+      onComplete={() => {
+        if (documentIndex + 1 < requiredDocuments.length) {
+          setDocumentIndex((index) => index + 1);
+        } else {
+          setStage('tour');
+          setActiveTab(tourSteps[0].tab || 'channels');
+        }
+      }}
+    />;
+  }
 
   return (
     <div className={`fixed inset-0 z-[70] ${stage === 'tour' ? 'pointer-events-none' : 'flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm'}`}>
