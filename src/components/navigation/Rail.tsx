@@ -110,24 +110,22 @@ export const Rail: React.FC = () => {
   }, []);
 
   return (
-    <aside className={`h-screen shrink-0 backdrop-blur-xl border-r flex flex-col items-center py-4 justify-between z-30 select-none shadow-2xl transition-[width,background-color] duration-200 ${isPrograms ? 'w-[236px] bg-[#17243c] border-[#263653] px-3' : 'w-[72px] bg-slate-900/95 border-slate-800/80'}`}>
+    <aside className="h-screen w-[72px] shrink-0 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/80 flex flex-col items-center py-4 justify-between z-30 select-none shadow-2xl">
       {/* Top Brand Logo */}
       <div className="flex flex-col items-center gap-6">
         <div 
           onClick={() => isDrive ? openDriveView('all') : setActiveTab('messages')}
-          className={`group relative cursor-pointer rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-500 flex items-center text-white shadow-lg shadow-brand-500/25 transition-transform hover:scale-105 active:scale-95 ${isPrograms ? 'h-12 w-full justify-start gap-3 px-3' : 'h-11 w-11 justify-center'}`}
+          className="group relative cursor-pointer w-11 h-11 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-500 flex items-center justify-center text-white shadow-lg shadow-brand-500/25 transition-transform hover:scale-105 active:scale-95"
           title="Flown Workspace"
         >
           <img src="/brand-icon.png" alt="Flown Workspace" className="w-6 h-6 object-contain group-hover:rotate-12 transition-transform duration-300" />
-          {isPrograms && <span className="text-sm font-bold tracking-tight">Flown <span className="font-normal text-blue-100">Programs</span></span>}
           <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-brand-400 border-2 border-slate-900 rounded-full" />
         </div>
 
         {/* Navigation Item Tabs */}
         <nav className="flex flex-col items-center gap-2">
           {isPrograms ? (
-            <div className="w-full space-y-1">
-              <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-200/60">Program workspace</p>
+            <>
               {[
               { label: 'Overview', icon: Gauge, section: 'overview' },
               { label: 'Divisions & teams', icon: Network, section: 'divisions' },
@@ -136,8 +134,8 @@ export const Rail: React.FC = () => {
               { label: 'Budgets', icon: WalletCards, section: 'budgets' },
               { label: 'Documentation', icon: BookOpen, section: 'documents' },
               { label: 'Performance', icon: BarChart3, section: 'performance' },
-              ].map((item) => { const Icon = item.icon; const path = item.section === 'overview' ? '/programs' : `/programs/${item.section}`; const selected = window.location.pathname === path; return <button key={item.label} type="button" onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all ${selected ? 'bg-brand-500 text-white shadow-lg shadow-brand-900/20' : 'text-blue-100/70 hover:bg-white/10 hover:text-white'}`} title={item.label}><Icon className="h-5 w-5 shrink-0" /><span className="text-sm font-semibold">{item.label}</span><span className="ml-auto text-lg leading-none opacity-50">›</span></button>; })}
-            </div>
+              ].map((item) => { const Icon = item.icon; const path = item.section === 'overview' ? '/programs' : `/programs/${item.section}`; const selected = window.location.pathname === path; return <button key={item.label} type="button" onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}
+            </>
           ) : isOrganization ? (
             <>{[
               { label: 'Overview & chart', icon: Network, section: 'overview' },
