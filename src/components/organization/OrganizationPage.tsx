@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity, Building2, CalendarDays, CheckCircle2, ClipboardCheck, FileText,
   KeyRound, Network, Plus, Search, ShieldCheck, UserRound, Users, X, GraduationCap,
+  BriefcaseBusiness, ChevronDown, ChevronRight, List, Mail, MapPin,
+  Phone, RotateCcw, SlidersHorizontal, ZoomIn, ZoomOut,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
@@ -80,7 +82,7 @@ export const OrganizationPage: React.FC = () => {
   };
 
   return <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]"><header className="border-b border-slate-200 bg-white px-5 py-5 sm:px-8"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-600">People and structure</p><h1 className="mt-1 text-xl font-bold text-slate-900">{nav.find((item) => item.id === view)?.label}</h1><p className="mt-1 text-xs text-slate-500">Manage personnel, departments, leadership, access, onboarding, and organizational operations.</p></div>{view === 'people' && <button type="button" onClick={() => setIsAddTeammateOpen(true)} className="rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white"><Plus className="mr-1 inline h-3.5 w-3.5" /> Invite staff</button>}</div></header><div className="mx-auto max-w-7xl p-5 sm:p-8">{error && <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</div>}
-    {view === 'overview' && <Overview users={users} employees={employees} departments={departments} userById={userById} />}
+    {view === 'overview' && <Overview users={users} employees={employees} departments={departments} userById={userById} onAddStaff={() => setIsAddTeammateOpen(true)} />}
     {view === 'people' && <People users={visibleUsers} query={query} setQuery={setQuery} selected={selected} setSelected={setSelected} updateStaffUser={updateStaffUser} manageStaffAccount={manageStaffAccount} currentUser={currentUser} userById={userById} updateManager={updateManager} />}
     {view === 'access' && <Access users={users} />}
     {view === 'onboarding' && <Onboarding users={users} currentUser={currentUser} onboarding={onboarding} tasks={tasks} absences={absences} leaveRequests={leaveRequests} userById={userById} addNotification={addNotification} onChanged={load} />}
@@ -91,7 +93,84 @@ export const OrganizationPage: React.FC = () => {
 };
 
 const viewFromPath = (path: string): View => { const value = path.split('/')[2] as View; return nav.some((item) => item.id === value) ? value : 'overview'; };
-const Overview: React.FC<{ users: User[]; employees: EmployeeRecord[]; departments: Department[]; userById: (id: string | null | undefined) => User | undefined }> = ({ users, employees, departments, userById }) => <><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric label="People" value={String(users.length)} detail="Staff profiles" /><Metric label="Departments" value={String(departments.length)} detail="Organization teams" /><Metric label="Managers assigned" value={String(employees.filter((item) => item.manager_id).length)} detail="Reporting relationships" /><Metric label="Unassigned" value={String(users.filter((user) => !employees.find((item) => item.user_id === user.id)?.manager_id).length)} detail="Needs an organizational owner" /></div><section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5"><div className="flex items-center gap-2"><Network className="h-4 w-4 text-brand-600" /><h2 className="text-sm font-bold text-slate-900">Organization chart</h2></div><div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{users.filter((user) => !employees.find((item) => item.user_id === user.id)?.manager_id).map((user) => <div key={user.id} className="rounded-xl border border-brand-200 bg-brand-50 p-4"><Person user={user} /><div className="mt-3 space-y-1 border-t border-brand-100 pt-3">{employees.filter((item) => item.manager_id === user.id).map((item) => <p key={item.user_id} className="text-[10px] text-slate-600">↳ {userById(item.user_id)?.name}</p>)}</div></div>)}</div></section></>;
+const Overview: React.FC<{ users: User[]; employees: EmployeeRecord[]; departments: Department[]; userById: (id: string | null | undefined) => User | undefined; onAddStaff: () => void }> = ({ users, employees, departments, userById, onAddStaff }) => {
+  const [query, setQuery] = useState('');
+  const [department, setDepartment] = useState('all');
+  const [status, setStatus] = useState('all');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [zoom, setZoom] = useState(100);
+  const [layout, setLayout] = useState<'chart' | 'list'>('chart');
+  const employeeByUser = useMemo(() => new Map(employees.map((employee) => [employee.user_id, employee])), [employees]);
+  const childrenByManager = useMemo(() => {
+    const map = new Map<string, User[]>();
+    employees.forEach((employee) => {
+      if (!employee.manager_id) return;
+      const user = userById(employee.user_id);
+      if (!user) return;
+      map.set(employee.manager_id, [...(map.get(employee.manager_id) || []), user]);
+    });
+    return map;
+  }, [employees, userById]);
+  const filteredUsers = useMemo(() => users.filter((user) => {
+    const matchesQuery = `${user.name} ${user.email} ${user.role} ${user.department}`.toLowerCase().includes(query.toLowerCase());
+    return matchesQuery && (department === 'all' || user.department === department) && (status === 'all' || user.status === status);
+  }), [users, query, department, status]);
+  const filteredIds = useMemo(() => new Set(filteredUsers.map((user) => user.id)), [filteredUsers]);
+  const roots = filteredUsers.filter((user) => !employeeByUser.get(user.id)?.manager_id || !filteredIds.has(employeeByUser.get(user.id)?.manager_id || ''));
+  const selected = selectedId ? userById(selectedId) : undefined;
+  const manager = selected ? userById(employeeByUser.get(selected.id)?.manager_id) : undefined;
+  const directReports = selected ? (childrenByManager.get(selected.id) || []).filter((user) => filteredIds.has(user.id)) : [];
+  const toggleCollapsed = (id: string) => setCollapsed((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const resetView = () => { setQuery(''); setDepartment('all'); setStatus('all'); setCollapsed(new Set()); setZoom(100); setSelectedId(null); };
+  const activeCount = users.filter((user) => user.status === 'online').length;
+  const unassignedCount = users.filter((user) => !employeeByUser.get(user.id)?.manager_id).length;
+  const renderBranch = (user: User, level = 0): React.ReactNode => {
+    const reports = (childrenByManager.get(user.id) || []).filter((child) => filteredIds.has(child.id));
+    const isCollapsed = collapsed.has(user.id);
+    return <div key={user.id} className="min-w-[220px]">
+      <button type="button" onClick={() => setSelectedId(user.id)} className={`group w-full rounded-xl border bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-400 hover:shadow-md ${selectedId === user.id ? 'border-brand-500 ring-2 ring-brand-100' : 'border-slate-200'}`}>
+        <div className="flex items-start gap-3"><Avatar user={user} /><span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold text-slate-900">{user.name}</span><span className="mt-0.5 block truncate text-[10px] text-slate-500">{user.role || 'Team member'}</span><span className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-brand-700"><span className={`h-1.5 w-1.5 rounded-full ${user.status === 'online' ? 'bg-emerald-500' : user.status === 'busy' ? 'bg-amber-500' : 'bg-slate-300'}`} />{user.department || 'Unassigned'}</span></span></div>
+        <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-[10px] text-slate-400"><span>{reports.length ? `${reports.length} direct report${reports.length === 1 ? '' : 's'}` : 'No direct reports'}</span>{reports.length > 0 && <span onClick={(event) => { event.stopPropagation(); toggleCollapsed(user.id); }} className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 font-semibold text-brand-700 hover:bg-brand-50">{isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}{isCollapsed ? 'Expand' : 'Collapse'}</span>}</div>
+      </button>
+      {!isCollapsed && reports.length > 0 && <div className="ml-5 mt-3 border-l-2 border-brand-100 pl-5"><div className="grid gap-3">{reports.map((child) => renderBranch(child, level + 1))}</div></div>}
+    </div>;
+  };
+  return <div className="space-y-5">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <Metric label="People" value={String(users.length)} detail={`${activeCount} online now`} />
+      <Metric label="Departments" value={String(departments.length)} detail="Organization teams" />
+      <Metric label="Reporting lines" value={String(employees.filter((item) => item.manager_id).length)} detail="Managers assigned" />
+      <Metric label="Needs attention" value={String(unassignedCount)} detail="People without a manager" />
+    </div>
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-200 p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div><div className="flex items-center gap-2"><div className="rounded-lg bg-brand-50 p-2 text-brand-700"><Network className="h-4 w-4" /></div><div><h2 className="text-sm font-bold text-slate-900">Organization chart</h2><p className="mt-0.5 text-[11px] text-slate-500">Explore reporting lines, teams, and organizational ownership.</p></div></div></div>
+          <div className="flex items-center gap-2"><button type="button" onClick={onAddStaff} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-brand-700"><Plus className="h-3.5 w-3.5" /> Add employee</button><div className="flex items-center gap-1 rounded-lg border border-slate-200 p-1"><button type="button" onClick={() => setLayout('chart')} className={`rounded-md p-1.5 ${layout === 'chart' ? 'bg-brand-50 text-brand-700' : 'text-slate-400'}`} aria-label="Chart view"><Network className="h-4 w-4" /></button><button type="button" onClick={() => setLayout('list')} className={`rounded-md p-1.5 ${layout === 'list' ? 'bg-brand-50 text-brand-700' : 'text-slate-400'}`} aria-label="List view"><List className="h-4 w-4" /></button></div></div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <div className="relative min-w-[220px] flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search an employee, role, or team" className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-brand-400 focus:bg-white" /></div>
+          <label className="relative"><SlidersHorizontal className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" /><select value={department} onChange={(event) => setDepartment(event.target.value)} className="rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-7 text-xs"><option value="all">All departments</option>{[...new Set(users.map((user) => user.department).filter(Boolean))].sort().map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+          <select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"><option value="all">All statuses</option><option value="online">Online</option><option value="busy">Busy</option><option value="away">Away</option><option value="offline">Offline</option></select>
+          <button type="button" onClick={resetView} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw className="h-3.5 w-3.5" /> Reset</button>
+        </div>
+      </div>
+      <div className="bg-[#f8fafc] p-4 sm:p-6">
+        {layout === 'chart' ? <div className="overflow-auto rounded-xl border border-slate-200 bg-[radial-gradient(#d7dee9_1px,transparent_1px)] [background-size:18px_18px] p-5" style={{ maxHeight: '620px' }}><div className="origin-top-left space-y-4" style={{ transform: `scale(${zoom / 100})`, width: `${100 / (zoom / 100)}%` }}><div className="mb-5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400"><span className="h-px flex-1 bg-slate-200" />Leadership and reporting structure<span className="h-px flex-1 bg-slate-200" /></div>{roots.length ? <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{roots.map((user) => renderBranch(user))}</div> : <EmptyChart query={query} />}</div></div> : <div className="grid gap-2">{filteredUsers.map((user) => <button type="button" key={user.id} onClick={() => setSelectedId(user.id)} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left hover:border-brand-300"><Avatar user={user} /><span className="min-w-0 flex-1"><span className="block text-xs font-bold text-slate-900">{user.name}</span><span className="block text-[10px] text-slate-500">{user.role || 'Team member'} · {user.department || 'Unassigned'}</span></span><span className="text-[10px] text-slate-400">{childrenByManager.get(user.id)?.length || 0} reports</span><ChevronRight className="h-4 w-4 text-slate-300" /></button>)}</div>}
+        <div className="mt-4 flex items-center justify-between"><p className="text-[10px] text-slate-400">{filteredUsers.length} of {users.length} people shown</p><div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm"><button type="button" onClick={() => setZoom((value) => Math.max(70, value - 10))} className="rounded p-1.5 text-slate-500 hover:bg-slate-50" aria-label="Zoom out"><ZoomOut className="h-3.5 w-3.5" /></button><span className="min-w-10 text-center text-[10px] font-semibold text-slate-600">{zoom}%</span><button type="button" onClick={() => setZoom((value) => Math.min(130, value + 10))} className="rounded p-1.5 text-slate-500 hover:bg-slate-50" aria-label="Zoom in"><ZoomIn className="h-3.5 w-3.5" /></button></div></div>
+      </div>
+    </section>
+    {selected && <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-sm border-l border-slate-200 bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Profile overview</p><button type="button" onClick={() => setSelectedId(null)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-50" aria-label="Close profile"><X className="h-4 w-4" /></button></div><div className="mt-6 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-5 text-white"><Avatar user={selected} large /><h3 className="mt-4 text-lg font-bold">{selected.name}</h3><p className="mt-1 text-xs text-brand-100">{selected.role || 'Team member'} · {selected.department || 'Unassigned'}</p><p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold capitalize"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />{selected.status}</p></div><div className="mt-5 space-y-3 text-xs text-slate-600"><Detail icon={Mail} value={selected.email} /><Detail icon={Phone} value={selected.phone || 'No phone listed'} /><Detail icon={MapPin} value={selected.location || 'No location listed'} /><Detail icon={BriefcaseBusiness} value={manager ? `Reports to ${manager.name}` : 'No manager assigned'} /></div><div className="mt-6 rounded-xl border border-slate-200 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Direct reports</p>{directReports.length ? <div className="mt-3 space-y-2">{directReports.map((report) => <button type="button" key={report.id} onClick={() => setSelectedId(report.id)} className="flex w-full items-center gap-2 rounded-lg p-1 text-left hover:bg-slate-50"><Avatar user={report} /><span className="text-xs font-semibold text-slate-700">{report.name}</span></button>)}</div> : <p className="mt-2 text-xs text-slate-500">No direct reports.</p>}</div></aside>}
+  </div>;
+};
+const Avatar: React.FC<{ user: User; large?: boolean }> = ({ user, large }) => <div className={`relative shrink-0 ${large ? 'h-16 w-16' : 'h-9 w-9'}`}><img src={user.avatar} alt="" className={`${large ? 'h-16 w-16 rounded-2xl' : 'h-9 w-9 rounded-lg'} object-cover ring-2 ring-white/60`} /><span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white ${user.status === 'online' ? 'bg-emerald-500' : user.status === 'busy' ? 'bg-amber-500' : user.status === 'away' ? 'bg-sky-500' : 'bg-slate-300'}`} /></div>;
+const Detail: React.FC<{ icon: React.ElementType; value: string }> = ({ icon: Icon, value }) => <p className="flex items-center gap-2"><Icon className="h-3.5 w-3.5 text-brand-600" />{value}</p>;
+const EmptyChart: React.FC<{ query: string }> = ({ query }) => <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center"><Network className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 text-sm font-bold text-slate-700">No people match this view</p><p className="mt-1 text-xs text-slate-500">{query ? 'Try a different search or reset your filters.' : 'Add staff to start building your organization chart.'}</p></div>;
 const People: React.FC<{ users: User[]; query: string; setQuery: (value: string) => void; selected: User | null; setSelected: (user: User | null) => void; updateStaffUser: (id: string, updates: Partial<User>) => Promise<void>; manageStaffAccount: (id: string, action: 'suspend' | 'reactivate' | 'remove', note?: string, duration?: '1h' | '24h' | '7d' | '30d' | 'indefinite') => Promise<void>; currentUser: User; userById: (id: string | null | undefined) => User | undefined; updateManager: (user: User, managerId: string) => Promise<void> }> = ({ users, query, setQuery, selected, setSelected, updateStaffUser, manageStaffAccount, currentUser, userById, updateManager }) => {
   const [form, setForm] = useState<Partial<User>>({});
   const [managerId, setManagerId] = useState('');
