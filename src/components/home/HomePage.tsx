@@ -16,13 +16,15 @@ import {
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
+import { LeaveRequestModal } from '../organization/LeaveRequestModal';
 
 type RecentFile = { id: string; name: string; item_type: string; updated_at: string };
 
 export const HomePage: React.FC = () => {
-  const { currentUser, calendarEvents, conversations, channels, notifications, setActiveTab, setActiveConversationId, setActiveChannelId } = useWorkspace();
+  const { currentUser, calendarEvents, conversations, channels, notifications, setActiveTab, setActiveConversationId, setActiveChannelId, addNotification } = useWorkspace();
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [visibleCards, setVisibleCards] = useState(['work', 'meetings', 'files', 'attention']);
+  const [showLeaveRequest, setShowLeaveRequest] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -48,7 +50,7 @@ export const HomePage: React.FC = () => {
     <main className="min-w-0 flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 via-white to-brand-50/60">
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
         <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 p-7 text-white shadow-xl shadow-brand-900/10 sm:p-9">
-          <div className="relative z-10 max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Your workspace</p><h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Good morning, {firstName}.</h1><p className="mt-3 max-w-xl text-sm leading-6 text-white/80">A quick view of what needs your attention, what is coming up, and what you have been working on.</p><div className="mt-6 flex flex-wrap gap-2"><button type="button" onClick={() => setActiveTab('calendar')} className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-brand-700 hover:bg-brand-50"><CalendarDays className="h-4 w-4" /> View calendar</button><button type="button" onClick={() => setActiveTab('drive')} className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2.5 text-xs font-bold text-white ring-1 ring-white/30 hover:bg-white/20"><FolderOpen className="h-4 w-4" /> Open Drive</button></div></div>
+          <div className="relative z-10 max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Your workspace</p><h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Good morning, {firstName}.</h1><p className="mt-3 max-w-xl text-sm leading-6 text-white/80">A quick view of what needs your attention, what is coming up, and what you have been working on.</p><div className="mt-6 flex flex-wrap gap-2"><button type="button" onClick={() => setActiveTab('calendar')} className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-brand-700 hover:bg-brand-50"><CalendarDays className="h-4 w-4" /> View calendar</button><button type="button" onClick={() => setShowLeaveRequest(true)} className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2.5 text-xs font-bold text-white ring-1 ring-white/30 hover:bg-white/20"><CalendarDays className="h-4 w-4" /> Request leave</button><button type="button" onClick={() => setActiveTab('drive')} className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2.5 text-xs font-bold text-white ring-1 ring-white/30 hover:bg-white/20"><FolderOpen className="h-4 w-4" /> Open Drive</button></div></div>
           <Sparkles className="absolute -bottom-8 -right-4 h-48 w-48 text-white/10" />
         </section>
 
@@ -63,6 +65,7 @@ export const HomePage: React.FC = () => {
         <section className="mt-7"><HomeCard title="Recent communication" icon={<MessageSquare className="h-4 w-4" />} tone="slate" onRemove={() => undefined}><div className="grid gap-2 md:grid-cols-2">{latestConversation.map((conversation) => <button key={conversation.id} type="button" onClick={() => { setActiveConversationId(conversation.id); setActiveTab('messages'); }} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3 text-left hover:border-brand-200 hover:bg-brand-50/40"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500"><Users className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold text-slate-800">{conversation.name}</span><span className="mt-0.5 block truncate text-[11px] text-slate-500">{conversation.lastMessage?.text || 'Open conversation'}</span></span><ChevronRight className="h-4 w-4 text-slate-300" /></button>)}{!latestConversation.length && <EmptyState text="Your recent conversations will appear here." action="Open direct messages" onClick={() => setActiveTab('messages')} />}</div></HomeCard></section>
 
       </div>
+      {showLeaveRequest && <LeaveRequestModal userId={currentUser.id} addNotification={addNotification} onClose={() => setShowLeaveRequest(false)} />}
     </main>
   );
 };

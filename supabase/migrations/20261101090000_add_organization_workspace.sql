@@ -45,6 +45,33 @@ create table if not exists public.organization_absences (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.organization_onboarding_tasks (
+  id uuid primary key default gen_random_uuid(),
+  employee_id text not null references public.profiles(id) on delete cascade,
+  title text not null,
+  task_type text not null check (task_type in ('checklist', 'training', 'equipment', 'milestone', 'offboarding', 'document')),
+  status text not null default 'not_started' check (status in ('not_started', 'in_progress', 'completed', 'blocked')),
+  due_date date,
+  notes text,
+  created_by text references public.profiles(id) on delete set null,
+  completed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.organization_leave_requests (
+  id uuid primary key default gen_random_uuid(),
+  employee_id text not null references public.profiles(id) on delete cascade,
+  leave_type text not null check (leave_type in ('vacation', 'sick', 'personal')),
+  starts_on date not null,
+  ends_on date not null,
+  reason text,
+  status text not null default 'pending' check (status in ('pending', 'approved', 'denied', 'cancelled')),
+  reviewed_by text references public.profiles(id) on delete set null,
+  reviewed_at timestamptz,
+  review_note text,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.organization_records (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -60,6 +87,8 @@ alter table public.organization_positions enable row level security;
 alter table public.organization_employee_records enable row level security;
 alter table public.organization_onboarding enable row level security;
 alter table public.organization_absences enable row level security;
+alter table public.organization_onboarding_tasks enable row level security;
+alter table public.organization_leave_requests enable row level security;
 alter table public.organization_records enable row level security;
 
 do $$
@@ -78,6 +107,27 @@ begin
     execute format('create policy "Authenticated staff can manage %s" on public.%I for all to authenticated using (true) with check (true)', table_name, table_name);
   end loop;
 end $$;
+
+create policy "Staff can view own onboarding tasks"
+  on public.organization_onboarding_tasks for select to authenticated using (
+    employee_id = auth.uid()::text
+    or exists (select 1 from public.profiles where id = auth.uid()::text and system_role = 'admin')
+  );
+create policy "Workspace admins can manage onboarding tasks"
+  on public.organization_onboarding_tasks for all to authenticated
+  using (exists (select 1 from public.profiles where id = auth.uid()::text and system_role = 'admin'))
+  with check (exists (select 1 from public.profiles where id = auth.uid()::text and system_role = 'admin'));
+create policy "Staff can view and submit own leave requests"
+  on public.organization_leave_requests for select to authenticated using (
+    employee_id = auth.uid()::text
+    or exists (select 1 from public.profiles where id = auth.uid()::text and system_role = 'admin')
+  );
+create policy "Staff can request leave"
+  on public.organization_leave_requests for insert to authenticated with check (employee_id = auth.uid()::text);
+create policy "Workspace admins can review leave requests"
+  on public.organization_leave_requests for update to authenticated
+  using (exists (select 1 from public.profiles where id = auth.uid()::text and system_role = 'admin'))
+  with check (exists (select 1 from public.profiles where id = auth.uid()::text and system_role = 'admin'));
 
 create table if not exists public.organization_documents (
   id uuid primary key default gen_random_uuid(),

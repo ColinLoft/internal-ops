@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity, Building2, CalendarDays, CheckCircle2, ClipboardCheck, FileText,
-  KeyRound, Network, Plus, Search, ShieldCheck, UserRound, Users, X,
+  KeyRound, Network, Plus, Search, ShieldCheck, UserRound, Users, X, GraduationCap,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import type { SystemActivityLog, User } from '../../types';
 import { DocumentSigningDialog, OrganizationDocument } from './PolicySigning';
+import { LeaveRequestModal } from './LeaveRequestModal';
 
 type View = 'overview' | 'people' | 'access' | 'onboarding' | 'approvals' | 'policies' | 'audit';
 type Department = { id: string; name: string; description: string | null; head_id: string | null };
@@ -14,6 +15,8 @@ type Position = { id: string; title: string; department_id: string | null; repor
 type EmployeeRecord = { user_id: string; position_id: string | null; manager_id: string | null; employment_type: string; start_date: string | null };
 type Onboarding = { id: string; employee_id: string; title: string; status: string; due_date: string | null };
 type Absence = { id: string; employee_id: string; leave_type: string; starts_on: string; ends_on: string; status: string };
+type OnboardingTask = { id: string; employee_id: string; title: string; task_type: string; status: string; due_date: string | null; notes: string | null; completed_at: string | null };
+type LeaveRequest = { id: string; employee_id: string; leave_type: string; starts_on: string; ends_on: string; reason: string | null; status: string; reviewed_at: string | null };
 
 const nav: { id: View; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview & chart', icon: Network },
@@ -28,7 +31,7 @@ const nav: { id: View; label: string; icon: React.ElementType }[] = [
 export const OrganizationPage: React.FC = () => {
   const {
     users, currentUser, setIsAddTeammateOpen, updateStaffUser, manageStaffAccount,
-    systemActivityLogs, refreshSystemActivityLogs,
+    systemActivityLogs, refreshSystemActivityLogs, addNotification,
   } = useWorkspace();
   const [view, setView] = useState<View>(() => viewFromPath(window.location.pathname));
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -36,6 +39,8 @@ export const OrganizationPage: React.FC = () => {
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [onboarding, setOnboarding] = useState<Onboarding[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
+  const [tasks, setTasks] = useState<OnboardingTask[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [documents, setDocuments] = useState<OrganizationDocument[]>([]);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<User | null>(null);
@@ -48,6 +53,8 @@ export const OrganizationPage: React.FC = () => {
       supabase.from('organization_employee_records').select('user_id,position_id,manager_id,employment_type,start_date'),
       supabase.from('organization_onboarding').select('id,employee_id,title,status,due_date').order('created_at', { ascending: false }),
       supabase.from('organization_absences').select('id,employee_id,leave_type,starts_on,ends_on,status').order('starts_on'),
+      supabase.from('organization_onboarding_tasks').select('id,employee_id,title,task_type,status,due_date,notes,completed_at').order('due_date'),
+      supabase.from('organization_leave_requests').select('id,employee_id,leave_type,starts_on,ends_on,reason,status,reviewed_at').order('created_at', { ascending: false }),
     ]);
     const failed = results.find((result) => result.error);
     if (failed?.error) { setError('Apply the Organization Supabase migration to enable organization records. Existing staff management remains available.'); return; }
@@ -56,6 +63,8 @@ export const OrganizationPage: React.FC = () => {
     setEmployees((results[2].data || []) as EmployeeRecord[]);
     setOnboarding((results[3].data || []) as Onboarding[]);
     setAbsences((results[4].data || []) as Absence[]);
+    setTasks((results[5].data || []) as OnboardingTask[]);
+    setLeaveRequests((results[6].data || []) as LeaveRequest[]);
   };
   const loadDocuments = async () => {
     const { data, error: documentError } = await supabase.from('organization_documents').select('*').order('created_at', { ascending: false });
@@ -74,7 +83,7 @@ export const OrganizationPage: React.FC = () => {
     {view === 'overview' && <Overview users={users} employees={employees} departments={departments} userById={userById} />}
     {view === 'people' && <People users={visibleUsers} query={query} setQuery={setQuery} selected={selected} setSelected={setSelected} updateStaffUser={updateStaffUser} manageStaffAccount={manageStaffAccount} currentUser={currentUser} userById={userById} updateManager={updateManager} />}
     {view === 'access' && <Access users={users} />}
-    {view === 'onboarding' && <Onboarding users={users} onboarding={onboarding} absences={absences} userById={userById} />}
+    {view === 'onboarding' && <Onboarding users={users} currentUser={currentUser} onboarding={onboarding} tasks={tasks} absences={absences} leaveRequests={leaveRequests} userById={userById} addNotification={addNotification} onChanged={load} />}
     {view === 'approvals' && <Approvals />}
     {view === 'policies' && <Policies documents={documents} user={currentUser} users={users} onChanged={loadDocuments} />}
     {view === 'audit' && <AuditLogs logs={systemActivityLogs} />}
@@ -85,7 +94,34 @@ const viewFromPath = (path: string): View => { const value = path.split('/')[2] 
 const Overview: React.FC<{ users: User[]; employees: EmployeeRecord[]; departments: Department[]; userById: (id: string | null | undefined) => User | undefined }> = ({ users, employees, departments, userById }) => <><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric label="People" value={String(users.length)} detail="Staff profiles" /><Metric label="Departments" value={String(departments.length)} detail="Organization teams" /><Metric label="Managers assigned" value={String(employees.filter((item) => item.manager_id).length)} detail="Reporting relationships" /><Metric label="Unassigned" value={String(users.filter((user) => !employees.find((item) => item.user_id === user.id)?.manager_id).length)} detail="Needs an organizational owner" /></div><section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5"><div className="flex items-center gap-2"><Network className="h-4 w-4 text-brand-600" /><h2 className="text-sm font-bold text-slate-900">Organization chart</h2></div><div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{users.filter((user) => !employees.find((item) => item.user_id === user.id)?.manager_id).map((user) => <div key={user.id} className="rounded-xl border border-brand-200 bg-brand-50 p-4"><Person user={user} /><div className="mt-3 space-y-1 border-t border-brand-100 pt-3">{employees.filter((item) => item.manager_id === user.id).map((item) => <p key={item.user_id} className="text-[10px] text-slate-600">↳ {userById(item.user_id)?.name}</p>)}</div></div>)}</div></section></>;
 const People: React.FC<{ users: User[]; query: string; setQuery: (value: string) => void; selected: User | null; setSelected: (user: User | null) => void; updateStaffUser: (id: string, updates: Partial<User>) => Promise<void>; manageStaffAccount: (id: string, action: 'suspend' | 'reactivate' | 'remove', note?: string, duration?: '1h' | '24h' | '7d' | '30d' | 'indefinite') => Promise<void>; currentUser: User; userById: (id: string | null | undefined) => User | undefined; updateManager: (user: User, managerId: string) => Promise<void> }> = ({ users, query, setQuery, selected, setSelected, updateStaffUser, manageStaffAccount, currentUser, userById, updateManager }) => <><div className="relative mb-4 max-w-md"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search people, departments, or roles" className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs" /></div><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{users.map((user) => <button key={user.id} type="button" onClick={() => setSelected(user)} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-brand-300"><Person user={user} /><p className="mt-3 text-[10px] text-slate-500">{user.email}</p><p className="mt-1 text-[10px] text-slate-500">{user.accountStatus || 'active'} · reports to {userById(user.id)?.name || 'not assigned'}</p></button>)}</div>{selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-5"><div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><Person user={selected} /><button type="button" onClick={() => setSelected(null)} className="text-xs text-slate-400">Close</button></div><div className="mt-5 grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold text-slate-600">Role<input defaultValue={selected.role} onBlur={(event) => updateStaffUser(selected.id, { role: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" /></label><label className="text-xs font-semibold text-slate-600">Department<input defaultValue={selected.department} onBlur={(event) => updateStaffUser(selected.id, { department: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" /></label></div><label className="mt-4 block text-xs font-semibold text-slate-600">Manager<select defaultValue="" onChange={(event) => updateManager(selected, event.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"><option value="">Not assigned</option>{users.filter((user) => user.id !== selected.id).map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></label><div className="mt-5 flex flex-wrap gap-2"><button type="button" onClick={() => manageStaffAccount(selected.id, selected.accountStatus === 'suspended' ? 'reactivate' : 'suspend', `Updated by ${currentUser.name}`, '7d')} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold">{selected.accountStatus === 'suspended' ? 'Reactivate' : 'Suspend access'}</button><button type="button" onClick={() => manageStaffAccount(selected.id, 'remove', `Removed by ${currentUser.name}`)} className="rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white">Remove access</button></div></div></div>}</>;
 const Access: React.FC<{ users: User[] }> = ({ users }) => <div className="grid gap-5 lg:grid-cols-2"><Panel title="Role templates" icon={ShieldCheck}>{['Admin', 'Team member', 'Finance reviewer', 'Scoped guest'].map((role) => <div key={role} className="border-b border-slate-100 py-3 text-xs font-semibold text-slate-700">{role}<span className="mt-1 block text-[10px] font-normal text-slate-400">View, edit, and approve permissions can be scoped by module.</span></div>)}</Panel><Panel title="People access matrix" icon={KeyRound}>{users.slice(0, 8).map((user) => <div key={user.id} className="flex items-center gap-3 border-b border-slate-100 py-3"><span className="flex-1 text-xs font-semibold text-slate-700">{user.name}</span><span className="rounded-full bg-brand-50 px-2 py-1 text-[10px] font-bold text-brand-700">{user.systemRole}</span></div>)}</Panel></div>;
-const Onboarding: React.FC<{ users: User[]; onboarding: Onboarding[]; absences: Absence[]; userById: (id: string | null | undefined) => User | undefined }> = ({ onboarding, absences, userById }) => <div className="grid gap-5 lg:grid-cols-2"><Panel title="Onboarding & offboarding" icon={ClipboardCheck}>{onboarding.length ? onboarding.map((item) => <Row key={item.id} title={item.title} detail={`${userById(item.employee_id)?.name || 'Employee'} · ${item.status}${item.due_date ? ` · due ${item.due_date}` : ''}`} />) : <Empty text="No onboarding checklists yet." />}</Panel><Panel title="Absence & leave" icon={CalendarDays}>{absences.length ? absences.map((item) => <Row key={item.id} title={`${userById(item.employee_id)?.name || 'Employee'} · ${item.leave_type}`} detail={`${item.starts_on} to ${item.ends_on} · ${item.status}`} />) : <Empty text="No leave records yet." />}</Panel></div>;
+const Onboarding: React.FC<{ users: User[]; currentUser: User; onboarding: Onboarding[]; tasks: OnboardingTask[]; absences: Absence[]; leaveRequests: LeaveRequest[]; userById: (id: string | null | undefined) => User | undefined; addNotification: (notification: Omit<import('../../types').NotificationItem, 'id' | 'timestamp' | 'isRead'>) => void; onChanged: () => Promise<void> }> = ({ users, currentUser, onboarding, tasks, absences, leaveRequests, userById, addNotification, onChanged }) => {
+  const [tab, setTab] = useState<'onboarding' | 'leave'>('onboarding');
+  const [showLeave, setShowLeave] = useState(false);
+  const [showTask, setShowTask] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(currentUser.id);
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskType, setTaskType] = useState('checklist');
+  const [dueDate, setDueDate] = useState('');
+  const [error, setError] = useState('');
+  const isAdmin = currentUser.systemRole === 'admin';
+  const createTask = async () => {
+    if (!taskTitle.trim() || !selectedEmployee) return setError('Choose an employee and task title.');
+    const { error: saveError } = await supabase.from('organization_onboarding_tasks').insert({ employee_id: selectedEmployee, title: taskTitle.trim(), task_type: taskType, due_date: dueDate || null });
+    if (saveError) return setError(saveError.message);
+    setShowTask(false); setTaskTitle(''); setError(''); await onChanged();
+  };
+  const reviewLeave = async (request: LeaveRequest, status: 'approved' | 'denied') => {
+    const { error: reviewError } = await supabase.from('organization_leave_requests').update({ status, reviewed_at: new Date().toISOString() }).eq('id', request.id);
+    if (reviewError) setError(reviewError.message); else await onChanged();
+  };
+  return <section className="space-y-5">
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-sm font-bold text-slate-900">Onboarding & leave</h2><p className="mt-1 text-xs text-slate-500">Manage onboarding progress, required work, and time away for the team.</p></div><div className="flex gap-2"><button type="button" onClick={() => setShowLeave(true)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">Request leave</button>{isAdmin && <button type="button" onClick={() => setShowTask(true)} className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white"><Plus className="mr-1 inline h-3.5 w-3.5" /> Add onboarding task</button>}</div></div>
+    <div className="flex gap-2 border-b border-slate-200"><button type="button" onClick={() => setTab('onboarding')} className={`border-b-2 px-3 py-2 text-xs font-bold ${tab === 'onboarding' ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500'}`}>Onboarding workspace</button><button type="button" onClick={() => setTab('leave')} className={`border-b-2 px-3 py-2 text-xs font-bold ${tab === 'leave' ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500'}`}>Leave calendar & requests</button></div>
+    {tab === 'onboarding' ? <div className="grid gap-5 lg:grid-cols-2"><Panel title="Progress & required work" icon={ClipboardCheck}>{tasks.length ? <div className="space-y-2">{tasks.map((task) => <Row key={task.id} title={`${userById(task.employee_id)?.name || 'Employee'} · ${task.title}`} detail={`${task.task_type} · ${task.status}${task.due_date ? ` · due ${task.due_date}` : ''}`} />)}</div> : <Empty text="No onboarding tasks yet." />}</Panel><Panel title="Documents, training & milestones" icon={GraduationCap}>{onboarding.length ? onboarding.map((item) => <Row key={item.id} title={item.title} detail={`${userById(item.employee_id)?.name || 'Employee'} · ${item.status}${item.due_date ? ` · due ${item.due_date}` : ''}`} />) : <Empty text="Required documents and milestones will appear here." />}</Panel><Panel title="Offboarding checklist" icon={ClipboardCheck}><Empty text="No offboarding tasks are open." /></Panel><Panel title="Existing leave records" icon={CalendarDays}>{absences.length ? absences.map((item) => <Row key={item.id} title={`${userById(item.employee_id)?.name || 'Employee'} · ${item.leave_type}`} detail={`${item.starts_on} to ${item.ends_on} · ${item.status}`} />) : <Empty text="No leave records yet." />}</Panel></div> : <div className="grid gap-5 lg:grid-cols-2"><Panel title="Leave requests" icon={CalendarDays}>{leaveRequests.length ? leaveRequests.map((request) => <div key={request.id} className="border-b border-slate-100 py-3 last:border-0"><Row title={`${userById(request.employee_id)?.name || 'Employee'} · ${request.leave_type}`} detail={`${request.starts_on} to ${request.ends_on} · ${request.status}`} />{isAdmin && request.status === 'pending' && <div className="mt-2 flex gap-2"><button type="button" onClick={() => void reviewLeave(request, 'approved')} className="rounded-lg bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white">Approve</button><button type="button" onClick={() => void reviewLeave(request, 'denied')} className="rounded-lg bg-rose-600 px-2 py-1 text-[10px] font-bold text-white">Deny</button></div>}</div>) : <Empty text="No leave requests yet." />}</Panel><Panel title="Team leave calendar" icon={CalendarDays}><div className="space-y-2">{leaveRequests.filter((request) => request.status === 'approved').map((request) => <Row key={request.id} title={`${userById(request.employee_id)?.name || 'Employee'} is out`} detail={`${request.starts_on} to ${request.ends_on} · ${request.leave_type}`} />)}</div></Panel></div>}
+    {showLeave && <LeaveRequestModal userId={selectedEmployee} addNotification={addNotification} onClose={() => setShowLeave(false)} onSubmitted={() => void onChanged()} />}
+    {showTask && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4"><div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"><div className="flex justify-between"><h3 className="text-lg font-bold text-slate-900">Add onboarding task</h3><button type="button" onClick={() => setShowTask(false)}><X className="h-4 w-4 text-slate-400" /></button></div><div className="mt-4 space-y-3"><select value={selectedEmployee} onChange={(event) => setSelectedEmployee(event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs">{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select><input value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="Task title" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" /><select value={taskType} onChange={(event) => setTaskType(event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"><option value="checklist">Checklist</option><option value="training">Training</option><option value="equipment">Equipment / setup</option><option value="milestone">30/60/90-day milestone</option><option value="offboarding">Offboarding</option><option value="document">Required document</option></select><input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />{error && <p className="text-xs text-rose-700">{error}</p>}<button type="button" onClick={() => void createTask()} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white">Create task</button></div></div></div>}
+  </section>;
+};
 const Approvals: React.FC = () => <Panel title="Approvals" icon={CheckCircle2}><Empty text="No pending organization approvals. Approval workflows for access changes, sensitive exports, and spend requests will appear here." /></Panel>;
 const Policies: React.FC<{ documents: OrganizationDocument[]; user: User; users: User[]; onChanged: () => Promise<void> }> = ({ documents, user, users, onChanged }) => {
   const [tab, setTab] = useState<'library' | 'results'>('library');

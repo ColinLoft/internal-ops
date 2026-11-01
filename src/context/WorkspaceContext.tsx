@@ -126,6 +126,7 @@ interface WorkspaceContextType {
   
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
+  addNotification: (notification: Omit<NotificationItem, 'id' | 'timestamp' | 'isRead'>) => void;
   toggleSound: () => void;
   
   // Calling
@@ -1295,6 +1296,14 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const markAllNotificationsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   };
+  const addNotification = (notification: Omit<NotificationItem, 'id' | 'timestamp' | 'isRead'>) => {
+    setNotifications((previous) => [{
+      ...notification,
+      id: `notif-org-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      isRead: false,
+    }, ...previous]);
+  };
 
   // Messaging
   const sendMessage = async (text: string, attachments?: Attachment[], poll?: Poll, targetConversationId?: string) => {
@@ -2180,6 +2189,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         deleteCalendarEvent,
         markNotificationRead,
         markAllNotificationsRead,
+        addNotification,
         toggleSound,
         startCall,
         endCall,

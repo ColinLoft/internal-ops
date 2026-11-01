@@ -196,7 +196,7 @@ export interface CalendarEvent {
   color?: string;
 }
 
-export type NotificationType = 'message' | 'mention' | 'announcement' | 'call' | 'calendar';
+export type NotificationType = 'message' | 'mention' | 'announcement' | 'call' | 'calendar' | 'organization';
 
 export interface NotificationItem {
   id: string;
@@ -205,7 +205,7 @@ export interface NotificationItem {
   description: string;
   timestamp: string;
   isRead: boolean;
-  linkTab: 'messages' | 'channels' | 'calendar';
+  linkTab: 'messages' | 'channels' | 'calendar' | 'organization';
   targetId?: string; // conversation or channel id
 }
 
