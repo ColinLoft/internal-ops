@@ -4,7 +4,6 @@ import {
   Bell,
   HardDrive,
   UsersRound,
-  Settings2,
   Landmark,
   MessageSquare,
   BriefcaseBusiness,
@@ -129,12 +128,6 @@ export const TopBar: React.FC = () => {
       id: 'engineering',
       name: 'Engineering',
       icon: Code2,
-      accent: 'from-brand-500 to-brand-600',
-    },
-    {
-      id: 'systems',
-      name: 'Administration',
-      icon: Settings2,
       accent: 'from-brand-500 to-brand-600',
     },
     {
@@ -353,10 +346,6 @@ export const TopBar: React.FC = () => {
                       onClick={() => {
                         if (app.id === 'customers') {
                           setActiveTab('customers');
-                          setIsAppsOpen(false);
-                          setSelectedApp(null);
-                        } else if (app.id === 'systems') {
-                          setActiveTab('admin');
                           setIsAppsOpen(false);
                           setSelectedApp(null);
                         } else if (app.id === 'finance') {

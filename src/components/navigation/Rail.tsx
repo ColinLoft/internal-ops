@@ -72,7 +72,6 @@ export const Rail: React.FC = () => {
   const totalUnreadMessages = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
   const isDrive = activeTab === 'drive';
   const isCustomers = activeTab === 'customers';
-  const isSystems = activeTab === 'admin';
   const isFinance = activeTab === 'finance';
   const isOperations = activeTab === 'operations';
   const isLegal = activeTab === 'legal';
@@ -184,15 +183,6 @@ export const Rail: React.FC = () => {
               { label: 'Activity', icon: ListChecks, path: '/customers/activity' },
               { label: 'Knowledge', icon: BookOpen, path: '/customers/knowledge' },
               { label: 'Reports', icon: BarChart3, path: '/customers/reports' },
-            ].map((item) => { const Icon = item.icon; return <button key={item.label} type="button" onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className="group relative rounded-2xl p-3 text-slate-400 transition-all hover:bg-slate-800/70 hover:text-slate-100" title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
-          ) : isSystems ? (
-            <>{[
-              { label: 'Administration overview', icon: House, path: '/admin' },
-              { label: 'Personnel operations', icon: Users, path: '/admin/people' },
-              { label: 'Policies & procedures', icon: BookOpen, path: '/admin/policies' },
-              { label: 'Workflows & approvals', icon: CheckCircle2, path: '/admin/approvals' },
-              { label: 'Resource coordination', icon: BriefcaseBusiness, path: '/admin/resources' },
-              { label: 'Audit logs', icon: Activity, path: '/admin/audit' },
             ].map((item) => { const Icon = item.icon; return <button key={item.label} type="button" onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className="group relative rounded-2xl p-3 text-slate-400 transition-all hover:bg-slate-800/70 hover:text-slate-100" title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
           ) : isFinance ? (
             <>{[

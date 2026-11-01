@@ -87,40 +87,37 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
 
         recognition.start();
       } catch {
-        // Fallback simulation for browsers blocking mic permission
-        simulateDictation();
+        setSendError('Voice dictation could not start. Check microphone permissions and try again.');
+        setIsRecording(false);
       }
     } else {
-      simulateDictation();
+      setSendError('Voice dictation is not supported by this browser.');
     }
   };
 
-  const simulateDictation = () => {
-    setIsRecording(true);
-    setTimeout(() => {
-      setText((prev) => (prev ? `${prev} [Dictated message transcript]` : 'Updating the team on today’s community drive.'));
-      setIsRecording(false);
-    }, 2000);
-  };
-
-  // Attach sample location
   const handleShareLocation = () => {
-    const locAtt: Attachment = {
-      id: `loc-${Date.now()}`,
-      name: 'San Francisco Field Operations Hub',
-      type: 'location',
-      size: 'GPS Coordinates',
-      url: 'https://maps.google.com',
-      locationData: {
-        label: 'Flown Community Center, 1850 Mission St, San Francisco, CA',
-        latitude: 37.7668,
-        longitude: -122.4194,
+    if (!navigator.geolocation) {
+      setSendError('Location sharing is not supported by this browser.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const latitude = Number(coords.latitude.toFixed(6));
+        const longitude = Number(coords.longitude.toFixed(6));
+        setAttachments((prev) => [...prev, {
+          id: `loc-${Date.now()}`,
+          name: 'Shared location',
+          type: 'location',
+          size: 'GPS coordinates',
+          url: `https://maps.google.com/?q=${latitude},${longitude}`,
+          locationData: { label: `${latitude}, ${longitude}`, latitude, longitude },
+        }]);
       },
-    };
-    setAttachments((prev) => [...prev, locAtt]);
+      () => setSendError('Location could not be shared. Allow location access and try again.'),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
   };
 
-  // File upload simulation
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;

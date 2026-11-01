@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Bot, Check, LoaderCircle, Send, Sparkles, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import type { EventCategory } from '../../types';
 
 type AssistantMessage = { role: 'user' | 'assistant'; content: string };
 type AssistantAction = {
@@ -124,7 +125,7 @@ export const WorkspaceAssistant: React.FC = () => {
           startTime: details.startTime || '09:00',
           endTime: details.endTime || '10:00',
           scope: details.scope === 'personal' ? 'personal' : 'team',
-          category: details.category || 'General',
+          category: (details.category as EventCategory) || 'community',
           location: details.location || '',
           color: details.color || '#2569F5',
         });

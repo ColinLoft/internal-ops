@@ -203,8 +203,8 @@ export const DrivePage: React.FC = () => {
     );
   }, [currentFolderId, currentUser.id, items, search, section, driveView]);
 
-  if (activeEditorItem && ['document', 'presentation', 'spreadsheet', 'form'].includes(activeEditorItem.item_type)) {
-    return <ProfessionalEditor item={activeEditorItem} onClose={closeEditor} onSave={async (content) => {
+  if (activeEditorItem && (activeEditorItem.item_type === 'document' || activeEditorItem.item_type === 'presentation' || activeEditorItem.item_type === 'spreadsheet' || activeEditorItem.item_type === 'form')) {
+    return <ProfessionalEditor item={{ id: activeEditorItem.id, name: activeEditorItem.name, item_type: activeEditorItem.item_type, content: activeEditorItem.content }} onClose={closeEditor} onSave={async (content) => {
       const { error: saveError } = await supabase.from('drive_items').update({ content, updated_at: new Date().toISOString() }).eq('id', activeEditorItem.id);
       if (saveError) throw new Error(`Changes could not be saved: ${saveError.message}`);
       const updatedAt = new Date().toISOString();

@@ -192,7 +192,7 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
   if (segment === 'channels') return 'channels';
   if (segment === 'calendar') return 'calendar';
   if (segment === 'email' || segment === 'inbox') return 'inbox';
-  if (segment === 'admin') return 'admin';
+  if (segment === 'admin') return 'operations';
   if (segment === 'drive') return 'drive';
   if (segment === 'docs' || segment === 'slides' || segment === 'sheets' || segment === 'forms') return 'drive';
   return null;
@@ -214,7 +214,7 @@ const pathForTab = (tab: WorkspaceTab) => ({
   channels: '/channels',
   calendar: '/calendar',
   inbox: '/email',
-  admin: '/admin',
+  admin: '/operations',
   drive: '/drive',
 }[tab]);
 

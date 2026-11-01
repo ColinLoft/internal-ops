@@ -3,6 +3,8 @@ import {
   AlertTriangle, BookOpen, CheckCircle2, ChevronRight, ClipboardCheck,
   FileCheck2, FileText, Gavel, Plus, Search, ShieldCheck, Scale, X,
 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { useWorkspace } from '../../context/WorkspaceContext';
 
 type LegalView = 'overview' | 'contracts' | 'compliance' | 'risk' | 'policies' | 'records';
 type Contract = { name: string; counterparty: string; status: 'In review' | 'Active' | 'Expiring'; renewal: string };
@@ -16,25 +18,30 @@ const labels: Record<LegalView, string> = {
   policies: 'Policies',
   records: 'Legal Records',
 };
-const contracts: Contract[] = [
-  { name: 'Partner memorandum', counterparty: 'Northstar Trust', status: 'In review', renewal: 'Nov 14, 2026' },
-  { name: 'Independent contractor agreement', counterparty: 'Maya Patel', status: 'Active', renewal: 'Jan 31, 2027' },
-  { name: 'Data processing addendum', counterparty: 'Civic Impact Fund', status: 'Expiring', renewal: 'Dec 15, 2026' },
-  { name: 'Venue liability waiver', counterparty: 'Community Center', status: 'Active', renewal: 'Aug 02, 2027' },
-];
-const records: LegalRecord[] = [
-  { name: 'Board resolution — fiscal year plan', type: 'Governance', owner: 'Operations', updated: 'Oct 29, 2026' },
-  { name: 'Certificate of insurance', type: 'Insurance', owner: 'Administration', updated: 'Oct 22, 2026' },
-  { name: 'State charitable registration', type: 'Regulatory filing', owner: 'Finance', updated: 'Oct 18, 2026' },
-  { name: 'Vendor review register', type: 'Due diligence', owner: 'Procurement', updated: 'Oct 12, 2026' },
-];
+const contracts: Contract[] = [];
+const records: LegalRecord[] = [];
 
 export const LegalPage: React.FC = () => {
+  const { currentUser } = useWorkspace();
   const [view, setView] = useState<LegalView>(() => viewFromPath(window.location.pathname));
   const [search, setSearch] = useState('');
   const [showNew, setShowNew] = useState(false);
   const [contractState, setContractState] = useState(contracts);
+  const [recordState, setRecordState] = useState(records);
+  const [error, setError] = useState('');
   useEffect(() => {
+    void supabase.from('legal_records').select('id,record_type,name,description,status,owner_id,due_date,created_at').order('created_at', { ascending: false }).then(({ data, error: loadError }) => {
+      if (loadError) { setError(loadError.message); return; }
+      const loadedContracts: Contract[] = [];
+      const loadedRecords: LegalRecord[] = [];
+      for (const item of data || []) {
+        const owner = item.owner_id || 'Unassigned';
+        if (item.record_type === 'contracts') loadedContracts.push({ name: item.name, counterparty: item.description || '', status: item.status as Contract['status'], renewal: item.due_date || 'Not scheduled' });
+        loadedRecords.push({ name: item.name, type: item.record_type, owner, updated: new Date(item.created_at).toLocaleDateString() });
+      }
+      setContractState(loadedContracts);
+      setRecordState(loadedRecords);
+    });
     const onRoute = () => setView(viewFromPath(window.location.pathname));
     window.addEventListener('popstate', onRoute);
     return () => window.removeEventListener('popstate', onRoute);
@@ -46,7 +53,7 @@ export const LegalPage: React.FC = () => {
   };
   const filteredContracts = useMemo(() => contractState.filter((item) =>
     Object.values(item).join(' ').toLowerCase().includes(search.toLowerCase())), [contractState, search]);
-  const filteredRecords = useMemo(() => records.filter((item) =>
+  const filteredRecords = useMemo(() => recordState.filter((item) =>
     Object.values(item).join(' ').toLowerCase().includes(search.toLowerCase())), [search]);
 
   return (
@@ -56,6 +63,7 @@ export const LegalPage: React.FC = () => {
         <div className="flex items-center gap-2"><div className="relative hidden md:block"><Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search legal" className="w-48 rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 text-[11px] outline-none focus:border-brand-400" /></div><button type="button" onClick={() => setShowNew(true)} className="rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700"><Plus className="mr-1 inline h-3.5 w-3.5" /> Add legal record</button></div>
       </header>
       <div className="mx-auto max-w-7xl p-5 sm:p-8">
+        {error && <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
         {view === 'overview' && <Overview onNavigate={navigate} />}
         {view === 'contracts' && <Contracts items={filteredContracts} onStatus={(name, status) => setContractState((items) => items.map((item) => item.name === name ? { ...item, status } : item))} />}
         {view === 'compliance' && <Compliance />}
@@ -63,7 +71,13 @@ export const LegalPage: React.FC = () => {
         {view === 'policies' && <Policies />}
         {view === 'records' && <Records items={filteredRecords} />}
       </div>
-      {showNew && <NewRecordModal onClose={() => setShowNew(false)} />}
+      {showNew && <NewRecordModal onClose={() => setShowNew(false)} onSaved={(record) => {
+        void supabase.from('legal_records').insert({ ...record, owner_id: currentUser.id, created_by: currentUser.id }).then(({ error: insertError }) => {
+          if (insertError) { setError(insertError.message); return; }
+          setShowNew(false);
+          window.location.reload();
+        });
+      }} />}
     </main>
   );
 };
@@ -71,22 +85,20 @@ export const LegalPage: React.FC = () => {
 const Overview: React.FC<{ onNavigate: (view: LegalView) => void }> = ({ onNavigate }) => (
   <>
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <Metric label="Open contract reviews" value="4" detail="2 require action this week" />
-      <Metric label="Compliance completion" value="96%" detail="18 of 19 controls current" />
-      <Metric label="Active risk items" value="3" detail="1 high priority" color="text-rose-600" />
-      <Metric label="Policies current" value="28" detail="3 due for review" />
+      <Metric label="Open contract reviews" value="0" detail="No legal records yet" />
+      <Metric label="Compliance completion" value="0%" detail="No compliance records yet" />
+      <Metric label="Active risk items" value="0" detail="No risk records yet" color="text-rose-600" />
+      <Metric label="Policies current" value="0" detail="No policy records yet" />
     </div>
     <div className="mt-5 grid gap-5 lg:grid-cols-2">
       <Panel title="Legal work queue" icon={<Scale className="h-4 w-4" />}>
-        <QueueItem icon={<FileText />} title="Contracts & Agreements" detail="4 reviews · 2 renewals approaching" onClick={() => onNavigate('contracts')} />
-        <QueueItem icon={<ShieldCheck />} title="Compliance" detail="18 controls current · 1 action overdue" onClick={() => onNavigate('compliance')} />
-        <QueueItem icon={<AlertTriangle />} title="Risk Management" detail="3 active risks · highest: insurance renewal" onClick={() => onNavigate('risk')} />
+        <QueueItem icon={<FileText />} title="Contracts & Agreements" detail="Review legal records" onClick={() => onNavigate('contracts')} />
+        <QueueItem icon={<ShieldCheck />} title="Compliance" detail="Review compliance records" onClick={() => onNavigate('compliance')} />
+        <QueueItem icon={<AlertTriangle />} title="Risk Management" detail="Review risk records" onClick={() => onNavigate('risk')} />
       </Panel>
       <Panel title="Upcoming obligations" icon={<ClipboardCheck className="h-4 w-4" />}>
         <div className="space-y-3">
-          <Obligation title="Data processing addendum renewal" date="Dec 15, 2026" />
-          <Obligation title="Annual charitable registration" date="Jan 31, 2027" />
-          <Obligation title="Policy review cycle" date="Feb 01, 2027" />
+          <p className="text-xs text-slate-500">Upcoming obligations will appear when legal records include due dates.</p>
         </div>
       </Panel>
     </div>
@@ -111,24 +123,9 @@ const Contracts: React.FC<{ items: Contract[]; onStatus: (name: string, status: 
     </div>
   </Section>
 );
-const Compliance: React.FC = () => (
-  <Section title="Compliance" description="Monitor regulatory obligations, control owners, evidence, and deadlines.">
-    <div className="grid gap-4 md:grid-cols-3">
-      <ComplianceCard title="Charitable registration" status="Current" detail="Next filing due Jan 31, 2027" />
-      <ComplianceCard title="Data privacy controls" status="Action needed" detail="1 evidence item needs review" warning />
-      <ComplianceCard title="Insurance coverage" status="Current" detail="Certificate verified Oct 22, 2026" />
-    </div>
-    <Panel title="Compliance checklist" icon={<CheckCircle2 className="h-4 w-4" />}>
-      <div className="space-y-3">
-        {['Annual state registration', 'Board governance records', 'Privacy and data handling', 'Worker classification review', 'Insurance certificates'].map((item, index) => (
-          <div key={item} className="flex items-center gap-3 text-xs"><CheckCircle2 className={`h-4 w-4 ${index === 1 ? 'text-amber-500' : 'text-brand-600'}`} /><span className="flex-1 font-semibold text-slate-700">{item}</span><span className="text-[10px] text-slate-400">{index === 1 ? 'Review needed' : 'Verified'}</span></div>
-        ))}
-      </div>
-    </Panel>
-  </Section>
-);
-const Risk: React.FC = () => <Section title="Risk Management" description="Identify, assess, assign, and mitigate organizational legal and operational risks."><div className="grid gap-4 md:grid-cols-3"><RiskCard title="Insurance renewal" level="High" owner="Administration" /><RiskCard title="Vendor data access" level="Medium" owner="Operations" /><RiskCard title="Contractor classification" level="Low" owner="People Operations" /></div><Panel title="Mitigation register" icon={<Gavel className="h-4 w-4" />}><div className="space-y-3">{['Confirm updated liability certificate', 'Complete vendor data processing review', 'Refresh contractor onboarding checklist'].map((item) => <div key={item} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3 text-xs"><span className="h-2 w-2 rounded-full bg-amber-500" /><span className="flex-1 font-semibold text-slate-700">{item}</span><ChevronRight className="h-4 w-4 text-slate-300" /></div>)}</div></Panel></Section>;
-const Policies: React.FC = () => <Section title="Policies" description="Maintain the policy library, review cycles, owners, and staff acknowledgements."><div className="grid gap-3 md:grid-cols-2">{['Conflict of interest policy', 'Privacy and data handling', 'Records retention', 'Whistleblower protection', 'Expense and procurement policy', 'Safeguarding and conduct'].map((item, index) => <div key={item} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4"><BookOpen className="h-5 w-5 text-brand-600" /><span className="flex-1"><b className="block text-xs text-slate-800">{item}</b><span className="text-[10px] text-slate-400">{index < 3 ? 'Current · reviewed Oct 2026' : 'Review due Feb 2027'}</span></span><FileCheck2 className="h-4 w-4 text-slate-300" /></div>)}</div></Section>;
+const Compliance: React.FC = () => <Section title="Compliance" description="Monitor regulatory obligations, control owners, evidence, and deadlines."><Panel title="Compliance checklist" icon={<CheckCircle2 className="h-4 w-4" />}><p className="text-xs text-slate-500">Compliance records will appear here after they are added.</p></Panel></Section>;
+const Risk: React.FC = () => <Section title="Risk Management" description="Identify, assess, assign, and mitigate organizational legal and operational risks."><Panel title="Mitigation register" icon={<Gavel className="h-4 w-4" />}><p className="text-xs text-slate-500">Risk records will appear here after they are added.</p></Panel></Section>;
+const Policies: React.FC = () => <Section title="Policies" description="Maintain the policy library, review cycles, owners, and staff acknowledgements."><Panel title="Policy library" icon={<BookOpen className="h-4 w-4" />}><p className="text-xs text-slate-500">Policy records will appear here after they are added.</p></Panel></Section>;
 const Records: React.FC<{ items: LegalRecord[] }> = ({ items }) => <Section title="Legal Records" description="Centralize filings, resolutions, insurance, due diligence, and other legal evidence."><div className="grid gap-3 md:grid-cols-2">{items.map((item) => <div key={item.name} className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex items-start gap-3"><FileText className="h-5 w-5 text-brand-600" /><div className="min-w-0 flex-1"><b className="block text-xs text-slate-800">{item.name}</b><span className="mt-1 block text-[10px] text-slate-400">{item.type} · Owner: {item.owner}</span><span className="mt-3 block text-[10px] font-semibold text-slate-500">Updated {item.updated}</span></div></div></div>)}</div></Section>;
 
 const Section: React.FC<{ title: string; description: string; children: React.ReactNode }> = ({ title, description, children }) => <div><div className="mb-5"><h2 className="text-lg font-bold text-slate-900">{title}</h2><p className="mt-1 text-xs text-slate-500">{description}</p></div><div className="space-y-5">{children}</div></div>;
@@ -138,5 +135,10 @@ const QueueItem: React.FC<{ icon: React.ReactNode; title: string; detail: string
 const Obligation: React.FC<{ title: string; date: string }> = ({ title, date }) => <div className="flex items-center gap-3 rounded-xl border border-slate-100 p-3"><span className="h-2 w-2 rounded-full bg-amber-500" /><span className="flex-1 text-xs font-semibold text-slate-700">{title}</span><span className="text-[10px] text-slate-400">{date}</span></div>;
 const ComplianceCard: React.FC<{ title: string; status: string; detail: string; warning?: boolean }> = ({ title, status, detail, warning }) => <div className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex items-center justify-between"><b className="text-xs text-slate-800">{title}</b><span className={`rounded-md px-2 py-1 text-[10px] font-bold ${warning ? 'bg-amber-50 text-amber-700' : 'bg-brand-50 text-brand-700'}`}>{status}</span></div><p className="mt-3 text-[10px] text-slate-400">{detail}</p></div>;
 const RiskCard: React.FC<{ title: string; level: string; owner: string }> = ({ title, level, owner }) => <div className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex items-center justify-between"><b className="text-xs text-slate-800">{title}</b><span className={`rounded-md px-2 py-1 text-[10px] font-bold ${level === 'High' ? 'bg-rose-50 text-rose-700' : level === 'Medium' ? 'bg-amber-50 text-amber-700' : 'bg-brand-50 text-brand-700'}`}>{level}</span></div><p className="mt-3 text-[10px] text-slate-400">Owner: {owner}</p></div>;
-const NewRecordModal: React.FC<{ onClose: () => void }> = ({ onClose }) => <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"><div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">Add legal record</h2><button type="button" onClick={onClose}><X className="h-4 w-4 text-slate-400" /></button></div><div className="mt-4 space-y-3"><input placeholder="Record or agreement name" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400" /><select className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400"><option>Contract or agreement</option><option>Compliance record</option><option>Risk item</option><option>Policy</option></select><textarea placeholder="Description or next action" rows={3} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400" /></div><button type="button" onClick={onClose} className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white">Save legal record</button></div></div>;
+const NewRecordModal: React.FC<{ onClose: () => void; onSaved: (record: { name: string; record_type: string; description: string; status: string }) => void }> = ({ onClose, onSaved }) => {
+  const [name, setName] = useState('');
+  const [recordType, setRecordType] = useState('contracts');
+  const [description, setDescription] = useState('');
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"><div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">Add legal record</h2><button type="button" onClick={onClose}><X className="h-4 w-4 text-slate-400" /></button></div><div className="mt-4 space-y-3"><input value={name} onChange={(event) => setName(event.target.value)} required placeholder="Record or agreement name" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400" /><select value={recordType} onChange={(event) => setRecordType(event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400"><option value="contracts">Contract or agreement</option><option value="compliance">Compliance record</option><option value="risk">Risk item</option><option value="policies">Policy</option></select><textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Description or next action" rows={3} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400" /></div><button type="button" disabled={!name.trim()} onClick={() => onSaved({ name: name.trim(), record_type: recordType, description: description.trim(), status: 'draft' })} className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white disabled:opacity-50">Save legal record</button></div></div>;
+};
 const viewFromPath = (path: string): LegalView => { const segment = path.split('/')[2] as LegalView; return Object.keys(labels).includes(segment) ? segment : 'overview'; };

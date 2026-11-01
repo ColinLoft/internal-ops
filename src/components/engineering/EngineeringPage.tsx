@@ -16,9 +16,11 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { useWorkspace } from '../../context/WorkspaceContext';
 
 type EngineeringView = 'overview' | 'products' | 'requirements' | 'design' | 'cad-pcb' | 'testing' | 'changes' | 'reviews';
-type RecordItem = { name: string; detail: string; status: string; owner: string; updated: string };
+type RecordItem = { id: string; name: string; detail: string; status: string; owner: string; updated: string };
 
 const navigation: { id: EngineeringView; label: string; icon: React.FC<{ className?: string }> }[] = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -32,43 +34,36 @@ const navigation: { id: EngineeringView; label: string; icon: React.FC<{ classNa
 ];
 
 const records: Record<EngineeringView, RecordItem[]> = {
-  overview: [],
-  products: [
-    { name: 'Field Operations Kit', detail: 'Portable deployment system', status: 'Active development', owner: 'Engineering', updated: 'Oct 30, 2026' },
-    { name: 'Community Access Terminal', detail: 'Connected service platform', status: 'Prototype', owner: 'Product Engineering', updated: 'Oct 27, 2026' },
-  ],
-  requirements: [
-    { name: 'REQ-104 — Battery runtime', detail: 'Minimum 12-hour field operation', status: 'Approved', owner: 'Systems', updated: 'Oct 29, 2026' },
-    { name: 'REQ-109 — Environmental sealing', detail: 'Outdoor enclosure protection', status: 'In review', owner: 'Mechanical', updated: 'Oct 25, 2026' },
-  ],
-  design: [
-    { name: 'System architecture v3', detail: 'Product-level design baseline', status: 'Released', owner: 'Systems', updated: 'Oct 28, 2026' },
-    { name: 'Thermal management study', detail: 'Cooling and enclosure analysis', status: 'Draft', owner: 'Mechanical', updated: 'Oct 21, 2026' },
-  ],
-  'cad-pcb': [
-    { name: 'Enclosure assembly CAD', detail: 'Revision C · STEP + drawing', status: 'Released', owner: 'Mechanical', updated: 'Oct 30, 2026' },
-    { name: 'Controller PCB layout', detail: 'Revision B · manufacturing package', status: 'In review', owner: 'Electrical', updated: 'Oct 26, 2026' },
-  ],
-  testing: [
-    { name: 'Environmental validation', detail: 'Temperature and humidity test plan', status: 'In progress', owner: 'Validation', updated: 'Oct 31, 2026' },
-    { name: 'Power subsystem test', detail: 'Bench test report and evidence', status: 'Passed', owner: 'Electrical', updated: 'Oct 24, 2026' },
-  ],
-  changes: [
-    { name: 'ECR-027 — Connector update', detail: 'Replace field-service connector', status: 'Pending approval', owner: 'Electrical', updated: 'Oct 31, 2026' },
-    { name: 'ECR-024 — Bracket redesign', detail: 'Reduce assembly time', status: 'Implemented', owner: 'Mechanical', updated: 'Oct 20, 2026' },
-  ],
-  reviews: [
-    { name: 'Design review — Field Operations Kit', detail: 'Gate 3 technical review', status: 'Scheduled', owner: 'Engineering Lead', updated: 'Oct 30, 2026' },
-    { name: 'Architecture review — Terminal', detail: 'Interface and scalability review', status: 'Complete', owner: 'Systems', updated: 'Oct 18, 2026' },
-  ],
+  overview: [], products: [], requirements: [], design: [], 'cad-pcb': [],
+  testing: [], changes: [], reviews: [],
 };
 
 export const EngineeringPage: React.FC = () => {
+  const { currentUser } = useWorkspace();
   const [view, setView] = useState<EngineeringView>(() => viewFromPath(window.location.pathname));
   const [search, setSearch] = useState('');
   const [showNew, setShowNew] = useState(false);
+  const [recordState, setRecordState] = useState(records);
+  const [error, setError] = useState('');
 
   useEffect(() => {
+    void supabase.from('engineering_records').select('id,record_type,name,description,status,owner_id,created_at').order('created_at', { ascending: false }).then(({ data, error: loadError }) => {
+      if (loadError) { setError(loadError.message); return; }
+      const next = { ...records };
+      for (const item of data || []) {
+        const target = item.record_type as EngineeringView;
+        if (!Object.prototype.hasOwnProperty.call(next, target)) continue;
+        next[target] = [...next[target], {
+          id: item.id,
+          name: item.name,
+          detail: item.description || '',
+          status: item.status,
+          owner: item.owner_id || 'Unassigned',
+          updated: new Date(item.created_at).toLocaleDateString(),
+        }];
+      }
+      setRecordState(next);
+    });
     const onRoute = () => setView(viewFromPath(window.location.pathname));
     window.addEventListener('popstate', onRoute);
     return () => window.removeEventListener('popstate', onRoute);
@@ -80,7 +75,7 @@ export const EngineeringPage: React.FC = () => {
     setView(next);
   };
 
-  const filteredRecords = useMemo(() => records[view].filter((record) =>
+  const filteredRecords = useMemo(() => recordState[view].filter((record) =>
     Object.values(record).join(' ').toLowerCase().includes(search.toLowerCase())), [view, search]);
   const currentLabel = navigation.find((item) => item.id === view)?.label || 'Overview';
 
@@ -101,9 +96,16 @@ export const EngineeringPage: React.FC = () => {
         </div>
       </header>
       <div className="mx-auto max-w-7xl p-5 sm:p-8">
+        {error && <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
         {view === 'overview' ? <Overview onNavigate={navigate} /> : <RecordSection view={view} items={filteredRecords} />}
       </div>
-      {showNew && <NewEngineeringRecord onClose={() => setShowNew(false)} />}
+      {showNew && <NewEngineeringRecord onClose={() => setShowNew(false)} onSaved={(record) => {
+        void supabase.from('engineering_records').insert({ ...record, created_by: currentUser.id, owner_id: currentUser.id }).then(({ error: insertError }) => {
+          if (insertError) { setError(insertError.message); return; }
+          setShowNew(false);
+          window.location.reload();
+        });
+      }} />}
     </main>
   );
 };
@@ -111,10 +113,10 @@ export const EngineeringPage: React.FC = () => {
 const Overview: React.FC<{ onNavigate: (view: EngineeringView) => void }> = ({ onNavigate }) => (
   <>
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <Metric label="Active products" value="2" detail="1 prototype in development" />
-      <Metric label="Open requirements" value="14" detail="11 approved · 3 in review" />
-      <Metric label="Validation progress" value="78%" detail="18 of 23 checks complete" />
-      <Metric label="Pending changes" value="4" detail="2 awaiting technical approval" color="text-amber-600" />
+      <Metric label="Active products" value="0" detail="No engineering records yet" />
+      <Metric label="Open requirements" value="0" detail="No engineering records yet" />
+      <Metric label="Validation progress" value="0%" detail="No validation records yet" />
+      <Metric label="Pending changes" value="0" detail="No engineering records yet" color="text-amber-600" />
     </div>
     <div className="mt-5 grid gap-5 lg:grid-cols-2">
       <Panel title="Engineering workstreams" icon={<Layers3 className="h-4 w-4" />}>
@@ -124,9 +126,7 @@ const Overview: React.FC<{ onNavigate: (view: EngineeringView) => void }> = ({ o
         })}
       </Panel>
       <Panel title="Attention needed" icon={<AlertTriangle className="h-4 w-4" />}>
-        <Attention title="Connector update awaiting approval" detail="ECR-027 · Electrical · due Nov 03" />
-        <Attention title="Environmental validation in progress" detail="Field Operations Kit · 5 checks remaining" />
-        <Attention title="PCB manufacturing package review" detail="Controller PCB layout · Revision B" />
+        <p className="text-xs text-slate-500">Attention items will appear when engineering records are added.</p>
       </Panel>
     </div>
   </>
@@ -145,7 +145,12 @@ const RecordSection: React.FC<{ view: EngineeringView; items: RecordItem[] }> = 
 const Panel: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode }> = ({ title, icon, children }) => <section className="rounded-2xl border border-slate-200 bg-white p-5"><div className="mb-4 flex items-center gap-2 text-brand-600">{icon}<h2 className="text-sm font-bold text-slate-900">{title}</h2></div>{children}</section>;
 const Metric: React.FC<{ label: string; value: string; detail: string; color?: string }> = ({ label, value, detail, color = 'text-brand-600' }) => <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">{label}</p><p className={`mt-2 text-2xl font-bold ${color}`}>{value}</p><p className="mt-1 text-[10px] text-slate-400">{detail}</p></div>;
 const Attention: React.FC<{ title: string; detail: string }> = ({ title, detail }) => <div className="flex items-center gap-3 border-b border-slate-100 py-3 last:border-0"><span className="h-2 w-2 rounded-full bg-amber-500" /><span className="flex-1"><b className="block text-xs text-slate-800">{title}</b><span className="text-[10px] text-slate-400">{detail}</span></span><ChevronRight className="h-4 w-4 text-slate-300" /></div>;
-const NewEngineeringRecord: React.FC<{ onClose: () => void }> = ({ onClose }) => <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"><div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">New engineering record</h2><button type="button" onClick={onClose}><X className="h-4 w-4 text-slate-400" /></button></div><div className="mt-4 space-y-3"><input placeholder="Record name or identifier" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400" /><select className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400"><option>Product or system</option><option>Requirement</option><option>Design document</option><option>CAD or PCB record</option><option>Test or validation</option><option>Engineering change</option><option>Technical review</option></select><textarea rows={3} placeholder="Description, owner, or next action" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400" /></div><button type="button" onClick={onClose} className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white">Save engineering record</button></div></div>;
+const NewEngineeringRecord: React.FC<{ onClose: () => void; onSaved: (record: { name: string; record_type: string; description: string; status: string }) => void }> = ({ onClose, onSaved }) => {
+  const [name, setName] = useState('');
+  const [recordType, setRecordType] = useState<EngineeringView>('products');
+  const [description, setDescription] = useState('');
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"><div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">New engineering record</h2><button type="button" onClick={onClose}><X className="h-4 w-4 text-slate-400" /></button></div><div className="mt-4 space-y-3"><input value={name} onChange={(event) => setName(event.target.value)} required placeholder="Record name or identifier" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400" /><select value={recordType} onChange={(event) => setRecordType(event.target.value as EngineeringView)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400">{navigation.slice(1).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={3} placeholder="Description" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400" /></div><button type="button" disabled={!name.trim()} onClick={() => onSaved({ name: name.trim(), record_type: recordType, description: description.trim(), status: 'draft' })} className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white disabled:opacity-50">Save engineering record</button></div></div>;
+};
 const viewFromPath = (path: string): EngineeringView => {
   const segment = path.split('/')[2] as EngineeringView;
   return navigation.some((item) => item.id === segment) ? segment : 'overview';
