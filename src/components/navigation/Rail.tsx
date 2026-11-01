@@ -146,6 +146,7 @@ export const Rail: React.FC = () => {
             <>{[
               { label: 'Overview & chart', icon: Network, section: 'overview' },
               { label: 'People & teams', icon: Users, section: 'people' },
+              { label: 'Programs', icon: FolderKanban, section: 'programs' },
               { label: 'Roles & access', icon: ShieldCheck, section: 'access' },
               { label: 'Onboarding & leave', icon: ClipboardList, section: 'onboarding' },
               { label: 'Approvals', icon: CheckCircle2, section: 'approvals' },
