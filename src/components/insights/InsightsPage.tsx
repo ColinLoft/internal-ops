@@ -44,20 +44,24 @@ const reports = [
 
 export const InsightsPage: React.FC = () => {
   const { calendarEvents, conversations, currentUser } = useWorkspace();
-  const section = window.location.pathname.split('/')[2] || 'overview';
+  const [section, setSection] = useState(() => window.location.pathname.split('/')[2] || 'overview');
   const [range, setRange] = useState<Range>('This quarter');
   const [showRangeMenu, setShowRangeMenu] = useState(false);
   const trend = useMemo(() => (range === 'This year' ? [42, 48, 55, 62, 67, 74, 81] : range === 'This month' ? [36, 44, 41, 58, 64, 71, 78] : [32, 39, 48, 51, 63, 69, 76]), [range]);
 
+  React.useEffect(() => {
+    const handlePathChange = () => setSection(window.location.pathname.split('/')[2] || 'overview');
+    window.addEventListener('popstate', handlePathChange);
+    return () => window.removeEventListener('popstate', handlePathChange);
+  }, []);
+
   const sectionContent: Record<string, { title: string; description: string; icon: React.ElementType }> = {
     overview: { title: 'Overview', description: 'A high-level view of organizational health and momentum.', icon: BarChart3 },
     business: { title: 'Business', description: 'Organization performance, goals, and operating health.', icon: BriefcaseBusiness },
-    activity: { title: 'Activity', description: 'Trends across work, communication, and engagement.', icon: Activity },
-    employees: { title: 'Employees', description: 'Team capacity, participation, and workforce trends.', icon: Users },
+    activity: { title: 'Activity & employees', description: 'Trends across work, communication, engagement, and team participation.', icon: Activity },
     customers: { title: 'Customers', description: 'Customer relationships, support health, and outcomes.', icon: Building2 },
     finance: { title: 'Finance', description: 'Funding, expenses, budgets, and financial performance.', icon: Landmark },
-    programs: { title: 'Programs', description: 'Program delivery, reach, outcomes, and progress.', icon: FolderKanban },
-    reports: { title: 'Reports', description: 'Reusable reports and exports for stakeholders.', icon: FileText },
+    programs: { title: 'Programs & reports', description: 'Program delivery, outcomes, and reusable reports for stakeholders.', icon: FolderKanban },
   };
   const activeSection = sectionContent[section] || sectionContent.overview;
   const ActiveIcon = activeSection.icon;

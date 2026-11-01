@@ -125,12 +125,10 @@ export const Rail: React.FC = () => {
             <>{[
               { label: 'Overview', icon: House, section: 'overview' },
               { label: 'Business', icon: BriefcaseBusiness, section: 'business' },
-              { label: 'Activity', icon: Activity, section: 'activity' },
-              { label: 'Employees', icon: Users, section: 'employees' },
+              { label: 'Activity & employees', icon: Activity, section: 'activity' },
               { label: 'Customers', icon: ContactRound, section: 'customers' },
               { label: 'Finance', icon: Landmark, section: 'finance' },
-              { label: 'Programs', icon: FolderKanban, section: 'programs' },
-              { label: 'Reports', icon: BarChart3, section: 'reports' },
+              { label: 'Programs & reports', icon: FolderKanban, section: 'programs' },
             ].map((item) => { const Icon = item.icon; const selected = (window.location.pathname.split('/')[2] || 'overview') === item.section; return <button key={item.label} type="button" onClick={() => openInsightsSection(item.section)} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
           ) : isCustomers ? (
             <>{[
