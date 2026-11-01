@@ -34,6 +34,7 @@ import { NotFoundPage } from './components/NotFoundPage';
 import { HelpPage } from './components/help/HelpPage';
 import { InsightsPage } from './components/insights/InsightsPage';
 import { OrganizationPage } from './components/organization/OrganizationPage';
+import { PendingDocumentPrompt } from './components/organization/PolicySigning';
 
 const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
@@ -48,6 +49,7 @@ const WorkspaceShell: React.FC = () => {
     requiresPasswordSetup,
     requiresOnboarding,
     activeTab,
+    currentUser,
     callSession,
     incomingCall,
     callError,
@@ -153,6 +155,7 @@ const WorkspaceShell: React.FC = () => {
       <WorkspaceAssistant />
       {requiresPasswordSetup && <PasswordSetupModal />}
       {!requiresPasswordSetup && requiresOnboarding && <FirstLoginOnboarding />}
+      {!requiresPasswordSetup && !requiresOnboarding && <PendingDocumentPrompt userId={currentUser.id} />}
     </div>
   );
 };

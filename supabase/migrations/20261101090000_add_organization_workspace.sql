@@ -110,8 +110,20 @@ create table if not exists public.organization_document_responses (
   unique (document_id, user_id)
 );
 
+create table if not exists public.organization_document_assignments (
+  id uuid primary key default gen_random_uuid(),
+  document_id uuid not null references public.organization_documents(id) on delete cascade,
+  user_id text not null references public.profiles(id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'completed', 'dismissed')),
+  assigned_by text references public.profiles(id) on delete set null,
+  assigned_at timestamptz not null default now(),
+  completed_at timestamptz,
+  unique (document_id, user_id)
+);
+
 alter table public.organization_documents enable row level security;
 alter table public.organization_document_responses enable row level security;
+alter table public.organization_document_assignments enable row level security;
 
 create policy "Authenticated staff can view organization documents"
   on public.organization_documents for select to authenticated using (status = 'published' or created_by = auth.uid()::text);
@@ -128,6 +140,19 @@ create policy "Staff can submit document responses"
   on public.organization_document_responses for insert to authenticated with check (user_id = auth.uid()::text);
 create policy "Staff can update document responses"
   on public.organization_document_responses for update to authenticated using (user_id = auth.uid()::text) with check (user_id = auth.uid()::text);
+create policy "Staff can view assigned documents"
+  on public.organization_document_assignments for select to authenticated using (
+    user_id = auth.uid()::text
+    or exists (select 1 from public.profiles where id = auth.uid()::text and system_role = 'admin')
+  );
+create policy "Workspace admins can manage document assignments"
+  on public.organization_document_assignments for all to authenticated
+  using (exists (select 1 from public.profiles where id = auth.uid()::text and system_role = 'admin'))
+  with check (exists (select 1 from public.profiles where id = auth.uid()::text and system_role = 'admin'));
+create policy "Staff can complete assigned documents"
+  on public.organization_document_assignments for update to authenticated
+  using (user_id = auth.uid()::text)
+  with check (user_id = auth.uid()::text);
 
 insert into storage.buckets (id, name, public)
 values ('organization-documents', 'organization-documents', false)

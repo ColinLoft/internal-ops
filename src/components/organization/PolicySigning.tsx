@@ -19,6 +19,21 @@ export type OrganizationDocument = {
   created_at: string;
 };
 
+export const PendingDocumentPrompt: React.FC<{ userId: string }> = ({ userId }) => {
+  const [document, setDocument] = useState<OrganizationDocument | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const { data: assignment } = await supabase.from('organization_document_assignments')
+        .select('document_id').eq('user_id', userId).eq('status', 'pending').limit(1).maybeSingle();
+      if (!assignment) return;
+      const { data } = await supabase.from('organization_documents').select('*').eq('id', assignment.document_id).eq('status', 'published').maybeSingle();
+      if (data) setDocument(data as OrganizationDocument);
+    })();
+  }, [userId]);
+  if (!document) return null;
+  return <DocumentSigningDialog document={document} userId={userId} onComplete={() => setDocument(null)} />;
+};
+
 export const DocumentSigningDialog: React.FC<{
   document: OrganizationDocument;
   userId: string;
@@ -89,6 +104,9 @@ export const DocumentSigningDialog: React.FC<{
     }, { onConflict: 'document_id,user_id' });
     setSaving(false);
     if (saveError) return setError(saveError.message);
+    await supabase.from('organization_document_assignments')
+      .update({ status: 'completed', completed_at: new Date().toISOString() })
+      .eq('document_id', document.id).eq('user_id', userId);
     onComplete();
   };
   const openAttachment = async () => {
