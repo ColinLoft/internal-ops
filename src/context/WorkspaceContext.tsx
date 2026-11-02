@@ -469,35 +469,20 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [focusedEmailId, setFocusedEmailId] = useState<string | null>(null);
 
-  const [conversations, setConversations] = useState<Conversation[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}conversations`);
-    return saved ? JSON.parse(saved) : initialConversations;
-  });
+  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
 
-  const [channels, setChannels] = useState<Channel[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}channels`);
-    return saved ? JSON.parse(saved) : initialChannels;
-  });
+  const [channels, setChannels] = useState<Channel[]>(initialChannels);
 
-  const [messages, setMessages] = useState<Record<string, Message[]>>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}messages`);
-    return saved ? JSON.parse(saved) : initialMessages;
-  });
+  const [messages, setMessages] = useState<Record<string, Message[]>>(initialMessages);
 
-  const [threadReplies, setThreadReplies] = useState<Record<string, Message[]>>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}thread_replies`);
-    return saved ? JSON.parse(saved) : initialThreadReplies;
-  });
+  const [threadReplies, setThreadReplies] = useState<Record<string, Message[]>>(initialThreadReplies);
 
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}events`);
-    return saved ? JSON.parse(saved) : initialCalendarEvents;
+    try { return saved ? JSON.parse(saved) : initialCalendarEvents; } catch { return initialCalendarEvents; }
   });
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}notifications`);
-    return saved ? JSON.parse(saved) : initialNotifications;
-  });
+  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
 
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() =>
     localStorage.getItem(`${STORAGE_PREFIX}sound_enabled`) !== 'false'
@@ -733,31 +718,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     localStorage.removeItem(`${STORAGE_PREFIX}is_auth`);
     localStorage.removeItem(`${STORAGE_PREFIX}current_user`);
     localStorage.removeItem(`${STORAGE_PREFIX}users`);
+    // Chat and notification content must not persist in the browser.
+    ['conversations', 'channels', 'messages', 'thread_replies', 'notifications'].forEach((key) => localStorage.removeItem(`${STORAGE_PREFIX}${key}`));
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}conversations`, JSON.stringify(conversations));
-  }, [conversations]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}channels`, JSON.stringify(channels));
-  }, [channels]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}messages`, JSON.stringify(messages));
-  }, [messages]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}thread_replies`, JSON.stringify(threadReplies));
-  }, [threadReplies]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_PREFIX}events`, JSON.stringify(calendarEvents));
   }, [calendarEvents]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}notifications`, JSON.stringify(notifications));
-  }, [notifications]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_PREFIX}sound_enabled`, String(soundEnabled));
@@ -823,6 +790,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       targetId: currentUser.id,
       targetName: currentUser.name,
     }).finally(() => supabase.auth.signOut());
+    setMessages({});
+    setThreadReplies({});
     setIsAuthenticated(false);
     setUsers([]);
     setCurrentUser({ id: '', name: '', email: '', avatar: '', role: '', department: '', phone: '', status: 'offline', systemRole: 'member' });
