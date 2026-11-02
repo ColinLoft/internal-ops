@@ -1,257 +1,115 @@
-import React, { useMemo, useState } from 'react';
-import {
-  AlignLeft,
-  ArrowLeft,
-  Bold,
-  Check,
-  ChevronDown,
-  Image,
-  Italic,
-  Link2,
-  MessageCircle,
-  MoreHorizontal,
-  Palette,
-  Plus,
-  Presentation,
-  Save,
-  Search,
-  Sparkles,
-  Table2,
-  Type,
-  Underline,
-  Users,
-} from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertCircle, ArrowLeft, Check, Loader2 } from 'lucide-react';
+import { DocsEditor } from './editors/DocsEditor';
+import { SheetsEditor } from './editors/SheetsEditor';
+import { SlidesEditor } from './editors/SlidesEditor';
+import { FormsEditor } from './editors/FormsEditor';
 
 type ItemType = 'document' | 'presentation' | 'spreadsheet' | 'form';
-type DriveItem = {
-  id: string;
-  name: string;
-  item_type: ItemType;
-  content: Record<string, unknown>;
-};
+type Content = Record<string, unknown>;
+type DriveItem = { id: string; name: string; item_type: ItemType; content: Content };
 
 type Props = {
   item: DriveItem;
   onClose: () => void;
-  onSave: (content: Record<string, unknown>) => Promise<void>;
+  onSave: (content: Content) => Promise<void>;
 };
 
-const buttonClass = 'inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 md:min-h-0 md:min-w-0 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800';
+type SaveState = 'saved' | 'dirty' | 'saving' | 'error';
+
+const AUTOSAVE_MS = 1500;
 
 export const ProfessionalEditor: React.FC<Props> = ({ item, onClose, onSave }) => {
-  const [content, setContent] = useState(item.content);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [formMode, setFormMode] = useState<'build' | 'preview' | 'responses'>('build');
-  const [activeSlide, setActiveSlide] = useState(0);
-  const [documentStyle, setDocumentStyle] = useState<'normal' | 'heading' | 'subheading'>('normal');
-  const [history, setHistory] = useState<Record<string, unknown>[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  const [toast, setToast] = useState('');
-  const [activePanel, setActivePanel] = useState<'none' | 'share' | 'comments' | 'ai' | 'menu'>('none');
-  const [shareEmail, setShareEmail] = useState('');
-  const [commentText, setCommentText] = useState('');
-  const [tabs, setTabs] = useState<Array<{ id: string; name: string }>>(() => {
-    const stored = Array.isArray(item.content.tabs) ? item.content.tabs : [];
-    return stored.length ? stored as Array<{ id: string; name: string }> : [{ id: 'tab-1', name: 'Tab 1' }];
-  });
-  const [activeTabId, setActiveTabId] = useState('tab-1');
+  const [content, setContent] = useState<Content>(item.content);
+  const [state, setState] = useState<SaveState>('saved');
+  const [message, setMessage] = useState('');
+  const latest = useRef(content);
+  const dirty = useRef(false);
+  const inFlight = useRef<Promise<void> | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+  const saveRef = useRef(onSave);
+  saveRef.current = onSave;
 
-  const slides = useMemo(() => Array.isArray(content.slides) ? content.slides as Array<{ title: string; body: string }> : [{ title: 'Title slide', body: '' }], [content.slides]);
-  const rows = useMemo(() => Array.isArray(content.rows) ? content.rows as string[][] : [['', '', ''], ['', '', '']], [content.rows]);
-  const questions = useMemo(() => Array.isArray(content.questions) ? content.questions as Array<{ id: string; type: string; label: string; required: boolean; options: string[] }> : [], [content.questions]);
-
-  const update = (patch: Record<string, unknown>) => {
-    setContent((current) => {
-      const next = { ...current, ...patch };
-      setHistory((entries) => [...entries.slice(0, historyIndex + 1), current, next].slice(-30));
-      setHistoryIndex((index) => Math.min(index + 1, 29));
-      return next;
+  const flush = useCallback(async () => {
+    window.clearTimeout(timer.current);
+    if (inFlight.current) await inFlight.current;
+    if (!dirty.current) return true;
+    const snapshot = latest.current;
+    dirty.current = false;
+    setState('saving');
+    const run = saveRef.current(snapshot).then(() => {
+      setState(dirty.current ? 'dirty' : 'saved');
+      setMessage('');
     });
-    setSaved(false);
-  };
-  const updateContent = (next: Record<string, unknown>) => {
+    inFlight.current = run.catch(() => undefined).finally(() => { inFlight.current = null; });
+    try {
+      await run;
+      return true;
+    } catch (error) {
+      dirty.current = true;
+      setState('error');
+      setMessage(error instanceof Error ? error.message : 'Changes could not be saved.');
+      return false;
+    }
+  }, []);
+
+  const change = useCallback((next: Content) => {
+    latest.current = next;
+    dirty.current = true;
     setContent(next);
-    setSaved(false);
-  };
-  const persistTabs = (nextTabs: Array<{ id: string; name: string }>) => {
-    setTabs(nextTabs);
-    update({ tabs: nextTabs });
-  };
-  const addTab = () => {
-    const tab = { id: crypto.randomUUID(), name: `Tab ${tabs.length + 1}` };
-    persistTabs([...tabs, tab]);
-    setActiveTabId(tab.id);
-  };
-  const renameTab = () => {
-    const current = tabs.find((tab) => tab.id === activeTabId);
-    const name = window.prompt('Name this document tab', current?.name || 'Tab');
-    if (name?.trim()) persistTabs(tabs.map((tab) => tab.id === activeTabId ? { ...tab, name: name.trim() } : tab));
-  };
-  const removeTab = () => {
-    if (tabs.length === 1) {
-      setToast('A document needs at least one tab.');
-      return;
-    }
-    const next = tabs.filter((tab) => tab.id !== activeTabId);
-    persistTabs(next);
-    setActiveTabId(next[0].id);
-  };
-  const addComment = () => {
-    if (!commentText.trim()) return;
-    update({ comments: [...(Array.isArray(content.comments) ? content.comments : []), { id: crypto.randomUUID(), text: commentText.trim() }] });
-    setCommentText('');
-    setToast('Comment added');
-  };
-  const runAi = (mode: 'polish' | 'outline') => {
-    const text = String(content.text || '');
-    update({ text: mode === 'polish' ? (text.trim() || 'Add a clear introduction, key decisions, and next steps for this document.') : `${text.trim()}\n\n1. Overview\n2. Key points\n3. Decisions and next steps` });
-    setActivePanel('none');
-    setToast(mode === 'polish' ? 'Flown AI drafted a polished starting point.' : 'Flown AI added an outline.');
-  };
-  const undo = () => {
-    if (historyIndex < 0) return;
-    const previous = history[historyIndex];
-    if (previous) {
-      setContent(previous);
-      setHistoryIndex((index) => index - 1);
-    }
-  };
-  const redo = () => {
-    const next = history[historyIndex + 2];
-    if (next) {
-      setContent(next);
-      setHistoryIndex((index) => index + 1);
-    }
-  };
-  React.useEffect(() => {
-    const handleShortcut = (event: KeyboardEvent) => {
+    setState('dirty');
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => { void flush(); }, AUTOSAVE_MS);
+  }, [flush]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
-        void save();
+        void flush();
       }
     };
-    window.addEventListener('keydown', handleShortcut);
-    return () => window.removeEventListener('keydown', handleShortcut);
-  });
-  const save = async () => {
-    setSaving(true);
-    setSaved(false);
-    try {
-      await onSave(content);
-      setSaved(true);
-    } finally {
-      setSaving(false);
-    }
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (dirty.current) { event.preventDefault(); event.returnValue = ''; }
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      window.clearTimeout(timer.current);
+    };
+  }, [flush]);
+
+  const close = async () => {
+    const ok = await flush();
+    if (ok || window.confirm('Your latest changes could not be saved. Leave without saving?')) onClose();
   };
 
-  const title = String(content.title || item.name);
-  const typeLabel = item.item_type === 'document' ? 'Document' : item.item_type === 'presentation' ? 'Presentation' : item.item_type === 'spreadsheet' ? 'Spreadsheet' : 'Form';
+  const status = {
+    saved: { icon: <Check className="h-3.5 w-3.5" />, text: 'All changes saved', cls: 'text-emerald-600' },
+    dirty: { icon: <Loader2 className="h-3.5 w-3.5" />, text: 'Unsaved changes', cls: 'text-slate-500' },
+    saving: { icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, text: 'Saving…', cls: 'text-slate-500' },
+    error: { icon: <AlertCircle className="h-3.5 w-3.5" />, text: 'Save failed — retry', cls: 'text-rose-600' },
+  }[state];
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-[#f8fafc] text-slate-800">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-3 sm:px-5">
-        <div className="flex min-w-0 items-center gap-2">
-          <button type="button" onClick={onClose} className={buttonClass} aria-label="Back to Drive"><ArrowLeft className="h-4 w-4" /></button>
-          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${item.item_type === 'document' ? 'bg-brand-100 text-brand-700' : item.item_type === 'presentation' ? 'bg-brand-100 text-brand-700' : item.item_type === 'spreadsheet' ? 'bg-brand-100 text-brand-700' : 'bg-fuchsia-100 text-fuchsia-700'}`}>
-            {item.item_type === 'presentation' ? <Presentation className="h-4 w-4" /> : item.item_type === 'spreadsheet' ? <Table2 className="h-4 w-4" /> : <Type className="h-4 w-4" />}
-          </div>
-          <div className="min-w-0">
-            <input value={title} onChange={(event) => update({ title: event.target.value })} className="block w-32 truncate border-0 bg-transparent text-sm font-semibold text-slate-800 outline-none focus:ring-0 sm:w-64" aria-label={`${typeLabel} title`} />
-            <div className="flex items-center gap-1 text-xs text-slate-400"><span>Flown {typeLabel}</span><span>·</span><span>{saving ? 'Saving...' : saved ? 'Saved to Drive' : 'Unsaved changes'}</span></div>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          <div className="hidden items-center gap-1 text-xs text-brand-600 sm:flex">{saved && <><Check className="h-3 w-3" /> All changes saved</>}</div>
-          <button type="button" onClick={() => setActivePanel('comments')} className={`${buttonClass} hidden sm:inline-flex`} title="Comments" aria-label="Comments"><MessageCircle className="h-4 w-4" /></button>
-          <button type="button" onClick={() => setActivePanel('share')} className="hidden items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:inline-flex"><Users className="h-3.5 w-3.5" /> Share</button>
-          <button type="button" onClick={() => void save()} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white shadow-sm md:min-h-0 hover:bg-brand-700"><Save className="h-3.5 w-3.5" /> {saving ? 'Saving' : 'Save'}</button>
-          <button type="button" onClick={() => setActivePanel('menu')} className={buttonClass} aria-label="More options"><MoreHorizontal className="h-4 w-4" /></button>
-        </div>
+    <div className="fixed inset-0 z-50 flex flex-col bg-slate-100">
+      <header className="flex min-h-14 items-center gap-2 border-b border-slate-200 bg-white px-3">
+        <button type="button" onClick={() => void close()} aria-label="Back to Drive" className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 md:min-h-0 md:min-w-0 md:p-2">
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <h1 className="min-w-0 flex-1 truncate text-sm font-bold text-slate-900">{item.name}</h1>
+        <button type="button" onClick={() => void flush()} title={message || 'Save now'} className={`flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold md:min-h-0 md:py-1.5 ${status.cls}`}>
+          {status.icon}{status.text}
+        </button>
       </header>
-
-      {activePanel === 'share' && <EditorPanel title="Share with people" onClose={() => setActivePanel('none')}><p className="text-xs text-slate-500">Invite collaborators to this {typeLabel.toLowerCase()}.</p><div className="mt-4 flex gap-2"><input value={shareEmail} onChange={(event) => setShareEmail(event.target.value)} placeholder="name@example.com" className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400" /><button type="button" onClick={() => { if (!shareEmail.trim()) return; update({ collaborators: [...(Array.isArray(content.collaborators) ? content.collaborators : []), shareEmail.trim()] }); setShareEmail(''); setToast('Invitation added to this document.'); }} className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white">Invite</button></div><div className="mt-4 space-y-2">{(Array.isArray(content.collaborators) ? content.collaborators : []).map((person) => <p key={String(person)} className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">{String(person)} <span className="float-right text-slate-400">Editor</span></p>)}</div></EditorPanel>}
-      {activePanel === 'comments' && <EditorPanel title="Comments" onClose={() => setActivePanel('none')}><textarea value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder="Add a comment..." className="h-24 w-full rounded-lg border border-slate-200 p-3 text-xs outline-none focus:border-brand-400" /><button type="button" onClick={addComment} className="mt-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white">Add comment</button><div className="mt-4 space-y-2">{(Array.isArray(content.comments) ? content.comments : []).map((comment) => <div key={String((comment as { id?: string }).id)} className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">{String((comment as { text?: string }).text)}</div>)}</div></EditorPanel>}
-      {activePanel === 'ai' && <EditorPanel title="Flown AI" onClose={() => setActivePanel('none')}><p className="text-xs text-slate-500">Use AI to get a useful starting point for this document.</p><button type="button" onClick={() => runAi('polish')} className="mt-4 flex w-full items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-3 text-left text-xs font-semibold text-brand-800"><Sparkles className="h-4 w-4" /> Polish this draft</button><button type="button" onClick={() => runAi('outline')} className="mt-2 flex w-full items-center gap-2 rounded-lg border border-slate-200 px-3 py-3 text-left text-xs font-semibold text-slate-700"><AlignLeft className="h-4 w-4" /> Add an outline</button></EditorPanel>}
-      {activePanel === 'menu' && <EditorPanel title="More options" onClose={() => setActivePanel('none')}><button type="button" onClick={() => { void save(); setActivePanel('none'); }} className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-slate-100">Save changes</button><button type="button" onClick={() => { navigator.clipboard?.writeText(window.location.href); setToast('Link copied'); setActivePanel('none'); }} className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-slate-100">Copy document link</button><button type="button" onClick={() => { window.print(); setActivePanel('none'); }} className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-slate-100">Print</button></EditorPanel>}
-
-      {item.item_type === 'form' && (
-        <nav className="flex h-11 shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-200 bg-white px-3 md:px-4 [&>*]:shrink-0">
-          {(['build', 'preview', 'responses'] as const).map((mode) => <button key={mode} type="button" onClick={() => setFormMode(mode)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold capitalize ${formMode === mode ? 'bg-fuchsia-50 text-fuchsia-700' : 'text-slate-500 hover:bg-slate-50'}`}>{mode === 'build' ? 'Build form' : mode}</button>)}
-          <span className="ml-auto hidden text-xs text-slate-400 sm:block">Form settings <ChevronDown className="ml-1 inline h-3 w-3" /></span>
-        </nav>
-      )}
-
-      {item.item_type === 'document' && (
-        <div className="flex h-11 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-slate-200 bg-white px-3 [&>*]:shrink-0 md:h-11">
-          <button type="button" onClick={undo} aria-label="Undo" className={`${buttonClass} ${historyIndex < 0 ? 'opacity-40' : ''}`} disabled={historyIndex < 0}><UndoIcon /></button><button type="button" onClick={redo} aria-label="Redo" className={`${buttonClass} ${!history[historyIndex + 2] ? 'opacity-40' : ''}`} disabled={!history[historyIndex + 2]}><RedoIcon /></button><span className="mx-2 h-5 w-px bg-slate-200" />
-          <button type="button" className="rounded-lg px-3 py-2 text-xs text-slate-600 hover:bg-slate-100">100% <ChevronDown className="ml-1 inline h-3 w-3" /></button>
-          <button type="button" onClick={() => setDocumentStyle((style) => style === 'normal' ? 'heading' : style === 'heading' ? 'subheading' : 'normal')} className="rounded-lg px-3 py-2 text-xs text-slate-600 hover:bg-slate-100">{documentStyle === 'normal' ? 'Normal text' : documentStyle === 'heading' ? 'Heading 1' : 'Heading 2'} <ChevronDown className="ml-1 inline h-3 w-3" /></button>
-          <button type="button" onClick={() => setToast('Bold formatting is ready for selected text.')} aria-label="Bold" className={buttonClass}><Bold className="h-4 w-4" /></button><button type="button" onClick={() => setToast('Italic formatting is ready for selected text.')} aria-label="Italic" className={buttonClass}><Italic className="h-4 w-4" /></button><button type="button" onClick={() => setToast('Underline formatting is ready for selected text.')} className={buttonClass}><Underline className="h-4 w-4" /></button>
-          <span className="mx-2 h-5 w-px bg-slate-200" /><button type="button" onClick={() => setToast('Add a link by selecting text in the document.')} aria-label="Link" className={buttonClass}><Link2 className="h-4 w-4" /></button><button type="button" onClick={() => setToast('Image insertion will be available from Drive uploads.')} aria-label="Image" className={buttonClass}><Image className="h-4 w-4" /></button><button type="button" onClick={() => setToast('Paragraph alignment updated.')} className={buttonClass}><AlignLeft className="h-4 w-4" /></button>
-          <button type="button" onClick={() => setActivePanel('ai')} className="ml-auto inline-flex items-center gap-1 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700"><Sparkles className="h-3.5 w-3.5" /> Flown AI</button>
-        </div>
-      )}
-
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        {item.item_type === 'document' && <DocumentOutline tabs={tabs} activeTabId={activeTabId} setActiveTabId={setActiveTabId} onAdd={addTab} onRename={renameTab} onRemove={removeTab} />}
-        {item.item_type === 'presentation' && <SlideRail slides={slides} activeSlide={activeSlide} setActiveSlide={setActiveSlide} />}
-        <main className={`min-w-0 flex-1 overflow-y-auto ${item.item_type === 'spreadsheet' ? 'bg-white' : 'bg-slate-100/80 p-2 sm:p-8'}`}>
-          {item.item_type === 'document' && <DocumentCanvas title={title} content={content} update={update} documentStyle={documentStyle} />}
-          {item.item_type === 'presentation' && <SlidesCanvas slides={slides} activeSlide={activeSlide} setContent={updateContent} setActiveSlide={setActiveSlide} />}
-          {item.item_type === 'spreadsheet' && <SheetsCanvas rows={rows} setContent={updateContent} />}
-          {item.item_type === 'form' && <FormsCanvas mode={formMode} title={title} content={content} questions={questions} update={update} setContent={updateContent} onToast={setToast} />}
-        </main>
+      <div className="min-h-0 flex-1">
+        {item.item_type === 'document' && <DocsEditor name={item.name} content={content} onChange={change} />}
+        {item.item_type === 'spreadsheet' && <SheetsEditor name={item.name} content={content} onChange={change} />}
+        {item.item_type === 'presentation' && <SlidesEditor name={item.name} content={content} onChange={change} />}
+        {item.item_type === 'form' && <FormsEditor itemId={item.id} name={item.name} content={content} onChange={change} />}
       </div>
-      {toast && <button type="button" onClick={() => setToast('')} className="fixed bottom-5 right-5 rounded-xl bg-slate-900 px-4 py-3 text-xs font-semibold text-white shadow-xl">{toast}</button>}
     </div>
   );
-};
-
-const UndoIcon = () => <span className="text-sm">↶</span>;
-const RedoIcon = () => <span className="text-sm">↷</span>;
-
-const EditorPanel: React.FC<{ title: string; onClose: () => void; children: React.ReactNode }> = ({ title, onClose, children }) => (
-  <aside className="absolute right-2 top-16 z-[70] max-h-[calc(100dvh-5rem)] w-80 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-2xl md:right-4 border border-slate-200 bg-white p-4 shadow-2xl">
-    <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">{title}</h2><button type="button" onClick={onClose} className="text-xs text-slate-400 hover:text-slate-700">Close</button></div>
-    {children}
-  </aside>
-);
-
-const DocumentOutline: React.FC<{ tabs: Array<{ id: string; name: string }>; activeTabId: string; setActiveTabId: (id: string) => void; onAdd: () => void; onRename: () => void; onRemove: () => void }> = ({ tabs, activeTabId, setActiveTabId, onAdd, onRename, onRemove }) => (
-  <aside className="hidden w-56 shrink-0 border-r border-slate-200 bg-white p-3 lg:block">
-    <div className="mb-5 flex items-center justify-between px-2"><span className="text-xs font-bold uppercase tracking-wider text-slate-400">Document tabs</span><button type="button" onClick={onAdd} className="text-slate-400 hover:text-brand-700" aria-label="Add document tab"><Plus className="h-4 w-4" /></button></div>
-    {tabs.map((tab) => <div key={tab.id} className={`mb-2 flex items-center rounded-lg px-3 py-2 text-xs font-semibold ${tab.id === activeTabId ? 'bg-brand-100 text-brand-800' : 'text-slate-500 hover:bg-slate-50'}`}><button type="button" onClick={() => setActiveTabId(tab.id)} className="min-w-0 flex-1 truncate text-left">{tab.name}</button>{tab.id === activeTabId && <button type="button" onClick={onRename} className="px-1 text-slate-400 hover:text-brand-700" aria-label="Rename tab"><MoreHorizontal className="h-4 w-4" /></button>}</div>)}
-    {tabs.length > 1 && <button type="button" onClick={onRemove} className="mb-2 px-3 text-xs text-rose-500 hover:text-rose-700">Remove selected tab</button>}
-    <nav className="mt-4 space-y-1 border-l border-slate-200 pl-4 text-xs text-slate-500">
-      {['Overview', 'Purpose', 'Scope', 'Responsibilities', 'Procedure', 'Appendix'].map((entry, index) => <button key={entry} type="button" className={`block w-full truncate py-1 text-left hover:text-brand-700 ${index === 0 ? 'font-semibold text-slate-800' : ''}`}>{entry}</button>)}
-    </nav>
-  </aside>
-);
-
-const DocumentCanvas: React.FC<{ title: string; content: Record<string, unknown>; update: (patch: Record<string, unknown>) => void; documentStyle: 'normal' | 'heading' | 'subheading' }> = ({ title, content, update, documentStyle }) => (
-  <div className="mx-auto min-h-[900px] max-w-4xl bg-white px-5 py-8 shadow-sm ring-1 ring-slate-200 sm:px-20 sm:py-12 sm:py-16">
-    <div className="mb-14 flex items-start justify-between border-b border-slate-100 pb-5"><div><p className="text-xl font-bold text-brand-600">Flown</p><p className="mt-1 text-xs text-slate-400">Internal operations workspace</p></div><p className="text-right text-xs uppercase tracking-widest text-slate-400">Document<br />{new Date().toLocaleDateString()}</p></div>
-    <input value={title} onChange={(event) => update({ title: event.target.value })} className="w-full border-0 text-2xl font-bold tracking-tight md:text-4xl text-slate-900 outline-none" />
-    <p className="mt-3 text-sm text-slate-400">Add a subtitle or document purpose</p>
-    <div className="mt-12 space-y-7"><h2 className={documentStyle === 'heading' ? 'text-3xl font-bold text-slate-800' : documentStyle === 'subheading' ? 'text-2xl font-semibold text-slate-800' : 'text-xl font-bold text-slate-800'}>Overview</h2><textarea value={String(content.text || '')} onChange={(event) => update({ text: event.target.value })} placeholder="Start writing your document. Use the toolbar to format your content..." className={`min-h-[520px] w-full resize-none border-0 leading-8 text-slate-700 outline-none placeholder:text-slate-300 ${documentStyle === 'heading' ? 'text-lg font-semibold' : 'text-base'}`} /><div className="rounded-xl border border-brand-200 bg-brand-50 px-5 py-4 text-sm leading-6 text-brand-900"><strong>Tip:</strong> Use Flown AI to turn notes into a polished section, summarize a policy, or suggest next steps.</div></div>
-  </div>
-);
-
-const SlideRail: React.FC<{ slides: Array<{ title: string; body: string }>; activeSlide: number; setActiveSlide: (index: number) => void }> = ({ slides, activeSlide, setActiveSlide }) => (
-  <aside className="hidden w-48 shrink-0 overflow-y-auto border-r border-slate-200 bg-slate-50 p-3 md:block"><button type="button" className="mb-3 flex w-full items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white py-2 text-xs font-bold text-slate-600"><Plus className="h-3.5 w-3.5" /> New slide</button>{slides.map((slide, index) => <button key={index} type="button" onClick={() => setActiveSlide(index)} className={`mb-3 w-full rounded-lg border p-1.5 text-left ${index === activeSlide ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100' : 'border-slate-200 bg-white'}`}><div className="flex aspect-video items-center justify-center rounded bg-gradient-to-br from-white to-brand-100 text-xs font-bold text-slate-500">{slide.title || `Slide ${index + 1}`}</div><span className="mt-1 block text-xs text-slate-500">{index + 1}. {slide.title}</span></button>)}</aside>
-);
-
-const SlidesCanvas: React.FC<{ slides: Array<{ title: string; body: string }>; activeSlide: number; setContent: React.Dispatch<React.SetStateAction<Record<string, unknown>>>; setActiveSlide: (index: number) => void }> = ({ slides, activeSlide, setContent, setActiveSlide }) => {
-  const slide = slides[activeSlide] || slides[0];
-  return <div className="mx-auto max-w-5xl"><div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Slide {activeSlide + 1} of {slides.length}</p><p className="text-sm font-semibold text-slate-700">Flown Light theme</p></div><div className="flex items-center gap-2"><button type="button" onClick={() => setContent((current) => ({ ...current, slides: [...slides, { title: `Slide ${slides.length + 1}`, body: '' }] }))} className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700"><Plus className="h-3.5 w-3.5" /> New slide</button><button type="button" className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600"><Palette className="h-3.5 w-3.5" /> Theme</button></div></div><section className="aspect-video rounded-xl bg-gradient-to-br from-white via-brand-50 to-brand-100 p-8 shadow-xl ring-1 ring-slate-200 sm:p-14"><input value={slide.title} onChange={(event) => setContent((current) => ({ ...current, slides: slides.map((entry, index) => index === activeSlide ? { ...entry, title: event.target.value } : entry) }))} className="mt-8 w-full border-0 bg-transparent text-4xl font-bold text-slate-900 outline-none" /><textarea value={slide.body} onChange={(event) => setContent((current) => ({ ...current, slides: slides.map((entry, index) => index === activeSlide ? { ...entry, body: event.target.value } : entry) }))} placeholder="Add a subtitle, key message, or speaker notes" className="mt-8 h-40 w-full resize-none border-0 bg-transparent text-xl leading-8 text-slate-600 outline-none placeholder:text-slate-300" /><div className="mt-5 flex justify-between"><button type="button" disabled={activeSlide === 0} onClick={() => setActiveSlide(activeSlide - 1)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs disabled:opacity-40">Previous</button><button type="button" disabled={activeSlide === slides.length - 1} onClick={() => setActiveSlide(activeSlide + 1)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs disabled:opacity-40">Next</button></div></section></div>;
-};
-
-const SheetsCanvas: React.FC<{ rows: string[][]; setContent: React.Dispatch<React.SetStateAction<Record<string, unknown>>> }> = ({ rows, setContent }) => (
-  <div className="flex h-full min-w-[760px] flex-col"><div className="flex items-center gap-2 border-b border-slate-200 bg-white px-4 py-2"><button type="button" className="rounded bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700">Sheet1</button><button type="button" className={buttonClass}><Plus className="h-3.5 w-3.5" /></button><span className="ml-auto flex items-center gap-1 text-xs text-slate-400"><Search className="h-3.5 w-3.5" /> Find in sheet</span></div><div className="overflow-auto"><table className="w-full border-collapse text-xs"><thead><tr><th className="sticky left-0 w-10 border border-slate-200 bg-slate-50" />{rows[0].map((_, index) => <th key={index} className="min-w-36 border border-slate-200 bg-slate-50 px-2 py-2 text-center font-semibold text-slate-500">{String.fromCharCode(65 + index)}</th>)}</tr></thead><tbody>{rows.map((row, rowIndex) => <tr key={rowIndex}><th className="sticky left-0 border border-slate-200 bg-slate-50 px-2 text-center font-semibold text-slate-500">{rowIndex + 1}</th>{row.map((cell, cellIndex) => <td key={cellIndex} className="border border-slate-200 p-0"><input value={cell} onChange={(event) => setContent((current) => ({ ...current, rows: rows.map((currentRow, index) => index === rowIndex ? currentRow.map((value, position) => position === cellIndex ? event.target.value : value) : currentRow) }))} className="w-full min-w-36 px-3 py-2.5 outline-none focus:bg-brand-50" /></td>)}</tr>)}</tbody></table></div></div>
-);
-
-const FormsCanvas: React.FC<{ mode: 'build' | 'preview' | 'responses'; title: string; content: Record<string, unknown>; questions: Array<{ id: string; type: string; label: string; required: boolean; options: string[] }>; update: (patch: Record<string, unknown>) => void; setContent: React.Dispatch<React.SetStateAction<Record<string, unknown>>>; onToast: (message: string) => void }> = ({ mode, title, content, questions, update, setContent, onToast }) => {
-  if (mode === 'responses') return <div className="mx-auto max-w-4xl rounded-2xl bg-white p-8 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-fuchsia-600">Responses</p><h1 className="mt-2 text-2xl font-bold text-slate-900">{title}</h1><div className="mt-10 rounded-xl border border-dashed border-slate-200 p-12 text-center text-sm text-slate-400">Responses will appear here when people submit this form.</div></div>;
-  return <div className="mx-auto max-w-3xl space-y-4"><div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200"><div className="h-3 bg-gradient-to-r from-fuchsia-600 to-brand-600" /><div className="p-7"><input value={title} onChange={(event) => update({ title: event.target.value })} className="w-full border-0 text-3xl font-bold text-slate-900 outline-none" /><textarea value={String(content.description || '')} onChange={(event) => update({ description: event.target.value })} placeholder="Tell people what this form is for..." className="mt-3 w-full resize-none border-0 text-sm text-slate-500 outline-none" /></div></div>{mode === 'preview' ? <div className="rounded-2xl bg-white p-7 shadow-sm">{questions.map((question) => <div key={question.id} className="mb-7"><p className="text-sm font-semibold text-slate-800">{question.label}{question.required && <span className="text-rose-500"> *</span>}</p><input aria-label="Your answer" className="mt-3 w-full border-b border-slate-300 py-2 text-sm outline-none" placeholder="Your answer" /></div>)}<button type="button" onClick={() => onToast('Response captured in this form session. Save to publish it.')} className="rounded-lg bg-fuchsia-600 px-4 py-2.5 text-xs font-bold text-white">Submit response</button></div> : <>{questions.map((question, index) => <div key={question.id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"><div className="flex items-start gap-3"><span className="mt-1 text-xs font-bold text-slate-400">{index + 1}</span><div className="min-w-0 flex-1"><input value={question.label} onChange={(event) => setContent((current) => ({ ...current, questions: questions.map((entry) => entry.id === question.id ? { ...entry, label: event.target.value } : entry) }))} className="w-full border-0 text-sm font-semibold outline-none" /><div className="mt-3 flex gap-2"><select value={question.type} onChange={(event) => setContent((current) => ({ ...current, questions: questions.map((entry) => entry.id === question.id ? { ...entry, type: event.target.value } : entry) }))} className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs"><option value="short_text">Short answer</option><option value="long_text">Paragraph</option><option value="multiple_choice">Multiple choice</option><option value="date">Date</option></select><label className="flex items-center gap-1 text-xs text-slate-500"><input type="checkbox" checked={question.required} onChange={(event) => setContent((current) => ({ ...current, questions: questions.map((entry) => entry.id === question.id ? { ...entry, required: event.target.checked } : entry) }))} /> Required</label></div></div></div></div>)}<button type="button" onClick={() => setContent((current) => ({ ...current, questions: [...questions, { id: crypto.randomUUID(), type: 'short_text', label: `Question ${questions.length + 1}`, required: false, options: [] }] }))} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-fuchsia-300 bg-fuchsia-50/50 py-4 text-xs font-bold text-fuchsia-700"><Plus className="h-4 w-4" /> Add question</button></>}</div>;
 };

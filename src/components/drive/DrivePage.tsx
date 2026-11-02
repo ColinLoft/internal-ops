@@ -25,6 +25,7 @@ import {
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { ProfessionalEditor } from './ProfessionalEditor';
+import { DriveCard } from './DriveCard';
 
 type DriveItem = {
   id: string;
@@ -76,13 +77,6 @@ const normalizeEditorContent = (item: DriveItem): Record<string, unknown> => {
   if (item.item_type === 'document') {
     return { ...content, title: typeof content.title === 'string' ? content.title : item.name, text: typeof content.text === 'string' ? content.text : '' };
   }
-  if (item.item_type === 'presentation') {
-    const slides = Array.isArray(content.slides)
-      ? content.slides.filter((slide): slide is Record<string, unknown> => Boolean(slide) && typeof slide === 'object')
-        .map((slide) => ({ title: typeof slide.title === 'string' ? slide.title : 'Untitled slide', body: typeof slide.body === 'string' ? slide.body : '' }))
-      : [];
-    return { ...content, slides: slides.length ? slides : [{ title: 'Untitled slide', body: '' }] };
-  }
   if (item.item_type === 'spreadsheet') {
     const rows = Array.isArray(content.rows)
       ? content.rows.map((row) => Array.isArray(row) ? row.map((cell) => typeof cell === 'string' ? cell : '') : ['', '', ''])
@@ -93,6 +87,7 @@ const normalizeEditorContent = (item: DriveItem): Record<string, unknown> => {
     const questions = Array.isArray(content.questions)
       ? content.questions.filter((question): question is Record<string, unknown> => Boolean(question) && typeof question === 'object')
         .map((question, index) => ({
+          ...question,
           id: typeof question.id === 'string' ? question.id : crypto.randomUUID(),
           type: typeof question.type === 'string' ? question.type : 'short_text',
           label: typeof question.label === 'string' ? question.label : `Question ${index + 1}`,
@@ -117,7 +112,6 @@ export const DrivePage: React.FC = () => {
   const [error, setError] = useState('');
   const [section, setSection] = useState<'drive' | 'shared' | 'starred' | 'trash'>('drive');
   const [isShareOpen, setIsShareOpen] = useState(false);
-  const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
   const [driveView, setDriveView] = useState<'all' | DriveWorkspaceKind>(() => workspaceKindFromPath(window.location.pathname) || 'all');
   const [editorItem, setEditorItem] = useState<DriveItem | null>(null);
   const [editorItemId, setEditorItemId] = useState<string | null>(() => {
@@ -193,7 +187,7 @@ export const DrivePage: React.FC = () => {
       : null;
   const visibleItems = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return items.filter((item) =>
+    const filtered = items.filter((item) =>
       section === 'trash'
         ? Boolean(item.deleted_at)
         : !item.deleted_at
@@ -201,6 +195,7 @@ export const DrivePage: React.FC = () => {
       && (driveView === 'all' || (driveView === 'documents' && item.item_type === 'document') || (driveView === 'presentations' && item.item_type === 'presentation') || (driveView === 'spreadsheets' && item.item_type === 'spreadsheet') || (driveView === 'forms' && item.item_type === 'form'))
       && (!query || item.name.toLowerCase().includes(query))
     );
+    return filtered.sort((a, b) => Number(Boolean(b.is_starred)) - Number(Boolean(a.is_starred)) || Date.parse(b.updated_at) - Date.parse(a.updated_at));
   }, [currentFolderId, currentUser.id, items, search, section, driveView]);
 
   if (activeEditorItem && (activeEditorItem.item_type === 'document' || activeEditorItem.item_type === 'presentation' || activeEditorItem.item_type === 'spreadsheet' || activeEditorItem.item_type === 'form')) {
@@ -296,6 +291,42 @@ export const DrivePage: React.FC = () => {
     else setItems((current) => current.filter((entry) => entry.id !== item.id));
   };
 
+  const toggleStar = async (item: DriveItem) => {
+    const next = !item.is_starred;
+    const { error: starError } = await supabase.from('drive_items').update({ is_starred: next }).eq('id', item.id);
+    if (starError) setError(`Could not update star: ${starError.message}`);
+    else setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, is_starred: next } : entry));
+  };
+
+  const renameItem = async (item: DriveItem, name: string) => {
+    const { error: renameError } = await supabase.from('drive_items').update({ name, updated_at: new Date().toISOString() }).eq('id', item.id);
+    if (renameError) setError(`Could not rename item: ${renameError.message}`);
+    else setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, name } : entry));
+  };
+
+  const moveItem = async (item: DriveItem, parentId: string | null) => {
+    const { error: moveError } = await supabase.from('drive_items').update({ parent_id: parentId, updated_at: new Date().toISOString() }).eq('id', item.id);
+    if (moveError) setError(`Could not move item: ${moveError.message}`);
+    else setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, parent_id: parentId } : entry));
+  };
+
+  const moveTargetsFor = (item: DriveItem) => {
+    const blocked = new Set<string>([item.id]);
+    if (item.item_type === 'folder') {
+      let grew = true;
+      while (grew) {
+        grew = false;
+        for (const entry of items) {
+          if (entry.parent_id && blocked.has(entry.parent_id) && !blocked.has(entry.id)) { blocked.add(entry.id); grew = true; }
+        }
+      }
+    }
+    const folders = items
+      .filter((entry) => entry.item_type === 'folder' && !entry.deleted_at && entry.owner_id === currentUser.id && !blocked.has(entry.id) && entry.id !== item.parent_id)
+      .map((entry) => ({ id: entry.id as string | null, name: entry.name }));
+    return item.parent_id ? [{ id: null as string | null, name: 'My Drive (top level)' }, ...folders] : folders;
+  };
+
   const uploadFile = async (file: File) => {
     const path = `${currentUser.id}/${crypto.randomUUID()}-${file.name}`;
     const { error: uploadError } = await supabase.storage.from('drive-files').upload(path, file, { upsert: false, contentType: file.type || undefined });
@@ -349,6 +380,8 @@ export const DrivePage: React.FC = () => {
       <DriveCreationWorkspace
         kind={driveView}
         items={items}
+        error={error}
+        onDismissError={() => setError('')}
         onCreate={(type, name) => void createItem(type, name)}
         onOpen={(item) => item.item_type === 'file' ? void downloadFile(item) : openEditor(item)}
         onBack={() => {
@@ -364,7 +397,7 @@ export const DrivePage: React.FC = () => {
     <main className="flex min-w-0 flex-1 overflow-hidden bg-white/40">
       <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(event) => { const files = Array.from(event.target.files || []); void Promise.all(files.map(uploadFile)); event.target.value = ''; }} />
       <aside className="hidden w-56 shrink-0 border-r border-slate-200/80 bg-white/65 p-4 lg:block">
-        <NewMenu open={isNewMenuOpen} onOpenChange={setIsNewMenuOpen} onFolder={() => setIsCreateOpen(true)} onUpload={() => fileInputRef.current?.click()} onCreate={(type, name) => void createItem(type, name)} />
+        <NewMenu onFolder={() => setIsCreateOpen(true)} onUpload={() => fileInputRef.current?.click()} onCreate={(type, name) => void createItem(type, name)} />
         <nav className="mt-5 space-y-1">
           {[
             { label: 'My Drive', icon: Cloud, active: section === 'drive', action: () => { setSection('drive'); setCurrentFolderId(null); setSelectedItem(null); } },
@@ -407,7 +440,7 @@ export const DrivePage: React.FC = () => {
               <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
               <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search Drive" aria-label="Search Drive" className="min-h-11 w-full rounded-xl border border-slate-200 bg-white/80 py-2 pl-9 pr-3 text-base outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10 md:text-xs" />
             </div>
-            <NewMenu compact open={isNewMenuOpen} onOpenChange={setIsNewMenuOpen} onFolder={() => setIsCreateOpen(true)} onUpload={() => fileInputRef.current?.click()} onCreate={(type, name) => void createItem(type, name)} />
+            <NewMenu compact onFolder={() => setIsCreateOpen(true)} onUpload={() => fileInputRef.current?.click()} onCreate={(type, name) => void createItem(type, name)} />
           </div>
           <nav className="-mx-3 flex gap-1 overflow-x-auto px-3">
             {([['My Drive', 'drive', Cloud], ['Shared with me', 'shared', Users], ['Starred', 'starred', Star], ['Trash', 'trash', Trash2]] as const).map(([label, key, Icon]) => <button key={key} type="button" onClick={() => { setSection(key); setCurrentFolderId(null); setSelectedItem(null); }} className={`flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-xs font-semibold ${section === key ? 'bg-brand-50 text-brand-700' : 'text-slate-600'}`}><Icon className="h-4 w-4" />{label}</button>)}
@@ -424,14 +457,28 @@ export const DrivePage: React.FC = () => {
             </div>
           ) : (
             <div className={view === 'grid' ? 'grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-4' : 'space-y-2'}>
-              {visibleItems.map((item) => {
-                const Icon = itemIcon(item.item_type);
-                return <button key={item.id} type="button" onDoubleClick={() => item.item_type === 'folder' ? setCurrentFolderId(item.id) : item.item_type === 'file' ? setSelectedItem(item) : openEditor(item)} onClick={() => item.item_type === 'folder' ? setSelectedItem(item) : item.item_type === 'file' ? setSelectedItem(item) : openEditor(item)} className={`group flex text-left ${view === 'grid' ? 'flex-col rounded-2xl border border-slate-200/80 bg-white p-4 hover:border-brand-200 hover:shadow-md' : 'items-center gap-3 rounded-xl border border-slate-200/70 bg-white px-4 py-3 hover:border-brand-200'}`}>
-                  <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${itemColor(item.item_type)}`}><Icon className="h-5 w-5" /></span>
-                  <span className={`${view === 'grid' ? 'mt-4' : 'flex-1'} min-w-0`}><span className="block truncate text-xs font-bold text-slate-800">{item.name}</span><span className="mt-1 block text-xs capitalize text-slate-400">{item.item_type} · {new Date(item.updated_at).toLocaleDateString()}</span></span>
-                  {section === 'trash' ? <span className="ml-auto flex items-center gap-1"><span onClick={(event) => { event.stopPropagation(); void restoreItem(item); }} className="rounded-lg p-3 text-slate-400 hover:bg-brand-50 hover:text-brand-600 md:p-1.5" title="Restore" aria-label="Restore" role="button"><RotateCcw className="h-4 w-4" /></span><span onClick={(event) => { event.stopPropagation(); void permanentlyDelete(item); }} className="rounded-lg p-3 text-slate-400 hover:bg-rose-50 hover:text-rose-600 md:p-1.5" title="Delete permanently" aria-label="Delete permanently" role="button"><Trash2 className="h-4 w-4" /></span></span> : <span className="ml-auto flex items-center gap-1"><span onClick={async (event) => { event.stopPropagation(); const next = !item.is_starred; const { error: starError } = await supabase.from('drive_items').update({ is_starred: next }).eq('id', item.id); if (starError) setError(`Could not update star: ${starError.message}`); else setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, is_starred: next } : entry)); }} aria-label={item.is_starred ? 'Remove star' : 'Star item'} role="button" className={`rounded-lg p-3 md:p-1.5 ${item.is_starred ? 'text-brand-500' : 'text-slate-300 hover:text-brand-500'}`} title={item.is_starred ? 'Remove star' : 'Star item'}><Star className="h-4 w-4" fill={item.is_starred ? 'currentColor' : 'none'} /></span>{view === 'list' && <MoreHorizontal className="h-4 w-4 text-slate-400" />}</span>}
-                </button>;
-              })}
+              {visibleItems.map((item) => (
+                <DriveCard
+                  key={item.id}
+                  item={item}
+                  view={view}
+                  inTrash={section === 'trash'}
+                  isOwner={item.owner_id === currentUser.id}
+                  icon={itemIcon(item.item_type)}
+                  iconClass={itemColor(item.item_type)}
+                  moveTargets={moveTargetsFor(item)}
+                  onOpen={() => item.item_type === 'folder' || item.item_type === 'file' ? setSelectedItem(item) : openEditor(item)}
+                  onEnter={() => item.item_type === 'folder' ? (setSection('drive'), setCurrentFolderId(item.id)) : item.item_type === 'file' ? setSelectedItem(item) : openEditor(item)}
+                  onToggleStar={() => void toggleStar(item)}
+                  onRename={(name) => void renameItem(item, name)}
+                  onMove={(parentId) => void moveItem(item, parentId)}
+                  onShare={() => { setSelectedItem(item); setIsShareOpen(true); }}
+                  onDownload={() => void downloadFile(item)}
+                  onTrash={() => void moveToTrash(item)}
+                  onRestore={() => void restoreItem(item)}
+                  onDelete={() => void permanentlyDelete(item)}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -450,7 +497,9 @@ const DriveCreationWorkspace: React.FC<{
   onCreate: (type: DriveItem['item_type'], name: string) => void;
   onOpen: (item: DriveItem) => void;
   onBack: () => void;
-}> = ({ kind, items, onCreate, onOpen, onBack }) => {
+  error: string;
+  onDismissError: () => void;
+}> = ({ kind, items, onCreate, onOpen, onBack, error, onDismissError }) => {
   const config = {
     documents: {
       label: 'Docs',
@@ -493,6 +542,7 @@ const DriveCreationWorkspace: React.FC<{
 
   return <main className="flex min-w-0 flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 via-white to-brand-50/60">
     <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-10 sm:py-8">
+      {error && <button type="button" onClick={onDismissError} className="mb-4 w-full rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-left text-xs text-rose-700">{error} <span className="font-bold">Dismiss</span></button>}
       <button type="button" onClick={onBack} className="mb-6 flex min-h-11 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-brand-700 md:min-h-0"><ArrowLeft className="h-4 w-4" /> Back to Drive</button>
       <div className="flex items-start gap-4">
         <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${config.color} text-white shadow-lg`}><Icon className="h-7 w-7" /></div>
@@ -597,13 +647,12 @@ const newMenuOptions: Array<{ key: string; label: string; icon: React.ElementTyp
 ];
 
 const NewMenu: React.FC<{
-  open: boolean;
   compact?: boolean;
-  onOpenChange: (open: boolean) => void;
   onFolder: () => void;
   onUpload: () => void;
   onCreate: (type: DriveItem['item_type'], name: string) => void;
-}> = ({ open, compact, onOpenChange, onFolder, onUpload, onCreate }) => {
+}> = ({ compact, onFolder, onUpload, onCreate }) => {
+  const [open, onOpenChange] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
