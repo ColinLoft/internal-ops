@@ -85,9 +85,9 @@ export const CustomerPage: React.FC = () => {
       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600">{i.follow_up_at && !i.follow_up_done ? <Clock3 className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}</div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-bold text-slate-800">{i.subject}</p>
-        <p className="text-[11px] text-slate-500">{label(i.kind)} · {orgName(i.organization_id)}{i.contact_id ? ` · ${contactName(i.contact_id)}` : ''} · {fmt(i.occurred_at)}</p>
-        {i.body && <p className="mt-1 whitespace-pre-wrap text-[11px] text-slate-600">{i.body}</p>}
-        {i.follow_up_at && <p className={`mt-1 text-[10px] font-semibold ${!i.follow_up_done && new Date(i.follow_up_at) < today ? 'text-rose-600' : 'text-slate-400'}`}>Follow-up {fmt(i.follow_up_at)}{i.follow_up_done ? ' · done' : ''}</p>}
+        <p className="text-xs text-slate-500">{label(i.kind)} · {orgName(i.organization_id)}{i.contact_id ? ` · ${contactName(i.contact_id)}` : ''} · {fmt(i.occurred_at)}</p>
+        {i.body && <p className="mt-1 whitespace-pre-wrap text-xs text-slate-600">{i.body}</p>}
+        {i.follow_up_at && <p className={`mt-1 text-xs font-semibold ${!i.follow_up_done && new Date(i.follow_up_at) < today ? 'text-rose-600' : 'text-slate-400'}`}>Follow-up {fmt(i.follow_up_at)}{i.follow_up_done ? ' · done' : ''}</p>}
       </div>
       {canEdit && i.follow_up_at && !i.follow_up_done && <button type="button" title="Mark follow-up done" onClick={() => run(supabase.from('crm_interactions').update({ follow_up_done: true }).eq('id', i.id))} className="text-emerald-600"><CheckCircle2 className="h-4 w-4" /></button>}
       {canManage && <button type="button" title="Delete" onClick={() => window.confirm('Delete this interaction?') && run(supabase.from('crm_interactions').delete().eq('id', i.id))} className="text-slate-300 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>}
@@ -97,7 +97,7 @@ export const CustomerPage: React.FC = () => {
   const table = (heads: string[], rows: React.ReactNode[][], empty: string) => (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
       <table className="w-full min-w-[640px] text-xs">
-        <thead><tr className="border-b border-slate-100 bg-slate-50/70">{heads.map((h) => <th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">{h}</th>)}</tr></thead>
+        <thead><tr className="border-b border-slate-100 bg-slate-50/70">{heads.map((h) => <th key={h} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">{h}</th>)}</tr></thead>
         <tbody>{rows.length === 0 ? <tr><td colSpan={heads.length} className="px-4 py-8 text-center text-slate-400">{empty}</td></tr> : rows.map((r, i) => <tr key={i} className="border-b border-slate-100 last:border-0">{r.map((c, j) => <td key={j} className="px-4 py-3 text-slate-600">{c}</td>)}</tr>)}</tbody>
       </table>
     </div>
@@ -110,11 +110,11 @@ export const CustomerPage: React.FC = () => {
       <section className="min-w-0 flex-1 overflow-y-auto">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-600">Relationships</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-600">Relationships</p>
             <h1 className="mt-1 text-xl font-bold text-slate-900">{tabs.find((t) => t[0] === view)?.[1]}</h1>
           </div>
           <div className="flex items-center gap-2">
-            <div className="relative hidden md:block"><Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search" className="w-52 rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-2 text-[11px] outline-none focus:border-brand-400" /></div>
+            <div className="relative hidden md:block"><Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search" className="w-52 rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-2 text-xs outline-none focus:border-brand-400" /></div>
             {canEdit && view !== 'overview' && <button type="button" className={btn} onClick={() => setDialog({ kind: view === 'contacts' ? 'contact' : view === 'activity' ? 'interaction' : 'org' })}><Plus className="h-3.5 w-3.5" /> Add {addLabel}</button>}
           </div>
         </header>
@@ -134,7 +134,7 @@ export const CustomerPage: React.FC = () => {
               </section>
             </>}
             {view === 'organizations' && <>
-              <div className="flex flex-wrap gap-1.5">{['all', ...categories].map((c) => <button key={c} type="button" onClick={() => setCategory(c)} className={`rounded-full px-3 py-1 text-[11px] font-semibold ${category === c ? 'bg-brand-600 text-white' : 'bg-white text-slate-500 ring-1 ring-slate-200'}`}>{label(c)}</button>)}</div>
+              <div className="flex flex-wrap gap-1.5">{['all', ...categories].map((c) => <button key={c} type="button" onClick={() => setCategory(c)} className={`rounded-full px-3 py-1 text-xs font-semibold ${category === c ? 'bg-brand-600 text-white' : 'bg-white text-slate-500 ring-1 ring-slate-200'}`}>{label(c)}</button>)}</div>
               {table(['Organization', 'Category', 'Contacts', 'Owner', 'Added'], filteredOrgs.map((o) => [
                 <button type="button" onClick={() => setSelectedOrg(o.id)} className="flex items-center gap-2 font-bold text-slate-800"><Building2 className="h-4 w-4 text-brand-600" />{o.name}</button>,
                 label(o.category), contacts.filter((c) => c.organization_id === o.id).length, userName(o.owner_id), fmt(o.created_at),
@@ -150,12 +150,12 @@ export const CustomerPage: React.FC = () => {
 
       {org && (
         <aside className="w-full max-w-md shrink-0 overflow-y-auto border-l border-slate-200 bg-white p-5">
-          <div className="flex items-start justify-between"><div><h2 className="text-base font-bold text-slate-900">{org.name}</h2><p className="text-[11px] text-slate-500">{label(org.category)}{org.website ? ` · ${org.website}` : ''}</p></div><button type="button" aria-label="Close" onClick={() => setSelectedOrg(null)}><X className="h-4 w-4 text-slate-400" /></button></div>
+          <div className="flex items-start justify-between"><div><h2 className="text-base font-bold text-slate-900">{org.name}</h2><p className="text-xs text-slate-500">{label(org.category)}{org.website ? ` · ${org.website}` : ''}</p></div><button type="button" aria-label="Close" onClick={() => setSelectedOrg(null)}><X className="h-4 w-4 text-slate-400" /></button></div>
           {org.notes && <p className="mt-3 whitespace-pre-wrap text-xs text-slate-600">{org.notes}</p>}
-          <h3 className="mt-5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Contacts</h3>
+          <h3 className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-400">Contacts</h3>
           <ul className="mt-2 space-y-1 text-xs text-slate-700">{contacts.filter((c) => c.organization_id === org.id).map((c) => <li key={c.id}>{c.name}{c.role_title ? ` · ${c.role_title}` : ''}{c.email ? ` · ${c.email}` : ''}</li>)}</ul>
           <div className="mt-3 flex gap-2">{canEdit && <><button type="button" className={btn} onClick={() => setDialog({ kind: 'contact', orgId: org.id })}><Plus className="h-3 w-3" /> Contact</button><button type="button" className={btn} onClick={() => setDialog({ kind: 'interaction', orgId: org.id })}><Plus className="h-3 w-3" /> Interaction</button></>}{canManage && <button type="button" className="rounded-xl border border-rose-200 px-3 py-2 text-xs font-bold text-rose-600" onClick={() => window.confirm(`Delete ${org.name} and its interactions?`) && run(supabase.from('crm_organizations').delete().eq('id', org.id)).then(() => setSelectedOrg(null))}>Delete</button>}</div>
-          <h3 className="mt-5 text-[10px] font-bold uppercase tracking-wider text-slate-400">History</h3>
+          <h3 className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-400">History</h3>
           <div className="mt-2 space-y-2">{items.filter((i) => i.organization_id === org.id).map(interactionRow)}</div>
         </aside>
       )}
@@ -198,7 +198,7 @@ const RecordDialog: React.FC<{
         <div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">New {dialog.kind === 'org' ? 'organization' : dialog.kind}</h2><button type="button" aria-label="Close" onClick={onClose}><X className="h-4 w-4 text-slate-400" /></button></div>
         {dialog.kind === 'org' && <><input required maxLength={200} placeholder="Name" value={f.name || ''} onChange={set('name')} className={input} /><select value={f.category} onChange={set('category')} className={input}>{categories.map((c) => <option key={c} value={c}>{label(c)}</option>)}</select><input placeholder="Website" value={f.website || ''} onChange={set('website')} className={input} /><textarea placeholder="Notes" value={f.notes || ''} onChange={set('notes')} className={input} rows={3} /></>}
         {dialog.kind === 'contact' && <><input required maxLength={200} placeholder="Name" value={f.name || ''} onChange={set('name')} className={input} />{orgSelect}<input placeholder="Role / title" value={f.role_title || ''} onChange={set('role_title')} className={input} /><input type="email" placeholder="Email" value={f.email || ''} onChange={set('email')} className={input} /><input placeholder="Phone" value={f.phone || ''} onChange={set('phone')} className={input} /></>}
-        {dialog.kind === 'interaction' && <><input required maxLength={300} placeholder="Subject" value={f.subject || ''} onChange={set('subject')} className={input} /><select value={f.kind} onChange={set('kind')} className={input}>{kinds.map((k) => <option key={k} value={k}>{label(k)}</option>)}</select>{orgSelect}<select value={f.contact_id || ''} onChange={set('contact_id')} className={input}><option value="">No contact</option>{contacts.filter((c) => !f.organization_id || c.organization_id === f.organization_id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select><textarea placeholder="Details" value={f.body || ''} onChange={set('body')} className={input} rows={3} /><label className="block text-[11px] text-slate-500">Follow-up date (optional)<input type="date" value={f.follow_up_at || ''} onChange={set('follow_up_at')} className={`${input} mt-1`} /></label></>}
+        {dialog.kind === 'interaction' && <><input required maxLength={300} placeholder="Subject" value={f.subject || ''} onChange={set('subject')} className={input} /><select value={f.kind} onChange={set('kind')} className={input}>{kinds.map((k) => <option key={k} value={k}>{label(k)}</option>)}</select>{orgSelect}<select value={f.contact_id || ''} onChange={set('contact_id')} className={input}><option value="">No contact</option>{contacts.filter((c) => !f.organization_id || c.organization_id === f.organization_id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select><textarea placeholder="Details" value={f.body || ''} onChange={set('body')} className={input} rows={3} /><label className="block text-xs text-slate-500">Follow-up date (optional)<input type="date" value={f.follow_up_at || ''} onChange={set('follow_up_at')} className={`${input} mt-1`} /></label></>}
         {err && <p role="alert" className="text-xs text-rose-600">{err}</p>}
         <button type="submit" disabled={busy} className={`${btn} w-full justify-center`}>{busy ? 'Saving…' : 'Save'}</button>
       </form>

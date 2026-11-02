@@ -52,7 +52,7 @@ export const PasswordSetupModal: React.FC = () => {
             required
             value={password}
             onChange={(event) => setPasswordValue(event.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+            className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-base md:text-sm outline-none focus:border-brand-500"
           />
         </label>
 
@@ -65,7 +65,7 @@ export const PasswordSetupModal: React.FC = () => {
             required
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+            className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-base md:text-sm outline-none focus:border-brand-500"
           />
         </label>
 

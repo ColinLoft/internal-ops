@@ -120,7 +120,7 @@ export const RolesAccessPanel: React.FC = () => {
                 <button type="button" onClick={() => void deleteRole()} className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
               </div>
               <div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Application access</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Application access</p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {apps.map((app) => (
                     <label key={app.id} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-xs">
@@ -136,7 +136,7 @@ export const RolesAccessPanel: React.FC = () => {
                 </div>
               </div>
               <div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Members</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Members</p>
                 <div className="grid gap-1 sm:grid-cols-2">
                   {users.filter((user) => user.accountStatus !== 'removed').map((user) => {
                     const checked = members.includes(user.id);

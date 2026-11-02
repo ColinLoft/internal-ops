@@ -64,7 +64,7 @@ export const ContentCalendar: React.FC = () => {
   }, [month]);
 
   const chip = (p: Post) => (
-    <button key={p.id} type="button" onClick={() => setEditing(p)} className={`block w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-semibold ${statusStyle[p.status]}`} title={`${p.title} · ${label(p.status)}`}>{p.title}</button>
+    <button key={p.id} type="button" onClick={() => setEditing(p)} className={`block w-full truncate rounded px-1.5 py-0.5 text-left text-xs font-semibold ${statusStyle[p.status]}`} title={`${p.title} · ${label(p.status)}`}>{p.title}</button>
   );
 
   return (
@@ -78,7 +78,7 @@ export const ContentCalendar: React.FC = () => {
         {canEdit && <button type="button" onClick={() => setEditing('new')} className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700"><Plus className="h-3.5 w-3.5" /> New post</button>}
       </div>
 
-      <div className="grid grid-cols-7 overflow-hidden rounded-2xl border border-slate-200 bg-white text-[10px]">
+      <div className="grid grid-cols-7 overflow-hidden rounded-2xl border border-slate-200 bg-white text-xs">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => <div key={d} className="border-b border-slate-100 bg-slate-50 px-2 py-1.5 font-bold uppercase tracking-wider text-slate-400">{d}</div>)}
         {cells.map((d) => (
           <div key={d.toISOString()} className={`min-h-[84px] space-y-1 border-b border-r border-slate-100 p-1.5 ${d.getMonth() === month.getMonth() ? '' : 'bg-slate-50/60 text-slate-300'}`}>
@@ -92,7 +92,7 @@ export const ContentCalendar: React.FC = () => {
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <h3 className="text-sm font-bold text-slate-900">Awaiting approval ({pending.length})</h3>
           <div className="mt-3 space-y-2">
-            {pending.map((p) => <button key={p.id} type="button" onClick={() => setEditing(p)} className="flex w-full items-center gap-2 rounded-xl border border-slate-100 p-3 text-left text-xs hover:bg-slate-50"><span className="flex-1 font-semibold text-slate-800">{p.title}<span className="block text-[10px] font-normal text-slate-400">{label(p.channel)} · {userName(p.created_by)}</span></span></button>)}
+            {pending.map((p) => <button key={p.id} type="button" onClick={() => setEditing(p)} className="flex w-full items-center gap-2 rounded-xl border border-slate-100 p-3 text-left text-xs hover:bg-slate-50"><span className="flex-1 font-semibold text-slate-800">{p.title}<span className="block text-xs font-normal text-slate-400">{label(p.channel)} · {userName(p.created_by)}</span></span></button>)}
             {!pending.length && <p className="text-xs text-slate-400">Nothing waiting for review.</p>}
           </div>
         </section>
@@ -145,10 +145,10 @@ const PostDialog: React.FC<{
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div className="max-h-[90vh] w-full max-w-lg space-y-3 overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-slate-900">{post ? 'Post' : 'New post'} {post && <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] ${statusStyle[post.status]}`}>{label(post.status)}</span>}</h2>
+          <h2 className="text-sm font-bold text-slate-900">{post ? 'Post' : 'New post'} {post && <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${statusStyle[post.status]}`}>{label(post.status)}</span>}</h2>
           <button type="button" aria-label="Close" onClick={onClose}><X className="h-4 w-4 text-slate-400" /></button>
         </div>
-        {post && <p className="text-[11px] text-slate-400">By {authorName}{post.reviewed_by ? ` · reviewed by ${reviewerName}` : ''}</p>}
+        {post && <p className="text-xs text-slate-400">By {authorName}{post.reviewed_by ? ` · reviewed by ${reviewerName}` : ''}</p>}
         {post?.review_note && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700"><MessageSquareWarning className="mr-1 inline h-3.5 w-3.5" />{post.review_note}</p>}
         <input disabled={!editable} maxLength={200} placeholder="Title" value={f.title} onChange={set('title')} className={field} />
         <textarea disabled={!editable} rows={5} placeholder="Copy / caption" value={f.body} onChange={set('body')} className={field} />
@@ -156,7 +156,7 @@ const PostDialog: React.FC<{
           <select disabled={!editable} value={f.channel} onChange={set('channel')} className={field}>{channels.map((c) => <option key={c} value={c}>{label(c)}</option>)}</select>
           <select disabled={!editable} value={f.campaign_id} onChange={set('campaign_id')} className={field}><option value="">No campaign</option>{campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
         </div>
-        <label className="block text-[11px] text-slate-500">Publish date<input disabled={!editable} type="datetime-local" value={f.scheduled_for} onChange={set('scheduled_for')} className={`${field} mt-1`} /></label>
+        <label className="block text-xs text-slate-500">Publish date<input disabled={!editable} type="datetime-local" value={f.scheduled_for} onChange={set('scheduled_for')} className={`${field} mt-1`} /></label>
         {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
 
         {isReviewable && (

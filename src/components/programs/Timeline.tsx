@@ -41,7 +41,7 @@ export const Timeline: React.FC<{ projects: P[]; tasks: T[]; milestones: M[] }> 
   return (
     <section className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="min-w-[720px]">
-        <div className="relative flex h-8 border-b border-slate-100 pl-56 text-[10px] font-bold uppercase text-slate-400">
+        <div className="relative flex h-8 border-b border-slate-100 pl-56 text-xs font-bold uppercase text-slate-400">
           <div className="relative flex-1">{months.map((m) => <span key={m.label + m.left} className="absolute top-2" style={{ left: `${m.left}%` }}>{m.label}</span>)}</div>
         </div>
         <div className="relative">

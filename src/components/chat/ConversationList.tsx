@@ -11,7 +11,11 @@ import {
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
-export const ConversationList: React.FC = () => {
+interface ConversationListProps {
+  onSelect?: () => void;
+}
+
+export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) => {
   const {
     conversations,
     channels,
@@ -62,6 +66,7 @@ export const ConversationList: React.FC = () => {
         onClick={() => {
           setActiveConversationId(conv.id);
           setActiveTab('messages');
+          onSelect?.();
         }}
         className={`group relative flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-150 ${
           isActive
@@ -90,7 +95,7 @@ export const ConversationList: React.FC = () => {
             />
           )}
           {conv.type === 'group' && (
-            <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-brand-600 text-white flex items-center justify-center text-[9px] border-2 border-white">
+            <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-brand-600 text-white flex items-center justify-center text-xs border-2 border-white">
               <UsersIcon className="w-2.5 h-2.5" />
             </span>
           )}
@@ -100,13 +105,13 @@ export const ConversationList: React.FC = () => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
             <h4
-              className={`text-xs font-bold truncate ${
+              className={`text-sm font-bold truncate ${
                 isActive ? 'text-brand-900' : 'text-slate-900'
               }`}
             >
               {conv.name}
             </h4>
-            <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap ml-1">
+            <span className="text-xs text-slate-400 font-medium whitespace-nowrap ml-1">
               {conv.lastMessage?.timestamp || 'Just now'}
             </span>
           </div>
@@ -122,7 +127,7 @@ export const ConversationList: React.FC = () => {
 
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {conv.unreadCount > 0 ? (
-                <span className="min-w-[18px] h-[18px] px-1 bg-brand-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-xs">
+                <span className="min-w-[18px] h-[18px] px-1 bg-brand-600 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-xs">
                   {conv.unreadCount}
                 </span>
               ) : (
@@ -158,6 +163,7 @@ export const ConversationList: React.FC = () => {
         onClick={() => {
           setActiveChannelId(channel.id);
           setActiveTab('channels');
+          onSelect?.();
         }}
         className={`group flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition-all ${
           isActive ? 'bg-brand-50 text-brand-900' : 'text-slate-600 hover:bg-slate-100'
@@ -167,19 +173,19 @@ export const ConversationList: React.FC = () => {
           {channel.isPrivate ? <Lock className="h-3.5 w-3.5" /> : <Hash className="h-4 w-4" />}
         </span>
         <span className="min-w-0 flex-1 truncate text-xs font-semibold">#{channel.name}</span>
-        {channel.unreadCount > 0 && <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{channel.unreadCount}</span>}
+        {channel.unreadCount > 0 && <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-xs font-bold text-white">{channel.unreadCount}</span>}
       </button>
     );
   };
 
   return (
-    <div data-onboarding-target="conversation-list" className="w-80 h-full bg-white/80 backdrop-blur-xl border-r border-slate-200/80 flex flex-col flex-shrink-0 select-none">
+    <div data-onboarding-target="conversation-list" className="w-full md:w-80 h-full bg-white/80 backdrop-blur-xl border-r border-slate-200/80 flex flex-col flex-shrink-0">
       {/* Top Header */}
       <div className="p-4 pb-2">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Communications</h2>
-            <p className="text-[11px] text-slate-500 font-medium">Channels and direct messages</p>
+            <p className="text-xs text-slate-500 font-medium">Channels and direct messages</p>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -239,7 +245,7 @@ export const ConversationList: React.FC = () => {
       <div className="flex-1 overflow-y-auto px-3 pb-2">
         <div className="mb-4">
           <div className="mb-2 flex items-center justify-between px-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Channels</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Channels</p>
             <button type="button" onClick={() => setIsCreateChannelOpen(true)} className="rounded-md p-1 text-slate-400 hover:bg-brand-50 hover:text-brand-600" title="Create channel">
               <Plus className="h-3.5 w-3.5" />
             </button>
@@ -247,7 +253,7 @@ export const ConversationList: React.FC = () => {
           <div className="space-y-0.5">{channels.map(renderChannelItem)}</div>
         </div>
         <div className="mb-2 flex items-center justify-between px-2">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Direct messages</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Direct messages</p>
           <button type="button" onClick={() => setIsNewMessageOpen(true)} className="rounded-md p-1 text-slate-400 hover:bg-brand-50 hover:text-brand-600" title="Start direct message">
             <Plus className="h-3.5 w-3.5" />
           </button>

@@ -250,7 +250,7 @@ export const FirstLoginOnboarding: React.FC = () => {
         className={`w-full overflow-hidden rounded-3xl border border-white/70 bg-white shadow-2xl ${
           stage === 'profile'
             ? 'max-w-xl'
-            : 'pointer-events-auto fixed bottom-4 right-4 max-h-[calc(100vh-2rem)] max-w-sm overflow-y-auto sm:bottom-6 sm:right-6'
+            : 'pointer-events-auto fixed bottom-4 right-4 max-h-[calc(100dvh-2rem)] max-w-sm overflow-y-auto sm:bottom-6 sm:right-6'
         }`}
       >
         <div className="h-1.5 bg-gradient-to-r from-brand-500 via-brand-500 to-brand-400" />
@@ -308,7 +308,7 @@ export const FirstLoginOnboarding: React.FC = () => {
                     value={banner}
                     onChange={(event) => setBanner(event.target.value as ProfileBanner)}
                     required
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base md:text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
                   >
                     {PROFILE_BANNERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
@@ -323,7 +323,7 @@ export const FirstLoginOnboarding: React.FC = () => {
                   rows={2}
                   maxLength={300}
                   placeholder="What do you work on, or what can teammates come to you for?"
-                  className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
+                  className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base md:text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
                 />
               </label>
 
@@ -417,7 +417,7 @@ const OnboardingField: React.FC<{
       onChange={(event) => onChange(event.target.value)}
       required={required}
       maxLength={100}
-      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
+      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base md:text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
     />
   </label>
 );

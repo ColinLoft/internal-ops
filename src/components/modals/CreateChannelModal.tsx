@@ -58,8 +58,8 @@ export const CreateChannelModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-2 md:p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-y-auto md:overflow-hidden max-h-[calc(100dvh-1rem)] md:max-h-none animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center gap-2">
@@ -73,7 +73,7 @@ export const CreateChannelModal: React.FC = () => {
           </div>
           <button
             onClick={() => setIsCreateChannelOpen(false)}
-            className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
+            aria-label="Close" className="p-2.5 -m-1.5 md:p-1 md:m-0 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -99,7 +99,7 @@ export const CreateChannelModal: React.FC = () => {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. food-drive-logistics"
                 required
-                className="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all"
+                className="w-full pl-8 pr-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all"
               />
             </div>
           </div>
@@ -114,7 +114,7 @@ export const CreateChannelModal: React.FC = () => {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What is this channel for?"
               rows={2}
-              className="w-full px-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all resize-none"
+              className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all resize-none"
             />
           </div>
 
@@ -140,7 +140,7 @@ export const CreateChannelModal: React.FC = () => {
                   <Hash className="w-4 h-4 text-brand-600" />
                   <span className="text-xs font-bold text-slate-900">Standard</span>
                 </div>
-                <p className="text-[11px] text-slate-500 leading-snug">
+                <p className="text-xs text-slate-500 leading-snug">
                   Discussion forum with threaded replies for all staff.
                 </p>
               </button>
@@ -161,7 +161,7 @@ export const CreateChannelModal: React.FC = () => {
                   <Megaphone className="w-4 h-4 text-brand-600" />
                   <span className="text-xs font-bold text-slate-900">Announcement</span>
                 </div>
-                <p className="text-[11px] text-slate-500 leading-snug">
+                <p className="text-xs text-slate-500 leading-snug">
                   Only leaders broadcast; staff discuss in threads.
                 </p>
               </button>
@@ -207,7 +207,7 @@ export const CreateChannelModal: React.FC = () => {
           <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
             <div>
               <p className="text-xs font-bold text-slate-800">Make Private Channel</p>
-              <p className="text-[11px] text-slate-500">Only invited members can view or join</p>
+              <p className="text-xs text-slate-500">Only invited members can view or join</p>
             </div>
             <button
               type="button"

@@ -33,7 +33,7 @@ export const AuthScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90 p-4 select-none relative overflow-hidden">
+    <div className="min-h-dvh w-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90 p-4 relative overflow-hidden">
       {/* Decorative ambient glowing orbs in brand blue */}
       <div className="absolute top-1/4 -left-32 w-96 h-96 bg-brand-500/15 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-brand-400/10 rounded-full blur-3xl pointer-events-none" />
@@ -80,7 +80,7 @@ export const AuthScreen: React.FC = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="firstname@yourorganization.org"
                   required
-                  className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all"
+                  className="w-full pl-9 pr-3 py-2.5 text-base md:text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all"
                 />
               </div>
             </div>
@@ -100,7 +100,7 @@ export const AuthScreen: React.FC = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password or invite code"
                   required
-                  className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all"
+                  className="w-full pl-9 pr-3 py-2.5 text-base md:text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all"
                 />
               </div>
             </div>

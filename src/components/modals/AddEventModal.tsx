@@ -34,7 +34,7 @@ export const AddEventModal: React.FC = () => {
       scope,
       category,
       location: location.trim() || undefined,
-      color: scope === 'team' ? '#2563EB' : '#8B5CF6',
+      color: scope === 'team' ? '#2569F5' : '#8B5CF6',
     });
 
     setIsAddEventOpen(false);
@@ -44,8 +44,8 @@ export const AddEventModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-2 md:p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-y-auto md:overflow-hidden max-h-[calc(100dvh-1rem)] md:max-h-none animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center gap-2">
@@ -59,7 +59,7 @@ export const AddEventModal: React.FC = () => {
           </div>
           <button
             onClick={() => setIsAddEventOpen(false)}
-            className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
+            aria-label="Close" className="p-2.5 -m-1.5 md:p-1 md:m-0 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -86,7 +86,7 @@ export const AddEventModal: React.FC = () => {
                   <Globe className="w-4 h-4 text-brand-600" />
                   <span className="text-xs font-bold text-slate-900">Whole Team</span>
                 </div>
-                <p className="text-[11px] text-slate-500 leading-snug">
+                <p className="text-xs text-slate-500 leading-snug">
                   Shares with everyone in the organization and alerts staff.
                 </p>
               </button>
@@ -104,7 +104,7 @@ export const AddEventModal: React.FC = () => {
                   <Lock className="w-4 h-4 text-brand-600" />
                   <span className="text-xs font-bold text-slate-900">Personal Event</span>
                 </div>
-                <p className="text-[11px] text-slate-500 leading-snug">
+                <p className="text-xs text-slate-500 leading-snug">
                   Private to you (one-on-one prep, personal appointments).
                 </p>
               </button>
@@ -122,12 +122,12 @@ export const AddEventModal: React.FC = () => {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Volunteer Gala Planning Sync"
               required
-              className="w-full px-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
+              className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
             />
           </div>
 
           {/* Date & Time */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Date</label>
               <input
@@ -135,7 +135,7 @@ export const AddEventModal: React.FC = () => {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="w-full px-2.5 py-1.5 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none"
+                className="w-full px-2.5 py-1.5 text-base md:text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none"
               />
             </div>
             <div>
@@ -145,7 +145,7 @@ export const AddEventModal: React.FC = () => {
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 required
-                className="w-full px-2.5 py-1.5 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none"
+                className="w-full px-2.5 py-1.5 text-base md:text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none"
               />
             </div>
             <div>
@@ -155,7 +155,7 @@ export const AddEventModal: React.FC = () => {
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
                 required
-                className="w-full px-2.5 py-1.5 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none"
+                className="w-full px-2.5 py-1.5 text-base md:text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none"
               />
             </div>
           </div>
@@ -167,7 +167,7 @@ export const AddEventModal: React.FC = () => {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as EventCategory)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none"
+                className="w-full px-3 py-2 text-base md:text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none"
               >
                 <option value="standup">Standup Sync</option>
                 <option value="community">Community Outreach</option>
@@ -183,7 +183,7 @@ export const AddEventModal: React.FC = () => {
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="e.g. Conference Blue"
-                className="w-full px-3 py-2 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none"
+                className="w-full px-3 py-2 text-base md:text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none"
               />
             </div>
           </div>
@@ -196,7 +196,7 @@ export const AddEventModal: React.FC = () => {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Add agenda or details..."
               rows={2}
-              className="w-full px-3 py-2 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none resize-none"
+              className="w-full px-3 py-2 text-base md:text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none resize-none"
             />
           </div>
 

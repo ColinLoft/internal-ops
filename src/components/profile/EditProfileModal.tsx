@@ -108,7 +108,7 @@ export const EditProfileModal: React.FC = () => {
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSave} className="p-6 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSave} className="p-4 md:p-6 max-h-[calc(100dvh-7rem)] md:max-h-[80vh] overflow-y-auto">
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-6">
             <div className="space-y-4">
           <section className="p-4 rounded-2xl border border-slate-200 bg-slate-50/70">
@@ -155,7 +155,7 @@ export const EditProfileModal: React.FC = () => {
                 {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                 <span>{uploading ? 'Uploading to Supabase...' : 'Upload Image'}</span>
               </button>
-              <p className="mt-1.5 text-[11px] text-slate-500">Choose an image file from your device.</p>
+              <p className="mt-1.5 text-xs text-slate-500">Choose an image file from your device.</p>
             </div>
           </div>
           {uploadError && <p role="alert" className="text-xs text-rose-600">{uploadError}</p>}
@@ -169,7 +169,7 @@ export const EditProfileModal: React.FC = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full px-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
+                className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
               />
             </div>
             <div>
@@ -179,7 +179,7 @@ export const EditProfileModal: React.FC = () => {
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
                 required
-                className="w-full px-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
+                className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
               />
             </div>
           </div>
@@ -193,7 +193,7 @@ export const EditProfileModal: React.FC = () => {
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
                 required
-                className="w-full px-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
+                className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
               />
             </div>
             <div>
@@ -203,7 +203,7 @@ export const EditProfileModal: React.FC = () => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
-                className="w-full px-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
+                className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
               />
             </div>
           </div>
@@ -216,7 +216,7 @@ export const EditProfileModal: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
+              className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
             />
           </div>
 
@@ -228,7 +228,7 @@ export const EditProfileModal: React.FC = () => {
               maxLength={80}
               onChange={(e) => setStatusMessage(e.target.value)}
               placeholder="A short note teammates will see on your profile"
-              className="w-full px-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
+              className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
             />
           </div>
           <div>
@@ -239,9 +239,9 @@ export const EditProfileModal: React.FC = () => {
               rows={3}
               onChange={(e) => setBio(e.target.value)}
               placeholder="Share a little about your work, interests, or how you support the team."
-              className="w-full resize-y px-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
+              className="w-full resize-y px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
             />
-            <p className="text-right text-[10px] text-slate-400 mt-1">{bio.length}/500</p>
+            <p className="text-right text-xs text-slate-400 mt-1">{bio.length}/500</p>
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Location / office</label>
@@ -251,7 +251,7 @@ export const EditProfileModal: React.FC = () => {
               maxLength={100}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="e.g. Oakland office"
-              className="w-full px-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
+              className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
             />
           </div>
             </div>
@@ -280,14 +280,14 @@ export const EditProfileModal: React.FC = () => {
                   <h4 className="text-sm font-bold text-slate-900 break-words">{name || 'Your name'}</h4>
                   <p className="text-xs text-slate-600 mt-0.5">{role || 'Your role'}</p>
                   <p className="text-xs text-slate-400 mt-0.5">{department || 'Your department'}</p>
-                  {location.trim() && <p className="mt-2 text-[11px] text-slate-500">{location}</p>}
+                  {location.trim() && <p className="mt-2 text-xs text-slate-500">{location}</p>}
                   {bio.trim() && <p className="mt-2 text-xs text-slate-600 break-words">{bio}</p>}
                   {statusMessage.trim() && (
                     <p className="mt-3 px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-600 break-words">
                       {statusMessage}
                     </p>
                   )}
-                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5 text-[11px] text-slate-500 break-all">
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-500 break-all">
                     {email && <p>{email}</p>}
                     {phone && <p>{phone}</p>}
                   </div>

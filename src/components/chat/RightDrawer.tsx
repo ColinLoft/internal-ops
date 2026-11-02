@@ -66,7 +66,7 @@ export const RightDrawer: React.FC = () => {
   };
 
   return (
-    <div className="w-80 h-full bg-white/95 backdrop-blur-2xl border-l border-slate-200/80 flex flex-col z-20 shadow-xl flex-shrink-0 animate-in slide-in-from-right duration-200">
+    <div className="fixed inset-0 z-50 w-full md:static md:z-20 md:w-80 h-full bg-white/95 backdrop-blur-2xl border-l border-slate-200/80 flex flex-col shadow-xl flex-shrink-0 animate-in slide-in-from-right duration-200">
       {/* Header */}
       <div className="h-16 px-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
         <h3 className="text-xs font-bold text-slate-900">
@@ -105,7 +105,7 @@ export const RightDrawer: React.FC = () => {
             <span className="text-xs font-semibold text-slate-600">Invite Link</span>
             <button
               onClick={handleCopyLink}
-              className="flex items-center gap-1 text-[11px] font-bold text-brand-600 hover:text-brand-700 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-2xs"
+              className="flex items-center gap-1 text-xs font-bold text-brand-600 hover:text-brand-700 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-2xs"
             >
               {copiedLink ? <Check className="w-3 h-3 text-brand-500" /> : <Copy className="w-3 h-3" />}
               <span>{copiedLink ? 'Copied' : 'Copy'}</span>
@@ -184,7 +184,7 @@ export const RightDrawer: React.FC = () => {
                       <FileText className="w-4 h-4 text-brand-600 flex-shrink-0" />
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-slate-800 truncate">{file.name}</p>
-                        <p className="text-[10px] text-slate-400">{file.size}</p>
+                        <p className="text-xs text-slate-400">{file.size}</p>
                       </div>
                     </div>
                     <a
@@ -216,7 +216,7 @@ export const RightDrawer: React.FC = () => {
             </span>
             <button
               onClick={() => setIsAddTeammateOpen(true)}
-              className="text-[11px] font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1"
+              className="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1"
             >
               <UserPlus className="w-3 h-3" /> Add Staff
             </button>
@@ -250,7 +250,7 @@ export const RightDrawer: React.FC = () => {
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-800 truncate">{member.name}</p>
-                    <p className="text-[10px] text-slate-400 truncate">{member.role}</p>
+                    <p className="text-xs text-slate-400 truncate">{member.role}</p>
                   </div>
                 </div>
 

@@ -65,7 +65,7 @@ export const TaskDetail: React.FC<{ task: TaskRow; allTasks: TaskRow[]; onClose:
         {error && <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
         {blocked && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">Waiting on {blockers.filter((t) => t.status !== 'completed').length} unfinished dependenc{blockers.filter((t) => t.status !== 'completed').length === 1 ? 'y' : 'ies'}.</p>}
 
-        <div className="grid grid-cols-2 gap-3 text-[11px] text-slate-500">
+        <div className="grid grid-cols-2 gap-3 text-xs text-slate-500">
           <label>Status<select value={full.status} onChange={(e) => patch({ status: e.target.value, ...(e.target.value === 'completed' ? { progress: 100 } : {}) })} className={field}><option value="not_started">Not started</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="completed">Completed</option></select></label>
           <label>Priority<select value={full.priority} onChange={(e) => patch({ priority: e.target.value })} className={field}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
           <label>Start<input type="date" value={full.start_date || ''} onChange={(e) => patch({ start_date: e.target.value || null })} className={field} /></label>
@@ -73,12 +73,12 @@ export const TaskDetail: React.FC<{ task: TaskRow; allTasks: TaskRow[]; onClose:
           <label className="col-span-2">Assignee<select value={full.assignee_id || ''} onChange={(e) => patch({ assignee_id: e.target.value || null })} className={field}><option value="">Unassigned</option>{users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></label>
         </div>
 
-        <label className="block text-[11px] text-slate-500">Description
+        <label className="block text-xs text-slate-500">Description
           <textarea defaultValue={full.description || ''} rows={3} onBlur={(e) => e.target.value !== (full.description || '') && patch({ description: e.target.value.trim() || null })} className={field} />
         </label>
 
         <section>
-          <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Subtasks {subtasks.length > 0 && `(${done}/${subtasks.length})`}</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Subtasks {subtasks.length > 0 && `(${done}/${subtasks.length})`}</h3>
           <ul className="mt-2 space-y-1">{subtasks.map((s) => (
             <li key={s.id} className="flex items-center gap-2 text-xs">
               <input type="checkbox" checked={s.status === 'completed'} onChange={(e) => run(supabase.from('program_tasks').update({ status: e.target.checked ? 'completed' : 'in_progress', progress: e.target.checked ? 100 : 0 }).eq('id', s.id))} />
@@ -93,7 +93,7 @@ export const TaskDetail: React.FC<{ task: TaskRow; allTasks: TaskRow[]; onClose:
         </section>
 
         <section>
-          <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Depends on</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Depends on</h3>
           <ul className="mt-2 space-y-1">{blockers.map((b) => (
             <li key={b.id} className="flex items-center gap-2 text-xs"><span className={`flex-1 ${b.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{b.title}</span>
               <button type="button" aria-label="Remove dependency" onClick={() => run(supabase.from('program_task_dependencies').delete().eq('task_id', task.id).eq('depends_on_task_id', b.id))}><X className="h-3.5 w-3.5 text-slate-300 hover:text-rose-600" /></button></li>
@@ -105,9 +105,9 @@ export const TaskDetail: React.FC<{ task: TaskRow; allTasks: TaskRow[]; onClose:
         </section>
 
         <section>
-          <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Comments</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Comments</h3>
           <div className="mt-2 space-y-2">{comments.map((c) => (
-            <div key={c.id} className="rounded-lg bg-slate-50 p-2 text-xs"><p className="text-[10px] text-slate-400">{userName(c.author_id)} · {new Date(c.created_at).toLocaleString()}{c.author_id === currentUser.id && <button type="button" className="ml-2 text-rose-500" onClick={() => run(supabase.from('program_task_comments').delete().eq('id', c.id))}>delete</button>}</p><p className="whitespace-pre-wrap text-slate-700">{c.body}</p></div>
+            <div key={c.id} className="rounded-lg bg-slate-50 p-2 text-xs"><p className="text-xs text-slate-400">{userName(c.author_id)} · {new Date(c.created_at).toLocaleString()}{c.author_id === currentUser.id && <button type="button" className="ml-2 text-rose-500" onClick={() => run(supabase.from('program_task_comments').delete().eq('id', c.id))}>delete</button>}</p><p className="whitespace-pre-wrap text-slate-700">{c.body}</p></div>
           ))}</div>
           <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (!comment.trim()) return; void run(supabase.from('program_task_comments').insert({ task_id: task.id, body: comment.trim() })); setComment(''); }}>
             <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Write a comment" maxLength={4000} className={field} />

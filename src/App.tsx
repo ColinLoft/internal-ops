@@ -1,7 +1,9 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
+import { useOverlayA11y } from './hooks/useOverlayA11y';
 import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext';
 import { Rail } from './components/navigation/Rail';
 import { TopBar } from './components/navigation/TopBar';
+import { MobileTabBar } from './components/navigation/MobileTabBar';
 import { ConversationList } from './components/chat/ConversationList';
 import { ChatFeed } from './components/chat/ChatFeed';
 import { ThreadPanel } from './components/chat/ThreadPanel';
@@ -64,6 +66,25 @@ const WorkspaceShell: React.FC = () => {
     inviteReadyData,
     setInviteReadyData,
   } = useWorkspace();
+  useOverlayA11y();
+  const [isNavOpen, setIsNavOpen] = useState(false);
+  const [mobileChatPane, setMobileChatPane] = useState<'list' | 'feed'>('list');
+
+  useEffect(() => {
+    setIsNavOpen(false);
+    if (activeTab !== 'messages' && activeTab !== 'channels') setMobileChatPane('list');
+  }, [activeTab]);
+
+  useEffect(() => {
+    const closeNav = () => setIsNavOpen(false);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsNavOpen(false); };
+    window.addEventListener('popstate', closeNav);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('popstate', closeNav);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, []);
 
   // If not authenticated, render the Auth Portal
   if (isAuthLoading) {
@@ -82,12 +103,20 @@ const WorkspaceShell: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-screen h-full w-screen overflow-hidden bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90 select-none">
+    <div className="flex min-h-dvh h-dvh w-screen overflow-hidden bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90">
       {/* 1. Left Icon Rail */}
-      <Rail />
+      <Rail isMobileOpen={isNavOpen} />
+      {isNavOpen && (
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={() => setIsNavOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-900/40 md:hidden"
+        />
+      )}
 
       {/* 2. Main Workspace Layout */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden pb-14 md:pb-0">
         {/* Top Bar with Search and Shortcuts */}
         <TopBar />
 
@@ -108,9 +137,13 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'messages' && (
             <>
               {/* Combined channels and direct messages sidebar */}
-              <ConversationList />
+              <div className={`${mobileChatPane === 'list' ? 'flex' : 'hidden'} w-full md:w-auto md:flex`}>
+                <ConversationList onSelect={() => setMobileChatPane('feed')} />
+              </div>
               {/* Chat Feed */}
-              <ChatFeed />
+              <div className={`${mobileChatPane === 'feed' ? 'flex' : 'hidden'} min-w-0 flex-1 md:flex`}>
+                <ChatFeed onBack={() => setMobileChatPane('list')} />
+              </div>
               {/* Thread Side Panel or Info Drawer */}
               {activeThreadMessageId && <ThreadPanel />}
               {isRightDrawerOpen && !activeThreadMessageId && <RightDrawer />}
@@ -120,9 +153,13 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'channels' && (
             <>
               {/* Combined channels and direct messages sidebar */}
-              <ConversationList />
+              <div className={`${mobileChatPane === 'list' ? 'flex' : 'hidden'} w-full md:w-auto md:flex`}>
+                <ConversationList onSelect={() => setMobileChatPane('feed')} />
+              </div>
               {/* Channel Feed */}
-              <ChatFeed />
+              <div className={`${mobileChatPane === 'feed' ? 'flex' : 'hidden'} min-w-0 flex-1 md:flex`}>
+                <ChatFeed onBack={() => setMobileChatPane('list')} />
+              </div>
               {/* Thread Side Panel or Info Drawer */}
               {activeThreadMessageId && <ThreadPanel />}
               {isRightDrawerOpen && !activeThreadMessageId && <RightDrawer />}
@@ -134,6 +171,8 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'drive' && <DrivePage />}
         </div>
       </div>
+
+      <MobileTabBar isMenuOpen={isNavOpen} onToggleMenu={() => setIsNavOpen((open) => !open)} />
 
       {/* Floating In-App Voice & Video Call Overlay */}
       {(callSession.active || incomingCall || callError) && (

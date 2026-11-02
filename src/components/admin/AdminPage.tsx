@@ -192,7 +192,7 @@ export const AdminPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsAddTeammateOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 min-h-11 md:min-h-0"
           >
             <UserPlus className="h-4 w-4" />
             Add staff member
@@ -218,7 +218,7 @@ export const AdminPage: React.FC = () => {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search staff..."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-base md:text-sm text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
                 />
               </label>
             </div>
@@ -229,7 +229,7 @@ export const AdminPage: React.FC = () => {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate text-sm font-semibold text-slate-900">{user.name}</p>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${
                         user.accountStatus === 'suspended'
                           ? 'bg-brand-100 text-brand-700'
                           : user.systemRole === 'admin'
@@ -253,14 +253,14 @@ export const AdminPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => { setEditingUser(user); setError(''); }}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 min-h-11 md:min-h-0"
                     >
                       <Pencil className="h-3.5 w-3.5" /> Edit
                     </button>
                     <button
                       type="button"
                       onClick={() => { setTemporaryPasswordUser(user); setError(''); setSavedPassword(''); }}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 min-h-11 md:min-h-0"
                     >
                       <KeyRound className="h-3.5 w-3.5" /> Password
                     </button>
@@ -268,7 +268,7 @@ export const AdminPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => void handleUserAction(user.id, 'reactivate')}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-100"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-100 min-h-11 md:min-h-0"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" /> Reactivate
                       </button>
@@ -281,7 +281,7 @@ export const AdminPage: React.FC = () => {
                             ...previous,
                             [user.id]: event.target.value as '1h' | '24h' | '7d' | '30d' | 'indefinite',
                           }))}
-                          className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs text-slate-700 outline-none focus:border-brand-500"
+                          className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-base md:text-xs text-slate-700 outline-none focus:border-brand-500"
                         >
                           <option value="1h">1 hour</option>
                           <option value="24h">24 hours</option>
@@ -292,7 +292,7 @@ export const AdminPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => void handleUserAction(user.id, 'suspend')}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-100"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-100 min-h-11 md:min-h-0"
                         >
                           <Ban className="h-3.5 w-3.5" /> Suspend
                         </button>
@@ -302,7 +302,7 @@ export const AdminPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => void handleUserAction(user.id, 'remove')}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 min-h-11 md:min-h-0"
                       >
                         <Trash2 className="h-3.5 w-3.5" /> Remove
                       </button>
@@ -326,7 +326,7 @@ export const AdminPage: React.FC = () => {
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                   <Clock3 className="h-4 w-4 text-brand-600" />
                   System activity
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
                     {systemActivityLogs.length}{systemActivityLogs.length === 500 ? '+' : ''}
                   </span>
                 </div>
@@ -337,7 +337,7 @@ export const AdminPage: React.FC = () => {
                   value={activityFilter}
                   onChange={(event) => setActivityFilter(event.target.value)}
                   aria-label="Filter activity by user"
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none focus:border-brand-500"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base md:text-sm text-slate-700 outline-none focus:border-brand-500"
                 >
                   <option value="all">Entire system — all users</option>
                   {activityUsers.map(([userId, userName]) => <option key={userId} value={userId}>{userName}</option>)}
@@ -348,7 +348,7 @@ export const AdminPage: React.FC = () => {
                     value={activitySearch}
                     onChange={(event) => setActivitySearch(event.target.value)}
                     placeholder="Search activity..."
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-brand-500"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-base md:text-sm text-slate-800 outline-none focus:border-brand-500"
                   />
                 </label>
                 <button
@@ -362,7 +362,7 @@ export const AdminPage: React.FC = () => {
                   }}
                   disabled={activityLoading}
                   aria-label="Refresh system activity"
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 min-h-11 md:min-h-0"
                 >
                   <RefreshCw className={`h-4 w-4 ${activityLoading ? 'animate-spin' : ''}`} />
                 </button>
@@ -382,7 +382,7 @@ export const AdminPage: React.FC = () => {
                 </p>
               ) : visibleActivityLogs.map((entry) => <ActivityRow key={entry.id} entry={entry} />)}
             </div>
-            <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-2 text-[11px] text-slate-500">
+            <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-2 text-xs text-slate-500">
               Showing {visibleActivityLogs.length} of {systemActivityLogs.length}{systemActivityLogs.length === 500 ? '+' : ''} most recent events. Logs are retained in the database.
             </div>
           </section>
@@ -390,14 +390,14 @@ export const AdminPage: React.FC = () => {
       </div>
 
       {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
-          <form onSubmit={handleSaveProfile} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-2 md:p-4 backdrop-blur-sm">
+          <form onSubmit={handleSaveProfile} className="max-h-[calc(100dvh-1rem)] w-full max-w-2xl md:max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4">
               <div>
                 <h2 className="font-bold text-slate-900">Edit staff profile</h2>
                 <p className="text-xs text-slate-500">{editingUser.email}</p>
               </div>
-              <button type="button" onClick={() => setEditingUser(null)} aria-label="Close" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100">
+              <button type="button" onClick={() => setEditingUser(null)} aria-label="Close" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 min-h-11 min-w-11 md:min-h-0 md:min-w-0 inline-flex items-center justify-center">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -425,27 +425,27 @@ export const AdminPage: React.FC = () => {
               } />
               <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
                 Bio
-                <textarea name="bio" defaultValue={editingUser.bio || ''} rows={3} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-normal text-slate-800 outline-none focus:border-brand-500" />
+                <textarea name="bio" defaultValue={editingUser.bio || ''} rows={3} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base md:text-sm font-normal text-slate-800 outline-none focus:border-brand-500" />
               </label>
             </div>
             {error && <p role="alert" className="mx-5 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
             <div className="flex justify-end gap-2 border-t border-slate-100 p-5">
-              <button type="button" onClick={() => setEditingUser(null)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
-              <button disabled={saving} className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Saving…' : 'Save profile'}</button>
+              <button type="button" onClick={() => setEditingUser(null)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 min-h-11 md:min-h-0">Cancel</button>
+              <button disabled={saving} className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 min-h-11 md:min-h-0">{saving ? 'Saving…' : 'Save profile'}</button>
             </div>
           </form>
         </div>
       )}
 
       {temporaryPasswordUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
-          <form onSubmit={handleSetPassword} className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-2 md:p-4 backdrop-blur-sm">
+          <form onSubmit={handleSetPassword} className="max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-start justify-between border-b border-slate-100 p-5">
               <div>
                 <h2 className="font-bold text-slate-900">Set temporary password</h2>
                 <p className="mt-1 text-xs text-slate-500">For {temporaryPasswordUser.name} · {temporaryPasswordUser.email}</p>
               </div>
-              <button type="button" onClick={closePasswordDialog} aria-label="Close" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+              <button type="button" onClick={closePasswordDialog} aria-label="Close" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 min-h-11 min-w-11 md:min-h-0 md:min-w-0 inline-flex items-center justify-center"><X className="h-4 w-4" /></button>
             </div>
             <div className="space-y-3 p-5">
               <label className="block text-xs font-semibold text-slate-600">
@@ -458,7 +458,7 @@ export const AdminPage: React.FC = () => {
                   required
                   disabled={!!savedPassword}
                   autoComplete="new-password"
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-800 outline-none focus:border-brand-500 disabled:opacity-70"
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-base md:text-sm text-slate-800 outline-none focus:border-brand-500 disabled:opacity-70"
                 />
               </label>
               {savedPassword ? (
@@ -469,8 +469,8 @@ export const AdminPage: React.FC = () => {
               {error && <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
             </div>
             <div className="flex justify-end gap-2 border-t border-slate-100 p-5">
-              <button type="button" onClick={closePasswordDialog} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">{savedPassword ? 'Done' : 'Cancel'}</button>
-              {!savedPassword && <button disabled={saving || password.length < 12} className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Updating…' : 'Set password'}</button>}
+              <button type="button" onClick={closePasswordDialog} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 min-h-11 md:min-h-0">{savedPassword ? 'Done' : 'Cancel'}</button>
+              {!savedPassword && <button disabled={saving || password.length < 12} className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 min-h-11 md:min-h-0">{saving ? 'Updating…' : 'Set password'}</button>}
             </div>
           </form>
         </div>
@@ -483,7 +483,7 @@ const ActivityRow: React.FC<{ entry: SystemActivityLog }> = ({ entry }) => (
   <article className="flex flex-col gap-1.5 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700">
+        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-brand-700">
           {entry.event_type.replace(/_/g, ' ')}
         </span>
         <span className="text-xs font-semibold text-slate-700">{entry.actor_name}</span>
@@ -495,7 +495,7 @@ const ActivityRow: React.FC<{ entry: SystemActivityLog }> = ({ entry }) => (
       </div>
       <p className="mt-1 text-sm text-slate-700">{entry.summary}</p>
     </div>
-    <time dateTime={entry.created_at} className="shrink-0 text-[11px] text-slate-400">
+    <time dateTime={entry.created_at} className="shrink-0 text-xs text-slate-400">
       {new Date(entry.created_at).toLocaleString()}
     </time>
   </article>
@@ -513,7 +513,7 @@ const Field: React.FC<{
       name={name}
       defaultValue={defaultValue}
       required={required}
-      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
+      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base md:text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
     />
   </label>
 );
@@ -529,7 +529,7 @@ const SelectField: React.FC<{
     <select
       name={name}
       defaultValue={defaultValue}
-      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
+      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base md:text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
     >
       {options.map(([value, title]) => <option key={value} value={value}>{title}</option>)}
     </select>

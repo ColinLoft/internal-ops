@@ -237,8 +237,8 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
 
       {/* Autocomplete mention dropdown */}
       {showMentionMenu && (
-        <div className="absolute bottom-full left-4 mb-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-1.5 z-40 animate-in fade-in zoom-in-95 duration-150">
-          <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+        <div className="absolute bottom-full left-4 mb-2 w-64 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-slate-200 p-1.5 z-40 animate-in fade-in zoom-in-95 duration-150">
+          <div className="px-2 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider">
             Mention Member or Channel
           </div>
           <button
@@ -267,7 +267,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
                 <img src={u.avatar} alt={u.name} className="w-6 h-6 rounded-full object-cover" />
                 <div className="truncate">
                   <div className="font-bold truncate">{u.name}</div>
-                  <div className="text-[10px] text-slate-400 truncate">{u.role}</div>
+                  <div className="text-xs text-slate-400 truncate">{u.role}</div>
                 </div>
               </button>
             ))}
@@ -282,7 +282,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         onKeyDown={handleKeyDown}
         rows={1}
         placeholder={placeholder}
-        className="w-full px-2 py-1 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 bg-transparent resize-none outline-none leading-relaxed min-h-[36px] max-h-32"
+        className="w-full px-2 py-1 text-base md:text-sm text-slate-900 placeholder:text-slate-400 bg-transparent resize-none outline-none leading-relaxed min-h-[36px] max-h-32"
       />
 
       {/* Bottom Tool bar buttons */}
@@ -330,7 +330,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             </button>
 
             {showEmojiPicker && (
-              <div className="absolute bottom-full left-0 mb-2 p-2 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 grid grid-cols-4 gap-1 w-48 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute bottom-full left-0 mb-2 p-2 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 grid grid-cols-4 gap-1 w-48 max-w-[calc(100vw-2rem)] animate-in fade-in zoom-in-95 duration-150">
                 {emojiCategories.map((em) => (
                   <button
                     key={em}

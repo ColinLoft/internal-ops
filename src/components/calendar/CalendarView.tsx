@@ -112,7 +112,7 @@ export const CalendarView: React.FC = () => {
     }
 
     return (
-      <div className="flex-1 grid grid-cols-7 grid-rows-5 border-t border-l border-slate-200/80 bg-white/70 backdrop-blur-md rounded-2xl overflow-hidden shadow-xs">
+      <div className="flex-1 grid grid-cols-7 grid-rows-5 min-h-[480px] md:min-h-0 border-t border-l border-slate-200/80 bg-white/70 backdrop-blur-md rounded-2xl overflow-hidden shadow-xs">
         {cells.map((cell, idx) => {
           const dayEvents = filteredEvents.filter((e) => e.date === cell.dateStr);
           const isToday = cell.dateStr === todayStr;
@@ -133,7 +133,7 @@ export const CalendarView: React.FC = () => {
                   {cell.day}
                 </span>
                 {dayEvents.length > 0 && (
-                  <span className="text-[10px] text-slate-400 font-medium">
+                  <span className="text-xs text-slate-400 font-medium">
                     {dayEvents.length} {dayEvents.length === 1 ? 'event' : 'events'}
                   </span>
                 )}
@@ -144,7 +144,7 @@ export const CalendarView: React.FC = () => {
                 {dayEvents.slice(0, 2).map((evt) => (
                   <div
                     key={evt.id}
-                    className={`group/chip relative px-2 py-1 rounded-lg text-[11px] font-semibold flex items-center justify-between gap-1 shadow-2xs border ${
+                    className={`group/chip relative px-2 py-1 rounded-lg text-xs font-semibold flex items-center justify-between gap-1 shadow-2xs border ${
                       evt.scope === 'team'
                         ? 'bg-brand-50 border-brand-200 text-brand-800'
                         : 'bg-brand-50 border-brand-200 text-brand-800'
@@ -153,11 +153,11 @@ export const CalendarView: React.FC = () => {
                     <div className="flex items-center gap-1 min-w-0">
                       <span
                         className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: evt.color || '#2563EB' }}
+                        style={{ backgroundColor: evt.color || '#2569F5' }}
                       />
                       <span className="truncate">{evt.title}</span>
                     </div>
-                    <span className="text-[9px] font-medium opacity-70 whitespace-nowrap">
+                    <span className="text-xs font-medium opacity-70 whitespace-nowrap">
                       {formatTime(evt.startTime)}
                     </span>
                     <button
@@ -172,7 +172,7 @@ export const CalendarView: React.FC = () => {
                   </div>
                 ))}
                 {dayEvents.length > 2 && (
-                  <div className="text-[10px] text-slate-500 font-semibold px-1">
+                  <div className="text-xs text-slate-500 font-semibold px-1">
                     + {dayEvents.length - 2} more...
                   </div>
                 )}
@@ -207,7 +207,7 @@ export const CalendarView: React.FC = () => {
           {weekDays.map((d, i) => (
             <div key={i} className="text-center">
               <span>{d.name}</span>
-              <span className="ml-1 text-[11px] text-slate-400 font-normal">{d.date.slice(8)}</span>
+              <span className="ml-1 text-xs text-slate-400 font-normal">{d.date.slice(8)}</span>
             </div>
           ))}
         </div>
@@ -215,7 +215,7 @@ export const CalendarView: React.FC = () => {
         <div className="flex-1 overflow-y-auto">
           {hours.map((hr, idx) => (
             <div key={idx} className="grid grid-cols-8 min-h-[58px] border-b border-slate-100">
-              <div className="text-center text-[11px] text-slate-400 font-semibold py-2 border-r border-slate-100">
+              <div className="text-center text-xs text-slate-400 font-semibold py-2 border-r border-slate-100">
                 {formatTime(hr)}
               </div>
               {weekDays.map((day, dIdx) => {
@@ -228,14 +228,14 @@ export const CalendarView: React.FC = () => {
                     {hourEvents.map((evt) => (
                       <div
                         key={evt.id}
-                        className={`p-1.5 rounded-xl border text-[11px] font-semibold shadow-2xs leading-tight ${
+                        className={`p-1.5 rounded-xl border text-xs font-semibold shadow-2xs leading-tight ${
                           evt.scope === 'team'
                             ? 'bg-brand-50 border-brand-200 text-brand-900'
                             : 'bg-brand-50 border-brand-200 text-brand-900'
                         }`}
                       >
                         <p className="truncate font-bold">{evt.title}</p>
-                        <p className="text-[10px] opacity-75">{formatTime(evt.startTime)} - {formatTime(evt.endTime)}</p>
+                        <p className="text-xs opacity-75">{formatTime(evt.startTime)} - {formatTime(evt.endTime)}</p>
                       </div>
                     ))}
                   </div>
@@ -254,7 +254,7 @@ export const CalendarView: React.FC = () => {
     const todayEvents = filteredEvents.filter((e) => e.date === selectedDateStr);
 
     return (
-      <div className="flex-1 bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 p-6 overflow-y-auto shadow-xs">
+      <div className="flex-1 bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 p-4 md:p-6 overflow-y-auto shadow-xs">
         <div className="mb-4 pb-3 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-slate-900">
@@ -298,7 +298,7 @@ export const CalendarView: React.FC = () => {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span
-                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                         evt.scope === 'team'
                           ? 'bg-brand-600 text-white'
                           : 'bg-brand-600 text-white'
@@ -335,12 +335,12 @@ export const CalendarView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex overflow-hidden bg-slate-50/50">
+    <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden bg-slate-50/50">
       {/* Left Mini Sidebar */}
-      <div className="w-72 border-r border-slate-200/80 bg-white/80 backdrop-blur-xl p-4 flex flex-col gap-5 flex-shrink-0 overflow-y-auto">
+      <div className="order-2 md:order-1 w-full md:w-72 border-t md:border-t-0 md:border-r border-slate-200/80 bg-white/80 backdrop-blur-xl p-4 flex flex-col gap-5 flex-shrink-0 md:overflow-y-auto">
         {/* Scope Filters */}
         <div>
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2 px-1">
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2 px-1">
             Event View Filter
           </label>
           <div className="flex flex-col gap-1">
@@ -353,7 +353,7 @@ export const CalendarView: React.FC = () => {
               }`}
             >
               <span>All Events</span>
-              <span className="text-[10px] bg-white px-1.5 py-0.5 rounded-full border border-slate-200 font-bold">
+              <span className="text-xs bg-white px-1.5 py-0.5 rounded-full border border-slate-200 font-bold">
                 {calendarEvents.length}
               </span>
             </button>
@@ -369,7 +369,7 @@ export const CalendarView: React.FC = () => {
                 <Globe className="w-3.5 h-3.5 text-brand-600" />
                 <span>Shared / Whole Team</span>
               </div>
-              <span className="text-[10px] bg-white px-1.5 py-0.5 rounded-full border border-slate-200 font-bold">
+              <span className="text-xs bg-white px-1.5 py-0.5 rounded-full border border-slate-200 font-bold">
                 {calendarEvents.filter((e) => e.scope === 'team').length}
               </span>
             </button>
@@ -385,7 +385,7 @@ export const CalendarView: React.FC = () => {
                 <Lock className="w-3.5 h-3.5 text-brand-600" />
                 <span>Personal Events</span>
               </div>
-              <span className="text-[10px] bg-white px-1.5 py-0.5 rounded-full border border-slate-200 font-bold">
+              <span className="text-xs bg-white px-1.5 py-0.5 rounded-full border border-slate-200 font-bold">
                 {calendarEvents.filter((e) => e.scope === 'personal').length}
               </span>
             </button>
@@ -407,7 +407,7 @@ export const CalendarView: React.FC = () => {
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-slate-400 mb-1">
+          <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-400 mb-1">
             <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-xs">
@@ -424,7 +424,7 @@ export const CalendarView: React.FC = () => {
                     next.setDate(day);
                     setCurrentDate(next);
                   }}
-                  className={`relative py-1 rounded-lg cursor-pointer transition-colors text-[11px] font-medium ${
+                  className={`relative py-1 rounded-lg cursor-pointer transition-colors text-xs font-medium ${
                     isSelected
                       ? 'bg-brand-600 text-white font-bold'
                       : 'hover:bg-slate-200/70 text-slate-700'
@@ -466,7 +466,7 @@ export const CalendarView: React.FC = () => {
                 >
                   <div className="flex items-center justify-between">
                     <span
-                      className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded ${
+                      className={`text-xs font-bold uppercase tracking-wider px-1.5 py-0.2 rounded ${
                         evt.scope === 'team'
                           ? 'bg-brand-50 text-brand-700'
                           : 'bg-brand-50 text-brand-700'
@@ -474,10 +474,10 @@ export const CalendarView: React.FC = () => {
                     >
                       {evt.scope === 'team' ? 'Whole Team' : 'Personal'}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-medium">{formatTime(evt.startTime)}</span>
+                    <span className="text-xs text-slate-400 font-medium">{formatTime(evt.startTime)}</span>
                   </div>
                   <h5 className="text-xs font-bold text-slate-800 truncate">{evt.title}</h5>
-                  <p className="text-[11px] text-slate-400 truncate">{evt.date}</p>
+                  <p className="text-xs text-slate-400 truncate">{evt.date}</p>
                 </div>
               ))}
             </div>
@@ -486,9 +486,9 @@ export const CalendarView: React.FC = () => {
       </div>
 
       {/* Main Calendar Area */}
-      <div className="flex-1 flex flex-col p-6 overflow-hidden">
+      <div className="order-1 md:order-2 flex-1 flex flex-col p-3 md:p-6 md:overflow-hidden min-w-0">
         <div data-onboarding-target="calendar-controls" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div>
               <h2 className="text-xl font-bold text-slate-900">
                 {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
@@ -498,35 +498,37 @@ export const CalendarView: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex items-center gap-1 bg-white border border-slate-200 p-0.5 rounded-xl shadow-2xs ml-4">
+            <div className="flex items-center gap-1 bg-white border border-slate-200 p-0.5 rounded-xl shadow-2xs ml-2 md:ml-4">
               <button
                 onClick={prevPeriod}
-                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
+                className="p-3 md:p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
                 title="Previous"
+                aria-label="Previous"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={goToday}
-                className="px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                className="px-2.5 py-3 md:py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 Today
               </button>
               <button
                 onClick={nextPeriod}
-                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
+                className="p-3 md:p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
                 title="Next"
+                aria-label="Next"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center p-0.5 bg-slate-200/70 rounded-xl text-xs font-semibold">
               <button
                 onClick={() => setViewMode('month')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
+                className={`px-3 py-3 md:py-1.5 rounded-lg transition-all ${
                   viewMode === 'month' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
                 }`}
               >
@@ -534,7 +536,7 @@ export const CalendarView: React.FC = () => {
               </button>
               <button
                 onClick={() => setViewMode('week')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
+                className={`px-3 py-3 md:py-1.5 rounded-lg transition-all ${
                   viewMode === 'week' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
                 }`}
               >
@@ -542,7 +544,7 @@ export const CalendarView: React.FC = () => {
               </button>
               <button
                 onClick={() => setViewMode('day')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
+                className={`px-3 py-3 md:py-1.5 rounded-lg transition-all ${
                   viewMode === 'day' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
                 }`}
               >
@@ -552,7 +554,7 @@ export const CalendarView: React.FC = () => {
 
             <button
               onClick={() => setIsAddEventOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-md shadow-brand-500/25 transition-all active:scale-95"
+              className="flex items-center gap-1.5 px-4 py-3 md:py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-md shadow-brand-500/25 transition-all active:scale-95"
             >
               <Plus className="w-4 h-4" />
               <span>Add Event</span>
@@ -560,6 +562,8 @@ export const CalendarView: React.FC = () => {
           </div>
         </div>
 
+        <div className={viewMode === 'day' ? 'contents' : 'flex-1 flex flex-col overflow-x-auto md:overflow-visible'}>
+        <div className={viewMode === 'day' ? 'contents' : 'flex-1 flex flex-col min-w-[640px] md:min-w-0'}>
         {viewMode === 'month' && (
           <div className="grid grid-cols-7 text-center text-xs font-bold text-slate-500 py-2 border-b border-slate-200 bg-white/40 rounded-t-xl">
             {daysOfWeek.map((day) => (
@@ -571,6 +575,8 @@ export const CalendarView: React.FC = () => {
         {viewMode === 'month' && renderMonthGrid()}
         {viewMode === 'week' && renderWeekView()}
         {viewMode === 'day' && renderDayView()}
+        </div>
+        </div>
       </div>
     </div>
   );

@@ -181,7 +181,7 @@ export const SupportPage: React.FC = () => {
       <header className="border-b border-slate-200 bg-white px-5 py-5 sm:px-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-600">Support</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-600">Support</p>
             <h1 className="mt-1 text-xl font-bold text-slate-900">Tickets</h1>
             <p className="mt-1 text-xs text-slate-500">Track requests from new through resolution.</p>
           </div>
@@ -202,14 +202,14 @@ export const SupportPage: React.FC = () => {
             </div>
             <div className="flex flex-wrap gap-1">
               {([{ id: 'active', label: 'Active' }, ...statuses] as { id: 'active' | Status; label: string }[]).map((item) => (
-                <button key={item.id} type="button" onClick={() => setStatusFilter(item.id)} className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${statusFilter === item.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                <button key={item.id} type="button" onClick={() => setStatusFilter(item.id)} className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusFilter === item.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                   {item.label} {counts[item.id] ?? 0}
                 </button>
               ))}
             </div>
             <div className="flex gap-1">
               {([['all', 'All'], ['mine', 'My requests'], ['assigned', 'Assigned to me']] as const).map(([id, label]) => (
-                <button key={id} type="button" onClick={() => setScope(id)} className={`rounded-lg px-2.5 py-1 text-[10px] font-semibold ${scope === id ? 'bg-brand-50 text-brand-700' : 'text-slate-500 hover:bg-slate-50'}`}>{label}</button>
+                <button key={id} type="button" onClick={() => setScope(id)} className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${scope === id ? 'bg-brand-50 text-brand-700' : 'text-slate-500 hover:bg-slate-50'}`}>{label}</button>
               ))}
             </div>
           </div>
@@ -218,11 +218,11 @@ export const SupportPage: React.FC = () => {
               <li key={ticket.id}>
                 <button type="button" onClick={() => setSelectedId(ticket.id)} className={`w-full p-3 text-left hover:bg-slate-50 ${selectedId === ticket.id ? 'bg-brand-50/60' : ''}`}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold text-slate-400">FL-{ticket.ticket_number}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold capitalize ${priorityStyle[ticket.priority]}`}>{ticket.priority}</span>
+                    <span className="text-xs font-bold text-slate-400">FL-{ticket.ticket_number}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold capitalize ${priorityStyle[ticket.priority]}`}>{ticket.priority}</span>
                   </div>
                   <p className="mt-1 truncate text-sm font-semibold text-slate-900">{ticket.subject}</p>
-                  <p className="mt-1 text-[10px] text-slate-500">
+                  <p className="mt-1 text-xs text-slate-500">
                     {statusLabel(ticket.status)} · {userName(ticket.requester_id)} · {formatDate(ticket.created_at)}
                     {overdue(ticket) && <span className="ml-2 font-bold text-red-600">Overdue</span>}
                   </p>
@@ -242,7 +242,7 @@ export const SupportPage: React.FC = () => {
           ) : (
             <div className="space-y-5">
               <div>
-                <p className="text-[10px] font-bold text-slate-400">FL-{selected.ticket_number} · {categoryLabel(selected.category)}</p>
+                <p className="text-xs font-bold text-slate-400">FL-{selected.ticket_number} · {categoryLabel(selected.category)}</p>
                 <h2 className="mt-1 text-lg font-bold text-slate-900">{selected.subject}</h2>
                 <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{selected.description || 'No description provided.'}</p>
               </div>
@@ -279,13 +279,13 @@ export const SupportPage: React.FC = () => {
               )}
 
               <div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400"><Clock3 className="mr-1 inline h-3 w-3" />Conversation</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-400"><Clock3 className="mr-1 inline h-3 w-3" />Conversation</p>
                 <div className="space-y-2">
                   {comments.map((comment) => (
                     <div key={comment.id} className={`rounded-xl p-3 text-xs ${comment.is_internal ? 'border border-amber-200 bg-amber-50' : 'bg-slate-50'}`}>
                       <p className="font-bold text-slate-700">
                         {userName(comment.author_id)}
-                        {comment.is_internal && <span className="ml-2 text-[10px] text-amber-700"><Lock className="mr-0.5 inline h-3 w-3" />Internal note</span>}
+                        {comment.is_internal && <span className="ml-2 text-xs text-amber-700"><Lock className="mr-0.5 inline h-3 w-3" />Internal note</span>}
                         <span className="ml-2 font-normal text-slate-400">{new Date(comment.created_at).toLocaleString()}</span>
                       </p>
                       <p className="mt-1 whitespace-pre-wrap text-slate-600">{comment.body}</p>

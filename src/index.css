@@ -17,6 +17,36 @@
   }
 }
 
+/* Keyboard focus must stay visible even where components set outline-none */
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+[role='button']:focus-visible,
+[role='tab']:focus-visible,
+[tabindex]:not([tabindex='-1']):focus-visible {
+  outline: 2px solid #2569F5 !important;
+  outline-offset: 2px;
+}
+
+html[data-theme='dark'] button:focus-visible,
+html[data-theme='dark'] a:focus-visible,
+html[data-theme='dark'] [role='button']:focus-visible,
+html[data-theme='dark'] [role='tab']:focus-visible {
+  outline-color: #8eb8ff !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-property: color, background-color, border-color, opacity, box-shadow !important;
+    transition-duration: 120ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Custom sleek scrollbar */
 ::-webkit-scrollbar {
   width: 5px;
@@ -36,23 +66,48 @@
   background: rgba(100, 116, 139, 0.6);
 }
 
+/*
+ * Dark theme: semantic tokens remap the light utilities by role.
+ * Surfaces step up in lightness with elevation and carry a faint brand-blue tint;
+ * semantic status colors keep their own hue instead of collapsing into brand blue.
+ * Specificity of these selectors already beats the utilities, so no !important.
+ */
 html[data-theme='dark'] {
   color-scheme: dark;
-  background: #000;
-  color: #f8fafc;
+  --surface-canvas: #0a0e15;
+  --surface-raised: #121823;
+  --surface-tint: #16213a;
+  --surface-hover: #1b2535;
+  --line: #263246;
+  --line-brand: #2f4468;
+  --text-strong: #f1f5f9;
+  --text-body: #cbd5e1;
+  --text-muted: #9aa8bd;
+  --text-brand: #bfdbfe;
+  --danger-surface: #2a1319;
+  --danger-text: #fda4af;
+  --danger-line: #5b2430;
+  --ok-surface: #0f2a20;
+  --ok-text: #86efac;
+  --ok-line: #1f5a43;
+  --warn-surface: #2c2210;
+  --warn-text: #fcd34d;
+  --warn-line: #5f4a17;
+  background: var(--surface-canvas);
+  color: var(--text-strong);
 }
 
 html[data-theme='dark'] body {
-  background: #000;
-  color: #f8fafc;
+  background: var(--surface-canvas);
+  color: var(--text-strong);
 }
 
-html[data-theme='dark'] #root > [class~='h-screen'] {
+html[data-theme='dark'] #root > [class~='h-screen'],
+html[data-theme='dark'] #root > [class~='h-dvh'] {
   background-image: none;
-  background-color: #000;
+  background-color: var(--surface-canvas);
 }
 
-html[data-theme='dark'] #root [class~='bg-white'],
 html[data-theme='dark'] #root [class~='bg-white'],
 html[data-theme='dark'] #root [class~='bg-white/95'],
 html[data-theme='dark'] #root [class~='bg-white/90'],
@@ -74,7 +129,7 @@ html[data-theme='dark'] #root [class~='bg-slate-100/80'],
 html[data-theme='dark'] #root [class~='bg-slate-100/70'],
 html[data-theme='dark'] #root [class~='bg-slate-100/60'],
 html[data-theme='dark'] #root [class~='bg-slate-100/50'] {
-  background-color: #111 !important;
+  background-color: var(--surface-raised);
 }
 
 html[data-theme='dark'] #root [class~='bg-brand-50'],
@@ -82,59 +137,79 @@ html[data-theme='dark'] #root [class~='bg-brand-50/80'],
 html[data-theme='dark'] #root [class~='bg-brand-50/70'],
 html[data-theme='dark'] #root [class~='bg-brand-50/40'],
 html[data-theme='dark'] #root [class~='bg-brand-100'],
-html[data-theme='dark'] #root [class~='bg-brand-100/70'],
-html[data-theme='dark'] #root [class~='bg-brand-50'],
-html[data-theme='dark'] #root [class~='bg-brand-100'],
-html[data-theme='dark'] #root [class~='bg-brand-50'],
-html[data-theme='dark'] #root [class~='bg-brand-100'],
-html[data-theme='dark'] #root [class~='bg-brand-50'],
-html[data-theme='dark'] #root [class~='bg-brand-100'],
-html[data-theme='dark'] #root [class~='bg-brand-50'],
-html[data-theme='dark'] #root [class~='bg-brand-100'],
-html[data-theme='dark'] #root [class~='bg-brand-50'],
-html[data-theme='dark'] #root [class~='bg-brand-100'],
+html[data-theme='dark'] #root [class~='bg-brand-100/70'] {
+  background-color: var(--surface-tint);
+}
+
 html[data-theme='dark'] #root [class~='bg-rose-50'],
 html[data-theme='dark'] #root [class~='bg-rose-100'],
-html[data-theme='dark'] #root [class~='bg-brand-50'],
-html[data-theme='dark'] #root [class~='bg-brand-100'],
-html[data-theme='dark'] #root [class~='bg-brand-50'],
-html[data-theme='dark'] #root [class~='bg-brand-100'] {
-  background-color: #1a1a1a !important;
+html[data-theme='dark'] #root [class~='bg-red-50'],
+html[data-theme='dark'] #root [class~='bg-red-100'] {
+  background-color: var(--danger-surface);
+}
+
+html[data-theme='dark'] #root [class~='bg-emerald-50'],
+html[data-theme='dark'] #root [class~='bg-emerald-100'],
+html[data-theme='dark'] #root [class~='bg-green-50'],
+html[data-theme='dark'] #root [class~='bg-green-100'] {
+  background-color: var(--ok-surface);
+}
+
+html[data-theme='dark'] #root [class~='bg-amber-50'],
+html[data-theme='dark'] #root [class~='bg-amber-100'],
+html[data-theme='dark'] #root [class~='bg-yellow-50'],
+html[data-theme='dark'] #root [class~='bg-yellow-100'],
+html[data-theme='dark'] #root [class~='bg-orange-50'] {
+  background-color: var(--warn-surface);
+}
+
+html[data-theme='dark'] #root [class~='bg-[#f7f9fc]'],
+html[data-theme='dark'] #root [class~='bg-[#f8fafc]'],
+html[data-theme='dark'] #root [class~='bg-[#eef2f6]'] {
+  background-color: var(--surface-canvas);
 }
 
 html[data-theme='dark'] #root [class~='text-slate-900'],
 html[data-theme='dark'] #root [class~='text-slate-800'] {
-  color: #f1f5f9;
+  color: var(--text-strong);
 }
 
 html[data-theme='dark'] #root [class~='text-slate-700'],
 html[data-theme='dark'] #root [class~='text-slate-600'] {
-  color: #cbd5e1;
+  color: var(--text-body);
 }
 
 html[data-theme='dark'] #root [class~='text-slate-500'],
 html[data-theme='dark'] #root [class~='text-slate-400'] {
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 html[data-theme='dark'] #root [class~='text-brand-700'],
 html[data-theme='dark'] #root [class~='text-brand-800'],
-html[data-theme='dark'] #root [class~='text-brand-900'],
-html[data-theme='dark'] #root [class~='text-brand-600'],
-html[data-theme='dark'] #root [class~='text-brand-700'],
-html[data-theme='dark'] #root [class~='text-brand-600'],
-html[data-theme='dark'] #root [class~='text-brand-700'],
-html[data-theme='dark'] #root [class~='text-brand-600'],
-html[data-theme='dark'] #root [class~='text-brand-700'],
-html[data-theme='dark'] #root [class~='text-brand-600'],
-html[data-theme='dark'] #root [class~='text-brand-700'],
+html[data-theme='dark'] #root [class~='text-brand-900'] {
+  color: var(--text-brand);
+}
+
+html[data-theme='dark'] #root [class~='text-rose-500'],
 html[data-theme='dark'] #root [class~='text-rose-600'],
 html[data-theme='dark'] #root [class~='text-rose-700'],
-html[data-theme='dark'] #root [class~='text-brand-600'],
-html[data-theme='dark'] #root [class~='text-brand-700'],
-html[data-theme='dark'] #root [class~='text-brand-600'],
-html[data-theme='dark'] #root [class~='text-brand-700'] {
-  color: #bfdbfe;
+html[data-theme='dark'] #root [class~='text-red-600'],
+html[data-theme='dark'] #root [class~='text-red-700'] {
+  color: var(--danger-text);
+}
+
+html[data-theme='dark'] #root [class~='text-emerald-600'],
+html[data-theme='dark'] #root [class~='text-emerald-700'],
+html[data-theme='dark'] #root [class~='text-green-600'],
+html[data-theme='dark'] #root [class~='text-green-700'] {
+  color: var(--ok-text);
+}
+
+html[data-theme='dark'] #root [class~='text-amber-600'],
+html[data-theme='dark'] #root [class~='text-amber-700'],
+html[data-theme='dark'] #root [class~='text-amber-800'],
+html[data-theme='dark'] #root [class~='text-yellow-700'] {
+  color: var(--warn-text);
 }
 
 html[data-theme='dark'] #root [class~='border-slate-100'],
@@ -144,43 +219,55 @@ html[data-theme='dark'] #root [class~='border-slate-200/80'],
 html[data-theme='dark'] #root [class~='border-slate-200/70'],
 html[data-theme='dark'] #root [class~='border-slate-200/60'],
 html[data-theme='dark'] #root [class~='border-slate-300'] {
-  border-color: #333 !important;
+  border-color: var(--line);
 }
 
 html[data-theme='dark'] #root [class~='border-brand-100'],
 html[data-theme='dark'] #root [class~='border-brand-200'],
 html[data-theme='dark'] #root [class~='border-brand-200/60'],
-html[data-theme='dark'] #root [class~='border-brand-300'],
-html[data-theme='dark'] #root [class~='border-brand-200'],
-html[data-theme='dark'] #root [class~='border-brand-200'],
-html[data-theme='dark'] #root [class~='border-brand-200'],
-html[data-theme='dark'] #root [class~='border-brand-200'],
+html[data-theme='dark'] #root [class~='border-brand-300'] {
+  border-color: var(--line-brand);
+}
+
+html[data-theme='dark'] #root [class~='border-rose-100'],
 html[data-theme='dark'] #root [class~='border-rose-200'],
-html[data-theme='dark'] #root [class~='border-brand-200'],
-html[data-theme='dark'] #root [class~='border-brand-200'] {
-  border-color: #444;
+html[data-theme='dark'] #root [class~='border-red-200'] {
+  border-color: var(--danger-line);
+}
+
+html[data-theme='dark'] #root [class~='border-emerald-200'],
+html[data-theme='dark'] #root [class~='border-green-200'] {
+  border-color: var(--ok-line);
+}
+
+html[data-theme='dark'] #root [class~='border-amber-200'],
+html[data-theme='dark'] #root [class~='border-yellow-200'] {
+  border-color: var(--warn-line);
 }
 
 html[data-theme='dark'] #root input:not([type='checkbox']):not([type='radio']):not([type='color']),
 html[data-theme='dark'] #root textarea,
 html[data-theme='dark'] #root select {
   color-scheme: dark;
-  color: #e2e8f0;
+  color: var(--text-strong);
 }
 
 html[data-theme='dark'] #root input::placeholder,
 html[data-theme='dark'] #root textarea::placeholder {
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 html[data-theme='dark'] #root [class*='hover:bg-white']:hover,
 html[data-theme='dark'] #root [class*='hover:bg-slate-50']:hover,
 html[data-theme='dark'] #root [class*='hover:bg-slate-100']:hover,
 html[data-theme='dark'] #root [class*='hover:bg-brand-50']:hover,
-html[data-theme='dark'] #root [class*='hover:bg-brand-100']:hover,
-html[data-theme='dark'] #root [class*='hover:bg-brand-50']:hover,
-html[data-theme='dark'] #root [class*='hover:bg-rose-50']:hover {
-  background-color: #222 !important;
+html[data-theme='dark'] #root [class*='hover:bg-brand-100']:hover {
+  background-color: var(--surface-hover);
+}
+
+html[data-theme='dark'] #root [class*='hover:bg-rose-50']:hover,
+html[data-theme='dark'] #root [class*='hover:bg-red-50']:hover {
+  background-color: var(--danger-surface);
 }
 
 html[data-theme='dark'] #root [class~='bg-brand-600'] {

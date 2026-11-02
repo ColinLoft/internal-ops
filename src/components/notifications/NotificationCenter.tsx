@@ -45,7 +45,7 @@ export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose 
   };
 
   return (
-    <div role="dialog" aria-label="Notification center" className="w-80 bg-white/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-150">
+    <div role="dialog" aria-label="Notification center" className="w-[min(20rem,calc(100vw-1rem))] md:w-80 bg-white/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-150">
       {/* Header */}
       <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
         <div className="flex items-center gap-2">
@@ -55,14 +55,16 @@ export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose 
         <div className="flex items-center gap-1.5">
           <button
             onClick={markAllNotificationsRead}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
+            className="flex min-h-11 min-w-11 items-center justify-center md:min-h-0 md:min-w-0 p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
             title="Mark all as read"
+            aria-label="Mark all as read"
           >
             <CheckCheck className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
+            aria-label="Close notifications"
+            className="flex min-h-11 min-w-11 items-center justify-center md:min-h-0 md:min-w-0 p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -70,7 +72,7 @@ export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose 
       </div>
 
       {/* Notifications List */}
-      <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">
+      <div className="max-h-[60dvh] md:max-h-96 overflow-y-auto divide-y divide-slate-100">
         {notifications.length > 0 ? (
           notifications.map((n) => (
             <div
@@ -86,11 +88,11 @@ export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-0.5">
                   <h5 className="text-xs font-bold text-slate-900 truncate">{n.title}</h5>
-                  <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap ml-1">
+                  <span className="text-xs text-slate-400 font-medium whitespace-nowrap ml-1">
                     {n.timestamp}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
                   {n.description}
                 </p>
               </div>
