@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { GrantDetail } from './GrantDetail';
 import { GrantsPage } from './GrantsPage';
-import { GrantAutomation, GrantDeadlines, GrantReports, GrantsOverview } from './GrantsViews';
+import { GrantAutomation, GrantReports, GrantsOverview } from './GrantsViews';
 import { ProspectsPage } from './ProspectsPage';
 import { ResourcesPage } from './ResourcesPage';
 
@@ -22,7 +22,6 @@ export const FinancePage: React.FC = () => {
   switch (route.view) {
     case 'grants': return route.id ? <GrantDetail key={route.id} grantId={route.id} /> : <GrantsPage />;
     case 'prospects': return <ProspectsPage />;
-    case 'deadlines': return <GrantDeadlines />;
     case 'resources': return <ResourcesPage />;
     case 'reports': return <GrantReports />;
     case 'automation': return <GrantAutomation />;

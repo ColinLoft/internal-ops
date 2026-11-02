@@ -29,7 +29,6 @@ import { DrivePage } from './components/drive/DrivePage';
 import { AccessGate } from './components/common/AccessGate';
 import { CustomerPage } from './components/customers/CustomerPage';
 import { FinancePage } from './components/finance/FinancePage';
-import { OperationsPage } from './components/operations/OperationsPage';
 import { LegalPage } from './components/legal/LegalPage';
 import { AdminPage } from './components/admin/AdminPage';
 import { HomePage } from './components/home/HomePage';
@@ -125,7 +124,6 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'home' && <HomePage />}
           {activeTab === 'customers' && <AccessGate app="customers" name="Relationships"><CustomerPage /></AccessGate>}
           {activeTab === 'finance' && <AccessGate app="finance" name="Finance"><FinancePage /></AccessGate>}
-          {activeTab === 'operations' && <OperationsPage />}
           {activeTab === 'legal' && <AccessGate app="legal" name="Legal"><LegalPage /></AccessGate>}
           {activeTab === 'help' && <SupportPage />}
           {activeTab === 'insights' && <InsightsPage />}

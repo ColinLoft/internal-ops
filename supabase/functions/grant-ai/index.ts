@@ -40,7 +40,9 @@ Deno.serve(async (request: Request) => {
 
     // Reads go through the caller's client so row-level security applies.
     const { data: boiler } = await callerClient.from('grant_resources').select('title,body').eq('category', 'boilerplate').limit(6);
-    const orgContext = (boiler || []).map((row: Json) => `${row.title}: ${clip(row.body, 800)}`).join('\n') || 'No organization boilerplate has been saved yet.';
+    const { data: settingsRow } = await callerClient.from('grant_settings').select('org_summary').limit(1).maybeSingle();
+    const summary = clip((settingsRow as Json | null)?.org_summary, 4000);
+    const orgContext = (summary ? `ORGANIZATION SUMMARY: ${summary}\n` : '') + (boiler || []).map((row: Json) => `${row.title}: ${clip(row.body, 800)}`).join('\n') || (summary ? '' : 'No organization boilerplate has been saved yet.');
 
     if (action === 'extract') {
       const text = clip(payload.text, 12000);
@@ -51,12 +53,13 @@ Deno.serve(async (request: Request) => {
 
     if (action === 'research') {
       const focus = clip(payload.focus, 1000);
+      const wanted = payload.grantType === 'money' ? ' Only cash/monetary grants.' : payload.grantType === 'product' ? ' Only product, in-kind or donated-goods programs (e.g. software, hardware, services donations); amounts may be null.' : payload.grantType === 'both' ? ' Include both cash grants and product/in-kind programs.' : '';
       const [{ data: existing }, { data: held }] = await Promise.all([
         callerClient.from('grant_prospects').select('name,funder_name').limit(200),
         callerClient.from('grants').select('name,funder_name').limit(200),
       ]);
       const known = [...(existing || []), ...(held || [])].map((row: Json) => `${row.name} (${row.funder_name || ''})`).join('; ');
-      const content = await complete(SYSTEM + ' You have no live web access: suggest only real, well-established funding programs you are confident exist, from your training knowledge. Never invent programs, URLs, amounts or dates. Use null for anything you are not certain of.', `Suggest up to 8 grant programs this organization could realistically apply for.${focus ? ` Research focus: ${focus}` : ''}\nSkip anything already known: ${clip(known, 3000) || 'none'}.\n\nORGANIZATION:\n${orgContext}\n\nRespond with JSON: {"suggestions":[{"name":string,"funder_name":string,"url":string|null (official site only if certain),"amount_min":number|null,"amount_max":number|null,"deadline":null or YYYY-MM-DD only if certain,"focus_areas":string,"eligibility":string,"why_fit":string,"fit_score":integer 0-100}]}`, true);
+      const content = await complete(SYSTEM + ' You have no live web access: suggest only real, well-established funding programs you are confident exist, from your training knowledge. Never invent programs, URLs, amounts or dates. Use null for anything you are not certain of.', `Suggest up to 8 grant programs this organization could realistically apply for.${focus ? ` Research focus: ${focus}` : ''}${wanted}\nSkip anything already known: ${clip(known, 3000) || 'none'}.\n\nORGANIZATION:\n${orgContext}\n\nRespond with JSON: {"suggestions":[{"name":string,"funder_name":string,"url":string|null (official site only if certain),"amount_min":number|null,"amount_max":number|null,"deadline":null or YYYY-MM-DD only if certain,"focus_areas":string,"eligibility":string,"why_fit":string,"fit_score":integer 0-100}]}`, true);
       const parsed = JSON.parse(content) as { suggestions?: Json[] };
       const suggestions = (parsed.suggestions || []).slice(0, 8).map((row) => ({
         name: clip(row.name, 200), funder_name: clip(row.funder_name, 200) || null,

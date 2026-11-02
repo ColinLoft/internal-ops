@@ -96,7 +96,6 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
   const isDrive = activeTab === 'drive';
   const isCustomers = activeTab === 'customers';
   const isFinance = activeTab === 'finance';
-  const isOperations = activeTab === 'operations';
   const isLegal = activeTab === 'legal';
   const isEngineering = activeTab === 'engineering';
   const isInsights = activeTab === 'insights';
@@ -185,6 +184,8 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
               { label: 'Positions & Roles', icon: BriefcaseBusiness, section: 'positions' },
               { label: 'Leave', icon: ClipboardList, section: 'onboarding' },
               { label: 'Personnel Records', icon: FileText, section: 'records' },
+              { label: 'Policies & Procedures', icon: BookOpen, section: 'policies' },
+              { label: 'Workflows & Approvals', icon: CheckCircle2, section: 'approvals' },
             ].map((item) => { const Icon = item.icon; const path = `/organization/${item.section}`; const selected = routePath === path || (item.section === 'people' && routePath === '/organization'); return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
           ) : isInsights ? (
             <>{[
@@ -206,7 +207,6 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
               { label: 'Overview', icon: House, path: '/finance' },
               { label: 'Grant Tracker', icon: Landmark, path: '/finance/grants' },
               { label: 'Possible Grants', icon: Target, path: '/finance/prospects' },
-              { label: 'Deadlines', icon: CalendarIcon, path: '/finance/deadlines' },
               { label: 'Resources', icon: BookOpen, path: '/finance/resources' },
               { label: 'Reports & Payments', icon: BarChart3, path: '/finance/reports' },
               { label: 'Automation', icon: ListChecks, path: '/finance/automation' },
@@ -221,15 +221,6 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
               { label: 'Media & Content', path: '/gtm/content', icon: FileText },
               { label: 'Partnerships', path: '/gtm/partnerships', icon: Users },
               { label: 'Business Development', path: '/gtm/business-development', icon: BriefcaseBusiness },
-            ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
-          ) : isOperations ? (
-            <>{[
-              { label: 'Overview', path: '/operations', icon: House },
-              { label: 'Administration', path: '/operations/administration', icon: ListChecks },
-              { label: 'People Operations', path: '/operations/people', icon: Users },
-              { label: 'Policies & Procedures', path: '/operations/policies', icon: BookOpen },
-              { label: 'Resource Coordination', path: '/operations/resources', icon: BriefcaseBusiness },
-              { label: 'Internal Workflows', path: '/operations/workflows', icon: CheckCircle2 },
             ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
           ) : isEngineering ? (
             <>{[

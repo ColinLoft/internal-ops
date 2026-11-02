@@ -3,7 +3,7 @@ import { Check, Copy, Plus, Sparkles, Star, Trash2 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { card, field } from '../work/EntityPanels';
-import { Grant, askGrantAi, daysFromNow, dueTone } from './grantShared';
+import { Grant, askGrantAi, daysFromNow, dueTone, goTo } from './grantShared';
 
 type Contact = { id: string; crm_contact_id: string | null; name: string; role: string | null; title: string | null; email: string | null; phone: string | null; is_primary: boolean; notes: string | null };
 type CrmContact = { id: string; name: string; role_title: string | null; email: string | null; phone: string | null };
@@ -152,5 +152,29 @@ export const FunderPicker: React.FC<{ grant: Grant; onLink: (values: Partial<Gra
   return (
     <div className="space-y-1"><label className={label}>CRM funder organization<select value={grant.funder_org_id || ''} onChange={(event) => onLink({ funder_org_id: event.target.value || null })} className={field}><option value="">Not linked</option>{orgs.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></label>
       {!grant.funder_org_id && <button type="button" onClick={() => void createFromName()} className="text-xs font-bold text-brand-600">Create a CRM funder from this name</button>}</div>
+  );
+};
+
+export const UpcomingDates: React.FC<{ grants: Grant[] }> = ({ grants }) => {
+  const [reports, setReports] = useState<{ grant_id: string; title: string; due_date: string | null; status: string }[]>([]);
+  const [prospects, setProspects] = useState<{ name: string; deadline: string | null; status: string }[]>([]);
+  useEffect(() => {
+    void supabase.from('grant_reports').select('grant_id,title,due_date,status').in('status', ['upcoming', 'overdue']).then(({ data }) => setReports(data || []));
+    void supabase.from('grant_prospects').select('name,deadline,status').in('status', ['new', 'reviewing', 'pursuing']).not('deadline', 'is', null).then(({ data }) => setProspects(data || []));
+  }, []);
+  const items: { date: string; label: string; kind: string; path: string }[] = [];
+  prospects.forEach((row) => row.deadline && items.push({ date: row.deadline, label: row.name, kind: 'Application deadline', path: '/finance/prospects' }));
+  reports.forEach((row) => row.due_date && items.push({ date: row.due_date, label: `${row.title} — ${grants.find((g) => g.id === row.grant_id)?.name || ''}`, kind: 'Report due', path: `/finance/grants/${row.grant_id}` }));
+  grants.forEach((g) => {
+    if (g.decision_due_at && g.stage === 'under_review') items.push({ date: g.decision_due_at, label: g.name, kind: 'Decision expected', path: `/finance/grants/${g.id}` });
+    if (g.next_follow_up_at && !['declined', 'closed'].includes(g.stage)) items.push({ date: g.next_follow_up_at.slice(0, 10), label: g.name, kind: 'Follow up', path: `/finance/grants/${g.id}` });
+    if (g.term_end && ['awarded', 'reporting'].includes(g.stage)) items.push({ date: g.term_end, label: g.name, kind: 'Grant term ends', path: `/finance/grants/${g.id}` });
+  });
+  const shown = items.filter((item) => (daysFromNow(item.date) ?? 999) <= 45).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8);
+  if (!shown.length) return null;
+  return (
+    <section className={card}><h2 className="mb-2 text-sm font-bold text-slate-900">Upcoming dates</h2>
+      <ul className="divide-y divide-slate-100">{shown.map((item, index) => { const days = daysFromNow(item.date); return <li key={index}><button type="button" onClick={() => goTo(item.path)} className="flex w-full items-center justify-between gap-3 py-2 text-left text-xs"><span className="min-w-0"><span className="block truncate font-semibold text-slate-800">{item.label}</span><span className="text-slate-400">{item.kind}</span></span><span className={`shrink-0 text-right ${dueTone(item.date)}`}>{item.date}<span className="block">{days == null ? '' : days < 0 ? `${-days}d overdue` : days === 0 ? 'Today' : `in ${days}d`}</span></span></button></li>; })}</ul>
+    </section>
   );
 };

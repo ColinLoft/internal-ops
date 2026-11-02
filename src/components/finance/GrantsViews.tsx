@@ -73,26 +73,6 @@ export const GrantsOverview: React.FC = () => {
   );
 };
 
-export const GrantDeadlines: React.FC = () => {
-  const { grants, reports, prospects, error } = useGrantData();
-  const items = useMemo(() => {
-    const list: { date: string; label: string; kind: string; path: string }[] = [];
-    prospects.filter((p) => p.deadline && ['new', 'reviewing', 'pursuing'].includes(p.status)).forEach((p) => list.push({ date: p.deadline!, label: p.name, kind: 'Application deadline', path: '/finance/prospects' }));
-    reports.filter((r) => r.due_date && ['upcoming', 'overdue'].includes(r.status)).forEach((r) => list.push({ date: r.due_date!, label: `${r.title} — ${grants.find((g) => g.id === r.grant_id)?.name || ''}`, kind: 'Report due', path: `/finance/grants/${r.grant_id}` }));
-    grants.forEach((g) => {
-      if (g.decision_due_at && g.stage === 'under_review') list.push({ date: g.decision_due_at, label: g.name, kind: 'Decision expected', path: `/finance/grants/${g.id}` });
-      if (g.next_follow_up_at && !['declined', 'closed'].includes(g.stage)) list.push({ date: g.next_follow_up_at.slice(0, 10), label: g.name, kind: 'Follow up', path: `/finance/grants/${g.id}` });
-      if (g.term_end && ['awarded', 'reporting'].includes(g.stage)) list.push({ date: g.term_end, label: g.name, kind: 'Grant term ends', path: `/finance/grants/${g.id}` });
-    });
-    return list.sort((a, b) => a.date.localeCompare(b.date));
-  }, [grants, reports, prospects]);
-  return (
-    <Shell title="Deadlines" blurb="Every date across prospects, applications, decisions, reports and follow-ups." error={error}>
-      {items.length ? <div className={card}><ul className="divide-y divide-slate-100">{items.map((item, index) => { const days = daysFromNow(item.date); return <li key={index}><button type="button" onClick={() => goTo(item.path)} className="flex w-full items-center justify-between gap-3 py-2.5 text-left text-xs"><span className="min-w-0"><span className="block truncate font-semibold text-slate-800">{item.label}</span><span className="text-slate-400">{item.kind}</span></span><span className={`shrink-0 text-right ${dueTone(item.date)}`}>{item.date}<span className="block">{days == null ? '' : days < 0 ? `${-days}d overdue` : days === 0 ? 'Today' : `in ${days}d`}</span></span></button></li>; })}</ul></div> : <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-500">No dated items yet.</div>}
-    </Shell>
-  );
-};
-
 export const GrantReports: React.FC = () => {
   const { grants, reports, payments, error, reload } = useGrantData();
   const [msg, setMsg] = useState('');

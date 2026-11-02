@@ -3,7 +3,8 @@ import { Download, Plus, Search, Settings2, Trash2, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { card, field } from '../work/EntityPanels';
-import { GRANT_STAGES, Grant, SOURCES, downloadCsv, goTo, money, stageLabel, stageTone } from './grantShared';
+import { UpcomingDates } from './GrantExtras';
+import { GRANT_STAGES, GRANT_TYPES, Grant, SOURCES, downloadCsv, goTo, money, stageLabel, stageTone, typeLabel, typeTone } from './grantShared';
 
 type Template = { id: string; title: string; description: string | null; days_after_award: number; priority: string; assign_to: string; enabled: boolean; position: number };
 
@@ -31,7 +32,7 @@ export const GrantsPage: React.FC = () => {
     awarded: grants.filter((g) => ['awarded', 'reporting', 'closed'].includes(g.stage)).reduce((sum, g) => sum + Number(g.amount_awarded || 0), 0),
     open: grants.filter((g) => !['declined', 'closed'].includes(g.stage)).length,
   }), [grants]);
-  const exportCsv = () => downloadCsv('grants.csv', [['Name', 'Funder', 'Stage', 'Requested', 'Awarded', 'Source', 'Secured by', 'Submitted', 'Decision', 'Next follow-up'], ...shown.map((g) => [g.name, g.funder_name, stageLabel(g.stage), g.amount_requested, g.amount_awarded, g.source, userName(g.secured_by_id), g.application_submitted_at, g.decision_at, g.next_follow_up_at])]);
+  const exportCsv = () => downloadCsv('grants.csv', [['Name', 'Funder', 'Stage', 'Requested', 'Awarded', 'Type', 'Product', 'Source', 'Secured by', 'Submitted', 'Decision', 'Next follow-up'], ...shown.map((g) => [g.name, g.funder_name, stageLabel(g.stage), g.amount_requested, g.amount_awarded, typeLabel(g.grant_type), g.in_kind_awarded || g.in_kind_requested, g.source, userName(g.secured_by_id), g.application_submitted_at, g.decision_at, g.next_follow_up_at])]);
   const canConfigure = ['admin', 'coordinator'].includes(currentUser.systemRole);
 
   return (
@@ -47,6 +48,7 @@ export const GrantsPage: React.FC = () => {
       <div className="space-y-4 p-5 sm:p-8">
         {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</p>}
         <div className="grid gap-3 sm:grid-cols-3">{[['Open opportunities', String(totals.open)], ['Requested in pipeline', money(totals.pipeline)], ['Total awarded', money(totals.awarded)]].map(([title, value]) => <div key={title} className={card}><p className="text-xs text-slate-500">{title}</p><p className="text-xl font-bold text-slate-900">{value}</p></div>)}</div>
+        <UpcomingDates grants={grants} />
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search grants" className={`${field} pl-9`} /></div>
           <select value={stage} onChange={(event) => setStage(event.target.value)} aria-label="Filter by stage" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="all">All stages</option>{GRANT_STAGES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select>
@@ -55,7 +57,7 @@ export const GrantsPage: React.FC = () => {
           <div className="space-y-2">{shown.map((grant) => (
             <button type="button" key={grant.id} onClick={() => goTo(`/finance/grants/${grant.id}`)} className="flex w-full flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-brand-400">
               <div className="min-w-0"><p className="text-sm font-bold text-slate-900">{grant.name}</p><p className="text-xs text-slate-500">{grant.funder_name || 'No funder'} · {userName(grant.owner_id)}{grant.source ? ` · ${grant.source}` : ''}</p></div>
-              <div className="flex items-center gap-3 text-xs"><span className="font-semibold text-slate-700">{money(grant.amount_awarded ?? grant.amount_requested)}</span><span className={`rounded-full px-2 py-0.5 font-semibold ${stageTone(grant.stage)}`}>{stageLabel(grant.stage)}</span></div>
+              <div className="flex items-center gap-3 text-xs"><span className="font-semibold text-slate-700">{grant.grant_type === 'product' ? (grant.in_kind_awarded || grant.in_kind_requested || 'Product') : money(grant.amount_awarded ?? grant.amount_requested)}</span><span className={`rounded-full px-2 py-0.5 font-semibold ${typeTone(grant.grant_type)}`}>{typeLabel(grant.grant_type)}</span><span className={`rounded-full px-2 py-0.5 font-semibold ${stageTone(grant.stage)}`}>{stageLabel(grant.stage)}</span></div>
             </button>
           ))}</div>
         ) : <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-500">{grants.length ? 'No grants match your filters.' : 'No grants yet. Add the first funder you are pursuing.'}</div>}
@@ -76,13 +78,13 @@ const Modal: React.FC<{ title: string; onClose: () => void; children: React.Reac
 );
 
 const NewGrantModal: React.FC<{ userId: string; onClose: () => void; onCreated: (id: string) => void }> = ({ userId, onClose, onCreated }) => {
-  const [form, setForm] = useState({ name: '', funder_name: '', amount_requested: '', source: '', contact_email: '' });
+  const [form, setForm] = useState({ name: '', funder_name: '', amount_requested: '', in_kind_requested: '', grant_type: 'money', source: '', contact_email: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const submit = async () => {
     if (!form.name.trim()) { setError('A grant name is required.'); return; }
     setSaving(true);
-    const { data, error: insertError } = await supabase.from('grants').insert({ name: form.name.trim(), funder_name: form.funder_name.trim() || null, amount_requested: form.amount_requested ? Number(form.amount_requested) : null, source: form.source || null, contact_email: form.contact_email.trim().toLowerCase() || null, owner_id: userId, created_by: userId }).select('id').single();
+    const { data, error: insertError } = await supabase.from('grants').insert({ name: form.name.trim(), funder_name: form.funder_name.trim() || null, grant_type: form.grant_type, amount_requested: form.grant_type !== 'product' && form.amount_requested ? Number(form.amount_requested) : null, in_kind_requested: form.grant_type !== 'money' ? form.in_kind_requested.trim() || null : null, source: form.source || null, contact_email: form.contact_email.trim().toLowerCase() || null, owner_id: userId, created_by: userId }).select('id').single();
     setSaving(false);
     if (insertError || !data) setError(insertError?.message || 'Could not create the grant.'); else onCreated(data.id);
   };
@@ -92,7 +94,10 @@ const NewGrantModal: React.FC<{ userId: string; onClose: () => void; onCreated: 
         {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
         <input autoFocus value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Grant name" className={field} />
         <input value={form.funder_name} onChange={(event) => setForm({ ...form, funder_name: event.target.value })} placeholder="Funder" className={field} />
-        <div className="grid grid-cols-2 gap-2"><input type="number" min="0" value={form.amount_requested} onChange={(event) => setForm({ ...form, amount_requested: event.target.value })} placeholder="Amount requested" className={field} /><input type="email" value={form.contact_email} onChange={(event) => setForm({ ...form, contact_email: event.target.value })} placeholder="Funder contact email" className={field} /></div>
+        <select value={form.grant_type} onChange={(event) => setForm({ ...form, grant_type: event.target.value })} aria-label="Grant type" className={field}>{GRANT_TYPES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select>
+        {form.grant_type !== 'product' && <input type="number" min="0" value={form.amount_requested} onChange={(event) => setForm({ ...form, amount_requested: event.target.value })} placeholder="Amount requested ($)" className={field} />}
+        {form.grant_type !== 'money' && <input value={form.in_kind_requested} onChange={(event) => setForm({ ...form, in_kind_requested: event.target.value })} placeholder="Product requested (e.g. 20 laptops, software licenses)" className={field} />}
+        <div className="grid grid-cols-1 gap-2"><input type="email" value={form.contact_email} onChange={(event) => setForm({ ...form, contact_email: event.target.value })} placeholder="Funder contact email" className={field} /></div>
         <select value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} aria-label="How we found it" className={field}><option value="">How did we find it?</option>{SOURCES.map((item) => <option key={item}>{item}</option>)}</select>
         <div className="flex justify-end gap-2 pt-1"><button type="button" onClick={onClose} className="px-3 py-2 text-xs font-semibold text-slate-500">Cancel</button><button type="button" disabled={saving} onClick={() => void submit()} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-60">{saving ? 'Creating…' : 'Create grant'}</button></div>
       </div>

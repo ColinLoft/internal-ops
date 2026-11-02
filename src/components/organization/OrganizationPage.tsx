@@ -27,6 +27,8 @@ const organizationNav: { id: View; label: string; icon: React.ElementType }[] = 
   { id: 'positions', label: 'Positions & Roles', icon: BriefcaseBusiness },
   { id: 'onboarding', label: 'Leave', icon: ClipboardCheck },
   { id: 'records', label: 'Personnel Records', icon: FileText },
+  { id: 'policies', label: 'Policies & Procedures', icon: FileText },
+  { id: 'approvals', label: 'Workflows & Approvals', icon: CheckCircle2 },
 ];
 
 const administrationNav: { id: View; label: string; icon: React.ElementType }[] = [
@@ -85,6 +87,13 @@ export const OrganizationPage: React.FC<OrganizationPageProps> = ({ basePath = '
     const { data, error: documentError } = await supabase.from('organization_documents').select('*').order('created_at', { ascending: false });
     if (!documentError) setDocuments((data || []) as OrganizationDocument[]);
   };
+  useEffect(() => {
+    const legacy = window.location.pathname.match(/^\/(?:operations|admin)(?:\/([^/]+))?\/?$/);
+    if (!legacy) return;
+    const target = legacy[1] === 'policies' ? 'policies' : legacy[1] === 'workflows' || legacy[1] === 'approvals' ? 'approvals' : 'people';
+    window.history.replaceState({}, '', `/organization/${target}`);
+    setView(target);
+  }, []);
   useEffect(() => { void load(); void loadDocuments(); refreshSystemActivityLogs().catch(() => undefined); const onRoute = () => setView(viewFromPath(window.location.pathname, basePath)); window.addEventListener('popstate', onRoute); return () => window.removeEventListener('popstate', onRoute); }, [basePath, refreshSystemActivityLogs]);
   const navigate = (next: View) => { window.history.pushState({}, '', next === 'overview' && basePath !== '/organization' ? basePath : `${basePath}/${next}`); setView(next); };
   const activeNav = administrationMode ? administrationNav : organizationNav;

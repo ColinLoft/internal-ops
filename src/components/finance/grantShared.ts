@@ -6,8 +6,12 @@ export type Grant = {
   secured_by_id: string | null; owner_id: string | null; amount_requested: number | null; amount_awarded: number | null; in_kind_requested: string | null; in_kind_awarded: string | null;
   match_required: string | null; restrictions: string | null; obligations: string | null; application_submitted_at: string | null; decision_due_at: string | null; decision_at: string | null;
   award_date: string | null; term_start: string | null; term_end: string | null; next_follow_up_at: string | null; funder_response: string | null; decision_notes: string | null; notes: string | null;
-  project_id: string | null; created_at: string; updated_at: string;
+  project_id: string | null; grant_type: string; created_at: string; updated_at: string;
 };
+
+export const GRANT_TYPES = [['money', 'Money (cash)'], ['product', 'Product / in-kind'], ['both', 'Money + product']] as const;
+export const typeLabel = (type: string) => (type === 'product' ? 'Product' : type === 'both' ? 'Money + product' : 'Money');
+export const typeTone = (type: string) => (type === 'product' ? 'bg-violet-50 text-violet-700' : type === 'both' ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600');
 
 export const GRANT_STAGES = [
   ['prospect', 'Prospect'], ['researching', 'Researching'], ['preparing', 'Preparing'], ['applied', 'Applied'], ['under_review', 'Under review'],

@@ -1,11 +1,31 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, ExternalLink, Plus, Search, Trash2, X } from 'lucide-react';
+import { Building2, Copy, ExternalLink, Plus, Search, Trash2, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { card, field } from '../work/EntityPanels';
 
 type Resource = { id: string; title: string; category: string; body: string | null; url: string | null; tags: string[] };
 const CATEGORIES = [['boilerplate', 'Boilerplate language'], ['template', 'Templates'], ['directory', 'Funder directories'], ['guide', 'Guides'], ['document', 'Documents'], ['link', 'Links']] as const;
+
+const OrgSummaryCard: React.FC = () => {
+  const [id, setId] = useState<string | null>(null);
+  const [text, setText] = useState('');
+  const [saved, setSaved] = useState('');
+  const [msg, setMsg] = useState('');
+  useEffect(() => { void supabase.from('grant_settings').select('id,org_summary').limit(1).maybeSingle().then(({ data, error }) => { if (error) setMsg(`Could not load the summary: ${error.message}. Run the latest migration.`); else if (data) { setId(data.id); setText(data.org_summary || ''); setSaved(data.org_summary || ''); } }); }, []);
+  const save = async () => {
+    const { error } = id ? await supabase.from('grant_settings').update({ org_summary: text }).eq('id', id) : await supabase.from('grant_settings').insert({ org_summary: text });
+    if (error) setMsg(error.message); else { setSaved(text); setMsg('Saved. The AI and grant applications can now use this summary.'); }
+  };
+  return (
+    <section className={`${card} space-y-2`}>
+      <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Building2 className="h-4 w-4 text-brand-600" />Organization summary</h2>
+      <p className="text-xs text-slate-500">Mission, programs, population served, budget size, location and impact. Used by AI grant research, fit scoring and drafting, and handy to paste into applications.</p>
+      <textarea rows={6} value={text} onChange={(event) => { setText(event.target.value); setMsg(''); }} placeholder="We are a nonprofit that…" className={field} />
+      <div className="flex items-center gap-3"><button type="button" disabled={text === saved} onClick={() => void save()} className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Save summary</button><button type="button" onClick={() => void navigator.clipboard.writeText(text)} className="text-xs font-semibold text-slate-500">Copy</button>{msg && <span role="status" className="text-xs text-slate-500">{msg}</span>}</div>
+    </section>
+  );
+};
 
 export const ResourcesPage: React.FC = () => {
   const { currentUser } = useWorkspace();
@@ -31,6 +51,7 @@ export const ResourcesPage: React.FC = () => {
         <button type="button" onClick={() => setEditing('new')} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white md:min-h-0 md:py-2"><Plus className="h-3.5 w-3.5" />Add resource</button>
       </header>
       <div className="space-y-4 p-5 sm:p-8">
+        <OrgSummaryCard />
         {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</p>}
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search resources" className={`${field} pl-9`} /></div>

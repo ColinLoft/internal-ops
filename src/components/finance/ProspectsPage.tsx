@@ -3,11 +3,11 @@ import { ExternalLink, Plus, Search, Sparkles, Trash2, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { card, field } from '../work/EntityPanels';
-import { SOURCES, askGrantAi, dueTone, goTo, money } from './grantShared';
+import { GRANT_TYPES, SOURCES, askGrantAi, dueTone, goTo, money } from './grantShared';
 
 type Prospect = {
   id: string; name: string; funder_name: string | null; funder_org_id: string | null; url: string | null; deadline: string | null; amount_min: number | null; amount_max: number | null;
-  focus_areas: string | null; eligibility: string | null; fit_score: number | null; fit_notes: string | null; status: string; source: string | null; notes: string | null; owner_id: string | null; grant_id: string | null;
+  focus_areas: string | null; eligibility: string | null; fit_score: number | null; fit_notes: string | null; status: string; source: string | null; notes: string | null; owner_id: string | null; grant_id: string | null; grant_type: string;
 };
 const STATUSES = [['new', 'New'], ['reviewing', 'Reviewing'], ['pursuing', 'Pursuing'], ['passed', 'Passed'], ['converted', 'Applied / converted']] as const;
 const scoreTone = (score: number | null) => (score == null ? 'bg-slate-100 text-slate-500' : score >= 70 ? 'bg-emerald-50 text-emerald-700' : score >= 40 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700');
@@ -33,7 +33,7 @@ export const ProspectsPage: React.FC = () => {
   const shown = useMemo(() => rows.filter((row) => (status === 'all' || (status === 'open' ? ['new', 'reviewing', 'pursuing'].includes(row.status) : row.status === status)) && `${row.name} ${row.funder_name || ''} ${row.focus_areas || ''}`.toLowerCase().includes(query.toLowerCase())), [rows, status, query]);
 
   const convert = async (row: Prospect) => {
-    const { data, error: insertError } = await supabase.from('grants').insert({ name: row.name, funder_name: row.funder_name, funder_org_id: row.funder_org_id, website_url: row.url, application_url: row.url, amount_requested: row.amount_max, decision_due_at: null, source: row.source, source_detail: row.notes, owner_id: row.owner_id || currentUser.id, created_by: currentUser.id, stage: 'preparing', notes: row.fit_notes ? `<p>${row.fit_notes.replace(/</g, '&lt;').replace(/\n/g, '<br>')}</p>` : null }).select('id').single();
+    const { data, error: insertError } = await supabase.from('grants').insert({ name: row.name, funder_name: row.funder_name, funder_org_id: row.funder_org_id, website_url: row.url, application_url: row.url, grant_type: row.grant_type || 'money', amount_requested: row.grant_type === 'product' ? null : row.amount_max, in_kind_requested: row.grant_type === 'money' ? null : row.focus_areas ? row.focus_areas.slice(0, 200) : null, decision_due_at: null, source: row.source, source_detail: row.notes, owner_id: row.owner_id || currentUser.id, created_by: currentUser.id, stage: 'preparing', notes: row.fit_notes ? `<p>${row.fit_notes.replace(/</g, '&lt;').replace(/\n/g, '<br>')}</p>` : null }).select('id').single();
     if (insertError || !data) { setError(insertError?.message || 'Could not create the grant.'); return; }
     await supabase.from('grant_prospects').update({ status: 'converted', grant_id: data.id }).eq('id', row.id);
     goTo(`/finance/grants/${data.id}`);
@@ -73,13 +73,13 @@ export const ProspectsPage: React.FC = () => {
 };
 
 const ProspectModal: React.FC<{ prospect: Prospect | null; userId: string; users: { id: string; name: string }[]; onClose: () => void; onSaved: () => void; onConvert: (row: Prospect) => Promise<void> }> = ({ prospect, userId, users, onClose, onSaved, onConvert }) => {
-  const [form, setForm] = useState({ name: prospect?.name || '', funder_name: prospect?.funder_name || '', url: prospect?.url || '', deadline: prospect?.deadline || '', amount_min: prospect?.amount_min ?? '', amount_max: prospect?.amount_max ?? '', focus_areas: prospect?.focus_areas || '', eligibility: prospect?.eligibility || '', status: prospect?.status || 'new', source: prospect?.source || '', notes: prospect?.notes || '', owner_id: prospect?.owner_id || userId, fit_score: prospect?.fit_score ?? null as number | null, fit_notes: prospect?.fit_notes || '' });
+  const [form, setForm] = useState({ grant_type: prospect?.grant_type || 'money', name: prospect?.name || '', funder_name: prospect?.funder_name || '', url: prospect?.url || '', deadline: prospect?.deadline || '', amount_min: prospect?.amount_min ?? '', amount_max: prospect?.amount_max ?? '', focus_areas: prospect?.focus_areas || '', eligibility: prospect?.eligibility || '', status: prospect?.status || 'new', source: prospect?.source || '', notes: prospect?.notes || '', owner_id: prospect?.owner_id || userId, fit_score: prospect?.fit_score ?? null as number | null, fit_notes: prospect?.fit_notes || '' });
   const [paste, setPaste] = useState('');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
 
-  const payload = () => ({ name: form.name.trim(), funder_name: form.funder_name.trim() || null, url: form.url.trim() || null, deadline: form.deadline || null, amount_min: form.amount_min === '' ? null : Number(form.amount_min), amount_max: form.amount_max === '' ? null : Number(form.amount_max), focus_areas: form.focus_areas.trim() || null, eligibility: form.eligibility.trim() || null, status: form.status, source: form.source || null, notes: form.notes.trim() || null, owner_id: form.owner_id || null, fit_score: form.fit_score, fit_notes: form.fit_notes.trim() || null });
+  const payload = () => ({ grant_type: form.grant_type, name: form.name.trim(), funder_name: form.funder_name.trim() || null, url: form.url.trim() || null, deadline: form.deadline || null, amount_min: form.amount_min === '' ? null : Number(form.amount_min), amount_max: form.amount_max === '' ? null : Number(form.amount_max), focus_areas: form.focus_areas.trim() || null, eligibility: form.eligibility.trim() || null, status: form.status, source: form.source || null, notes: form.notes.trim() || null, owner_id: form.owner_id || null, fit_score: form.fit_score, fit_notes: form.fit_notes.trim() || null });
   const save = async (): Promise<string | null> => {
     if (!form.name.trim()) { setError('A name is required.'); return null; }
     const body = { ...payload(), updated_at: new Date().toISOString() };
@@ -119,6 +119,7 @@ const ProspectModal: React.FC<{ prospect: Prospect | null; userId: string; users
           <label className={l}>Funder<input value={form.funder_name} onChange={set('funder_name')} className={field} /></label>
           <label className={l}>Link<input value={form.url} onChange={set('url')} className={field} /></label>
           <label className={l}>Deadline<input type="date" value={form.deadline} onChange={set('deadline')} className={field} /></label>
+          <label className={l}>Grant type<select value={form.grant_type} onChange={set('grant_type')} className={field}>{GRANT_TYPES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
           <label className={l}>Status<select value={form.status} onChange={set('status')} className={field}>{STATUSES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
           <label className={l}>Min award ($)<input type="number" min="0" value={form.amount_min} onChange={set('amount_min')} className={field} /></label>
           <label className={l}>Max award ($)<input type="number" min="0" value={form.amount_max} onChange={set('amount_max')} className={field} /></label>
@@ -146,6 +147,7 @@ type Suggestion = { name: string; funder_name: string | null; url: string | null
 
 const ResearchModal: React.FC<{ userId: string; onClose: () => void; onAdded: () => void }> = ({ userId, onClose, onAdded }) => {
   const [focus, setFocus] = useState('');
+  const [grantType, setGrantType] = useState('any');
   const [items, setItems] = useState<Suggestion[]>([]);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -154,12 +156,12 @@ const ResearchModal: React.FC<{ userId: string; onClose: () => void; onAdded: ()
   const run = async () => {
     setBusy(true); setError('');
     try {
-      const result = await askGrantAi<{ suggestions: Suggestion[] }>({ action: 'research', focus });
+      const result = await askGrantAi<{ suggestions: Suggestion[] }>({ action: 'research', focus, grantType });
       setItems(result.suggestions || []); setPicked(new Set((result.suggestions || []).map((_, index) => index))); setSearched(true);
     } catch (aiError) { setError(aiError instanceof Error ? aiError.message : 'AI request failed.'); } finally { setBusy(false); }
   };
   const addPicked = async () => {
-    const rows = items.filter((_, index) => picked.has(index)).map((item) => ({ name: item.name, funder_name: item.funder_name, url: item.url, amount_min: item.amount_min, amount_max: item.amount_max, deadline: item.deadline, focus_areas: item.focus_areas, eligibility: item.eligibility, fit_score: item.fit_score, fit_notes: item.why_fit, status: 'new', source: 'Research / search', notes: 'Suggested by AI research. Verify the details, deadline and eligibility with the funder before applying.', owner_id: userId, created_by: userId }));
+    const rows = items.filter((_, index) => picked.has(index)).map((item) => ({ grant_type: grantType === 'any' ? 'money' : grantType, name: item.name, funder_name: item.funder_name, url: item.url, amount_min: item.amount_min, amount_max: item.amount_max, deadline: item.deadline, focus_areas: item.focus_areas, eligibility: item.eligibility, fit_score: item.fit_score, fit_notes: item.why_fit, status: 'new', source: 'Research / search', notes: 'Suggested by AI research. Verify the details, deadline and eligibility with the funder before applying.', owner_id: userId, created_by: userId }));
     if (!rows.length) return;
     const { error: insertError } = await supabase.from('grant_prospects').insert(rows);
     if (insertError) { setError(insertError.message); return; }
@@ -170,6 +172,7 @@ const ResearchModal: React.FC<{ userId: string; onClose: () => void; onAdded: ()
       <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
         <div className="mb-3 flex items-center justify-between"><h2 className="text-base font-bold text-slate-900">Research possible grants</h2><button type="button" aria-label="Close" onClick={onClose}><X className="h-4 w-4" /></button></div>
         <p className="mb-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">AI suggests established programs from its general knowledge and does not browse the web. Treat every result as a lead and verify deadlines, amounts and eligibility with the funder.</p>
+        <label className="text-xs font-semibold text-slate-500">Grant type<select value={grantType} onChange={(event) => setGrantType(event.target.value)} className={field}><option value="any">Any</option>{GRANT_TYPES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
         <label className="text-xs font-semibold text-slate-500">What should it look for? (optional)<textarea rows={2} value={focus} onChange={(event) => setFocus(event.target.value)} placeholder="e.g. youth technology programs, Pacific Northwest, under $50k" className={field} /></label>
         <button type="button" disabled={busy} onClick={() => void run()} className="mt-2 inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-60"><Sparkles className="h-3.5 w-3.5" />{busy ? 'Researching…' : 'Find grants'}</button>
         {error && <p role="alert" className="mt-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}

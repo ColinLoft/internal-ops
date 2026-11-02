@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { ActivityPanel, AttachmentsPanel, CommentsPanel, LinksPanel, card, field, formatDateTime, logActivity } from '../work/EntityPanels';
 import { RichNotes } from '../work/RichNotes';
 import { AiTab, FunderPicker, KeyDates, PeopleTab, RequirementsTab } from './GrantExtras';
-import { GRANT_STAGES, Grant, SOURCES, goTo, money, stageLabel, stageTone } from './grantShared';
+import { GRANT_STAGES, GRANT_TYPES, Grant, SOURCES, goTo, money, stageLabel, stageTone } from './grantShared';
 
 type GrantEvent = { id: string; event_type: string; title: string; body: string | null; event_date: string; email_message_id: string | null; email_from: string | null; email_to: string | null; email_subject: string | null; created_by: string | null };
 type Payment = { id: string; amount: number; status: string; expected_date: string | null; received_date: string | null; method: string | null; reference: string | null; notes: string | null };
@@ -102,7 +102,7 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
           </div>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
-          {[['Requested', money(grant.amount_requested)], ['Awarded', money(grant.amount_awarded)], ['Received', money(received)], ['Reports open', String(reportsOpen)], ['Next follow-up', grant.next_follow_up_at || '—']].map(([title, value]) => <div key={title} className="rounded-xl bg-slate-50 px-3 py-2"><p className="text-slate-500">{title}</p><p className="text-sm font-bold text-slate-900">{value}</p></div>)}
+          {[['Requested', grant.grant_type === 'product' ? grant.in_kind_requested || '—' : money(grant.amount_requested)], ['Awarded', grant.grant_type === 'product' ? grant.in_kind_awarded || '—' : money(grant.amount_awarded)], ['Received', money(received)], ['Reports open', String(reportsOpen)], ['Next follow-up', grant.next_follow_up_at || '—']].map(([title, value]) => <div key={title} className="rounded-xl bg-slate-50 px-3 py-2"><p className="text-slate-500">{title}</p><p className="text-sm font-bold text-slate-900">{value}</p></div>)}
         </div>
         <nav className="mt-3 flex gap-1 overflow-x-auto" aria-label="Grant sections">{TABS.map((name) => <button type="button" key={name} onClick={() => setTab(name)} className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold ${tab === name ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>{name}</button>)}</nav>
       </header>
@@ -134,7 +134,8 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
             </section>
             <section className={`${card} space-y-3`}>
               <h3 className="text-sm font-bold text-slate-900">Ask & award</h3>
-              <div className="grid gap-3 sm:grid-cols-2">{amount('amount_requested', 'Amount requested ($)')}{amount('amount_awarded', 'Amount awarded ($)')}{text('in_kind_requested', 'In-kind requested')}{text('in_kind_awarded', 'In-kind given')}</div>
+              <label className={label}>Grant type<select value={grant.grant_type} onChange={(event) => void patch({ grant_type: event.target.value }, 'changed the grant type')} className={field}>{GRANT_TYPES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
+              <div className="grid gap-3 sm:grid-cols-2">{grant.grant_type !== 'product' && amount('amount_requested', 'Cash requested ($)')}{grant.grant_type !== 'product' && amount('amount_awarded', 'Cash awarded ($)')}{grant.grant_type !== 'money' && text('in_kind_requested', 'Product requested')}{grant.grant_type !== 'money' && text('in_kind_awarded', 'Product awarded')}</div>
               <div className="grid gap-3 sm:grid-cols-2">{text('application_submitted_at', 'Application sent', 'date')}{text('decision_due_at', 'Decision expected', 'date')}{text('decision_at', 'Decision received', 'date')}{text('award_date', 'Award date', 'date')}{text('term_start', 'Term start', 'date')}{text('term_end', 'Term end', 'date')}{text('next_follow_up_at', 'Next follow-up', 'date')}</div>
             </section>
             <section className={`${card} space-y-3`}>

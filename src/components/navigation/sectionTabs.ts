@@ -38,6 +38,8 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
         tab('Positions & Roles', 'Roles', BriefcaseBusiness, '/organization/positions'),
         tab('Leave', 'Leave', ClipboardList, '/organization/onboarding'),
         tab('Personnel Records', 'Records', FileText, '/organization/records'),
+        tab('Policies & Procedures', 'Policies', BookOpen, '/organization/policies'),
+        tab('Workflows & Approvals', 'Approvals', CheckCircle2, '/organization/approvals'),
       ];
     case 'insights':
       return [
@@ -59,7 +61,6 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
         tab('Overview', 'Overview', House, '/finance'),
         tab('Grant Tracker', 'Tracker', Landmark, '/finance/grants'),
         tab('Possible Grants', 'Prospects', Target, '/finance/prospects'),
-        tab('Deadlines', 'Dates', CalendarRange, '/finance/deadlines'),
         tab('Resources', 'Library', BookOpen, '/finance/resources'),
         tab('Reports & Payments', 'Reports', BarChart3, '/finance/reports'),
         tab('Automation', 'Auto', ListChecks, '/finance/automation'),
@@ -74,15 +75,6 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
         tab('Media & Content', 'Media', FileText, '/gtm/content'),
         tab('Partnerships', 'Partners', Users, '/gtm/partnerships'),
         tab('Business Development', 'Biz Dev', BriefcaseBusiness, '/gtm/business-development'),
-      ];
-    case 'operations':
-      return [
-        tab('Overview', 'Overview', House, '/operations'),
-        tab('Administration', 'Admin', ListChecks, '/operations/administration'),
-        tab('People Operations', 'People', Users, '/operations/people'),
-        tab('Policies & Procedures', 'Policies', BookOpen, '/operations/policies'),
-        tab('Resource Coordination', 'Resources', BriefcaseBusiness, '/operations/resources'),
-        tab('Internal Workflows', 'Workflows', CheckCircle2, '/operations/workflows'),
       ];
     case 'engineering':
       return [
