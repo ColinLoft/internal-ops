@@ -117,7 +117,7 @@ export const DrivePage: React.FC = () => {
   const [error, setError] = useState('');
   const [section, setSection] = useState<'drive' | 'shared' | 'starred' | 'trash'>('drive');
   const [isShareOpen, setIsShareOpen] = useState(false);
-  const [isTemplateOpen, setIsTemplateOpen] = useState(false);
+  const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
   const [driveView, setDriveView] = useState<'all' | DriveWorkspaceKind>(() => workspaceKindFromPath(window.location.pathname) || 'all');
   const [editorItem, setEditorItem] = useState<DriveItem | null>(null);
   const [editorItemId, setEditorItemId] = useState<string | null>(() => {
@@ -362,10 +362,9 @@ export const DrivePage: React.FC = () => {
 
   return (
     <main className="flex min-w-0 flex-1 overflow-hidden bg-white/40">
+      <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(event) => { const files = Array.from(event.target.files || []); void Promise.all(files.map(uploadFile)); event.target.value = ''; }} />
       <aside className="hidden w-56 shrink-0 border-r border-slate-200/80 bg-white/65 p-4 lg:block">
-        <button type="button" onClick={() => setIsCreateOpen(true)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-brand-600/20 transition hover:bg-brand-700">
-          <Plus className="h-4 w-4" /> New
-        </button>
+        <NewMenu open={isNewMenuOpen} onOpenChange={setIsNewMenuOpen} onFolder={() => setIsCreateOpen(true)} onUpload={() => fileInputRef.current?.click()} onCreate={(type, name) => void createItem(type, name)} />
         <nav className="mt-5 space-y-1">
           {[
             { label: 'My Drive', icon: Cloud, active: section === 'drive', action: () => { setSection('drive'); setCurrentFolderId(null); setSelectedItem(null); } },
@@ -382,9 +381,6 @@ export const DrivePage: React.FC = () => {
           <p className="mt-2 text-xs font-bold text-slate-800">Drive AI</p>
           <p className="mt-1 text-xs leading-4 text-slate-500">Summarize, draft, and organize your workspace files.</p>
         </div>
-        <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-3 flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-semibold text-slate-600 hover:border-brand-200 hover:text-brand-700"><Upload className="h-4 w-4" />Upload files</button>
-        <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(event) => { const files = Array.from(event.target.files || []); void Promise.all(files.map(uploadFile)); event.target.value = ''; }} />
-        <button type="button" onClick={() => setIsTemplateOpen(true)} className="mt-2 hidden w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-left text-xs font-semibold text-slate-600 hover:border-brand-200 hover:text-brand-700 md:block">Templates</button>
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">
@@ -411,8 +407,7 @@ export const DrivePage: React.FC = () => {
               <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
               <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search Drive" aria-label="Search Drive" className="min-h-11 w-full rounded-xl border border-slate-200 bg-white/80 py-2 pl-9 pr-3 text-base outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10 md:text-xs" />
             </div>
-            <button type="button" onClick={() => fileInputRef.current?.click()} aria-label="Upload files" className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white/80 text-slate-500"><Upload className="h-4 w-4" /></button>
-            <button type="button" onClick={() => setIsCreateOpen(true)} aria-label="New folder" className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-brand-600 text-white"><Plus className="h-4 w-4" /></button>
+            <NewMenu compact open={isNewMenuOpen} onOpenChange={setIsNewMenuOpen} onFolder={() => setIsCreateOpen(true)} onUpload={() => fileInputRef.current?.click()} onCreate={(type, name) => void createItem(type, name)} />
           </div>
           <nav className="-mx-3 flex gap-1 overflow-x-auto px-3">
             {([['My Drive', 'drive', Cloud], ['Shared with me', 'shared', Users], ['Starred', 'starred', Star], ['Trash', 'trash', Trash2]] as const).map(([label, key, Icon]) => <button key={key} type="button" onClick={() => { setSection(key); setCurrentFolderId(null); setSelectedItem(null); }} className={`flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-xs font-semibold ${section === key ? 'bg-brand-50 text-brand-700' : 'text-slate-600'}`}><Icon className="h-4 w-4" />{label}</button>)}
@@ -445,7 +440,6 @@ export const DrivePage: React.FC = () => {
       {selectedItem && selectedItem.item_type === 'file' && <DriveEditor item={selectedItem} onClose={() => setSelectedItem(null)} onSave={updateDocument} onShare={() => setIsShareOpen(true)} onTrash={() => void moveToTrash(selectedItem)} onDownload={() => void downloadFile(selectedItem)} />}
       {isCreateOpen && <CreateDriveItem allowedTypes={['folder']} onClose={() => setIsCreateOpen(false)} onCreate={createItem} />}
       {isShareOpen && selectedItem && <ShareDialog item={selectedItem} onClose={() => setIsShareOpen(false)} onShare={shareItem} />}
-      {isTemplateOpen && <TemplateDialog onClose={() => setIsTemplateOpen(false)} onCreate={(type, name) => { setIsTemplateOpen(false); void createItem(type, name); }} />}
     </main>
   );
 };
@@ -593,11 +587,75 @@ const ShareDialog: React.FC<{ item: DriveItem; onClose: () => void; onShare: (em
   return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-sm"><div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><div><p className="text-sm font-bold text-slate-900">Share {item.name}</p><p className="mt-1 text-xs text-slate-500">Invite a workspace member or external collaborator.</p></div><button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400"><X className="h-4 w-4" /></button></div><input autoFocus value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" type="email" className="mt-5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-400" /><div className="mt-3 flex gap-2">{(['viewer', 'commenter', 'editor'] as const).map((value) => <button key={value} type="button" onClick={() => setPermission(value)} className={`flex-1 rounded-lg border px-2 py-2 text-xs font-semibold capitalize ${permission === value ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-500'}`}>{value}</button>)}</div><button type="button" disabled={!email.trim() || sharing} onClick={() => void submit()} className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white disabled:opacity-40">{sharing ? 'Sharing...' : 'Share'}</button></div></div>;
 };
 
-const TemplateDialog: React.FC<{ onClose: () => void; onCreate: (type: DriveItem['item_type'], name: string) => void }> = ({ onClose, onCreate }) => {
-  const templates = [
-    { type: 'document' as const, name: 'Project brief', description: 'Goals, owners, milestones, and notes', content: 'Project brief\n\nGoals:\nOwners:\nMilestones:\nNotes:' },
-    { type: 'presentation' as const, name: 'Team update', description: 'A clean internal update deck', content: '' },
-    { type: 'spreadsheet' as const, name: 'Budget tracker', description: 'Track planned and actual expenses', content: '' },
-  ];
-  return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-sm"><div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><div><p className="text-sm font-bold text-slate-900">Drive templates</p><p className="mt-1 text-xs text-slate-500">Start with a structure your team can reuse.</p></div><button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400"><X className="h-4 w-4" /></button></div><div className="mt-4 space-y-2">{templates.map((template) => <button key={template.name} type="button" onClick={() => onCreate(template.type, template.name)} className="flex w-full items-center gap-3 rounded-xl border border-slate-200 p-3 text-left hover:border-brand-300 hover:bg-brand-50/50"><span className={`flex h-9 w-9 items-center justify-center rounded-lg ${itemColor(template.type)}`}>{React.createElement(itemIcon(template.type), { className: 'h-4 w-4' })}</span><span><span className="block text-xs font-bold text-slate-800">{template.name}</span><span className="block text-xs text-slate-500">{template.description}</span></span></button>)}</div></div></div>;
+const newMenuOptions: Array<{ key: string; label: string; icon: React.ElementType; type?: DriveItem['item_type']; name?: string }> = [
+  { key: 'folder', label: 'New folder', icon: FolderPlus },
+  { key: 'upload', label: 'Upload file', icon: Upload },
+  { key: 'document', label: 'New doc', icon: FileText, type: 'document', name: 'Untitled document' },
+  { key: 'presentation', label: 'New slide deck', icon: Presentation, type: 'presentation', name: 'Untitled presentation' },
+  { key: 'spreadsheet', label: 'New sheet', icon: Sheet, type: 'spreadsheet', name: 'Untitled spreadsheet' },
+  { key: 'form', label: 'New form', icon: File, type: 'form', name: 'Untitled form' },
+];
+
+const NewMenu: React.FC<{
+  open: boolean;
+  compact?: boolean;
+  onOpenChange: (open: boolean) => void;
+  onFolder: () => void;
+  onUpload: () => void;
+  onCreate: (type: DriveItem['item_type'], name: string) => void;
+}> = ({ open, compact, onOpenChange, onFolder, onUpload, onCreate }) => {
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) onOpenChange(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onOpenChange(false); };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open, onOpenChange]);
+
+  const choose = (option: typeof newMenuOptions[number]) => {
+    onOpenChange(false);
+    if (option.key === 'folder') onFolder();
+    else if (option.key === 'upload') onUpload();
+    else if (option.type && option.name) onCreate(option.type, option.name);
+  };
+
+  return (
+    <div ref={ref} className={compact ? 'relative' : 'relative w-full'}>
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="New"
+        className={compact
+          ? 'flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-brand-600 text-white'
+          : 'flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-brand-600/20 transition hover:bg-brand-700'}
+      >
+        <Plus className="h-4 w-4" />{!compact && ' New'}
+      </button>
+      {open && (
+        <div role="menu" className={`absolute z-50 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl ${compact ? 'right-0' : 'left-0'}`}>
+          {newMenuOptions.map((option, index) => {
+            const Icon = option.icon;
+            return (
+              <React.Fragment key={option.key}>
+                {index === 2 && <div className="my-1 border-t border-slate-100" />}
+                <button type="button" role="menuitem" onClick={() => choose(option)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-brand-50 hover:text-brand-700">
+                  <Icon className="h-4 w-4" />{option.label}
+                </button>
+              </React.Fragment>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 };
