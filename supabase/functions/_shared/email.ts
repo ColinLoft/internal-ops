@@ -591,7 +591,7 @@ const embedGraphInlineImages = async (
   if (!html || !/cid:/i.test(html) || !message.hasAttachments) return html;
   const userPath = mailbox.mailbox_type === 'shared' ? `users/${encodeURIComponent(mailbox.email)}` : 'me';
   const response = await fetch(
-    `https://graph.microsoft.com/v1.0/${userPath}/messages/${encodeURIComponent(message.id)}/attachments?$select=name,contentType,contentBytes,isInline,contentId&$top=50`,
+    `https://graph.microsoft.com/v1.0/${userPath}/messages/${encodeURIComponent(message.id)}/attachments?$top=50`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
   const result = await response.json();
