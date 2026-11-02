@@ -298,7 +298,7 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
           </button>
 
           {isQuickActionsOpen && (
-            <div className="absolute bottom-0 left-[54px] z-50 w-64 rounded-2xl border border-slate-200/90 bg-white/95 p-2 text-slate-800 shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150" aria-label="Quick create">
+            <div className="absolute bottom-0 left-[64px] z-50 w-64 rounded-2xl border border-slate-200 bg-white p-2 text-slate-800 shadow-2xl animate-in fade-in zoom-in-95 duration-150" aria-label="Quick create">
               <p className="px-3 pb-2 pt-1 text-xs font-bold uppercase tracking-wider text-slate-400">Quick create</p>
               <button
                 type="button"
