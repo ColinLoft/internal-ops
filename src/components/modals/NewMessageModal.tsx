@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Search, Check, Users, MessageSquarePlus } from 'lucide-react';
+import { X, Search, Check, MessageSquarePlus } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
 export const NewMessageModal: React.FC = () => {

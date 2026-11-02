@@ -2,14 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Search,
   Bell,
-  HardDrive,
   UsersRound,
   Landmark,
-  MessageSquare,
   BriefcaseBusiness,
   Scale,
-  PhoneCall,
-  Video,
   Megaphone,
   FolderKanban,
   Network,
@@ -20,6 +16,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useRecordSearch } from '../../lib/useRecordSearch';
 import { useAllAppAccess } from '../../lib/useAppAccess';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 
@@ -101,6 +98,7 @@ export const TopBar: React.FC = () => {
     setAppSearch('');
   };
   const query = searchQuery.trim().toLowerCase();
+  const recordHits = useRecordSearch(searchQuery);
   const searchResults = query
     ? [
         ...channels
@@ -170,7 +168,17 @@ export const TopBar: React.FC = () => {
             detail: `${event.date}${event.location ? ` · ${event.location}` : ''}`,
             onSelect: () => setActiveTab('calendar'),
           })),
-      ].slice(0, 8)
+        ...recordHits.map((hit) => ({
+          id: hit.id,
+          type: hit.type,
+          title: hit.title,
+          detail: hit.detail,
+          onSelect: () => {
+            window.history.pushState({}, '', hit.path);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          },
+        })),
+      ].slice(0, 12)
     : [];
 
   return (

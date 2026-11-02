@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity, Building2, CalendarDays, CheckCircle2, ClipboardCheck, FileText,
-  KeyRound, Network, Plus, Search, ShieldCheck, UserRound, Users, X, GraduationCap,
+  KeyRound, Network, Plus, Search, ShieldCheck, Users, X, GraduationCap,
   BriefcaseBusiness, ChevronDown, ChevronRight, List, Mail, MapPin,
   Phone, RotateCcw, SlidersHorizontal, ZoomIn, ZoomOut, FolderKanban,
 } from 'lucide-react';

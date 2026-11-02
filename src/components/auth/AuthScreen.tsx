@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import {
-  Lock,
   Mail,
   Key,
-  ShieldCheck,
   ArrowRight,
   AlertCircle,
 } from 'lucide-react';

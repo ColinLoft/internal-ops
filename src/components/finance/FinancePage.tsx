@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowUpRight, BarChart3, CalendarClock, CheckCircle2, ChevronRight, CircleDollarSign, CreditCard, FileCheck2, Filter, Landmark, Plus, Receipt, Search, Target, Users, WalletCards, X } from 'lucide-react';
+import { AlertTriangle, BarChart3, CalendarClock, CircleDollarSign, FileCheck2, Landmark, Plus, Receipt, Search, Target, Users, WalletCards, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
