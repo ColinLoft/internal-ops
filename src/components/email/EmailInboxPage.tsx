@@ -35,6 +35,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import type { Attachment } from '../../types';
 import { EmailRulesPanel } from './EmailRulesPanel';
+import { sanitizeEmailHtml } from '../../lib/sanitizeEmailHtml';
 
 type Mailbox = {
   id: string;
@@ -84,46 +85,6 @@ type EmailDraft = {
   updated_at: string;
 };
 
-const sanitizeEmailHtml = (html: string) => {
-  const document = new DOMParser().parseFromString(html, 'text/html');
-  const allowedTags = new Set([
-    'A', 'ABBR', 'B', 'BLOCKQUOTE', 'BR', 'CAPTION', 'CODE', 'DD', 'DIV', 'DL', 'DT', 'EM',
-    'H1', 'H2', 'H3', 'H4', 'HR', 'I', 'IMG', 'LI', 'OL', 'P', 'PRE', 'S', 'SMALL', 'SPAN',
-    'STRONG', 'SUB', 'SUP', 'TABLE', 'TBODY', 'TD', 'TFOOT', 'TH', 'THEAD', 'TR', 'U', 'UL',
-  ]);
-  const unsafeTags = new Set(['IFRAME', 'OBJECT', 'EMBED', 'SCRIPT', 'STYLE', 'FORM', 'INPUT', 'BUTTON', 'VIDEO', 'AUDIO']);
-  for (const element of [...document.body.querySelectorAll('*')]) {
-    if (unsafeTags.has(element.tagName)) {
-      element.remove();
-      continue;
-    }
-    if (!allowedTags.has(element.tagName)) {
-      element.replaceWith(...element.childNodes);
-      continue;
-    }
-    for (const attribute of [...element.attributes]) {
-      const name = attribute.name.toLowerCase();
-      const value = attribute.value.trim();
-      if (name === 'href' && element.tagName === 'A') {
-        if (!/^(https?:|mailto:)/i.test(value)) element.removeAttribute(attribute.name);
-        continue;
-      }
-      if (name === 'src' && element.tagName === 'IMG') {
-        if (!/^(https?:|cid:|data:image\/(?:png|gif|jpe?g|webp);base64,)/i.test(value)) element.removeAttribute(attribute.name);
-        continue;
-      }
-      if (['alt', 'title', 'colspan', 'rowspan'].includes(name)
-        || (['width', 'height'].includes(name) && /^\d{1,4}$/.test(value))) continue;
-      element.removeAttribute(attribute.name);
-    }
-    if (element.tagName === 'A' && element.hasAttribute('href')) {
-      element.setAttribute('target', '_blank');
-      element.setAttribute('rel', 'noopener noreferrer');
-    }
-  }
-  return document.body.innerHTML;
-};
-
 const emailHtmlToText = (html: string) => {
   const document = new DOMParser().parseFromString(html, 'text/html');
   for (const link of [...document.querySelectorAll('a[href]')]) {
@@ -151,12 +112,22 @@ const encodeFile = async (file: File): Promise<EmailAttachment> => {
 };
 
 const EmailHtmlBody: React.FC<{ html: string }> = ({ html }) => {
-  const safeHtml = useMemo(() => sanitizeEmailHtml(html), [html]);
+  const [showImages, setShowImages] = useState(false);
+  const safeHtml = useMemo(() => sanitizeEmailHtml(html, { blockRemoteImages: !showImages }), [html, showImages]);
+  const hasRemoteImages = useMemo(() => /<img[^>]+src=["']?https?:/i.test(sanitizeEmailHtml(html)), [html]);
   return (
+    <>
+    {hasRemoteImages && !showImages && (
+      <div className="mt-4 flex items-center gap-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        Remote images are blocked to protect your privacy.
+        <button type="button" onClick={() => setShowImages(true)} className="font-bold underline">Load images</button>
+      </div>
+    )}
     <div
       className="mt-5 w-full overflow-visible break-words rounded-lg bg-white text-sm leading-6 text-slate-700 [&_a]:text-brand-600 [&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:max-w-full [&_table]:border-collapse [&_td]:p-1 [&_th]:p-1"
       dangerouslySetInnerHTML={{ __html: safeHtml }}
     />
+    </>
   );
 };
 

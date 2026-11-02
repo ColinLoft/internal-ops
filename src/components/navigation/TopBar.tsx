@@ -2,14 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Search,
   Bell,
-  HardDrive,
   UsersRound,
   Landmark,
-  MessageSquare,
   BriefcaseBusiness,
   Scale,
-  PhoneCall,
-  Video,
   Megaphone,
   FolderKanban,
   Network,
@@ -20,6 +16,8 @@ import {
   Settings,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useRecordSearch } from '../../lib/useRecordSearch';
+import { useAllAppAccess } from '../../lib/useAppAccess';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 
 export const TopBar: React.FC = () => {
@@ -46,6 +44,7 @@ export const TopBar: React.FC = () => {
     unreadNotificationCount,
     callSession,
     startCall,
+    currentUser,
   } = useWorkspace();
 
   useEffect(() => {
@@ -86,8 +85,12 @@ export const TopBar: React.FC = () => {
     ] },
   ];
   const appQuery = appSearch.trim().toLowerCase();
+  const access = useAllAppAccess();
+  const accessKey: Record<string, string> = { customers: 'customers', finance: 'finance', legal: 'legal', admin: 'systems' };
+  // Apps whose data is restricted are hidden until a role grants access.
+  const hasAccess = (id: string) => !accessKey[id] || !access || (access[accessKey[id]] ?? 0) >= 1 || (id === 'admin' && currentUser.systemRole === 'admin');
   const visibleGroups = appGroups
-    .map((group) => ({ ...group, apps: group.apps.filter((app) => app.name.toLowerCase().includes(appQuery)) }))
+    .map((group) => ({ ...group, apps: group.apps.filter((app) => hasAccess(app.id) && app.name.toLowerCase().includes(appQuery)) }))
     .filter((group) => group.apps.length > 0);
   const openApp = (id: string) => {
     setActiveTab(id as Parameters<typeof setActiveTab>[0]);
@@ -95,6 +98,7 @@ export const TopBar: React.FC = () => {
     setAppSearch('');
   };
   const query = searchQuery.trim().toLowerCase();
+  const recordHits = useRecordSearch(searchQuery);
   const searchResults = query
     ? [
         ...channels
@@ -164,7 +168,17 @@ export const TopBar: React.FC = () => {
             detail: `${event.date}${event.location ? ` · ${event.location}` : ''}`,
             onSelect: () => setActiveTab('calendar'),
           })),
-      ].slice(0, 8)
+        ...recordHits.map((hit) => ({
+          id: hit.id,
+          type: hit.type,
+          title: hit.title,
+          detail: hit.detail,
+          onSelect: () => {
+            window.history.pushState({}, '', hit.path);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          },
+        })),
+      ].slice(0, 12)
     : [];
 
   return (

@@ -2,13 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Mic,
   MicOff,
-  Image,
   Paperclip,
   Smile,
   MapPin,
   Vote,
   Send,
-  AtSign,
   X,
   FileText,
 } from 'lucide-react';

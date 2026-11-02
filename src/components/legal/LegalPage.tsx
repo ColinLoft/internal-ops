@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, BookOpen, CheckCircle2, ChevronRight, ClipboardCheck,
-  FileCheck2, FileText, Gavel, Plus, Search, ShieldCheck, Scale, X,
+  FileText, Gavel, Plus, Search, ShieldCheck, Scale, X,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';

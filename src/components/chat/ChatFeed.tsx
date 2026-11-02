@@ -7,10 +7,7 @@ import {
   Lock,
   Hash,
   Clock,
-  ShieldCheck,
-  Search,
   MessageSquare,
-  Sparkles,
   Plus,
   UserPlus,
 } from 'lucide-react';

@@ -1,3 +1,4 @@
+import { resetAppAccessCache } from '../../lib/useAppAccess';
 import React, { useCallback, useEffect, useState } from 'react';
 import { KeyRound, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -54,7 +55,7 @@ export const RolesAccessPanel: React.FC = () => {
     setError('');
     const { error: actionError } = await action;
     if (actionError) setError(actionError.message);
-    else await load();
+    else { resetAppAccessCache(); await load(); }
   };
 
   const selected = roles.find((role) => role.id === selectedId) ?? null;

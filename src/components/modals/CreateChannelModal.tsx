@@ -3,8 +3,6 @@ import {
   X,
   Hash,
   Megaphone,
-  Lock,
-  Globe,
   ShieldCheck,
   Plus,
 } from 'lucide-react';

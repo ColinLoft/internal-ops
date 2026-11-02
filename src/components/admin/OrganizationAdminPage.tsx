@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity, AlertTriangle, BookOpen, CheckCircle2, ChevronRight, ClipboardCheck,
-  Clock3, FileText, KeyRound, LifeBuoy, MoreHorizontal, Plus, Search, Settings2,
+  Clock3, KeyRound, MoreHorizontal, Plus, Search, Settings2,
   ShieldCheck, UserPlus, Users, X,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';

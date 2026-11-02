@@ -24,6 +24,7 @@ import { InviteReadyModal } from './components/modals/InviteReadyModal';
 import { EmailInboxPage } from './components/email/EmailInboxPage';
 import { WorkspaceAssistant } from './components/assistant/WorkspaceAssistant';
 import { DrivePage } from './components/drive/DrivePage';
+import { AccessGate } from './components/common/AccessGate';
 import { CustomerPage } from './components/customers/CustomerPage';
 import { FinancePage } from './components/finance/FinancePage';
 import { OperationsPage } from './components/operations/OperationsPage';
@@ -93,10 +94,10 @@ const WorkspaceShell: React.FC = () => {
         {/* Workspace Body */}
         <div className="flex-1 flex min-w-0 h-full overflow-hidden">
           {activeTab === 'home' && <HomePage />}
-          {activeTab === 'customers' && <CustomerPage />}
-          {activeTab === 'finance' && <FinancePage />}
+          {activeTab === 'customers' && <AccessGate app="customers" name="Relationships"><CustomerPage /></AccessGate>}
+          {activeTab === 'finance' && <AccessGate app="finance" name="Finance"><FinancePage /></AccessGate>}
           {activeTab === 'operations' && <OperationsPage />}
-          {activeTab === 'legal' && <LegalPage />}
+          {activeTab === 'legal' && <AccessGate app="legal" name="Legal"><LegalPage /></AccessGate>}
           {activeTab === 'help' && <SupportPage />}
           {activeTab === 'insights' && <InsightsPage />}
           {activeTab === 'organization' && <OrganizationPage />}
