@@ -5,26 +5,111 @@ create table if not exists public.conversation_participants (
   primary key (conversation_id, user_id)
 );
 
+create or replace function public.is_conversation_participant(
+  p_conversation_id text,
+  p_user_id text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.conversation_participants
+    where conversation_id = p_conversation_id
+      and user_id = p_user_id
+  );
+$$;
+
+create or replace function public.conversation_has_participants(p_conversation_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.conversation_participants
+    where conversation_id = p_conversation_id
+  );
+$$;
+
+create or replace function public.is_channel_member(p_channel_id text, p_user_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.channel_members
+    where channel_id = p_channel_id
+      and user_id = p_user_id
+  );
+$$;
+
+create or replace function public.is_channel_owner(p_channel_id text, p_user_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.channels
+    where id = p_channel_id
+      and created_by = p_user_id
+  );
+$$;
+
+create or replace function public.is_workspace_manager(p_user_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.profiles
+    where id = p_user_id
+      and system_role in ('admin', 'coordinator')
+  );
+$$;
+
+revoke execute on function public.is_conversation_participant(text, text) from public;
+revoke execute on function public.conversation_has_participants(text) from public;
+revoke execute on function public.is_channel_member(text, text) from public;
+revoke execute on function public.is_channel_owner(text, text) from public;
+revoke execute on function public.is_workspace_manager(text) from public;
+grant execute on function public.is_conversation_participant(text, text) to authenticated;
+grant execute on function public.conversation_has_participants(text) to authenticated;
+grant execute on function public.is_channel_member(text, text) to authenticated;
+grant execute on function public.is_channel_owner(text, text) to authenticated;
+grant execute on function public.is_workspace_manager(text) to authenticated;
+
 alter table public.conversation_participants enable row level security;
 
 drop policy if exists "Participants can view conversation membership" on public.conversation_participants;
 drop policy if exists "Users can add conversation participants" on public.conversation_participants;
 create policy "Participants can view conversation membership"
   on public.conversation_participants for select to authenticated
-  using (user_id = auth.uid()::text or exists (
-    select 1 from public.conversation_participants own
-    where own.conversation_id = conversation_participants.conversation_id
-      and own.user_id = auth.uid()::text
-  ));
+  using (
+    public.is_conversation_participant(conversation_id, auth.uid()::text)
+  );
 create policy "Users can add conversation participants"
   on public.conversation_participants for insert to authenticated
   with check (
-    exists (
-      select 1 from public.conversation_participants own
-      where own.conversation_id = conversation_participants.conversation_id
-        and own.user_id = auth.uid()::text
+    public.is_conversation_participant(conversation_id, auth.uid()::text)
+    or (
+      user_id = auth.uid()::text
+      and not public.conversation_has_participants(conversation_id)
     )
-    or user_id = auth.uid()::text
   );
 grant select, insert on public.conversation_participants to authenticated;
 
@@ -32,6 +117,7 @@ drop policy if exists "Staff can read and create messages as themselves" on publ
 drop policy if exists "Staff can create messages as themselves" on public.messages;
 drop policy if exists "Staff can update or delete their own messages" on public.messages;
 drop policy if exists "Staff can delete their own messages" on public.messages;
+drop policy if exists "Enable full access for staff on messages" on public.messages;
 create policy "Participants can read messages"
   on public.messages for select to authenticated
   using (
@@ -40,8 +126,8 @@ create policy "Participants can read messages"
       where channel.id = messages.conversation_id
         and (
           not channel.is_private
-          or exists (select 1 from public.channel_members member where member.channel_id = channel.id and member.user_id = auth.uid()::text)
-          or exists (select 1 from public.profiles where id = auth.uid()::text and system_role in ('admin', 'coordinator'))
+          or public.is_channel_member(channel.id, auth.uid()::text)
+          or public.is_workspace_manager(auth.uid()::text)
         )
     )
     or exists (
@@ -49,7 +135,6 @@ create policy "Participants can read messages"
       where participant.conversation_id = messages.conversation_id
         and participant.user_id = auth.uid()::text
     )
-    or sender_id = auth.uid()::text
   );
 create policy "Participants can create messages"
   on public.messages for insert to authenticated
@@ -60,8 +145,13 @@ create policy "Participants can create messages"
         select 1 from public.channels channel
         where channel.id = messages.conversation_id
           and (
-            (not channel.is_private or exists (select 1 from public.channel_members member where member.channel_id = channel.id and member.user_id = auth.uid()::text))
-            and (channel.posting_roles is null or (select system_role from public.profiles where id = auth.uid()::text) = any(channel.posting_roles))
+            (not channel.is_private or public.is_channel_member(channel.id, auth.uid()::text))
+              and (channel.posting_roles is null or exists (
+                select 1
+                from public.profiles profile
+                where profile.id = auth.uid()::text
+                  and profile.system_role = any(channel.posting_roles)
+              ))
           )
       )
       or exists (
@@ -86,48 +176,51 @@ create policy "Staff can view accessible channels"
   using (
     not is_private
     or created_by = auth.uid()::text
-    or exists (select 1 from public.channel_members member where member.channel_id = channels.id and member.user_id = auth.uid()::text)
-    or exists (select 1 from public.profiles where id = auth.uid()::text and system_role in ('admin', 'coordinator'))
+    or public.is_channel_member(id, auth.uid()::text)
+    or public.is_workspace_manager(auth.uid()::text)
   );
 create policy "Authorized staff can create channels"
   on public.channels for insert to authenticated
   with check (
     created_by = auth.uid()::text
-    and exists (select 1 from public.profiles where id = auth.uid()::text and system_role in ('admin', 'coordinator'))
+    and public.is_workspace_manager(auth.uid()::text)
   );
 create policy "Channel managers can update channels"
   on public.channels for update to authenticated
   using (
     created_by = auth.uid()::text
-    or exists (select 1 from public.profiles where id = auth.uid()::text and system_role in ('admin', 'coordinator'))
+    or public.is_workspace_manager(auth.uid()::text)
   )
   with check (
     created_by = auth.uid()::text
-    or exists (select 1 from public.profiles where id = auth.uid()::text and system_role in ('admin', 'coordinator'))
+    or public.is_workspace_manager(auth.uid()::text)
   );
 create policy "Channel managers can delete channels"
   on public.channels for delete to authenticated
   using (
     created_by = auth.uid()::text
-    or exists (select 1 from public.profiles where id = auth.uid()::text and system_role in ('admin', 'coordinator'))
+    or public.is_workspace_manager(auth.uid()::text)
   );
 create policy "Members can view channel membership"
   on public.channel_members for select to authenticated
   using (
     user_id = auth.uid()::text
-    or exists (select 1 from public.channels channel where channel.id = channel_members.channel_id and (not channel.is_private or channel.created_by = auth.uid()::text))
-    or exists (select 1 from public.profiles where id = auth.uid()::text and system_role in ('admin', 'coordinator'))
+    or public.is_channel_owner(channel_id, auth.uid()::text)
+    or public.is_workspace_manager(auth.uid()::text)
   );
 create policy "Channel managers can manage membership"
   on public.channel_members for all to authenticated
   using (
-    exists (select 1 from public.channels channel where channel.id = channel_members.channel_id and (channel.created_by = auth.uid()::text or exists (select 1 from public.profiles where id = auth.uid()::text and system_role in ('admin', 'coordinator'))))
+    public.is_channel_owner(channel_id, auth.uid()::text)
+    or public.is_workspace_manager(auth.uid()::text)
   )
   with check (
-    exists (select 1 from public.channels channel where channel.id = channel_members.channel_id and (channel.created_by = auth.uid()::text or exists (select 1 from public.profiles where id = auth.uid()::text and system_role in ('admin', 'coordinator'))))
+    public.is_channel_owner(channel_id, auth.uid()::text)
+    or public.is_workspace_manager(auth.uid()::text)
   );
 
 drop policy if exists "Staff can read calendar events" on public.calendar_events;
+drop policy if exists "Enable full access for staff on calendar_events" on public.calendar_events;
 create policy "Staff can read authorized calendar events"
   on public.calendar_events for select to authenticated
   using (

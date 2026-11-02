@@ -158,7 +158,7 @@ html[data-theme='dark'] #root [class~='border-brand-200'],
 html[data-theme='dark'] #root [class~='border-rose-200'],
 html[data-theme='dark'] #root [class~='border-brand-200'],
 html[data-theme='dark'] #root [class~='border-brand-200'] {
-  border-color: #34506f;
+  border-color: #444;
 }
 
 html[data-theme='dark'] #root input:not([type='checkbox']):not([type='radio']):not([type='color']),
@@ -180,7 +180,7 @@ html[data-theme='dark'] #root [class*='hover:bg-brand-50']:hover,
 html[data-theme='dark'] #root [class*='hover:bg-brand-100']:hover,
 html[data-theme='dark'] #root [class*='hover:bg-brand-50']:hover,
 html[data-theme='dark'] #root [class*='hover:bg-rose-50']:hover {
-  background-color: #203551 !important;
+  background-color: #222 !important;
 }
 
 html[data-theme='dark'] #root [class~='bg-brand-600'] {
