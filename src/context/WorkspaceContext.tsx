@@ -30,6 +30,7 @@ import {
 } from '../data/initialData';
 import { sounds } from '../lib/sound';
 import { supabase, testSupabaseConnection } from '../lib/supabase';
+import { resetAppAccessCache } from '../lib/useAppAccess';
 
 interface WorkspaceContextType {
   // Auth state
@@ -751,6 +752,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       setChannels(workspaceData.channels);
       setMessages(workspaceData.messages);
       setThreadReplies(workspaceData.threadReplies);
+      resetAppAccessCache();
       setIsAuthenticated(true);
       setRequiresPasswordSetup(data.user.app_metadata?.password_reset_required === true);
       setRequiresOnboarding(data.user.user_metadata?.onboarding_completed !== true);
@@ -783,6 +785,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   const logout = () => {
+    resetAppAccessCache();
     void recordSystemActivity({
       eventType: 'user_signed_out',
       summary: 'Signed out of the workspace.',

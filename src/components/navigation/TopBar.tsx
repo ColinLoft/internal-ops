@@ -20,6 +20,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useAllAppAccess } from '../../lib/useAppAccess';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 
 export const TopBar: React.FC = () => {
@@ -46,6 +47,7 @@ export const TopBar: React.FC = () => {
     unreadNotificationCount,
     callSession,
     startCall,
+    currentUser,
   } = useWorkspace();
 
   useEffect(() => {
@@ -86,8 +88,12 @@ export const TopBar: React.FC = () => {
     ] },
   ];
   const appQuery = appSearch.trim().toLowerCase();
+  const access = useAllAppAccess();
+  const accessKey: Record<string, string> = { customers: 'customers', finance: 'finance', legal: 'legal', admin: 'systems' };
+  // Apps whose data is restricted are hidden until a role grants access.
+  const hasAccess = (id: string) => !accessKey[id] || !access || (access[accessKey[id]] ?? 0) >= 1 || (id === 'admin' && currentUser.systemRole === 'admin');
   const visibleGroups = appGroups
-    .map((group) => ({ ...group, apps: group.apps.filter((app) => app.name.toLowerCase().includes(appQuery)) }))
+    .map((group) => ({ ...group, apps: group.apps.filter((app) => hasAccess(app.id) && app.name.toLowerCase().includes(appQuery)) }))
     .filter((group) => group.apps.length > 0);
   const openApp = (id: string) => {
     setActiveTab(id as Parameters<typeof setActiveTab>[0]);
