@@ -19,18 +19,16 @@ export const ThreadPanel: React.FC = () => {
 
   const repliesEndRef = useRef<HTMLDivElement>(null);
 
-  if (!activeThreadMessageId) return null;
-
   const targetId = activeTab === 'channels' ? activeChannelId : activeConversationId;
   const targetMessages = messages[targetId] || [];
   const parentMessage = targetMessages.find((m) => m.id === activeThreadMessageId);
-  const replies = threadReplies[activeThreadMessageId] || [];
+  const replies = (activeThreadMessageId && threadReplies[activeThreadMessageId]) || [];
 
   useEffect(() => {
     repliesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [replies.length]);
 
-  if (!parentMessage) return null;
+  if (!activeThreadMessageId || !parentMessage) return null;
 
   return (
     <div className="w-96 h-full bg-white/95 backdrop-blur-2xl border-l border-slate-200/80 flex flex-col z-20 shadow-xl flex-shrink-0 animate-in slide-in-from-right duration-200">
