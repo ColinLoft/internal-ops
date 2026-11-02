@@ -13,12 +13,17 @@ import {
   Sparkles,
   Plus,
   UserPlus,
+  ArrowLeft,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { MessageBubble } from './MessageBubble';
 import { MessageComposer } from './MessageComposer';
 
-export const ChatFeed: React.FC = () => {
+interface ChatFeedProps {
+  onBack?: () => void;
+}
+
+export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
   const {
     activeTab,
     activeConversationId,
@@ -112,8 +117,18 @@ export const ChatFeed: React.FC = () => {
   return (
     <div data-onboarding-target={isChannel ? 'channel-feed' : 'message-feed'} className="flex-1 flex flex-col h-full bg-slate-50/50 backdrop-blur-md relative overflow-hidden">
       {/* Feed Top Header */}
-      <div className="h-16 px-6 bg-white/80 backdrop-blur-xl border-b border-slate-200/80 flex items-center justify-between z-10 flex-shrink-0">
+      <div className="h-16 px-3 md:px-6 bg-white/80 backdrop-blur-xl border-b border-slate-200/80 flex items-center justify-between z-10 flex-shrink-0">
         <div className="flex items-center gap-3 min-w-0">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Back to conversations"
+              className="-ml-1 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 md:hidden"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          )}
           {/* Avatar / Icon */}
           <div className="relative flex-shrink-0">
             {isChannel ? (

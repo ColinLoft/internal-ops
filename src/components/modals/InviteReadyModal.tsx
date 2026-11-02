@@ -36,8 +36,8 @@ export const InviteReadyModal: React.FC<InviteReadyModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-2 md:p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-y-auto md:overflow-hidden max-h-[calc(100dvh-1rem)] md:max-h-none animate-in zoom-in-95 duration-200">
         {/* Banner */}
         <div className="bg-gradient-to-r from-brand-600 to-brand-600 p-5 text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -51,7 +51,7 @@ export const InviteReadyModal: React.FC<InviteReadyModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-full text-brand-100 hover:text-white hover:bg-white/20 transition-colors"
+            aria-label="Close" className="p-2.5 -m-1.5 md:p-1 md:m-0 rounded-full text-brand-100 hover:text-white hover:bg-white/20 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -82,11 +82,11 @@ export const InviteReadyModal: React.FC<InviteReadyModalProps> = ({
               </span>
             </div>
             <div className="space-y-1.5 border-t border-slate-200 pt-3">
-              <label htmlFor="staff-login-url" className="flex items-center gap-1 text-[11px] font-semibold text-slate-500">
+              <label htmlFor="staff-login-url" className="flex items-center gap-1 text-xs font-semibold text-slate-500">
                 <LinkIcon className="h-3.5 w-3.5" /> Sign-in page
               </label>
               <div className="flex gap-2">
-                <input id="staff-login-url" readOnly value={inviteData.loginUrl} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs text-slate-700" />
+                <input id="staff-login-url" readOnly value={inviteData.loginUrl} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-base md:text-xs text-slate-700" />
                 <button type="button" onClick={() => void copyValue('url', inviteData.loginUrl)} className="flex items-center gap-1 rounded-lg bg-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-300">
                   {copiedField === 'url' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   {copiedField === 'url' ? 'Copied' : 'Copy'}
@@ -94,11 +94,11 @@ export const InviteReadyModal: React.FC<InviteReadyModalProps> = ({
               </div>
             </div>
             <div className="space-y-1.5 border-t border-slate-200 pt-3">
-              <label htmlFor="staff-temp-password" className="flex items-center gap-1 text-[11px] font-semibold text-slate-500">
+              <label htmlFor="staff-temp-password" className="flex items-center gap-1 text-xs font-semibold text-slate-500">
                 <KeyRound className="h-3.5 w-3.5" /> One-time password
               </label>
               <div className="flex gap-2">
-                <input id="staff-temp-password" readOnly value={inviteData.temporaryPassword} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-2 font-mono text-xs text-slate-700" />
+                <input id="staff-temp-password" readOnly value={inviteData.temporaryPassword} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-2 font-mono text-base md:text-xs text-slate-700" />
                 <button type="button" onClick={() => void copyValue('password', inviteData.temporaryPassword)} className="flex items-center gap-1 rounded-lg bg-brand-600 px-2.5 text-xs font-semibold text-white hover:bg-brand-700">
                   {copiedField === 'password' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   {copiedField === 'password' ? 'Copied' : 'Copy'}

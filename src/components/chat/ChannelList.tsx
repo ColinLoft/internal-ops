@@ -50,7 +50,7 @@ export const ChannelList: React.FC = () => {
                 #{ch.name}
               </h4>
             </div>
-            <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap ml-1">
+            <span className="text-xs text-slate-400 font-medium whitespace-nowrap ml-1">
               {ch.lastPost?.timestamp || '9:00 AM'}
             </span>
           </div>
@@ -60,7 +60,7 @@ export const ChannelList: React.FC = () => {
           </p>
 
           {/* Members */}
-          <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+          <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
             <span>{ch.members.length} members</span>
           </div>
         </div>
@@ -70,13 +70,13 @@ export const ChannelList: React.FC = () => {
   };
 
   return (
-    <div data-onboarding-target="channel-list" className="w-80 h-full bg-white/80 backdrop-blur-xl border-r border-slate-200/80 flex flex-col flex-shrink-0 select-none">
+    <div data-onboarding-target="channel-list" className="w-full md:w-80 h-full bg-white/80 backdrop-blur-xl border-r border-slate-200/80 flex flex-col flex-shrink-0">
       {/* Top Header */}
       <div className="p-4 pb-2">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Channels</h2>
-            <p className="text-[11px] text-slate-500 font-medium">All channels</p>
+            <p className="text-xs text-slate-500 font-medium">All channels</p>
           </div>
           <button
             onClick={() => setIsCreateChannelOpen(true)}

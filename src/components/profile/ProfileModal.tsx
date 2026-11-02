@@ -109,7 +109,7 @@ export const ProfileModal: React.FC = () => {
           <div className="space-y-1 mb-4">
             <div className="flex items-center gap-2">
               <h3 className="text-xl font-bold text-slate-900">{activeProfileModalUser.name}</h3>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">
+              <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">
                 <ShieldCheck className="w-3 h-3 text-brand-500" />
                 {activeProfileModalUser.systemRole}
               </span>
@@ -157,7 +157,7 @@ export const ProfileModal: React.FC = () => {
                 <Mail className="w-4 h-4 text-slate-400" />
                 <span className="font-medium">{activeProfileModalUser.email}</span>
               </div>
-              <span className="text-[10px] text-slate-400 uppercase font-semibold">Email</span>
+              <span className="text-xs text-slate-400 uppercase font-semibold">Email</span>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 transition-colors">
@@ -165,7 +165,7 @@ export const ProfileModal: React.FC = () => {
                 <Phone className="w-4 h-4 text-slate-400" />
                 <span className="font-medium">{activeProfileModalUser.phone}</span>
               </div>
-              <span className="text-[10px] text-slate-400 uppercase font-semibold">Phone</span>
+              <span className="text-xs text-slate-400 uppercase font-semibold">Phone</span>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 transition-colors">
@@ -173,7 +173,7 @@ export const ProfileModal: React.FC = () => {
                 <Briefcase className="w-4 h-4 text-slate-400" />
                 <span className="font-medium">{activeProfileModalUser.department}</span>
               </div>
-              <span className="text-[10px] text-slate-400 uppercase font-semibold">Org Team</span>
+              <span className="text-xs text-slate-400 uppercase font-semibold">Org Team</span>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 transition-colors">
@@ -181,7 +181,7 @@ export const ProfileModal: React.FC = () => {
                 <MapPin className="w-4 h-4 text-slate-400" />
                 <span className="font-medium">{activeProfileModalUser.location || 'Location not set'}</span>
               </div>
-              <span className="text-[10px] text-slate-400 uppercase font-semibold">Office</span>
+              <span className="text-xs text-slate-400 uppercase font-semibold">Office</span>
             </div>
           </div>
         </div>

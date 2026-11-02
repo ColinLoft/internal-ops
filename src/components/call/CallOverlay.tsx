@@ -275,14 +275,14 @@ export const CallOverlay: React.FC = () => {
   return (
     <>
       {callError && (
-        <div role="alert" className="fixed right-5 top-20 z-[70] flex max-w-md items-start gap-3 rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm text-rose-700 shadow-xl">
+        <div role="alert" className="fixed left-3 right-3 top-20 z-[70] flex max-w-md md:left-auto md:right-5 items-start gap-3 rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm text-rose-700 shadow-xl">
           <p className="flex-1">{callError}</p>
           <button type="button" onClick={() => setCallError('')} aria-label="Dismiss call error"><X className="h-4 w-4" /></button>
         </div>
       )}
 
       {incomingCall && !callSession.active && (
-        <div className="fixed bottom-6 right-6 z-[65] w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-slate-700 bg-slate-900 p-4 text-white shadow-2xl">
+        <div className="fixed bottom-[4.5rem] right-3 z-[65] w-[min(24rem,calc(100vw-1.5rem))] md:bottom-6 md:right-6 md:w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-slate-700 bg-slate-900 p-4 text-white shadow-2xl">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-500/20 text-brand-300">
               {incomingCall.call_type === 'video' ? <VideoIcon className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
@@ -300,7 +300,7 @@ export const CallOverlay: React.FC = () => {
       )}
 
       {callSession.active && (
-        <div className={`fixed ${callSession.isMinimized ? 'bottom-6 right-6 w-[min(25rem,calc(100vw-2rem))]' : 'inset-3 sm:inset-6'} z-50 flex flex-col overflow-hidden rounded-3xl border border-slate-700 bg-slate-950 text-white shadow-2xl`}>
+        <div className={`fixed ${callSession.isMinimized ? 'bottom-[4.5rem] right-3 w-[min(25rem,calc(100vw-1.5rem))] md:bottom-6 md:right-6 md:w-[min(25rem,calc(100vw-2rem))]' : 'inset-3 sm:inset-6'} z-50 flex flex-col overflow-hidden rounded-3xl border border-slate-700 bg-slate-950 text-white shadow-2xl`}>
           <header className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-4 py-3 sm:px-5">
             <div className="flex min-w-0 items-center gap-3">
               <span className={`h-2.5 w-2.5 rounded-full ${connectionState === ConnectionState.Connected ? 'bg-brand-400' : 'bg-brand-400 animate-pulse'}`} />
@@ -308,17 +308,17 @@ export const CallOverlay: React.FC = () => {
                 <h2 className="truncate text-sm font-bold">
                   {callSession.targetChannel ? `#${callSession.targetChannel.name}` : callSession.peerUser?.name || 'Team call'}
                 </h2>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-xs text-slate-400">
                   {connectionState === ConnectionState.Connected ? `${minutes}:${seconds}` : 'Connecting to secure call…'}
                   {' · '}{callSession.type === 'video' ? 'Video call' : 'Voice call'}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <button type="button" onClick={toggleCallMinimize} title={callSession.isMinimized ? 'Expand call' : 'Minimize call'} className="rounded-lg p-2 text-slate-300 hover:bg-slate-800">
+              <button type="button" onClick={toggleCallMinimize} title={callSession.isMinimized ? 'Expand call' : 'Minimize call'} aria-label={callSession.isMinimized ? 'Expand call' : 'Minimize call'} className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 md:min-h-0 md:min-w-0 text-slate-300 hover:bg-slate-800">
                 {callSession.isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
               </button>
-              <button type="button" onClick={endCall} title="Leave call" className="rounded-lg p-2 text-slate-300 hover:bg-rose-600 hover:text-white">
+              <button type="button" onClick={endCall} title="Leave call" aria-label="Leave call" className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 md:min-h-0 md:min-w-0 text-slate-300 hover:bg-rose-600 hover:text-white">
                 <PhoneOff className="h-4 w-4" />
               </button>
             </div>
@@ -385,7 +385,7 @@ export const CallOverlay: React.FC = () => {
                 )}
               </section>
 
-              <footer className="flex items-center justify-center gap-3 border-t border-slate-800 bg-slate-900 px-4 py-4">
+              <footer className="flex items-center justify-center gap-3 border-t border-slate-800 bg-slate-900 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <button type="button" onClick={toggleCallMute} aria-label={callSession.isMuted ? 'Unmute microphone' : 'Mute microphone'} className={`rounded-xl p-3 ${callSession.isMuted ? 'bg-rose-600' : 'bg-slate-800 hover:bg-slate-700'}`}>
                   {callSession.isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                 </button>

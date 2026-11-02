@@ -114,7 +114,7 @@ export const EmailAdminPanel: React.FC = () => {
           </div>
           <p className="mt-1 text-xs text-slate-500">Assign staff access to shared mailboxes and control synced-message retention.</p>
         </div>
-        <button type="button" onClick={() => void load()} disabled={loading || saving} aria-label="Refresh email settings" className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+        <button type="button" onClick={() => void load()} disabled={loading || saving} aria-label="Refresh email settings" className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 min-h-11 md:min-h-0">
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
@@ -145,20 +145,20 @@ export const EmailAdminPanel: React.FC = () => {
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate text-sm font-semibold text-slate-900">{mailbox.display_name || mailbox.email}</h3>
                     <p className="truncate text-xs text-slate-500">{mailbox.email} · {mailbox.provider === 'google' ? 'Google Workspace' : 'Microsoft 365'}</p>
-                    <p className="mt-1 text-[11px] text-slate-400">
+                    <p className="mt-1 text-xs text-slate-400">
                       Last synced: {mailbox.last_synced_at ? new Date(mailbox.last_synced_at).toLocaleString() : 'Not synced yet'}
                       {' · '}
                       Notifications: {mailbox.push_expires_at && Date.parse(mailbox.push_expires_at) > Date.now()
                         ? `active until ${new Date(mailbox.push_expires_at).toLocaleDateString()}`
                         : 'not configured or expired'}
                     </p>
-                    {mailbox.push_error && <p role="alert" className="mt-1 text-[11px] text-brand-700">{mailbox.push_error}</p>}
+                    {mailbox.push_error && <p role="alert" className="mt-1 text-xs text-brand-700">{mailbox.push_error}</p>}
                   </div>
                   <button type="button" disabled={saving} onClick={() => {
                     if (window.confirm(`Disconnect ${mailbox.email} and remove its synced email from this workspace?`)) {
                       void invoke('disconnect', { mailboxId: mailbox.id });
                     }
-                  }} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">
+                  }} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50 min-h-11 md:min-h-0">
                     <Trash2 className="h-3.5 w-3.5" /> Disconnect
                   </button>
                 </div>
@@ -168,13 +168,13 @@ export const EmailAdminPanel: React.FC = () => {
                     const staff = users.find((item) => item.id === grant.user_id);
                     if (!staff) return null;
                     return (
-                      <div key={grant.user_id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                      <div key={grant.user_id} className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
                         <ShieldCheck className="h-4 w-4 shrink-0 text-brand-600" />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-xs font-semibold text-slate-800">{staff.name}</p>
-                          <p className="truncate text-[10px] text-slate-500">{staff.email}</p>
+                          <p className="truncate text-xs text-slate-500">{staff.email}</p>
                         </div>
-                        <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                        <label className="flex items-center gap-1.5 text-xs text-slate-600">
                           <input
                             type="checkbox"
                             checked={grant.can_send}
@@ -186,7 +186,7 @@ export const EmailAdminPanel: React.FC = () => {
                           Send
                         </label>
                         {grant.user_id !== mailbox.connected_by && grant.user_id !== currentUser.id && (
-                          <button type="button" disabled={saving} onClick={() => void invoke('revoke', { mailboxId: mailbox.id, userId: staff.id })} className="rounded-lg px-2 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-50">
+                          <button type="button" disabled={saving} onClick={() => void invoke('revoke', { mailboxId: mailbox.id, userId: staff.id })} className="rounded-lg px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-50">
                             Revoke
                           </button>
                         )}
@@ -200,7 +200,7 @@ export const EmailAdminPanel: React.FC = () => {
                     aria-label={`Staff member for ${mailbox.email}`}
                     value={selectedUsers[mailbox.id] || ''}
                     onChange={(event) => setSelectedUsers((previous) => ({ ...previous, [mailbox.id]: event.target.value }))}
-                    className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-brand-500"
+                    className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-base md:text-xs text-slate-700 outline-none focus:border-brand-500"
                   >
                     <option value="">Choose staff to grant access</option>
                     {eligibleUsers.map((staff) => <option key={staff.id} value={staff.id}>{staff.name} · {staff.email}</option>)}
@@ -225,7 +225,7 @@ export const EmailAdminPanel: React.FC = () => {
                         canSend: sendPermissions[mailbox.id] ?? true,
                       });
                     }}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-50 min-h-11 md:min-h-0"
                   >
                     <UserPlus className="h-3.5 w-3.5" /> Grant access
                   </button>
@@ -246,7 +246,7 @@ export const EmailAdminPanel: React.FC = () => {
             required
             value={retentionDays}
             onChange={(event) => setRetentionDays(Number(event.target.value))}
-            className="mt-1 block w-40 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+            className="mt-1 block w-40 rounded-xl border border-slate-200 bg-white px-3 py-2 text-base md:text-sm outline-none focus:border-brand-500"
           />
         </label>
         <button type="submit" disabled={saving || retentionDays < 30 || retentionDays > 3650} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-50">

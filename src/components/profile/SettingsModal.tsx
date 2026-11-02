@@ -90,7 +90,7 @@ export const SettingsModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl max-h-[90vh] bg-white rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+      <div className="w-full max-w-2xl max-h-[calc(100dvh-2rem)] md:max-h-[90vh] bg-white rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
           <div className="flex items-center gap-2 text-slate-800">
             <Settings className="w-5 h-5 text-brand-600" />
@@ -121,7 +121,7 @@ export const SettingsModal: React.FC = () => {
                 <select
                   value={draft.theme}
                   onChange={(event) => update('theme', event.target.value as WorkspaceSettings['theme'])}
-                  className="w-full px-3 py-2 text-sm bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-brand-500"
+                  className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-brand-500"
                 >
                   <option value="dark">Dark (default)</option>
                   <option value="light">Light</option>
@@ -141,7 +141,7 @@ export const SettingsModal: React.FC = () => {
                 </div>
               </label>
             </div>
-            <p className="text-[11px] text-slate-500 mt-2">Accent color applies to buttons and highlights. Dark blue is the default.</p>
+            <p className="text-xs text-slate-500 mt-2">Accent color applies to buttons and highlights. Dark blue is the default.</p>
           </section>
 
           <section className="rounded-2xl border border-slate-200 p-4">
@@ -183,7 +183,7 @@ export const SettingsModal: React.FC = () => {
               <div className="flex items-center justify-between gap-3 mb-2">
                 <div>
                   <h5 className="text-xs font-semibold text-slate-700">Ringtone</h5>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Choose and preview your call ringtone.</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Choose and preview your call ringtone.</p>
                 </div>
                 <button
                   type="button"
@@ -208,7 +208,7 @@ export const SettingsModal: React.FC = () => {
                     }`}
                   >
                     <span className="block text-xs font-semibold text-slate-800">{ringtone.label}</span>
-                    <span className="block text-[11px] text-slate-500 mt-0.5">{ringtone.description}</span>
+                    <span className="block text-xs text-slate-500 mt-0.5">{ringtone.description}</span>
                   </button>
                 ))}
               </div>
@@ -219,7 +219,7 @@ export const SettingsModal: React.FC = () => {
                 <select
                   value={draft.microphoneDeviceId}
                   onChange={(event) => update('microphoneDeviceId', event.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-brand-500"
+                  className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-brand-500"
                 >
                   <option value="">System default</option>
                   {audioInputs.map((device, index) => (
@@ -234,7 +234,7 @@ export const SettingsModal: React.FC = () => {
                 <select
                   value={draft.cameraDeviceId}
                   onChange={(event) => update('cameraDeviceId', event.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-brand-500"
+                  className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-brand-500"
                 >
                   <option value="">System default</option>
                   {videoInputs.map((device, index) => (

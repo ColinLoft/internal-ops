@@ -94,7 +94,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
       {/* Bubble & Metadata */}
       <div
-        className={`flex flex-col max-w-[75%] sm:max-w-[70%] ${
+        className={`flex flex-col max-w-[85%] sm:max-w-[70%] ${
           isCurrentUser ? 'items-end' : 'items-start'
         }`}
       >
@@ -102,22 +102,22 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         <div className="flex items-center gap-2 mb-1 px-1">
           <button
             onClick={() => openUserProfile(sender)}
-            className="text-xs font-bold text-slate-800 hover:text-brand-600 transition-colors"
+            className="text-sm font-bold text-slate-800 hover:text-brand-600 transition-colors"
           >
             {isCurrentUser ? 'You' : sender.name}
           </button>
           {sender.role && !isCurrentUser && (
-            <span className="text-[10px] text-slate-400 font-medium">
+            <span className="text-xs text-slate-400 font-medium">
               • {sender.role}
             </span>
           )}
-          <span className="text-[10px] text-slate-400 font-medium">{message.timestamp}</span>
+          <span className="text-xs text-slate-400 font-medium">{message.timestamp}</span>
         </div>
 
         {/* Message Content Body */}
         {message.isCallRecord ? (
           /* Inline Audio Call Record (matching Screenshot 1 Sage) */
-          <div className="p-4 bg-slate-50/90 rounded-2xl border border-slate-200/80 shadow-xs w-72">
+          <div className="p-4 bg-slate-50/90 rounded-2xl border border-slate-200/80 shadow-xs w-72 max-w-full">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2 text-slate-700">
                 <div className="p-2 rounded-xl bg-slate-200/60 text-slate-700">
@@ -125,7 +125,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 </div>
                 <div>
                   <h5 className="text-xs font-bold text-slate-800">Call Ended</h5>
-                  <p className="text-[11px] text-slate-500 font-medium">
+                  <p className="text-xs text-slate-500 font-medium">
                     Answered duration: {message.callDuration || '2:15'}
                   </p>
                 </div>
@@ -147,17 +147,17 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   }`}
                 />
               </div>
-              <span className="text-[10px] text-slate-500 font-medium">00:02</span>
+              <span className="text-xs text-slate-500 font-medium">00:02</span>
             </div>
           </div>
         ) : message.poll ? (
           /* Interactive Custom Poll Card (matching Screenshot 2 Astrea) */
-          <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-md w-80 sm:w-96">
+          <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-md w-80 sm:w-96 max-w-full">
             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-100">
               <div className="p-1.5 rounded-lg bg-brand-50 text-brand-600">
                 <Vote className="w-4 h-4" />
               </div>
-              <span className="text-[11px] font-bold text-brand-700 uppercase tracking-wider">
+              <span className="text-xs font-bold text-brand-700 uppercase tracking-wider">
                 Staff Poll
               </span>
             </div>
@@ -194,7 +194,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                     <div className="relative z-10 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span
-                          className={`w-4 h-4 rounded-full border flex items-center justify-center text-[10px] ${
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center text-xs ${
                             hasVoted
                               ? 'border-brand-600 bg-brand-600 text-white'
                               : 'border-slate-400 bg-white'
@@ -217,7 +217,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               })}
             </div>
 
-            <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium mt-3 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between text-xs text-slate-400 font-medium mt-3 pt-2 border-t border-slate-100">
               <span>{message.poll.totalVotes} votes cast</span>
               <span className="text-brand-600 font-semibold">Click option to vote</span>
             </div>
@@ -225,7 +225,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         ) : (
           /* Standard Bubble */
           <div
-            className={`p-3.5 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-xs ${
+            className={`p-3.5 rounded-2xl text-sm leading-relaxed shadow-xs ${
               isCurrentUser
                 ? 'bg-brand-600 text-white rounded-br-xs'
                 : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs'
@@ -271,7 +271,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold truncate">{att.name}</p>
-                          <p className="text-[11px] opacity-80 truncate">
+                          <p className="text-xs opacity-80 truncate">
                             {att.locationData.label}
                           </p>
                         </div>
@@ -295,7 +295,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                           </div>
                           <div className="min-w-0">
                             <p className="text-xs font-bold truncate">{att.name}</p>
-                            <p className="text-[10px] opacity-75">{att.size}</p>
+                            <p className="text-xs opacity-75">{att.size}</p>
                           </div>
                         </div>
                         <a
@@ -316,7 +316,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                     return (
                       <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="block max-w-sm overflow-hidden rounded-xl border border-slate-200">
                         <img src={att.url} alt={att.name} className="max-h-72 w-full object-contain" loading="lazy" />
-                        <span className="block truncate px-2 py-1 text-[10px] text-slate-500">{att.name}</span>
+                        <span className="block truncate px-2 py-1 text-xs text-slate-500">{att.name}</span>
                       </a>
                     );
                   }
@@ -330,7 +330,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
         {/* Seen status or Read Receipt (matching Screenshot 1 Sage) */}
         {isCurrentUser && activeTab !== 'channels' && (
-          <div className="flex items-center gap-1 mt-1 text-[10px] font-semibold text-brand-600">
+          <div className="flex items-center gap-1 mt-1 text-xs font-semibold text-brand-600">
             <CheckCheck className="w-3.5 h-3.5" />
             <span>Seen</span>
             {message.seenBy.includes('user-courtney') && (
@@ -361,7 +361,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   title={`${react.users.length} reaction${react.users.length > 1 ? 's' : ''}`}
                 >
                   <span>{react.emoji}</span>
-                  <span className="text-[11px] font-semibold">{react.users.length}</span>
+                  <span className="text-xs font-semibold">{react.users.length}</span>
                 </button>
               );
             })}
@@ -379,7 +379,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               {message.threadCount} repl{message.threadCount === 1 ? 'y' : 'ies'}
             </span>
             {message.lastThreadReplyAt && (
-              <span className="text-[10px] text-brand-600 font-normal">
+              <span className="text-xs text-brand-600 font-normal">
                 • {message.lastThreadReplyAt}
               </span>
             )}
@@ -389,7 +389,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
       {/* Hover Action Bar: Emoji React & Reply in Thread */}
       <div
-        className={`absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200 px-1 py-0.5 flex items-center gap-0.5 z-10 ${
+        className={`absolute -top-3 md:top-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200 px-1 py-0.5 flex items-center gap-0.5 z-10 ${
           isCurrentUser ? 'left-4' : 'right-4'
         }`}
       >

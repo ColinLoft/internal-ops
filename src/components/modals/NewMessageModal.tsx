@@ -42,8 +42,8 @@ export const NewMessageModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-2 md:p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-y-auto md:overflow-hidden max-h-[calc(100dvh-1rem)] md:max-h-none animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center gap-2">
@@ -57,7 +57,7 @@ export const NewMessageModal: React.FC = () => {
           </div>
           <button
             onClick={() => setIsNewMessageOpen(false)}
-            className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
+            aria-label="Close" className="p-2.5 -m-1.5 md:p-1 md:m-0 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -76,7 +76,7 @@ export const NewMessageModal: React.FC = () => {
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder="e.g. Outreach Taskforce"
-                className="w-full px-3 py-2 text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
+                className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
               />
             </div>
           )}
@@ -89,7 +89,7 @@ export const NewMessageModal: React.FC = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search staff by name or role..."
-              className="w-full pl-8 pr-3 py-2 text-xs bg-slate-100 focus:bg-white rounded-xl border border-transparent focus:border-brand-500/50 outline-none transition-all"
+              className="w-full pl-8 pr-3 py-2 text-base md:text-xs bg-slate-100 focus:bg-white rounded-xl border border-transparent focus:border-brand-500/50 outline-none transition-all"
             />
           </div>
 
@@ -119,7 +119,7 @@ export const NewMessageModal: React.FC = () => {
                     </div>
                     <div className="min-w-0">
                       <h5 className="text-xs font-bold text-slate-800 truncate">{u.name}</h5>
-                      <p className="text-[10px] text-slate-400 truncate">{u.role}</p>
+                      <p className="text-xs text-slate-400 truncate">{u.role}</p>
                     </div>
                   </div>
 

@@ -39,8 +39,8 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-2 md:p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-y-auto md:overflow-hidden max-h-[calc(100dvh-1rem)] md:max-h-none animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center gap-2">
@@ -54,14 +54,14 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
+            aria-label="Close" className="p-2.5 -m-1.5 md:p-1 md:m-0 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80dvh] overflow-y-auto">
           {/* Name & Email */}
           <div className="space-y-3">
             <div>
@@ -74,7 +74,7 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Jordan Lee"
                 required
-                className="w-full px-3 py-2 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
+                className="w-full px-3 py-2 text-base md:text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
               />
             </div>
             <div>
@@ -87,7 +87,7 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="jordan@yourorganization.org"
                 required
-                className="w-full px-3 py-2 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
+                className="w-full px-3 py-2 text-base md:text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
               />
             </div>
           </div>

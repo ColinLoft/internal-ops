@@ -212,9 +212,9 @@ export const TopBar: React.FC = () => {
     : [];
 
   return (
-    <header className="h-16 px-6 bg-white/70 backdrop-blur-xl border-b border-slate-200/80 flex items-center justify-between z-20 flex-shrink-0 shadow-xs">
+    <header className="h-16 px-3 md:px-6 gap-3 bg-white/70 backdrop-blur-xl border-b border-slate-200/80 flex items-center justify-between z-20 flex-shrink-0 shadow-xs">
       {/* Breadcrumb / Title */}
-      <div className="flex items-center gap-3">
+      <div className="hidden md:flex items-center gap-3">
         <div className="flex items-center text-sm font-semibold text-slate-800 tracking-tight">
           <span className="text-brand-600 font-bold">Flown</span>
           <span className="mx-2 text-slate-400">/</span>
@@ -227,7 +227,7 @@ export const TopBar: React.FC = () => {
       </div>
 
       {/* Global Quick Search (matching Screenshot 1 Sage) */}
-      <div className="relative w-96 max-w-md">
+      <div className="relative min-w-0 flex-1 md:flex-none md:w-96 max-w-md">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
           <Search className="w-4 h-4" />
         </div>
@@ -242,11 +242,11 @@ export const TopBar: React.FC = () => {
               setSearchQuery('');
             }
           }}
-          placeholder="Search everything... ⌘+S Quick search"
-          className="w-full pl-9 pr-14 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white text-xs font-medium text-slate-900 placeholder:text-slate-400 rounded-xl border border-transparent focus:border-brand-500/50 focus:ring-4 focus:ring-brand-500/10 transition-all outline-none"
+          placeholder="Search everything..."
+          className="w-full pl-9 pr-3 md:pr-14 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white text-xs font-medium text-slate-900 placeholder:text-slate-400 rounded-xl border border-transparent focus:border-brand-500/50 focus:ring-4 focus:ring-brand-500/10 transition-all outline-none"
         />
-        <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
-          <kbd className="px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 bg-white border border-slate-200 rounded shadow-2xs">
+        <div className="absolute inset-y-0 right-0 pr-2.5 hidden md:flex items-center pointer-events-none">
+          <kbd className="px-1.5 py-0.5 text-xs font-semibold text-slate-400 bg-white border border-slate-200 rounded shadow-2xs">
             ⌘S
           </kbd>
         </div>
@@ -262,11 +262,11 @@ export const TopBar: React.FC = () => {
                 }}
                 className="w-full text-left px-3 py-2 rounded-lg hover:bg-brand-50 transition-colors"
               >
-                <span className="block text-[10px] font-semibold uppercase tracking-wide text-brand-600">
+                <span className="block text-xs font-semibold uppercase tracking-wide text-brand-600">
                   {result.type}
                 </span>
                 <span className="block text-xs font-semibold text-slate-800 truncate">{result.title}</span>
-                <span className="block text-[11px] text-slate-500 truncate">{result.detail}</span>
+                <span className="block text-xs text-slate-500 truncate">{result.detail}</span>
               </button>
             )) : (
               <p className="px-3 py-4 text-xs text-center text-slate-500">No matching results</p>
@@ -276,7 +276,7 @@ export const TopBar: React.FC = () => {
       </div>
 
       {/* Right controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 md:gap-3">
         <div className="relative" ref={notificationsRef}>
           <button
             type="button"
@@ -293,7 +293,7 @@ export const TopBar: React.FC = () => {
           >
             <Bell className="h-4 w-4" />
             {unreadNotificationCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-white">
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-xs font-bold text-white ring-2 ring-white">
                 {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
               </span>
             )}
@@ -403,7 +403,7 @@ export const TopBar: React.FC = () => {
                       <span className={`mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${app.accent} text-white shadow-sm`}>
                         <Icon className="h-4 w-4" />
                       </span>
-                      <span className="block max-w-full truncate text-[10px] font-semibold leading-4 text-slate-700">{app.name}</span>
+                      <span className="block max-w-full truncate text-xs font-semibold leading-4 text-slate-700">{app.name}</span>
                     </button>
                   );
                 })}
@@ -416,7 +416,7 @@ export const TopBar: React.FC = () => {
         {callSession.active && (
           <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-200 rounded-xl text-brand-700 text-xs font-semibold animate-pulse">
             <span className="w-2 h-2 rounded-full bg-brand-500 animate-ping" />
-            <span>Call in progress ({Math.floor(callSession.durationSeconds / 60)}:{(callSession.durationSeconds % 60).toString().padStart(2, '0')})</span>
+            <span><span className="hidden sm:inline">Call in progress </span>({Math.floor(callSession.durationSeconds / 60)}:{(callSession.durationSeconds % 60).toString().padStart(2, '0')})</span>
           </div>
         )}
 

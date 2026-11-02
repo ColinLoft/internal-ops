@@ -49,7 +49,39 @@ import {
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { ProfilePopover } from '../profile/ProfilePopover';
 
-export const Rail: React.FC = () => {
+interface RailButtonProps {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  selected?: boolean;
+  onClick: () => void;
+  badge?: number;
+  onboardingTarget?: string;
+}
+
+const RailButton: React.FC<RailButtonProps> = ({ label, icon: Icon, selected = false, onClick, badge = 0, onboardingTarget }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    title={label}
+    data-onboarding-target={onboardingTarget}
+    aria-current={selected ? 'page' : undefined}
+    className={`relative flex w-[72px] flex-col items-center gap-1 rounded-2xl px-1 py-2 transition-colors ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`}
+  >
+    <Icon className="h-5 w-5 shrink-0" />
+    {badge > 0 && (
+      <span className="absolute right-2 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-slate-900 bg-rose-500 px-1 text-xs font-bold leading-none text-white">
+        <span className="sr-only">{badge} unread, </span>{badge}
+      </span>
+    )}
+    <span className="line-clamp-2 w-full break-words text-center text-xs font-medium leading-tight">{label}</span>
+  </button>
+);
+
+interface RailProps {
+  isMobileOpen?: boolean;
+}
+
+export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
   const {
     activeTab,
     setActiveTab,
@@ -122,7 +154,10 @@ export const Rail: React.FC = () => {
   }, []);
 
   return (
-    <aside className="h-screen w-[72px] shrink-0 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/80 flex flex-col items-center py-4 justify-between z-30 select-none shadow-2xl">
+    <aside
+      aria-label="Primary navigation"
+      className={`fixed inset-y-0 left-0 z-50 h-dvh w-[84px] shrink-0 overflow-y-auto bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/80 flex flex-col items-center py-4 justify-between select-none shadow-2xl transition-transform duration-200 md:static md:z-30 md:translate-x-0 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+    >
       {/* Top Brand Logo */}
       <div className="flex flex-col items-center gap-6">
         <div 
@@ -155,7 +190,7 @@ export const Rail: React.FC = () => {
               { label: 'Milestones', icon: Target, section: 'milestones' },
               { label: 'Documentation', icon: BookOpen, section: 'documents' },
               { label: 'Reports', icon: BarChart3, section: 'reports' },
-              ].map((item) => { const Icon = item.icon; const segments = routePath.split('/'); const programId = segments[2] === 'program' ? segments[3] : null; const path = item.section === 'all' ? '/programs' : programId ? `/programs/program/${programId}/${item.section === 'overview' ? '' : item.section}`.replace(/\/$/, '') : `/programs/${item.section}`; const selected = routePath === path; return <button key={item.label} type="button" onClick={() => { if (routePath !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}
+              ].map((item) => { const Icon = item.icon; const segments = routePath.split('/'); const programId = segments[2] === 'program' ? segments[3] : null; const path = item.section === 'all' ? '/programs' : programId ? `/programs/program/${programId}/${item.section === 'overview' ? '' : item.section}`.replace(/\/$/, '') : `/programs/${item.section}`; const selected = routePath === path; return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => { if (routePath !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}
             </>
           ) : isOrganization ? (
             <>{[
@@ -165,7 +200,7 @@ export const Rail: React.FC = () => {
               { label: 'Positions & Roles', icon: BriefcaseBusiness, section: 'positions' },
               { label: 'Onboarding', icon: ClipboardList, section: 'onboarding' },
               { label: 'Personnel Records', icon: FileText, section: 'records' },
-            ].map((item) => { const Icon = item.icon; const path = item.section === 'overview' ? '/organization' : `/organization/${item.section}`; const selected = routePath === path; return <button key={item.label} type="button" onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+            ].map((item) => { const Icon = item.icon; const path = item.section === 'overview' ? '/organization' : `/organization/${item.section}`; const selected = routePath === path; return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
           ) : isInsights ? (
             <>{[
               { label: 'Executive Overview', icon: House, section: 'executive' },
@@ -173,7 +208,7 @@ export const Rail: React.FC = () => {
               { label: 'Financial Reports', icon: Landmark, section: 'financial' },
               { label: 'Project Reports', icon: FolderKanban, section: 'projects' },
               { label: 'Custom Reports', icon: BarChart3, section: 'custom' },
-            ].map((item) => { const Icon = item.icon; const selected = (window.location.pathname.split('/')[2] || 'executive') === item.section; return <button key={item.label} type="button" onClick={() => openInsightsSection(item.section)} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+            ].map((item) => { const Icon = item.icon; const selected = (window.location.pathname.split('/')[2] || 'executive') === item.section; return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => openInsightsSection(item.section)} />; })}</>
           ) : isCustomers ? (
             <>{[
               { label: 'Overview', icon: House, path: '/customers' },
@@ -183,7 +218,7 @@ export const Rail: React.FC = () => {
               { label: 'Activity', icon: ListChecks, path: '/customers/activity' },
               { label: 'Knowledge', icon: BookOpen, path: '/customers/knowledge' },
               { label: 'Reports', icon: BarChart3, path: '/customers/reports' },
-            ].map((item) => { const Icon = item.icon; return <button key={item.label} type="button" onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className="group relative rounded-2xl p-3 text-slate-400 transition-all hover:bg-slate-800/70 hover:text-slate-100" title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+            ].map((item) => { const Icon = item.icon; return <RailButton key={item.label} label={item.label} icon={Icon} selected={routePath === item.path} onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
           ) : isFinance ? (
             <>{[
               { label: 'Overview', icon: House, path: '/finance' },
@@ -193,7 +228,7 @@ export const Rail: React.FC = () => {
               { label: 'Expenses', icon: Receipt, path: '/finance/expenses' },
               { label: 'Procurement', icon: CreditCard, path: '/finance/procurement' },
               { label: 'Accounting & Reports', icon: BarChart3, path: '/finance/accounting-reports' },
-            ].map((item) => { const Icon = item.icon; return <button key={item.label} type="button" onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className="group relative rounded-2xl p-3 text-slate-400 transition-all hover:bg-slate-800/70 hover:text-slate-100" title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+            ].map((item) => { const Icon = item.icon; return <RailButton key={item.label} label={item.label} icon={Icon} selected={routePath === item.path} onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
           ) : isGtm ? (
             <>{[
               { label: 'Overview', path: '/gtm', icon: House },
@@ -203,7 +238,7 @@ export const Rail: React.FC = () => {
               { label: 'Media & Content', path: '/gtm/content', icon: FileText },
               { label: 'Partnerships', path: '/gtm/partnerships', icon: Users },
               { label: 'Business Development', path: '/gtm/business-development', icon: BriefcaseBusiness },
-            ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <button key={item.label} type="button" onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+            ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
           ) : isOperations ? (
             <>{[
               { label: 'Overview', path: '/operations', icon: House },
@@ -212,7 +247,7 @@ export const Rail: React.FC = () => {
               { label: 'Policies & Procedures', path: '/operations/policies', icon: BookOpen },
               { label: 'Resource Coordination', path: '/operations/resources', icon: BriefcaseBusiness },
               { label: 'Internal Workflows', path: '/operations/workflows', icon: CheckCircle2 },
-            ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <button key={item.label} type="button" onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+            ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
           ) : isEngineering ? (
             <>{[
               { label: 'Overview', path: '/engineering', icon: House },
@@ -223,7 +258,7 @@ export const Rail: React.FC = () => {
               { label: 'Testing & Validation', path: '/engineering/testing', icon: CheckCircle2 },
               { label: 'Engineering Changes', path: '/engineering/changes', icon: GitBranch },
               { label: 'Technical Reviews', path: '/engineering/reviews', icon: ShieldCheck },
-            ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <button key={item.label} type="button" onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+            ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
           ) : isLegal ? (
             <>{[
               { label: 'Overview', path: '/legal', icon: House },
@@ -232,66 +267,21 @@ export const Rail: React.FC = () => {
               { label: 'Risk Management', path: '/legal/risk', icon: AlertTriangle },
               { label: 'Policies', path: '/legal/policies', icon: BookOpen },
               { label: 'Legal Records', path: '/legal/records', icon: ClipboardList },
-            ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <button key={item.label} type="button" onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className={`group relative rounded-2xl p-3 transition-all ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`} title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
+            ].map((item) => { const Icon = item.icon; const selected = routePath === item.path; return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => { if (routePath !== item.path) window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
           ) : (
           <>
-          <button type="button" onClick={() => setActiveTab('home')} className={`group relative p-3 rounded-2xl transition-all duration-200 ${activeTab === 'home' ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'}`} title="Home"><House className="w-5 h-5" /><span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Home</span></button>
-          <button type="button" onClick={() => setActiveTab('drive')} className={`group relative p-3 rounded-2xl transition-all duration-200 ${isDrive ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'}`} title="Drive"><HardDrive className="w-5 h-5" /><span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Drive</span></button>
-          {/* Messages */}
-          <button
-            data-onboarding-target="nav-messages"
+          <RailButton label="Home" icon={House} selected={activeTab === 'home'} onClick={() => setActiveTab('home')} />
+          <RailButton label="Drive" icon={HardDrive} selected={isDrive} onClick={() => setActiveTab('drive')} />
+          <RailButton
+            label="Messages"
+            icon={MessageSquare}
+            selected={activeTab === 'messages' || activeTab === 'channels'}
+            badge={totalUnreadMessages}
+            onboardingTarget="nav-messages"
             onClick={() => setActiveTab('messages')}
-            className={`group relative p-3 rounded-2xl transition-all duration-200 ${
-              activeTab === 'messages' || activeTab === 'channels'
-                ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40'
-                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
-            }`}
-            title="Messages"
-          >
-            <MessageSquare className="w-5 h-5" />
-            {totalUnreadMessages > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-slate-900 animate-pulse">
-                {totalUnreadMessages}
-              </span>
-            )}
-            <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-              Messages
-            </span>
-          </button>
-
-          {/* Calendar Item */}
-          <button
-            data-onboarding-target="nav-calendar"
-            onClick={() => setActiveTab('calendar')}
-            className={`group relative p-3 rounded-2xl transition-all duration-200 ${
-              activeTab === 'calendar'
-                ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40'
-                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
-            }`}
-            title="Team & Personal Calendar"
-          >
-            <CalendarIcon className="w-5 h-5" />
-            <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-              Calendar
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('inbox')}
-            className={`group relative p-3 rounded-2xl transition-all duration-200 ${
-              activeTab === 'inbox'
-                ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-400/40'
-                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
-            }`}
-            title="Email inbox"
-            aria-label="Email inbox"
-          >
-            <Mail className="w-5 h-5" />
-            <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-              Email inbox
-            </span>
-          </button>
-
+          />
+          <RailButton label="Calendar" icon={CalendarIcon} selected={activeTab === 'calendar'} onboardingTarget="nav-calendar" onClick={() => setActiveTab('calendar')} />
+          <RailButton label="Email" icon={Mail} selected={activeTab === 'inbox'} onClick={() => setActiveTab('inbox')} />
           </>
           )}
         </nav>
@@ -312,14 +302,14 @@ export const Rail: React.FC = () => {
             aria-haspopup="menu"
           >
             <CirclePlus className="h-6 w-6" />
-            <span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100 pointer-events-none">
+            <span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 pointer-events-none">
               Create
             </span>
           </button>
 
           {isQuickActionsOpen && (
             <div className="absolute bottom-0 left-[54px] z-50 w-64 rounded-2xl border border-slate-200/90 bg-white/95 p-2 text-slate-800 shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150" aria-label="Quick create">
-              <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Quick create</p>
+              <p className="px-3 pb-2 pt-1 text-xs font-bold uppercase tracking-wider text-slate-400">Quick create</p>
               <button
                 type="button"
                 onClick={() => {
@@ -332,7 +322,7 @@ export const Rail: React.FC = () => {
                 <MessageSquarePlus className="h-4 w-4 text-brand-600" />
                 <span>
                   <span className="block text-xs font-semibold">New chat</span>
-                  <span className="block text-[10px] text-slate-500">Start a direct or group message</span>
+                  <span className="block text-xs text-slate-500">Start a direct or group message</span>
                 </span>
               </button>
               <button
@@ -346,7 +336,7 @@ export const Rail: React.FC = () => {
                 <MailPlus className="h-4 w-4 text-brand-600" />
                 <span>
                   <span className="block text-xs font-semibold">New email</span>
-                  <span className="block text-[10px] text-slate-500">Open the email composer</span>
+                  <span className="block text-xs text-slate-500">Open the email composer</span>
                 </span>
               </button>
               <button
@@ -361,7 +351,7 @@ export const Rail: React.FC = () => {
                 <Hash className="h-4 w-4 text-brand-600" />
                 <span>
                   <span className="block text-xs font-semibold">New channel</span>
-                  <span className="block text-[10px] text-slate-500">Create a workspace channel</span>
+                  <span className="block text-xs text-slate-500">Create a workspace channel</span>
                 </span>
               </button>
               <button
@@ -376,7 +366,7 @@ export const Rail: React.FC = () => {
                 <CalendarPlus className="h-4 w-4 text-brand-600" />
                 <span>
                   <span className="block text-xs font-semibold">New event</span>
-                  <span className="block text-[10px] text-slate-500">Add an item to the calendar</span>
+                  <span className="block text-xs text-slate-500">Add an item to the calendar</span>
                 </span>
               </button>
             </div>
@@ -408,7 +398,7 @@ export const Rail: React.FC = () => {
                   : 'bg-slate-500'
               }`}
             />
-            <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+            <span className="absolute left-[78px] bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity whitespace-nowrap z-50">
               {currentUser.name} Status &amp; Profile
             </span>
           </button>

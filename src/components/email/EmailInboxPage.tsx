@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Archive,
   ArrowLeft,
+  Menu,
   ArrowUpRight,
   Bold,
   Check,
@@ -223,6 +224,7 @@ export const EmailInboxPage: React.FC = () => {
   const [connectMenuOpen, setConnectMenuOpen] = useState(false);
   const [sharedMailboxAddress, setSharedMailboxAddress] = useState('');
   const [composeOpen, setComposeOpen] = useState(false);
+  const [mobileFoldersOpen, setMobileFoldersOpen] = useState(false);
   const [replyMode, setReplyMode] = useState(false);
   const [composeTo, setComposeTo] = useState('');
   const [composeCc, setComposeCc] = useState('');
@@ -1113,6 +1115,8 @@ export const EmailInboxPage: React.FC = () => {
     }
   };
 
+  useEffect(() => { setMobileFoldersOpen(false); }, [activeFolder, showScheduledSends, messageFilter, rulesOpen]);
+
   const sharedMailboxControl = mailboxes.length > 0 && currentUser.systemRole === 'admin' ? (
     <div className="relative">
       <button
@@ -1124,7 +1128,7 @@ export const EmailInboxPage: React.FC = () => {
         Connect shared mailbox
       </button>
       {connectMenuOpen && (
-        <div className="absolute bottom-11 left-0 z-30 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+        <div className="absolute bottom-11 left-0 z-30 w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
           <p className="mb-2 text-xs font-semibold text-slate-800">Connect a Microsoft 365 shared mailbox</p>
           <input
             value={sharedMailboxAddress}
@@ -1147,20 +1151,20 @@ export const EmailInboxPage: React.FC = () => {
   ) : null;
 
   return (
-    <main className="flex min-w-0 flex-1 overflow-hidden bg-[linear-gradient(135deg,#f8fbff_0%,#eef6ff_52%,#f8fafc_100%)] print:bg-white">
-      <aside className="flex w-52 shrink-0 flex-col border-r border-slate-200/80 bg-white/90 p-2 shadow-[4px_0_24px_rgba(30,64,175,0.04)] print:hidden">
+    <main className="flex min-w-0 flex-1 flex-col overflow-hidden md:flex-row bg-[linear-gradient(135deg,#f8fbff_0%,#eef6ff_52%,#f8fafc_100%)] print:bg-white">
+      <aside className={`${mobileFoldersOpen ? 'flex' : 'hidden'} min-h-0 w-full flex-1 overflow-y-auto md:flex md:w-52 md:flex-none md:overflow-visible shrink-0 flex-col border-r border-slate-200/80 bg-white/90 p-2 shadow-[4px_0_24px_rgba(30,64,175,0.04)] print:hidden`}>
         <div className="mb-3 flex items-center justify-between rounded-xl bg-gradient-to-br from-brand-600 to-brand-600 p-2.5 text-white shadow-lg shadow-brand-500/15">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/70">Workspace mail</p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/70">Workspace mail</p>
             <h1 className="mt-0.5 text-base font-bold">Inbox</h1>
           </div>
-          <button type="button" onClick={openNewCompose} aria-label="Compose email" title="Compose a new email" className="rounded-lg bg-white/15 p-2 text-white ring-1 ring-white/20 hover:bg-white/25">
+          <button type="button" onClick={openNewCompose} aria-label="Compose email" title="Compose a new email" className="rounded-lg bg-white/15 p-3 text-white ring-1 ring-white/20 hover:bg-white/25 md:p-2">
             <Plus className="h-4 w-4" />
           </button>
         </div>
         <div className="mb-2 flex items-center justify-between px-2">
-          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Mailboxes</span>
-          <span className="text-[10px] font-semibold text-slate-400">{mailboxes.length} connected</span>
+          <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Mailboxes</span>
+          <span className="text-xs font-semibold text-slate-400">{mailboxes.length} connected</span>
         </div>
         <div className="relative mb-4">
           <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -1182,7 +1186,7 @@ export const EmailInboxPage: React.FC = () => {
             </div>
           )}
         </div>
-        <div className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Folders</div>
+        <div className="mb-2 px-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Folders</div>
         <div className="space-y-1">
           {folders.map(({ id, label, icon: Icon }) => (
             <button
@@ -1195,7 +1199,7 @@ export const EmailInboxPage: React.FC = () => {
             >
               <Icon className="h-4 w-4" />
               <span className="flex-1">{label}</span>
-              {id === 'inbox' && unreadCount > 0 && <span className="rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px]">{unreadCount}</span>}
+              {id === 'inbox' && unreadCount > 0 && <span className="rounded-full bg-brand-100 px-1.5 py-0.5 text-xs">{unreadCount}</span>}
             </button>
           ))}
           <button
@@ -1207,7 +1211,7 @@ export const EmailInboxPage: React.FC = () => {
           >
             <FileText className="h-4 w-4" />
             <span className="flex-1">Drafts</span>
-            {drafts.length > 0 && <span className="rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px]">{drafts.length}</span>}
+            {drafts.length > 0 && <span className="rounded-full bg-brand-100 px-1.5 py-0.5 text-xs">{drafts.length}</span>}
           </button>
           {activeMailbox && (
             <button
@@ -1220,13 +1224,13 @@ export const EmailInboxPage: React.FC = () => {
               <Clock3 className="h-4 w-4" />
               <span className="flex-1">Scheduled</span>
               {scheduledSends.filter((item) => item.status === 'scheduled').length > 0 && (
-                <span className="rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px]">{scheduledSends.filter((item) => item.status === 'scheduled').length}</span>
+                <span className="rounded-full bg-brand-100 px-1.5 py-0.5 text-xs">{scheduledSends.filter((item) => item.status === 'scheduled').length}</span>
               )}
             </button>
           )}
         </div>
         <div className="mt-4 border-t border-slate-100 pt-4">
-          <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Quick views</p>
+          <p className="mb-2 px-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Quick views</p>
           {[
             { label: 'Recent', icon: Clock3, filter: 'all' as MessageFilter },
             { label: 'Unread', icon: MailOpen, filter: 'unread' as MessageFilter },
@@ -1238,32 +1242,33 @@ export const EmailInboxPage: React.FC = () => {
           ))}
         </div>
         <div className="mt-4 border-t border-slate-100 pt-4">
-          <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Workspace tools</p>
+          <p className="mb-2 px-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Workspace tools</p>
           <button type="button" onClick={() => setRulesOpen(true)} disabled={!activeMailbox || activeMailbox.connected_by !== currentUser.id} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
             <Settings2 className="h-4 w-4 text-slate-400" /> Inbox rules <ChevronRight className="ml-auto h-3.5 w-3.5 text-slate-300" />
           </button>
           <button type="button" onClick={() => void refresh(true)} disabled={!activeMailbox || syncing} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-40">
-            <RefreshCw className={`h-4 w-4 text-slate-400 ${syncing ? 'animate-spin' : ''}`} /> Sync mailbox <span className="ml-auto text-[10px] text-slate-400">{activeMailbox?.last_synced_at ? new Date(activeMailbox.last_synced_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Never'}</span>
+            <RefreshCw className={`h-4 w-4 text-slate-400 ${syncing ? 'animate-spin' : ''}`} /> Sync mailbox <span className="ml-auto text-xs text-slate-400">{activeMailbox?.last_synced_at ? new Date(activeMailbox.last_synced_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Never'}</span>
           </button>
         </div>
         <div className="mt-auto border-t border-slate-100 pt-3">
           {sharedMailboxControl}
           {activeMailbox && (
-            <p className="mt-3 truncate text-center text-[10px] text-slate-400" title={activeMailbox.email}>
+            <p className="mt-3 truncate text-center text-xs text-slate-400" title={activeMailbox.email}>
               {activeMailbox.mailbox_type === 'shared' ? 'Shared mailbox · ' : ''}{activeMailbox.email} · Microsoft 365
             </p>
           )}
         </div>
       </aside>
 
-      <section className={`flex min-w-0 flex-col border-r border-slate-200/80 print:hidden ${selectedMessage ? 'hidden lg:flex lg:w-[34%]' : 'lg:w-[35%]'}`}>
-        <div className="flex items-center gap-3 border-b border-slate-200/80 bg-white/85 px-5 py-3 backdrop-blur">
+      <section className={`min-w-0 flex-col border-r border-slate-200/80 print:hidden ${mobileFoldersOpen || selectedMessage ? 'hidden' : 'flex min-h-0 flex-1 md:flex-initial'} ${selectedMessage ? 'md:hidden lg:flex lg:w-[34%] lg:flex-none' : 'md:flex lg:w-[35%]'}`}>
+        <div className="flex items-center gap-3 border-b border-slate-200/80 bg-white/85 px-3 py-3 backdrop-blur md:px-5">
+          <button type="button" onClick={() => setMobileFoldersOpen(true)} aria-label="Open folders" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 md:hidden"><Menu className="h-5 w-5" /></button>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-600">{showScheduledSends ? 'Planning' : activeFolder === 'drafts' ? 'Unfinished work' : 'Mailbox'}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-600">{showScheduledSends ? 'Planning' : activeFolder === 'drafts' ? 'Unfinished work' : 'Mailbox'}</p>
             <h2 className="mt-0.5 truncate text-lg font-bold tracking-tight text-slate-900">{showScheduledSends ? 'Scheduled sends' : activeFolder === 'drafts' ? 'Drafts' : activeFolder === 'inbox' ? 'Inbox' : folders.find((folder) => folder.id === activeFolder)?.label || 'Email'}</h2>
           </div>
           {!showScheduledSends && activeMailbox && (
-            <div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-500 md:flex">
+            <div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 md:flex">
               <span className="h-2 w-2 rounded-full bg-brand-500" />
               {activeMailbox.display_name || activeMailbox.email}
             </div>
@@ -1284,7 +1289,7 @@ export const EmailInboxPage: React.FC = () => {
         {activeMailbox && !showScheduledSends && selectedMessageIds.size > 0 && (
             <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 bg-white/75 px-5 py-2.5">
               <div className="ml-auto flex flex-wrap items-center gap-1 border-l border-slate-200 pl-2">
-                <span className="mr-1 text-[11px] font-medium text-slate-500">{selectedMessageIds.size} selected</span>
+                <span className="mr-1 text-xs font-medium text-slate-500">{selectedMessageIds.size} selected</span>
                 <button type="button" onClick={() => void runBulkAction('read')} disabled={syncing} title="Mark selected as read" aria-label="Mark selected as read" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"><MailOpen className="h-4 w-4" /></button>
                 <button type="button" onClick={() => void runBulkAction('unread')} disabled={syncing} title="Mark selected as unread" aria-label="Mark selected as unread" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"><Mail className="h-4 w-4" /></button>
                 <button type="button" onClick={() => void runBulkAction('star')} disabled={syncing} title="Star selected" aria-label="Star selected" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"><Star className="h-4 w-4" /></button>
@@ -1308,7 +1313,7 @@ export const EmailInboxPage: React.FC = () => {
                       <p className="mt-1 text-xs text-slate-500">{schedule.action === 'reply' ? 'Reply' : 'New email'} · {new Date(schedule.scheduled_at).toLocaleString()}</p>
                       {schedule.status === 'failed' && schedule.last_error && <p className="mt-1 text-xs text-rose-600">{schedule.last_error}</p>}
                     </div>
-                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                       schedule.status === 'sent' ? 'bg-brand-50 text-brand-700'
                         : schedule.status === 'failed' ? 'bg-rose-50 text-rose-700'
                           : schedule.status === 'scheduled' ? 'bg-brand-50 text-brand-700'
@@ -1340,10 +1345,10 @@ export const EmailInboxPage: React.FC = () => {
           ) : !activeMailbox ? (
             <div className="mx-auto mt-10 max-w-xl rounded-3xl border border-slate-200/80 bg-white p-8 text-center shadow-[0_12px_40px_rgba(37,99,235,0.08)] sm:p-10">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-600 to-brand-500 text-white shadow-lg shadow-brand-500/20"><Mail className="h-8 w-8" /></div>
-              <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.16em] text-brand-600">A calmer inbox starts here</p>
+              <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-brand-600">A calmer inbox starts here</p>
               <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Connect your work email</h3>
               <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-500">Bring your Microsoft 365 inbox into the workspace. Threads, rich content, drafts, scheduled sends, templates, and AI tools stay together in one organized place.</p>
-              <div className="mx-auto mt-6 grid max-w-md grid-cols-3 gap-2 text-[10px] font-semibold text-slate-500">
+              <div className="mx-auto mt-6 grid max-w-md grid-cols-3 gap-2 text-xs font-semibold text-slate-500">
                 <span className="rounded-xl bg-brand-50 px-2 py-3 text-brand-700">Organized threads</span>
                 <span className="rounded-xl bg-brand-50 px-2 py-3 text-brand-700">Smart drafts</span>
                 <span className="rounded-xl bg-brand-50 px-2 py-3 text-brand-700">Secure sync</span>
@@ -1376,10 +1381,10 @@ export const EmailInboxPage: React.FC = () => {
                 >
                   <Check className="h-3 w-3" />
                 </button>
-                <span className="ml-auto hidden text-[11px] text-slate-400 sm:inline">{activeMailbox.email}</span>
+                <span className="ml-auto hidden text-xs text-slate-400 sm:inline">{activeMailbox.email}</span>
               </div>
               {groupedMessages.map(({ latest: message, messages: thread }) => (
-            <div key={message.id} className={`group flex items-start gap-3 border-b border-slate-100/80 px-5 py-3.5 transition hover:bg-white ${selectedMessage?.id === message.id ? 'bg-brand-50/60' : 'bg-white/40'}`}>
+            <div key={message.id} className={`group flex items-start gap-3 border-b border-slate-100/80 px-3 py-3.5 md:px-5 transition hover:bg-white ${selectedMessage?.id === message.id ? 'bg-brand-50/60' : 'bg-white/40'}`}>
               <button
                 type="button"
                 onClick={() => toggleMessageGroupSelection(thread)}
@@ -1390,20 +1395,20 @@ export const EmailInboxPage: React.FC = () => {
               </button>
               <button type="button" onClick={() => void openMessage(message)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
                 <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${message.is_read ? 'bg-transparent' : 'bg-brand-600'}`} />
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-100 to-brand-100 text-[11px] font-bold text-brand-700 ring-1 ring-white">{senderInitials(message)}</span>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-100 to-brand-100 text-xs font-bold text-brand-700 ring-1 ring-white">{senderInitials(message)}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className={`truncate text-sm ${message.is_read ? 'font-medium text-slate-600' : 'font-bold text-slate-900'}`}>{message.sender_name || message.sender_email}</span>
-                    {thread.length > 1 && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">{thread.length}</span>}
+                    {thread.length > 1 && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-500">{thread.length}</span>}
                     {message.has_attachments && <ArrowUpRight className="h-3 w-3 shrink-0 text-slate-400" />}
-                    {message.labels.map((label) => <span key={label} className="rounded-full bg-brand-50 px-1.5 py-0.5 text-[9px] text-brand-700">{label}</span>)}
-                    <time className="ml-auto shrink-0 text-[10px] text-slate-400">{new Date(message.received_at).toLocaleDateString()}</time>
+                    {message.labels.map((label) => <span key={label} className="rounded-full bg-brand-50 px-1.5 py-0.5 text-xs text-brand-700">{label}</span>)}
+                    <time className="ml-auto shrink-0 text-xs text-slate-400">{new Date(message.received_at).toLocaleDateString()}</time>
                   </div>
-                  <p className={`mt-1 truncate text-[13px] ${message.is_read ? 'text-slate-600' : 'font-semibold text-slate-800'}`}>{message.subject || '(no subject)'}</p>
+                  <p className={`mt-1 truncate text-sm ${message.is_read ? 'text-slate-600' : 'font-semibold text-slate-800'}`}>{message.subject || '(no subject)'}</p>
                   <p className="mt-1 truncate text-xs text-slate-400">{message.snippet || message.body_text}</p>
                 </div>
               </button>
-              <button type="button" onClick={(event) => { event.stopPropagation(); void toggleStar(message); }} aria-label={message.is_starred ? 'Unstar email' : 'Star email'} className="rounded-lg p-2 text-slate-300 opacity-60 transition group-hover:opacity-100 hover:bg-brand-50 hover:text-brand-500">
+              <button type="button" onClick={(event) => { event.stopPropagation(); void toggleStar(message); }} aria-label={message.is_starred ? 'Unstar email' : 'Star email'} className="rounded-lg p-3 text-slate-300 opacity-100 transition md:p-2 md:opacity-60 group-hover:opacity-100 hover:bg-brand-50 hover:text-brand-500">
                 <Star className={`h-4 w-4 ${message.is_starred ? 'fill-brand-400 text-brand-500' : ''}`} />
               </button>
             </div>
@@ -1431,13 +1436,13 @@ export const EmailInboxPage: React.FC = () => {
       {selectedMessage && (
         <section id="email-print-content" className="flex min-w-0 flex-1 flex-col bg-white print:border-0 lg:w-[66%]">
           <style>{`@media print { body * { visibility: hidden !important; } #email-print-content, #email-print-content * { visibility: visible !important; } #email-print-content { position: absolute; inset: 0; width: 100%; height: auto; overflow: visible !important; } }`}</style>
-          <div className="flex items-center gap-2 border-b border-slate-200/80 bg-white/90 px-5 py-3 print:hidden">
-            <button type="button" onClick={() => setSelectedMessage(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 xl:hidden" aria-label="Back to list"><ArrowLeft className="h-4 w-4" /></button>
+          <div className="flex items-center gap-2 border-b border-slate-200/80 bg-white/90 px-3 py-3 md:px-5 print:hidden">
+            <button type="button" onClick={() => setSelectedMessage(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 inline-flex min-h-11 min-w-11 items-center justify-center md:min-h-0 md:min-w-0 xl:hidden" aria-label="Back to list"><ArrowLeft className="h-4 w-4" /></button>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-600">Conversation</p>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-600">Conversation</p>
               <h2 className="truncate text-base font-bold text-slate-900">{selectedMessage.subject || '(no subject)'}</h2>
             </div>
-            {selectedThreadMessages.length > 1 && <span className="text-xs text-slate-500">{selectedThreadMessages.length} messages in thread</span>}
+            {selectedThreadMessages.length > 1 && <span className="hidden text-xs sm:inline text-slate-500">{selectedThreadMessages.length} messages in thread</span>}
             <button type="button" onClick={() => window.print()} title="Print conversation" aria-label="Print conversation" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><Printer className="h-4 w-4" /></button>
             <button type="button" onClick={() => void toggleStar(selectedMessage)} title={selectedMessage.is_starred ? 'Unstar' : 'Star'} aria-label={selectedMessage.is_starred ? 'Unstar email' : 'Star email'} className="rounded-lg p-2 text-slate-500 hover:bg-brand-50 hover:text-brand-600">
               <Star className={`h-4 w-4 ${selectedMessage.is_starred ? 'fill-brand-400 text-brand-500' : ''}`} />
@@ -1466,7 +1471,7 @@ export const EmailInboxPage: React.FC = () => {
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <time className="hidden text-right text-[11px] text-slate-400 sm:block" dateTime={threadMessage.received_at}>{new Date(threadMessage.received_at).toLocaleString()}</time>
+                <time className="hidden text-right text-xs text-slate-400 sm:block" dateTime={threadMessage.received_at}>{new Date(threadMessage.received_at).toLocaleString()}</time>
                 {expanded ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
               </div>
               </button>
@@ -1490,7 +1495,7 @@ export const EmailInboxPage: React.FC = () => {
                     </p>
                   )}
                 </div>
-                <time className="shrink-0 text-right text-[11px] text-slate-400" dateTime={threadMessage.received_at}>
+                <time className="shrink-0 text-right text-xs text-slate-400" dateTime={threadMessage.received_at}>
                   {new Date(threadMessage.received_at).toLocaleString()}
                 </time>
               </div>
@@ -1575,19 +1580,19 @@ export const EmailInboxPage: React.FC = () => {
       )}
 
       {composeOpen && activeMailbox && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/40 p-4">
-          <form onSubmit={(event) => void submitMessage(event)} className="w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+        <div className="fixed inset-0 z-[80] flex items-stretch justify-center bg-slate-950/40 md:items-center md:p-4">
+          <form onSubmit={(event) => void submitMessage(event)} className="flex h-dvh w-full max-w-3xl flex-col overflow-y-auto rounded-none md:overflow-hidden border md:block md:h-auto md:max-h-[calc(100dvh-2rem)] md:rounded-3xl border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-6 py-5">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-600">{replyMode ? 'Continue conversation' : 'New message'}</p>
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-600">{replyMode ? 'Continue conversation' : 'New message'}</p>
                 <h3 className="mt-1 text-lg font-bold text-slate-900">{replyMode ? 'Reply to email' : 'Compose email'}</h3>
-                <p className="mt-0.5 text-[11px] text-slate-400">Sending from {activeMailbox.email} · Drafts save automatically</p>
+                <p className="mt-0.5 text-xs text-slate-400">Sending from {activeMailbox.email} · Drafts save automatically</p>
               </div>
-              <button type="button" onClick={() => { void saveDraft(); setComposeOpen(false); setReplyMode(false); setComposeAttachments([]); }} aria-label="Close" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100">
+              <button type="button" onClick={() => { void saveDraft(); setComposeOpen(false); setReplyMode(false); setComposeAttachments([]); }} aria-label="Close" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-slate-400 md:min-h-0 md:min-w-0 hover:bg-slate-100">
                 {draftSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
               </button>
             </div>
-            <div className="max-h-[72vh] space-y-3 overflow-y-auto p-6">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:max-h-[72vh] md:flex-none md:p-6">
               {replyMode ? (
                 <p className="border-b border-slate-100 py-2 text-sm text-slate-500">To: {composeTo}</p>
               ) : (
@@ -1646,7 +1651,7 @@ export const EmailInboxPage: React.FC = () => {
                       }}
                     />
                   </label>
-                  <span className="text-[11px] text-slate-400">Up to 10 files, 3 MB total</span>
+                  <span className="text-xs text-slate-400">Up to 10 files, 3 MB total</span>
                 </div>
               )}
               {(composeAttachments.length + composeProviderAttachments.length > 0) && (
