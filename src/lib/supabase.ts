@@ -3,16 +3,18 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be configured before starting the application.');
-}
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(
+  supabaseUrl || 'https://supabase-config-missing.invalid',
+  supabaseAnonKey || 'supabase-config-missing',
+  {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
   },
-});
+  },
+);
 
 /**
  * Upload an avatar image file to Supabase Storage ('avatars' bucket)
