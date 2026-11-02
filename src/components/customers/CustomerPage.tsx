@@ -110,7 +110,6 @@ export const CustomerPage: React.FC = () => {
       <section className="min-w-0 flex-1 overflow-y-auto">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-600">Relationships</p>
             <h1 className="mt-1 text-xl font-bold text-slate-900">{tabs.find((t) => t[0] === view)?.[1]}</h1>
           </div>
           <div className="flex items-center gap-2">

@@ -192,7 +192,7 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
               { label: 'Positions & Roles', icon: BriefcaseBusiness, section: 'positions' },
               { label: 'Onboarding', icon: ClipboardList, section: 'onboarding' },
               { label: 'Personnel Records', icon: FileText, section: 'records' },
-            ].map((item) => { const Icon = item.icon; const path = item.section === 'overview' ? '/organization' : `/organization/${item.section}`; const selected = routePath === path; return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
+            ].map((item) => { const Icon = item.icon; const path = `/organization/${item.section}`; const selected = routePath === path || (item.section === 'people' && routePath === '/organization'); return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
           ) : isInsights ? (
             <>{[
               { label: 'Executive Overview', icon: House, section: 'executive' },

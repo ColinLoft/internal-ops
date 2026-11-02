@@ -59,7 +59,7 @@ export const LegalPage: React.FC = () => {
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-5 sm:px-8">
-        <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-600">Legal workspace</p><h1 className="mt-1 text-xl font-bold text-slate-900">{labels[view]}</h1><p className="mt-1 text-xs text-slate-500">Contracts, compliance, risk, policies, and legal records in one place.</p></div>
+        <div><h1 className="mt-1 text-xl font-bold text-slate-900">{labels[view]}</h1><p className="mt-1 text-xs text-slate-500">Contracts, compliance, risk, policies, and legal records in one place.</p></div>
         <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:flex-nowrap"><div className="relative w-full md:w-auto"><Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search legal" className="w-full md:w-48 rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 text-xs outline-none focus:border-brand-400" /></div><button type="button" onClick={() => setShowNew(true)} className="rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700"><Plus className="mr-1 inline h-3.5 w-3.5" /> Add legal record</button></div>
       </header>
       <div className="mx-auto max-w-7xl p-5 sm:p-8">

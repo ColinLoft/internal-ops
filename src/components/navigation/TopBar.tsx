@@ -84,6 +84,16 @@ export const TopBar: React.FC = () => {
       { id: 'admin', name: 'Systems', icon: Settings },
     ] },
   ];
+  const pathSection = window.location.pathname.split('/')[2];
+  const badgeLabel =
+    activeTab === 'operations' ? (pathSection || 'Overview').replace(/^\w/, (value) => value.toUpperCase())
+    : activeTab === 'messages' ? currentConv?.name || 'Direct messages'
+    : activeTab === 'channels' ? (currentChan ? `#${currentChan.name}` : 'Channels')
+    : activeTab === 'calendar' ? 'Schedule'
+    : activeTab === 'inbox' ? 'Connected mailboxes'
+    : activeTab === 'drive' ? 'My Drive'
+    : activeTab === 'organization' ? 'Directory'
+    : 'Overview';
   const appQuery = appSearch.trim().toLowerCase();
   const access = useAllAppAccess();
   const accessKey: Record<string, string> = { customers: 'customers', finance: 'finance', legal: 'legal', admin: 'systems' };
@@ -191,7 +201,7 @@ export const TopBar: React.FC = () => {
           <span className="text-slate-600 font-medium">{activeTab === 'operations' ? 'Operations' : activeTab === 'engineering' ? 'Engineering' : activeTab === 'gtm' ? 'Marketing' : activeTab === 'legal' ? 'Legal' : activeTab === 'finance' ? 'Finance' : activeTab === 'customers' ? 'Relationships' : activeTab === 'programs' ? 'Projects' : activeTab === 'home' ? 'Home' : activeTab === 'admin' ? 'Systems' : activeTab === 'help' ? 'Support' : activeTab === 'insights' ? `Insights${window.location.pathname.split('/')[2] ? ` / ${window.location.pathname.split('/')[2]}` : ''}` : activeTab === 'organization' ? 'Organization' : activeTab === 'inbox' ? 'Email inbox' : activeTab === 'drive' ? 'Drive' : activeTab === 'messages' ? 'Direct messages' : activeTab === 'channels' ? 'Channels' : 'Workspace'}</span>
           <span className="mx-2 text-slate-400">/</span>
           <span className="text-slate-900 bg-brand-50 px-2 py-0.5 rounded-md text-xs font-semibold text-brand-700 border border-brand-100/80">
-            {activeTab === 'operations' ? (window.location.pathname.split('/')[2] || 'Overview').replace(/^\w/, (value) => value.toUpperCase()) : activeTab === 'customers' ? 'Overview' : activeTab === 'home' ? 'Overview' : activeTab === 'messages' ? currentConv?.name : activeTab === 'channels' ? `#${currentChan?.name}` : activeTab === 'calendar' ? 'Schedule' : activeTab === 'inbox' ? 'Connected mailboxes' : activeTab === 'drive' ? 'My Drive' : 'Staff directory'}
+            {badgeLabel}
           </span>
         </div>
       </div>
@@ -317,12 +327,14 @@ export const TopBar: React.FC = () => {
                             key={app.id}
                             type="button"
                             onClick={() => openApp(app.id)}
-                            className={`flex min-h-[72px] flex-col items-center justify-center rounded-xl border p-2 text-center transition-colors ${isActive ? 'border-brand-300 bg-brand-50' : 'border-transparent hover:border-slate-200 hover:bg-slate-50'}`}
+                            title={app.name}
+                            aria-label={app.name}
+                            className={`group flex min-h-[64px] flex-col items-center justify-center rounded-xl border p-2 text-center transition-colors ${isActive ? 'border-brand-300 bg-brand-50' : 'border-transparent hover:border-slate-200 hover:bg-slate-50'}`}
                           >
-                            <span className="mb-1.5 flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white">
-                              <Icon className="h-4 w-4" />
+                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 transition-colors group-hover:bg-brand-100">
+                              <Icon className="h-5 w-5" />
                             </span>
-                            <span className="block max-w-full truncate text-xs font-semibold leading-4 text-slate-700">{app.name}</span>
+                            <span className="sr-only">{app.name}</span>
                           </button>
                         );
                       })}

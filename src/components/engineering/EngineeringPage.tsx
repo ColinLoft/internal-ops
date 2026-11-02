@@ -82,7 +82,6 @@ export const EngineeringPage: React.FC = () => {
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-5 sm:px-8">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-600">Engineering workspace</p>
           <h1 className="mt-1 text-xl font-bold text-slate-900">{currentLabel}</h1>
           <p className="mt-1 text-xs text-slate-500">Manage product development, technical documentation, requirements, records, testing, revisions, and engineering reviews.</p>
         </div>

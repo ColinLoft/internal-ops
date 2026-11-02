@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
+const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 export const CalendarView: React.FC = () => {
   const {
     calendarEvents,
@@ -33,7 +35,7 @@ export const CalendarView: React.FC = () => {
   };
 
   // Format today's date string YYYY-MM-DD
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toLocalDateStr(new Date());
 
   // Filter events
   const filteredEvents = calendarEvents.filter((evt) => {
@@ -196,7 +198,7 @@ export const CalendarView: React.FC = () => {
       d.setDate(curr.getDate() + i);
       return {
         name: daysOfWeek[i],
-        date: d.toISOString().split('T')[0],
+        date: toLocalDateStr(d),
       };
     });
 
@@ -250,7 +252,7 @@ export const CalendarView: React.FC = () => {
 
   // Day View
   const renderDayView = () => {
-    const selectedDateStr = currentDate.toISOString().split('T')[0];
+    const selectedDateStr = toLocalDateStr(currentDate);
     const todayEvents = filteredEvents.filter((e) => e.date === selectedDateStr);
 
     return (

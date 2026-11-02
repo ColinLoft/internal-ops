@@ -118,7 +118,7 @@ export const DocumentSigningDialog: React.FC<{
 
   return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/60 p-2 md:p-4">
     <div className="max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-y-auto md:max-h-[90vh] rounded-2xl bg-white p-5 shadow-2xl">
-      <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-600">{document.document_type} · v{document.version}</p><h2 className="mt-1 text-lg font-bold text-slate-900">{document.title}</h2></div>{onClose && <button type="button" onClick={onClose} className="text-xs text-slate-400">Close</button>}</div>
+      <div className="flex items-start justify-between gap-4"><div><h2 className="mt-1 text-lg font-bold text-slate-900">{document.title}</h2></div>{onClose && <button type="button" onClick={onClose} className="text-xs text-slate-400">Close</button>}</div>
       {document.description && <p className="mt-3 text-xs text-slate-600">{document.description}</p>}
       {document.storage_path && <button type="button" onClick={() => void openAttachment()} className="mt-3 text-xs font-semibold text-brand-700 underline">Open attached file</button>}
       {document.content && <div className="mt-4 whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs leading-6 text-slate-700">{document.content}</div>}
