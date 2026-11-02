@@ -291,7 +291,7 @@ export const EmailInboxPage: React.FC = () => {
     setSelectedMessage((current) => current ? loaded.find((message) => message.id === current.id) || null : null);
   }, [activeFolder, activeMailboxId, searchQuery]);
 
-  const refresh = useCallback(async (sync = false, requestedMailboxId?: string) => {
+  const refresh = useCallback(async (sync = false, requestedMailboxId?: string, full = false) => {
     setError('');
     try {
       const available = await loadMailboxes();
@@ -305,7 +305,7 @@ export const EmailInboxPage: React.FC = () => {
       if (sync && mailboxId) {
         setSyncing(true);
         const { data, error: syncError } = await supabase.functions.invoke('mail-sync', {
-          body: { mailboxId },
+          body: { mailboxId, full },
         });
         const warning = syncError
           ? await getFunctionErrorMessage(syncError)
@@ -517,15 +517,35 @@ export const EmailInboxPage: React.FC = () => {
       latest: [...thread].sort((a, b) => Date.parse(b.received_at) - Date.parse(a.received_at))[0],
     })).sort((a, b) => Date.parse(b.latest.received_at) - Date.parse(a.latest.received_at));
   }, [filteredMessages]);
+  const [threadExtras, setThreadExtras] = useState<EmailMessage[]>([]);
+  useEffect(() => {
+    if (!selectedMessage?.provider_thread_id) { setThreadExtras([]); return; }
+    let active = true;
+    const load = () => supabase.from('email_messages')
+      .select('id, mailbox_id, provider_message_id, provider_thread_id, folder, subject, sender_name, sender_email, to_recipients, cc_recipients, body_text, body_html, snippet, received_at, is_read, is_starred, has_attachments, labels')
+      .eq('mailbox_id', selectedMessage.mailbox_id)
+      .eq('provider_thread_id', selectedMessage.provider_thread_id)
+      .neq('folder', 'trash')
+      .order('received_at', { ascending: true })
+      .limit(50)
+      .then(({ data }) => { if (active) setThreadExtras((data || []) as EmailMessage[]); });
+    void load();
+    return () => { active = false; };
+  }, [selectedMessage?.id, selectedMessage?.provider_thread_id, selectedMessage?.mailbox_id, messages]);
   const selectedThreadMessages = useMemo(() => {
     if (!selectedMessage) return [];
+    if (threadExtras.length) {
+      const byId = new Map<string, EmailMessage>();
+      for (const message of [...threadExtras, selectedMessage]) byId.set(message.id, message);
+      return [...byId.values()].sort((a, b) => Date.parse(a.received_at) - Date.parse(b.received_at));
+    }
     return messages
       .filter((message) => message.mailbox_id === selectedMessage.mailbox_id
         && (selectedMessage.provider_thread_id
           ? message.provider_thread_id === selectedMessage.provider_thread_id
           : message.id === selectedMessage.id))
       .sort((a, b) => Date.parse(a.received_at) - Date.parse(b.received_at));
-  }, [messages, selectedMessage]);
+  }, [messages, selectedMessage, threadExtras]);
   const allVisibleSelected = filteredMessages.length > 0
     && filteredMessages.every((message) => selectedMessageIds.has(message.id));
 
@@ -1241,7 +1261,7 @@ export const EmailInboxPage: React.FC = () => {
         </div>
         <div className="mt-4 border-t border-slate-100 pt-4">
           <p className="mb-2 px-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Workspace tools</p>
-          <button type="button" onClick={() => void refresh(true)} disabled={!activeMailbox || syncing} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-40">
+          <button type="button" onClick={() => void refresh(true, undefined, true)} disabled={!activeMailbox || syncing} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-40">
             <RefreshCw className={`h-4 w-4 text-slate-400 ${syncing ? 'animate-spin' : ''}`} /> Sync mailbox <span className="ml-auto text-xs text-slate-400">{activeMailbox?.last_synced_at ? new Date(activeMailbox.last_synced_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Never'}</span>
           </button>
         </div>

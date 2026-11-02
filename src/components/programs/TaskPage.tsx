@@ -1,0 +1,147 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { supabase } from '../../lib/supabase';
+import { ActivityPanel, AttachmentsPanel, ChecklistPanel, CommentsPanel, LinksPanel, TimePanel, card, field, formatMinutes, logActivity } from '../work/EntityPanels';
+import { RichNotes } from '../work/RichNotes';
+import { navigate } from './ProjectPage';
+
+type Task = {
+  id: string; project_id: string | null; assignee_id: string | null; parent_task_id: string | null; title: string; description: string | null; notes: string | null;
+  status: string; priority: string; due_date: string | null; start_date: string | null; progress: number; estimate_hours: number | null; grant_id: string | null;
+};
+type Lite = { id: string; title: string; status: string; assignee_id: string | null; due_date: string | null };
+
+const STATUS: Record<string, string> = { not_started: 'Not started', in_progress: 'In progress', blocked: 'Blocked', completed: 'Completed' };
+
+export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
+  const { users } = useWorkspace();
+  const [task, setTask] = useState<Task | null>(null);
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const [subtasks, setSubtasks] = useState<Lite[]>([]);
+  const [siblings, setSiblings] = useState<Lite[]>([]);
+  const [deps, setDeps] = useState<string[]>([]);
+  const [minutes, setMinutes] = useState(0);
+  const [subTitle, setSubTitle] = useState('');
+  const [dep, setDep] = useState('');
+  const [error, setError] = useState('');
+  const [missing, setMissing] = useState(false);
+
+  const load = useCallback(async () => {
+    const [t, p, s, d, time] = await Promise.all([
+      supabase.from('program_tasks').select('*').eq('id', taskId).maybeSingle(),
+      supabase.from('program_projects').select('id,name').order('name'),
+      supabase.from('program_tasks').select('id,title,status,assignee_id,due_date').eq('parent_task_id', taskId).order('created_at'),
+      supabase.from('program_task_dependencies').select('depends_on_task_id').eq('task_id', taskId),
+      supabase.from('entity_time_entries').select('minutes').eq('entity_type', 'task').eq('entity_id', taskId),
+    ]);
+    if (t.error) { setError(t.error.message); return; }
+    if (!t.data) { setMissing(true); return; }
+    const row = t.data as Task;
+    setTask(row);
+    setProjects((p.data || []) as { id: string; name: string }[]);
+    setSubtasks((s.data || []) as Lite[]);
+    setDeps(((d.data || []) as { depends_on_task_id: string }[]).map((r) => r.depends_on_task_id));
+    setMinutes(((time.data || []) as { minutes: number }[]).reduce((sum, r) => sum + r.minutes, 0));
+    const sib = await supabase.from('program_tasks').select('id,title,status,assignee_id,due_date').is('parent_task_id', null).neq('id', taskId).order('created_at', { ascending: false }).limit(200);
+    setSiblings((sib.data || []) as Lite[]);
+  }, [taskId]);
+  useEffect(() => { void load(); }, [load]);
+
+  const patch = async (values: Partial<Task> & { completed_at?: string | null }, activity?: string) => {
+    setTask((current) => (current ? { ...current, ...values } : current));
+    const { error: updateError } = await supabase.from('program_tasks').update({ ...values, updated_at: new Date().toISOString() }).eq('id', taskId);
+    if (updateError) { setError(updateError.message); void load(); return; }
+    setError('');
+    if (activity) void logActivity('task', taskId, activity);
+  };
+  const userName = (id: string | null) => users.find((user) => user.id === id)?.name || 'Unassigned';
+
+  const addSubtask = async () => {
+    if (!subTitle.trim() || !task) return;
+    const title = subTitle.trim();
+    setSubTitle('');
+    const { data, error: insertError } = await supabase.from('program_tasks').insert({ title, parent_task_id: taskId, project_id: task.project_id, assignee_id: task.assignee_id, status: 'not_started', priority: task.priority, progress: 0 }).select('id,title,status,assignee_id,due_date').single();
+    if (insertError) { setError(insertError.message); return; }
+    setSubtasks((current) => [...current, data as Lite]);
+    void logActivity('task', taskId, 'added subtask', title);
+  };
+  const toggleSub = async (sub: Lite) => {
+    const status = sub.status === 'completed' ? 'not_started' : 'completed';
+    setSubtasks((current) => current.map((row) => (row.id === sub.id ? { ...row, status } : row)));
+    await supabase.from('program_tasks').update({ status, progress: status === 'completed' ? 100 : 0 }).eq('id', sub.id);
+  };
+  const addDep = async () => {
+    if (!dep) return;
+    const { error: insertError } = await supabase.from('program_task_dependencies').insert({ task_id: taskId, depends_on_task_id: dep });
+    if (insertError) { setError(insertError.message); return; }
+    setDep(''); await load();
+  };
+  const remove = async () => {
+    if (!window.confirm('Delete this task? This cannot be undone.')) return;
+    const { error: deleteError } = await supabase.from('program_tasks').delete().eq('id', taskId);
+    if (deleteError) setError(deleteError.message); else navigate(task?.project_id ? `/programs/project/${task.project_id}` : '/programs/tasks');
+  };
+
+  if (missing) return <main className="flex-1 p-8 text-sm text-slate-500">This task could not be found. <button type="button" onClick={() => navigate('/programs/tasks')} className="font-bold text-brand-600">Back to tasks</button></main>;
+  if (!task) return <main className="flex-1 p-8 text-xs text-slate-400">{error || 'Loading task…'}</main>;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const overdue = task.due_date && task.status !== 'completed' && task.due_date < today;
+  const subDone = subtasks.filter((row) => row.status === 'completed').length;
+  const estimate = Number(task.estimate_hours || 0);
+  const project = projects.find((row) => row.id === task.project_id);
+
+  return (
+    <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
+      <header className="border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
+        <button type="button" onClick={() => navigate(task.project_id ? `/programs/project/${task.project_id}` : '/programs/tasks')} className="mb-2 inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-brand-600"><ArrowLeft className="h-3.5 w-3.5" />{project ? project.name : 'Tasks'}</button>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <input value={task.title} onChange={(event) => setTask({ ...task, title: event.target.value })} onBlur={(event) => event.target.value.trim() && void patch({ title: event.target.value.trim() }, 'renamed the task')} aria-label="Task title" className="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-1 text-xl font-bold text-slate-900 outline-none hover:border-slate-200 focus:border-brand-400" />
+          <button type="button" onClick={() => void remove()} className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600"><Trash2 className="h-3.5 w-3.5" />Delete</button>
+        </div>
+        {task.grant_id && <button type="button" onClick={() => navigate(`/finance/grants/${task.grant_id}`)} className="mt-1 text-xs font-bold text-brand-600">From a grant award · open grant</button>}
+        <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <label className="text-xs font-semibold text-slate-500">Status<select value={task.status} onChange={(event) => void patch({ status: event.target.value, progress: event.target.value === 'completed' ? 100 : task.progress, completed_at: event.target.value === 'completed' ? new Date().toISOString() : null }, `set status to ${STATUS[event.target.value]}`)} className={field}>{Object.entries(STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="text-xs font-semibold text-slate-500">Priority<select value={task.priority} onChange={(event) => void patch({ priority: event.target.value }, `set priority to ${event.target.value}`)} className={field}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+          <label className="text-xs font-semibold text-slate-500">Assignee<select value={task.assignee_id || ''} onChange={(event) => void patch({ assignee_id: event.target.value || null }, `assigned to ${userName(event.target.value || null)}`)} className={field}><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></label>
+          <label className="text-xs font-semibold text-slate-500">Project<select value={task.project_id || ''} onChange={(event) => void patch({ project_id: event.target.value || null }, 'moved the task')} className={field}><option value="">No project</option>{projects.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+          <label className={`text-xs font-semibold ${overdue ? 'text-rose-600' : 'text-slate-500'}`}>Due{overdue ? ' (overdue)' : ''}<input type="date" value={task.due_date || ''} onChange={(event) => void patch({ due_date: event.target.value || null })} className={field} /></label>
+          <label className="text-xs font-semibold text-slate-500">Estimate (hours)<input type="number" min="0" step="0.5" value={task.estimate_hours ?? ''} onChange={(event) => setTask({ ...task, estimate_hours: event.target.value === '' ? null : Number(event.target.value) })} onBlur={(event) => void patch({ estimate_hours: event.target.value === '' ? null : Number(event.target.value) })} className={field} /></label>
+        </div>
+        {estimate > 0 && <p className="mt-2 text-xs text-slate-500">Logged {formatMinutes(minutes)} of {estimate}h estimated ({Math.round((minutes / 60 / estimate) * 100)}%)</p>}
+      </header>
+
+      <div className="grid gap-4 p-5 sm:p-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+        <div className="min-w-0 space-y-4">
+          {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</p>}
+          <section className={card}>
+            <h3 className="mb-2 text-sm font-bold text-slate-900">Description</h3>
+            <textarea value={task.description || ''} onChange={(event) => setTask({ ...task, description: event.target.value })} onBlur={(event) => void patch({ description: event.target.value.trim() || null })} rows={3} placeholder="What needs to be done?" className={field} />
+          </section>
+          <section><h3 className="mb-2 text-sm font-bold text-slate-900">Notes</h3><RichNotes value={task.notes || ''} onSave={(html) => patch({ notes: html }, 'updated notes')} placeholder="Working notes, findings, what you did…" /></section>
+          <section className={card}>
+            <h3 className="mb-2 text-sm font-bold text-slate-900">Subtasks {subtasks.length > 0 && <span className="font-normal text-slate-500">({subDone}/{subtasks.length})</span>}</h3>
+            <ul className="space-y-1">
+              {subtasks.map((sub) => <li key={sub.id} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={sub.status === 'completed'} onChange={() => void toggleSub(sub)} className="h-4 w-4" /><button type="button" onClick={() => navigate(`/programs/task/${sub.id}`)} className={`truncate text-left hover:text-brand-600 ${sub.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{sub.title}</button></li>)}
+            </ul>
+            <div className="mt-2 flex gap-2"><input value={subTitle} onChange={(event) => setSubTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void addSubtask(); }} placeholder="Add a subtask" className={field} /><button type="button" onClick={() => void addSubtask()} className="inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 text-xs font-bold text-white"><Plus className="h-3.5 w-3.5" />Add</button></div>
+          </section>
+          <ChecklistPanel entityType="task" entityId={taskId} />
+          <section className={card}>
+            <h3 className="mb-2 text-sm font-bold text-slate-900">Blocked by</h3>
+            <ul className="space-y-1">{deps.map((id) => <li key={id} className="flex items-center justify-between text-xs"><button type="button" onClick={() => navigate(`/programs/task/${id}`)} className="truncate text-left font-semibold text-slate-700 hover:text-brand-600">{siblings.find((row) => row.id === id)?.title || 'Task'}</button><button type="button" aria-label="Remove dependency" onClick={() => void supabase.from('program_task_dependencies').delete().eq('task_id', taskId).eq('depends_on_task_id', id).then(() => load())} className="text-slate-400 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button></li>)}{!deps.length && <li className="text-xs text-slate-400">Not blocked by anything.</li>}</ul>
+            <div className="mt-2 flex gap-2"><select value={dep} onChange={(event) => setDep(event.target.value)} className={field} aria-label="Add dependency"><option value="">Choose a task…</option>{siblings.filter((row) => !deps.includes(row.id)).map((row) => <option key={row.id} value={row.id}>{row.title}</option>)}</select><button type="button" onClick={() => void addDep()} className="rounded-lg bg-brand-600 px-3 text-xs font-bold text-white">Add</button></div>
+          </section>
+          <AttachmentsPanel entityType="task" entityId={taskId} />
+          <LinksPanel entityType="task" entityId={taskId} />
+        </div>
+        <div className="min-w-0 space-y-4">
+          <TimePanel entityType="task" entityId={taskId} onChanged={() => void load()} />
+          <CommentsPanel entityType="task" entityId={taskId} />
+          <ActivityPanel entityType="task" entityId={taskId} />
+        </div>
+      </div>
+    </main>
+  );
+};

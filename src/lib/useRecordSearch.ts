@@ -6,6 +6,7 @@ export type RecordHit = { id: string; type: string; title: string; detail: strin
 const sources: { type: string; table: string; column: string; detail: string; path: string }[] = [
   { type: 'Project', table: 'program_projects', column: 'name', detail: 'status', path: '/programs/projects' },
   { type: 'Task', table: 'program_tasks', column: 'title', detail: 'status', path: '/programs/tasks' },
+  { type: 'Grant', table: 'grants', column: 'name', detail: 'stage', path: '/finance/grants' },
   { type: 'Support ticket', table: 'support_tickets', column: 'subject', detail: 'status', path: '/help' },
   { type: 'Organization', table: 'crm_organizations', column: 'name', detail: 'name', path: '/customers/organizations' },
   { type: 'Contact', table: 'crm_contacts', column: 'name', detail: 'email', path: '/customers/contacts' },

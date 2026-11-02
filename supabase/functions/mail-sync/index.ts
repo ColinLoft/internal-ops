@@ -44,7 +44,7 @@ Deno.serve(async (request: Request) => {
       ? payload.messageIds.filter((value): value is string => typeof value === 'string').slice(0, 100)
       : undefined;
     const historyId = typeof payload.historyId === 'string' ? payload.historyId : undefined;
-    const result = await syncMailbox(adminClient, mailbox, messageIds, historyId);
+    const result = await syncMailbox(adminClient, mailbox, messageIds, historyId, payload.full === true);
     const activityLogWarning = await recordEmailActivity(
       adminClient,
       callerUser,

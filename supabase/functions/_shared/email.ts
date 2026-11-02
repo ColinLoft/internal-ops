@@ -387,6 +387,7 @@ export const syncMailbox = async (
   mailbox: Record<string, any>,
   messageIds?: string[],
   webhookHistoryId?: string,
+  fullSync = false,
 ) => {
   const accessToken = await getAccessToken(adminClient, mailbox);
   const retention = await adminClient.from('email_settings').select('retention_days').eq('id', true).maybeSingle();
@@ -476,8 +477,15 @@ export const syncMailbox = async (
       ] as const;
       const folderMessages = await Promise.all(folders.map(async ([folder, folderId]) => {
         const url = new URL(`https://graph.microsoft.com/v1.0/${userPath}/mailFolders/${folderId}/messages`);
-        url.searchParams.set('$top', folder === 'inbox' ? '100' : '30');
-        url.searchParams.set('$orderby', 'receivedDateTime desc');
+        const incremental = !fullSync && mailbox.last_synced_at;
+        url.searchParams.set('$top', incremental ? '50' : folder === 'inbox' ? '100' : '30');
+        if (incremental) {
+          const since = new Date(Date.parse(mailbox.last_synced_at) - 5 * 60_000).toISOString();
+          url.searchParams.set('$filter', `lastModifiedDateTime ge ${since}`);
+          url.searchParams.set('$orderby', 'lastModifiedDateTime desc');
+        } else {
+          url.searchParams.set('$orderby', 'receivedDateTime desc');
+        }
         url.searchParams.set('$select', 'id,conversationId,subject,from,toRecipients,ccRecipients,body,bodyPreview,receivedDateTime,isRead,flag,hasAttachments,parentFolderId');
         const response = await fetch(url, {
           headers: { Authorization: `Bearer ${accessToken}`, Prefer: 'outlook.body-content-type="html"' },
@@ -568,7 +576,10 @@ export const syncMailbox = async (
   if (normalized.length) {
     const { error } = await adminClient.from('email_messages').upsert(normalized, { onConflict: 'mailbox_id,provider_message_id' });
     if (error) throw new Error(`Synced messages could not be stored: ${error.message}`);
-    await createAutomaticEmailSummaries(adminClient, mailbox, normalized);
+    const summaries = createAutomaticEmailSummaries(adminClient, mailbox, normalized)
+      .catch((error) => console.error('Automatic email summaries failed:', error instanceof Error ? error.message : error));
+    const runtime = (globalThis as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime;
+    if (runtime?.waitUntil) runtime.waitUntil(summaries); else await summaries;
   }
 
   const now = new Date().toISOString();

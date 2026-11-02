@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, FolderKanban, ListChecks, Plus, Search, Trash2, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
-import { TaskDetail } from './TaskDetail';
+import { ProjectPage, navigate } from './ProjectPage';
+import { TaskPage } from './TaskPage';
 
 type View = 'projects' | 'tasks';
 type Project = { id: string; name: string; description: string | null; owner_id: string | null; status: string; priority: string; start_date: string | null; end_date: string | null; progress: number };
@@ -15,6 +16,10 @@ const priorityTone: Record<string, string> = { low: 'text-slate-500', medium: 't
 const input = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-base outline-none focus:border-brand-400 md:text-xs';
 
 const viewFromPath = (path: string): View => (path.split('/')[2] === 'tasks' ? 'tasks' : 'projects');
+const detailFromPath = (path: string): { kind: 'project' | 'task'; id: string } | null => {
+  const [, , kind, id] = path.split('/');
+  return (kind === 'project' || kind === 'task') && id ? { kind, id } : null;
+};
 const today = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; };
 
 const Modal: React.FC<{ title: string; onClose: () => void; children: React.ReactNode }> = ({ title, onClose, children }) => (
@@ -31,6 +36,18 @@ const Progress: React.FC<{ value: number }> = ({ value }) => (
 );
 
 export const ProgramsPage: React.FC = () => {
+  const [detail, setDetail] = useState(() => detailFromPath(window.location.pathname));
+  useEffect(() => {
+    const sync = () => setDetail(detailFromPath(window.location.pathname));
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
+  if (detail?.kind === 'project') return <ProjectPage key={detail.id} projectId={detail.id} />;
+  if (detail?.kind === 'task') return <TaskPage key={detail.id} taskId={detail.id} />;
+  return <ProgramsList />;
+};
+
+const ProgramsList: React.FC = () => {
   const { users, currentUser } = useWorkspace();
   const [view, setView] = useState<View>(() => viewFromPath(window.location.pathname));
   const [projects, setProjects] = useState<Project[]>([]);
@@ -42,7 +59,6 @@ export const ProgramsPage: React.FC = () => {
   const [mineOnly, setMineOnly] = useState(false);
   const [projectModal, setProjectModal] = useState<Project | 'new' | null>(null);
   const [taskModal, setTaskModal] = useState<{ project_id: string } | null>(null);
-  const [openTask, setOpenTask] = useState<Task | null>(null);
 
   const load = useCallback(async () => {
     const [projectResult, taskResult] = await Promise.all([
@@ -120,7 +136,7 @@ export const ProgramsPage: React.FC = () => {
                 const own = topTasks.filter((task) => task.project_id === project.id);
                 const progress = projectProgress(project);
                 return (
-                  <button type="button" key={project.id} onClick={() => setProjectModal(project)} className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-400 hover:shadow-md">
+                  <button type="button" key={project.id} onClick={() => navigate(`/programs/project/${project.id}`)} className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-400 hover:shadow-md">
                     <div className="flex items-start justify-between gap-2"><h3 className="text-sm font-bold text-slate-900">{project.name}</h3><span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${statusTone[project.status] || statusTone.planning}`}>{PROJECT_STATUS[project.status] || project.status}</span></div>
                     <p className="mt-1 line-clamp-2 min-h-8 text-xs text-slate-500">{project.description || 'No description yet.'}</p>
                     <div className="mt-4 space-y-1.5"><div className="flex justify-between text-xs text-slate-500"><span>{own.filter((task) => task.status === 'completed').length}/{own.length} tasks done</span><span>{progress}%</span></div><Progress value={progress} /></div>
@@ -137,7 +153,7 @@ export const ProgramsPage: React.FC = () => {
                 <article key={task.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
                   <CheckCircle2 className={`h-4 w-4 shrink-0 ${task.status === 'completed' ? 'text-emerald-500' : 'text-slate-300'}`} />
                   <div className="min-w-0 flex-1">
-                    <button type="button" onClick={() => setOpenTask(task)} className={`text-left text-sm font-semibold hover:text-brand-700 ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{task.title}</button>
+                    <button type="button" onClick={() => navigate(`/programs/task/${task.id}`)} className={`text-left text-sm font-semibold hover:text-brand-700 ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{task.title}</button>
                     <p className="mt-0.5 text-xs text-slate-400">{projects.find((project) => project.id === task.project_id)?.name || 'No project'} · {userName(task.assignee_id)} · <span className={overdue(task) ? 'font-semibold text-rose-600' : ''}>{task.due_date ? `due ${task.due_date}` : 'no due date'}</span> · <span className={`capitalize ${priorityTone[task.priority]}`}>{task.priority}</span></p>
                   </div>
                   <select value={task.status} onChange={(event) => void updateTaskStatus(task, event.target.value)} aria-label={`Status for ${task.title}`} className="rounded-lg border border-slate-200 px-2 py-1.5 text-base md:text-xs">{Object.entries(TASK_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
@@ -148,9 +164,8 @@ export const ProgramsPage: React.FC = () => {
         )}
       </div>
 
-      {projectModal && <ProjectModal project={projectModal === 'new' ? null : projectModal} tasks={topTasks.filter((task) => projectModal !== 'new' && task.project_id === projectModal.id)} onClose={() => setProjectModal(null)} onSaved={async () => { setProjectModal(null); await load(); }} onAddTask={(projectId) => { setProjectModal(null); setTaskModal({ project_id: projectId }); }} onOpenTask={(task) => { setProjectModal(null); setOpenTask(task); }} />}
-      {taskModal && <TaskModal projects={projects} initialProject={taskModal.project_id} onClose={() => setTaskModal(null)} onSaved={async () => { setTaskModal(null); await load(); }} />}
-      {openTask && <TaskDetail task={openTask} allTasks={tasks} onClose={() => setOpenTask(null)} onChanged={() => void load()} />}
+      {projectModal && <ProjectModal project={projectModal === 'new' ? null : projectModal} tasks={topTasks.filter((task) => projectModal !== 'new' && task.project_id === projectModal.id)} onClose={() => setProjectModal(null)} onSaved={async () => { setProjectModal(null); await load(); }} onAddTask={(projectId) => { setProjectModal(null); setTaskModal({ project_id: projectId }); }} onOpenTask={(task) => { navigate(`/programs/task/${task.id}`); setProjectModal(null); }} />}
+      {taskModal && <TaskModal projects={projects} initialProject={taskModal.project_id} onClose={() => setTaskModal(null)} onSaved={(created) => { setTaskModal(null); setTasks((current) => [created, ...current]); }} />}
     </main>
   );
 };
@@ -204,15 +219,18 @@ const ProjectModal: React.FC<{ project: Project | null; tasks: Task[]; onClose: 
   );
 };
 
-const TaskModal: React.FC<{ projects: Project[]; initialProject: string; onClose: () => void; onSaved: () => void }> = ({ projects, initialProject, onClose, onSaved }) => {
+const TaskModal: React.FC<{ projects: Project[]; initialProject: string; onClose: () => void; onSaved: (task: Task) => void }> = ({ projects, initialProject, onClose, onSaved }) => {
   const { users, currentUser } = useWorkspace();
   const [form, setForm] = useState({ title: '', project_id: initialProject, assignee_id: currentUser.id, priority: 'medium', due_date: '' });
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((value) => ({ ...value, [key]: event.target.value }));
   const save = async () => {
     if (!form.title.trim()) { setError('Task title is required.'); return; }
-    const { error: insertError } = await supabase.from('program_tasks').insert({ title: form.title.trim(), project_id: form.project_id || null, assignee_id: form.assignee_id || null, priority: form.priority, due_date: form.due_date || null, status: 'not_started', progress: 0 });
-    if (insertError) setError(insertError.message); else onSaved();
+    setSaving(true);
+    const { data, error: insertError } = await supabase.from('program_tasks').insert({ title: form.title.trim(), project_id: form.project_id || null, assignee_id: form.assignee_id || null, priority: form.priority, due_date: form.due_date || null, status: 'not_started', progress: 0, created_by: currentUser.id }).select('*').single();
+    setSaving(false);
+    if (insertError || !data) setError(insertError?.message || 'Could not create the task.'); else onSaved(data as Task);
   };
   return (
     <Modal title="New task" onClose={onClose}>
