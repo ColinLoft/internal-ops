@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Clock3, LifeBuoy, Lock, Plus, Search, Send, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useAppAccess } from '../../lib/useAppAccess';
 
 type Status = 'new' | 'open' | 'in_progress' | 'waiting' | 'resolved' | 'closed';
 type Priority = 'low' | 'normal' | 'high' | 'urgent';
@@ -60,12 +61,12 @@ const ticketColumns = 'id,ticket_number,subject,description,category,priority,st
 
 export const SupportPage: React.FC = () => {
   const { currentUser, users } = useWorkspace();
-  const isAgent = currentUser.systemRole === 'admin' || currentUser.systemRole === 'coordinator';
+  const { canEdit: isAgent } = useAppAccess('support');
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'active' | Status>('active');
-  const [scope, setScope] = useState<'all' | 'mine' | 'assigned'>(isAgent ? 'all' : 'mine');
+  const [scope, setScope] = useState<'all' | 'mine' | 'assigned'>('all');
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
