@@ -53,18 +53,18 @@ const RailButton: React.FC<RailButtonProps> = ({ label, icon: Icon, selected = f
   <button
     type="button"
     onClick={onClick}
-    title={label}
     data-onboarding-target={onboardingTarget}
     aria-current={selected ? 'page' : undefined}
-    className={`relative flex w-[72px] flex-col items-center gap-1 rounded-2xl px-1 py-2 transition-colors ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`}
+    className={`group relative flex items-center justify-center rounded-2xl p-3 transition-colors ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`}
   >
     <Icon className="h-5 w-5 shrink-0" />
     {badge > 0 && (
-      <span className="absolute right-2 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-slate-900 bg-rose-500 px-1 text-xs font-bold leading-none text-white">
+      <span className="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-slate-900 bg-rose-500 px-1 text-xs font-bold leading-none text-white">
         <span className="sr-only">{badge} unread, </span>{badge}
       </span>
     )}
-    <span className="line-clamp-2 w-full break-words text-center text-xs font-medium leading-tight">{label}</span>
+    <span className="sr-only">{label}</span>
+    <span aria-hidden="true" className="pointer-events-none absolute left-[62px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">{label}</span>
   </button>
 );
 
@@ -147,7 +147,7 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
   return (
     <aside
       aria-label="Primary navigation"
-      className={`fixed inset-y-0 left-0 z-50 h-dvh w-[84px] shrink-0 overflow-y-auto bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/80 flex flex-col items-center py-4 justify-between select-none shadow-2xl transition-transform duration-200 md:static md:z-30 md:translate-x-0 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`fixed inset-y-0 left-0 z-50 h-dvh w-[72px] shrink-0 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/80 flex flex-col items-center py-4 justify-between select-none shadow-2xl transition-transform duration-200 md:static md:z-30 md:translate-x-0 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
     >
       {/* Top Brand Logo */}
       <div className="flex flex-col items-center gap-6">
@@ -394,7 +394,7 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
           </button>
 
           {isProfilePopoverOpen && (
-            <div className="absolute left-[84px] bottom-0 z-50">
+            <div className="absolute left-[78px] bottom-0 z-50">
               <ProfilePopover onClose={() => setIsProfilePopoverOpen(false)} />
             </div>
           )}
