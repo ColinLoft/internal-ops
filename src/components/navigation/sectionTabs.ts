@@ -36,7 +36,7 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
         tab('Organizational Chart', 'Chart', Network, '/organization/overview'),
         tab('Departments', 'Depts', Building2, '/organization/departments'),
         tab('Positions & Roles', 'Roles', BriefcaseBusiness, '/organization/positions'),
-        tab('Onboarding', 'Onboarding', ClipboardList, '/organization/onboarding'),
+        tab('Leave', 'Leave', ClipboardList, '/organization/onboarding'),
         tab('Personnel Records', 'Records', FileText, '/organization/records'),
       ];
     case 'insights':
@@ -57,12 +57,13 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
     case 'finance':
       return [
         tab('Overview', 'Overview', House, '/finance'),
-        tab('Budgets', 'Budgets', WalletCards, '/finance/budgets'),
-        tab('Grants', 'Grants', Landmark, '/finance/grants'),
-        tab('Funding Requests', 'Funding', Target, '/finance/funding-requests'),
-        tab('Expenses', 'Expenses', Receipt, '/finance/expenses'),
-        tab('Procurement', 'Procure', CreditCard, '/finance/procurement'),
-        tab('Accounting & Reports', 'Reports', BarChart3, '/finance/accounting-reports'),
+        tab('Grant Tracker', 'Tracker', Landmark, '/finance/grants'),
+        tab('Possible Grants', 'Prospects', Target, '/finance/prospects'),
+        tab('Deadlines', 'Dates', CalendarRange, '/finance/deadlines'),
+        tab('Funders', 'Funders', Building2, '/finance/funders'),
+        tab('Resources', 'Library', BookOpen, '/finance/resources'),
+        tab('Reports & Payments', 'Reports', BarChart3, '/finance/reports'),
+        tab('Automation', 'Auto', ListChecks, '/finance/automation'),
       ];
     case 'gtm':
       return [

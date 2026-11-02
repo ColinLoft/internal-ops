@@ -123,7 +123,7 @@ const EmailHtmlBody: React.FC<{ html: string }> = ({ html }) => {
       </div>
     )}
     <div
-      className="mt-5 w-full overflow-visible break-words rounded-lg bg-white text-sm leading-6 text-slate-700 [&_a]:text-brand-600 [&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:max-w-full [&_table]:border-collapse [&_td]:p-1 [&_th]:p-1"
+      className="email-body mt-5 w-full max-w-full overflow-x-auto break-words rounded-lg bg-white p-3 text-sm text-[#1f2937] [&_a]:text-[#2563eb] [&_a]:underline [&_img]:max-w-full [&_blockquote]:border-l-2 [&_blockquote]:border-slate-300 [&_blockquote]:pl-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6 [&_p]:my-2 [&_h1]:text-xl [&_h1]:font-bold [&_h2]:text-lg [&_h2]:font-bold"
       dangerouslySetInnerHTML={{ __html: safeHtml }}
     />
     </>
@@ -348,6 +348,7 @@ export const EmailInboxPage: React.FC = () => {
         silentSyncRef.current = false;
       }
     };
+    void sync();
     const interval = window.setInterval(() => void sync(), 30_000);
     const onVisible = () => { if (document.visibilityState === 'visible') void sync(); };
     document.addEventListener('visibilitychange', onVisible);

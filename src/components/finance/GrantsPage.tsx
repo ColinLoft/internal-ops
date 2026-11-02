@@ -122,7 +122,7 @@ const NewGrantModal: React.FC<{ userId: string; onClose: () => void; onCreated: 
   );
 };
 
-const TemplatesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const TemplatesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [rows, setRows] = useState<Template[]>([]);
   const [title, setTitle] = useState('');
   const [error, setError] = useState('');

@@ -183,7 +183,7 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
               { label: 'Organizational Chart', icon: Network, section: 'overview' },
               { label: 'Departments', icon: Building2, section: 'departments' },
               { label: 'Positions & Roles', icon: BriefcaseBusiness, section: 'positions' },
-              { label: 'Onboarding', icon: ClipboardList, section: 'onboarding' },
+              { label: 'Leave', icon: ClipboardList, section: 'onboarding' },
               { label: 'Personnel Records', icon: FileText, section: 'records' },
             ].map((item) => { const Icon = item.icon; const path = `/organization/${item.section}`; const selected = routePath === path || (item.section === 'people' && routePath === '/organization'); return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => { if (window.location.pathname !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
           ) : isInsights ? (
@@ -204,12 +204,13 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
           ) : isFinance ? (
             <>{[
               { label: 'Overview', icon: House, path: '/finance' },
-              { label: 'Budgets', icon: WalletCards, path: '/finance/budgets' },
-              { label: 'Grants', icon: Landmark, path: '/finance/grants' },
-              { label: 'Funding Requests', icon: Target, path: '/finance/funding-requests' },
-              { label: 'Expenses', icon: Receipt, path: '/finance/expenses' },
-              { label: 'Procurement', icon: CreditCard, path: '/finance/procurement' },
-              { label: 'Accounting & Reports', icon: BarChart3, path: '/finance/accounting-reports' },
+              { label: 'Grant Tracker', icon: Landmark, path: '/finance/grants' },
+              { label: 'Possible Grants', icon: Target, path: '/finance/prospects' },
+              { label: 'Deadlines', icon: CalendarIcon, path: '/finance/deadlines' },
+              { label: 'Funders', icon: Building2, path: '/finance/funders' },
+              { label: 'Resources', icon: BookOpen, path: '/finance/resources' },
+              { label: 'Reports & Payments', icon: BarChart3, path: '/finance/reports' },
+              { label: 'Automation', icon: ListChecks, path: '/finance/automation' },
             ].map((item) => { const Icon = item.icon; return <RailButton key={item.label} label={item.label} icon={Icon} selected={routePath === item.path} onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
           ) : isGtm ? (
             <>{[

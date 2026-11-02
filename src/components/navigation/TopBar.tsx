@@ -79,7 +79,7 @@ export const TopBar: React.FC = () => {
       { id: 'help', name: 'Support', icon: CircleHelp },
     ] },
     { title: 'Systems', apps: [
-      { id: 'finance', name: 'Finance', icon: Landmark },
+      { id: 'finance', name: 'Grants', icon: Landmark },
       { id: 'legal', name: 'Legal', icon: Scale },
       { id: 'admin', name: 'Systems', icon: Settings },
     ] },
@@ -198,7 +198,7 @@ export const TopBar: React.FC = () => {
         <div className="flex items-center text-sm font-semibold text-slate-800 tracking-tight">
           <span className="text-brand-600 font-bold">Flown</span>
           <span className="mx-2 text-slate-400">/</span>
-          <span className="text-slate-600 font-medium">{activeTab === 'operations' ? 'Operations' : activeTab === 'engineering' ? 'Engineering' : activeTab === 'gtm' ? 'Marketing' : activeTab === 'legal' ? 'Legal' : activeTab === 'finance' ? 'Finance' : activeTab === 'customers' ? 'Relationships' : activeTab === 'programs' ? 'Projects' : activeTab === 'home' ? 'Home' : activeTab === 'admin' ? 'Systems' : activeTab === 'help' ? 'Support' : activeTab === 'insights' ? `Insights${window.location.pathname.split('/')[2] ? ` / ${window.location.pathname.split('/')[2]}` : ''}` : activeTab === 'organization' ? 'Organization' : activeTab === 'inbox' ? 'Email inbox' : activeTab === 'drive' ? 'Drive' : activeTab === 'messages' ? 'Direct messages' : activeTab === 'channels' ? 'Channels' : 'Workspace'}</span>
+          <span className="text-slate-600 font-medium">{activeTab === 'operations' ? 'Operations' : activeTab === 'engineering' ? 'Engineering' : activeTab === 'gtm' ? 'Marketing' : activeTab === 'legal' ? 'Legal' : activeTab === 'finance' ? 'Grants' : activeTab === 'customers' ? 'Relationships' : activeTab === 'programs' ? 'Projects' : activeTab === 'home' ? 'Home' : activeTab === 'admin' ? 'Systems' : activeTab === 'help' ? 'Support' : activeTab === 'insights' ? `Insights${window.location.pathname.split('/')[2] ? ` / ${window.location.pathname.split('/')[2]}` : ''}` : activeTab === 'organization' ? 'Organization' : activeTab === 'inbox' ? 'Email inbox' : activeTab === 'drive' ? 'Drive' : activeTab === 'messages' ? 'Direct messages' : activeTab === 'channels' ? 'Channels' : 'Workspace'}</span>
           <span className="mx-2 text-slate-400">/</span>
           <span className="text-slate-900 bg-brand-50 px-2 py-0.5 rounded-md text-xs font-semibold text-brand-700 border border-brand-100/80">
             {badgeLabel}

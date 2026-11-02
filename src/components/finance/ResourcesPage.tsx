@@ -1,0 +1,85 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Copy, ExternalLink, Plus, Search, Trash2, X } from 'lucide-react';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { supabase } from '../../lib/supabase';
+import { card, field } from '../work/EntityPanels';
+
+type Resource = { id: string; title: string; category: string; body: string | null; url: string | null; tags: string[] };
+const CATEGORIES = [['boilerplate', 'Boilerplate language'], ['template', 'Templates'], ['directory', 'Funder directories'], ['guide', 'Guides'], ['document', 'Documents'], ['link', 'Links']] as const;
+
+export const ResourcesPage: React.FC = () => {
+  const { currentUser } = useWorkspace();
+  const [rows, setRows] = useState<Resource[]>([]);
+  const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('all');
+  const [editing, setEditing] = useState<Resource | 'new' | null>(null);
+  const [copied, setCopied] = useState('');
+
+  const load = useCallback(async () => {
+    const { data, error: loadError } = await supabase.from('grant_resources').select('*').order('category').order('title');
+    if (loadError) setError(`Resources could not be loaded: ${loadError.message}. Run the latest database migration.`); else { setError(''); setRows((data || []) as Resource[]); }
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+  const shown = useMemo(() => rows.filter((row) => (category === 'all' || row.category === category) && `${row.title} ${row.body || ''} ${row.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase())), [rows, category, query]);
+  const copy = async (row: Resource) => { await navigator.clipboard.writeText(row.body || row.url || ''); setCopied(row.id); setTimeout(() => setCopied(''), 1500); };
+
+  return (
+    <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
+        <div><h1 className="text-xl font-bold text-slate-900">Resources</h1><p className="mt-1 text-xs text-slate-500">Reusable boilerplate, templates, funder directories and guides. Saved boilerplate also gives the AI context about your organization.</p></div>
+        <button type="button" onClick={() => setEditing('new')} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white md:min-h-0 md:py-2"><Plus className="h-3.5 w-3.5" />Add resource</button>
+      </header>
+      <div className="space-y-4 p-5 sm:p-8">
+        {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</p>}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-0 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search resources" className={`${field} pl-9`} /></div>
+          <select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Category" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="all">All categories</option>{CATEGORIES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select>
+        </div>
+        {shown.length ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{shown.map((row) => (
+          <article key={row.id} className={card}>
+            <p className="text-xs font-semibold uppercase text-brand-600">{CATEGORIES.find(([value]) => value === row.category)?.[1]}</p>
+            <h3 className="text-sm font-bold text-slate-900">{row.title}</h3>
+            {row.body && <p className="mt-1 line-clamp-4 whitespace-pre-wrap text-xs text-slate-600">{row.body}</p>}
+            {row.tags.length > 0 && <p className="mt-2 text-xs text-slate-400">{row.tags.map((tag) => `#${tag}`).join(' ')}</p>}
+            <div className="mt-3 flex items-center gap-3 text-xs font-bold">
+              {(row.body || row.url) && <button type="button" onClick={() => void copy(row)} className="inline-flex items-center gap-1 text-slate-600 hover:text-brand-600"><Copy className="h-3 w-3" />{copied === row.id ? 'Copied' : 'Copy'}</button>}
+              {row.url && /^https?:\/\//i.test(row.url) && <a href={row.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-brand-600"><ExternalLink className="h-3 w-3" />Open</a>}
+              <button type="button" onClick={() => setEditing(row)} className="ml-auto text-slate-500 hover:text-brand-600">Edit</button>
+            </div>
+          </article>
+        ))}</div> : <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-500">No resources yet. Save your mission statement, organizational history, standard budget language and favorite funder directories here.</div>}
+      </div>
+      {editing && <ResourceModal resource={editing === 'new' ? null : editing} userId={currentUser.id} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void load(); }} />}
+    </main>
+  );
+};
+
+const ResourceModal: React.FC<{ resource: Resource | null; userId: string; onClose: () => void; onSaved: () => void }> = ({ resource, userId, onClose, onSaved }) => {
+  const [form, setForm] = useState({ title: resource?.title || '', category: resource?.category || 'boilerplate', body: resource?.body || '', url: resource?.url || '', tags: (resource?.tags || []).join(', ') });
+  const [error, setError] = useState('');
+  const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  const save = async () => {
+    if (!form.title.trim()) { setError('A title is required.'); return; }
+    const payload = { title: form.title.trim(), category: form.category, body: form.body.trim() || null, url: form.url.trim() || null, tags: form.tags.split(',').map((tag) => tag.trim().toLowerCase()).filter(Boolean), updated_at: new Date().toISOString() };
+    const { error: saveError } = resource ? await supabase.from('grant_resources').update(payload).eq('id', resource.id) : await supabase.from('grant_resources').insert({ ...payload, created_by: userId });
+    if (saveError) setError(saveError.message); else onSaved();
+  };
+  const remove = async () => { if (!resource || !window.confirm(`Delete "${resource.title}"?`)) return; const { error: deleteError } = await supabase.from('grant_resources').delete().eq('id', resource.id); if (deleteError) setError(deleteError.message); else onSaved(); };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-label="Resource">
+      <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
+        <div className="mb-3 flex items-center justify-between"><h2 className="text-base font-bold text-slate-900">{resource ? 'Edit resource' : 'Add resource'}</h2><button type="button" aria-label="Close" onClick={onClose}><X className="h-4 w-4" /></button></div>
+        <div className="space-y-2">
+          {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+          <input autoFocus value={form.title} onChange={set('title')} placeholder="Title" className={field} />
+          <select value={form.category} onChange={set('category')} aria-label="Category" className={field}>{CATEGORIES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select>
+          <textarea value={form.body} onChange={set('body')} rows={7} placeholder="Text to reuse (mission statement, program description, budget justification…)" className={field} />
+          <input value={form.url} onChange={set('url')} placeholder="Link (optional)" className={field} />
+          <input value={form.tags} onChange={set('tags')} placeholder="Tags, comma separated" className={field} />
+          <div className="flex items-center justify-between pt-1">{resource ? <button type="button" onClick={() => void remove()} className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600"><Trash2 className="h-3.5 w-3.5" />Delete</button> : <span />}<div className="flex gap-2"><button type="button" onClick={onClose} className="px-3 py-2 text-xs font-semibold text-slate-500">Cancel</button><button type="button" onClick={() => void save()} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white">Save</button></div></div>
+        </div>
+      </div>
+    </div>
+  );
+};

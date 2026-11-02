@@ -34,7 +34,8 @@ const label = (value: string) => value.replace(/[_-]/g, ' ').replace(/^\w/, (c) 
 const sources: Record<string, { table: string; columns: string }> = {
   tasks: { table: 'program_tasks', columns: 'id,status,priority,due_date,created_at' },
   projects: { table: 'program_projects', columns: 'id,status,progress,end_date,created_at' },
-  finance: { table: 'finance_records', columns: 'id,record_type,status,amount,created_at' },
+  grants: { table: 'grants', columns: 'id,stage,amount_requested,amount_awarded,created_at' },
+  prospects: { table: 'grant_prospects', columns: 'id,status,created_at' },
   legal: { table: 'legal_records', columns: 'id,record_type,status,created_at' },
   engineering: { table: 'engineering_records', columns: 'id,record_type,status,created_at' },
   gtm: { table: 'gtm_records', columns: 'id,area,status,created_at' },
@@ -85,12 +86,11 @@ export const InsightsPage: React.FC = () => {
     const today = new Date().toISOString().slice(0, 10);
     const open = (rows: Row[]) => rows.filter((r) => !['completed', 'cancelled'].includes(r.status));
     const overdue = (rows: Row[]) => open(rows).filter((r) => r.due_date && r.due_date < today);
-    const finance = d('finance');
-    const sum = (rows: Row[]) => rows.reduce((total, r) => total + Number(r.amount || 0), 0);
-    const byType = (type: string) => finance.filter((r) => r.record_type === type);
+    const grants = d('grants');
+    const sumOf = (rows: Row[], key: string) => rows.reduce((total, r) => total + Number(r[key] || 0), 0);
+    const inStages = (stages: string[]) => grants.filter((g) => stages.includes(g.stage));
     const doneTasks = d('tasks').filter((r) => r.status === 'completed').length;
     const online = d('profiles').filter((p) => p.last_seen_at && Date.now() - new Date(p.last_seen_at).getTime() < 4 * 60000).length;
-    const approvedLike = (rows: Row[]) => rows.filter((r) => ['approved', 'completed', 'paid', 'awarded'].includes(String(r.status).toLowerCase()));
     const taskTotal = d('tasks').length;
     return [
       { area: 'Work', label: 'Projects', value: d('projects').length, detail: `${d('projects').filter((p) => p.status === 'active').length} active` },
@@ -99,12 +99,10 @@ export const InsightsPage: React.FC = () => {
       { area: 'Work', label: 'Task completion rate', value: `${pct(doneTasks, taskTotal)}%` },
       { area: 'Work', label: 'Overdue tasks', value: overdue(d('tasks')).length },
       { area: 'Work', label: 'Blocked tasks', value: d('tasks').filter((t) => t.status === 'blocked').length },
-      { area: 'Finance', label: 'Total tracked amount', value: money(sum(finance)), detail: `${finance.length} records` },
-      { area: 'Finance', label: 'Budgets', value: money(sum(byType('budgets'))), detail: `${byType('budgets').length} records` },
-      { area: 'Finance', label: 'Grants', value: money(sum(byType('grants'))), detail: `${approvedLike(byType('grants')).length} awarded/approved` },
-      { area: 'Finance', label: 'Funding requests', value: money(sum(byType('funding-requests'))), detail: `${byType('funding-requests').length} requests` },
-      { area: 'Finance', label: 'Expenses', value: money(sum(byType('expenses'))), detail: `${byType('expenses').length} records` },
-      { area: 'Finance', label: 'Procurement', value: money(sum(byType('procurement'))), detail: `${byType('procurement').length} records` },
+      { area: 'Grants', label: 'Grants tracked', value: grants.length, detail: `${d('prospects').length} possible grants researched` },
+      { area: 'Grants', label: 'Pending decisions', value: money(sumOf(inStages(['applied', 'under_review']), 'amount_requested')), detail: `${inStages(['applied', 'under_review']).length} applications` },
+      { area: 'Grants', label: 'Awarded', value: money(sumOf(inStages(['awarded', 'reporting', 'closed']), 'amount_awarded')), detail: `${inStages(['awarded', 'reporting', 'closed']).length} grants` },
+      { area: 'Grants', label: 'Win rate', value: `${pct(inStages(['awarded', 'reporting', 'closed']).length, inStages(['awarded', 'reporting', 'closed', 'declined']).length)}%`, detail: `${inStages(['declined']).length} declined` },
       { area: 'Customers', label: 'Contacts added', value: d('contacts').length },
       { area: 'Customers', label: 'Organizations added', value: d('orgs').length },
       { area: 'Customers', label: 'Interactions logged', value: d('interactions').length },
@@ -140,7 +138,7 @@ export const InsightsPage: React.FC = () => {
   const areasFor: Record<Section, string[] | null> = {
     executive: null,
     programs: ['Work'],
-    financial: ['Finance'],
+    financial: ['Grants'],
     projects: ['Customers', 'Go-to-market', 'Legal', 'Engineering', 'Operations'],
     custom: ['Activity', 'People'],
   };

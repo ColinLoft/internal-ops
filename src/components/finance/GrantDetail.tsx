@@ -4,6 +4,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { ActivityPanel, AttachmentsPanel, CommentsPanel, LinksPanel, card, field, formatDateTime, logActivity } from '../work/EntityPanels';
 import { RichNotes } from '../work/RichNotes';
+import { AiTab, FunderPicker, KeyDates, PeopleTab, RequirementsTab } from './GrantExtras';
 import { GRANT_STAGES, Grant, SOURCES, goTo, money, stageLabel, stageTone } from './grantShared';
 
 type GrantEvent = { id: string; event_type: string; title: string; body: string | null; event_date: string; email_message_id: string | null; email_from: string | null; email_to: string | null; email_subject: string | null; created_by: string | null };
@@ -11,11 +12,10 @@ type Payment = { id: string; amount: number; status: string; expected_date: stri
 type Report = { id: string; title: string; due_date: string | null; submitted_at: string | null; status: string; notes: string | null };
 type GrantTask = { id: string; title: string; status: string; due_date: string | null; assignee_id: string | null };
 type InboxEmail = { id: string; subject: string; sender_name: string; sender_email: string; to_recipients: { email: string }[]; received_at: string; folder: string };
-type FinanceRow = { id: string; record_type: string; name: string; amount: number | null; status: string; record_date: string | null };
 
 const EVENT_TYPES = ['note', 'email_sent', 'email_received', 'application', 'call', 'meeting', 'decision', 'payment', 'report', 'follow_up', 'document'];
 const eventLabel = (value: string) => value.replace(/_/g, ' ').replace(/^./, (char) => char.toUpperCase());
-const TABS = ['Overview', 'Timeline', 'Emails', 'Money & reports', 'Tasks', 'Files & links', 'Discussion'] as const;
+const TABS = ['Overview', 'People', 'Application', 'Timeline', 'Emails', 'Money & reports', 'Tasks', 'Files & links', 'AI', 'Discussion'] as const;
 type Tab = typeof TABS[number];
 const label = 'text-xs font-semibold text-slate-500';
 
@@ -27,19 +27,17 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [tasks, setTasks] = useState<GrantTask[]>([]);
-  const [finance, setFinance] = useState<FinanceRow[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [error, setError] = useState('');
   const [missing, setMissing] = useState(false);
 
   const load = useCallback(async () => {
-    const [g, e, p, r, t, f, pr] = await Promise.all([
+    const [g, e, p, r, t, pr] = await Promise.all([
       supabase.from('grants').select('*').eq('id', grantId).maybeSingle(),
       supabase.from('grant_events').select('*').eq('grant_id', grantId).order('event_date', { ascending: false }),
       supabase.from('grant_payments').select('*').eq('grant_id', grantId).order('expected_date', { ascending: true }),
       supabase.from('grant_reports').select('*').eq('grant_id', grantId).order('due_date', { ascending: true }),
       supabase.from('program_tasks').select('id,title,status,due_date,assignee_id').eq('grant_id', grantId).order('due_date', { ascending: true, nullsFirst: false }),
-      supabase.from('finance_records').select('id,record_type,name,amount,status,record_date').eq('grant_id', grantId).order('created_at', { ascending: false }),
       supabase.from('program_projects').select('id,name').order('name'),
     ]);
     if (g.error) { setError(g.error.message); return; }
@@ -49,7 +47,6 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
     setPayments((p.data || []) as Payment[]);
     setReports((r.data || []) as Report[]);
     setTasks((t.data || []) as GrantTask[]);
-    setFinance((f.data || []) as FinanceRow[]);
     setProjects((pr.data || []) as { id: string; name: string }[]);
   }, [grantId]);
   useEffect(() => { void load(); }, [load]);
@@ -87,7 +84,7 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
   );
 
   const received = payments.filter((row) => row.status === 'received').reduce((sum, row) => sum + Number(row.amount), 0);
-  const spent = finance.filter((row) => row.record_type === 'expenses').reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const reportsOpen = reports.filter((row) => ['upcoming', 'overdue'].includes(row.status)).length;
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
@@ -105,7 +102,7 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
           </div>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
-          {[['Requested', money(grant.amount_requested)], ['Awarded', money(grant.amount_awarded)], ['Received', money(received)], ['Spent', money(spent)], ['Next follow-up', grant.next_follow_up_at || '—']].map(([title, value]) => <div key={title} className="rounded-xl bg-slate-50 px-3 py-2"><p className="text-slate-500">{title}</p><p className="text-sm font-bold text-slate-900">{value}</p></div>)}
+          {[['Requested', money(grant.amount_requested)], ['Awarded', money(grant.amount_awarded)], ['Received', money(received)], ['Reports open', String(reportsOpen)], ['Next follow-up', grant.next_follow_up_at || '—']].map(([title, value]) => <div key={title} className="rounded-xl bg-slate-50 px-3 py-2"><p className="text-slate-500">{title}</p><p className="text-sm font-bold text-slate-900">{value}</p></div>)}
         </div>
         <nav className="mt-3 flex gap-1 overflow-x-auto" aria-label="Grant sections">{TABS.map((name) => <button type="button" key={name} onClick={() => setTab(name)} className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold ${tab === name ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>{name}</button>)}</nav>
       </header>
@@ -113,11 +110,13 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
       <div className="space-y-4 p-5 sm:p-8">
         {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</p>}
 
+        {tab === 'Overview' && <KeyDates grant={grant} />}
         {tab === 'Overview' && (
           <div className="grid gap-4 lg:grid-cols-2">
             <section className={`${card} space-y-3`}>
               <h3 className="text-sm font-bold text-slate-900">Funder & contact</h3>
               {text('funder_name', 'Funder / organization')}
+              <FunderPicker grant={grant} onLink={(values) => void patch(values, 'linked a CRM funder')} onError={setError} />
               <div className="grid gap-3 sm:grid-cols-2">{text('contact_name', 'Contact name')}{text('contact_email', 'Contact email', 'email')}{text('contact_phone', 'Contact phone')}{text('website_url', 'Website', 'url')}{text('portal_url', 'Funder portal', 'url')}{text('application_url', 'Application link', 'url')}</div>
               <label className={label}>Other funder email addresses (comma separated, used to match emails)<input value={grant.funder_emails.join(', ')} onChange={(event) => setGrant({ ...grant, funder_emails: event.target.value.split(',').map((item) => item.trim()) })} onBlur={() => void patch({ funder_emails: grant.funder_emails.filter(Boolean).map((item) => item.toLowerCase()) })} className={field} /></label>
               <div className="flex flex-wrap gap-3 text-xs font-semibold text-brand-600">{[['Website', grant.website_url], ['Portal', grant.portal_url], ['Application', grant.application_url]].map(([name, url]) => url && /^https?:\/\//i.test(url) ? <a key={name} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1"><ExternalLink className="h-3 w-3" />{name}</a> : null)}</div>
@@ -150,9 +149,12 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
           </div>
         )}
 
+        {tab === 'People' && <PeopleTab grant={grant} onError={setError} onGrantChange={(values) => setGrant((current) => (current ? { ...current, ...values } : current))} />}
+        {tab === 'Application' && <RequirementsTab grantId={grantId} userName={userName} users={users} onError={setError} />}
+        {tab === 'AI' && <AiTab grantId={grantId} onSaveDraft={(title, body) => addEvent({ title, body, event_type: 'note', event_date: new Date().toISOString() })} />}
         {tab === 'Timeline' && <TimelineTab events={events} onAdd={addEvent} onDelete={async (id) => { await supabase.from('grant_events').delete().eq('id', id); await load(); }} userName={userName} />}
         {tab === 'Emails' && <EmailsTab grant={grant} events={events} onLog={addEvent} onFollowUp={() => setTab('Tasks')} />}
-        {tab === 'Money & reports' && <MoneyTab grantId={grantId} payments={payments} reports={reports} finance={finance} onChanged={load} onError={setError} />}
+        {tab === 'Money & reports' && <MoneyTab grantId={grantId} payments={payments} reports={reports} onChanged={load} onError={setError} />}
         {tab === 'Tasks' && <TasksTab grant={grant} tasks={tasks} currentUserId={currentUser.id} userName={userName} onChanged={load} onError={setError} />}
         {tab === 'Files & links' && <div className="grid gap-4 lg:grid-cols-2"><AttachmentsPanel entityType="grant" entityId={grantId} /><LinksPanel entityType="grant" entityId={grantId} /></div>}
         {tab === 'Discussion' && <div className="grid gap-4 lg:grid-cols-2"><CommentsPanel entityType="grant" entityId={grantId} /><ActivityPanel entityType="grant" entityId={grantId} /></div>}
@@ -261,7 +263,7 @@ const EmailsTab: React.FC<{ grant: Grant; events: GrantEvent[]; onLog: (values: 
   );
 };
 
-const MoneyTab: React.FC<{ grantId: string; payments: Payment[]; reports: Report[]; finance: FinanceRow[]; onChanged: () => void; onError: (message: string) => void }> = ({ grantId, payments, reports, finance, onChanged, onError }) => {
+const MoneyTab: React.FC<{ grantId: string; payments: Payment[]; reports: Report[]; onChanged: () => void; onError: (message: string) => void }> = ({ grantId, payments, reports, onChanged, onError }) => {
   const [pay, setPay] = useState({ amount: '', status: 'expected', date: '', method: '' });
   const [rep, setRep] = useState({ title: '', due_date: '' });
   const run = async (action: PromiseLike<{ error: { message: string } | null }>) => { const { error } = await action; if (error) onError(error.message); else onChanged(); };
@@ -292,10 +294,6 @@ const MoneyTab: React.FC<{ grantId: string; payments: Payment[]; reports: Report
         })}{!reports.length && <li className="text-xs text-slate-400">No reports scheduled.</li>}</ul>
         <div className="grid grid-cols-2 gap-2"><input value={rep.title} onChange={(event) => setRep({ ...rep, title: event.target.value })} placeholder="Report title" className={field} /><input type="date" value={rep.due_date} onChange={(event) => setRep({ ...rep, due_date: event.target.value })} className={field} aria-label="Report due date" /></div>
         <button type="button" onClick={() => { if (!rep.title.trim()) return; void run(supabase.from('grant_reports').insert({ grant_id: grantId, title: rep.title.trim(), due_date: rep.due_date || null }).then((result) => { setRep({ title: '', due_date: '' }); return result; })); }} className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white">Add report</button>
-      </section>
-      <section className={`${card} lg:col-span-2`}>
-        <h3 className="mb-2 text-sm font-bold text-slate-900">Finance records tagged to this grant</h3>
-        <ul className="space-y-1">{finance.map((row) => <li key={row.id} className="flex justify-between rounded-lg border border-slate-100 px-3 py-2 text-xs"><span className="font-semibold text-slate-800">{row.name} <span className="font-normal text-slate-500">· {row.record_type}</span></span><span>{money(row.amount)}</span></li>)}{!finance.length && <li className="text-xs text-slate-400">Tag expenses and budgets to this grant from the Finance pages.</li>}</ul>
       </section>
     </div>
   );

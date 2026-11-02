@@ -1,3 +1,5 @@
+import { supabase } from '../../lib/supabase';
+
 export type Grant = {
   id: string; name: string; funder_name: string | null; funder_org_id: string | null; contact_id: string | null; contact_name: string | null; contact_email: string | null; contact_phone: string | null;
   funder_emails: string[]; website_url: string | null; portal_url: string | null; application_url: string | null; stage: string; source: string | null; source_detail: string | null;
@@ -24,3 +26,17 @@ export const downloadCsv = (name: string, rows: unknown[][]) => {
   URL.revokeObjectURL(url);
 };
 export const goTo = (path: string) => { window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); };
+
+export const askGrantAi = async <T = { text?: string }>(body: Record<string, unknown>): Promise<T> => {
+  const { data, error } = await supabase.functions.invoke('grant-ai', { body });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    const detail = context instanceof Response ? await context.clone().json().catch(() => null) as { error?: string } | null : null;
+    throw new Error(detail?.error || error.message);
+  }
+  if (data && typeof data === 'object' && 'error' in data) throw new Error(String((data as { error: unknown }).error));
+  return data as T;
+};
+
+export const daysFromNow = (date: string | null | undefined) => (date ? Math.ceil((new Date(`${date}T12:00:00`).getTime() - Date.now()) / 86_400_000) : null);
+export const dueTone = (date: string | null | undefined) => { const days = daysFromNow(date); return days == null ? 'text-slate-500' : days < 0 ? 'font-semibold text-rose-600' : days <= 7 ? 'font-semibold text-amber-600' : 'text-slate-500'; };

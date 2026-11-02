@@ -23,7 +23,7 @@ const STATUS: Record<string, string> = { planning: 'Planning', active: 'Active',
 const TASK_STATUS: Record<string, string> = { not_started: 'Not started', in_progress: 'In progress', blocked: 'Blocked', completed: 'Completed' };
 const MILESTONE_STATUS: Record<string, string> = { upcoming: 'Upcoming', in_progress: 'In progress', complete: 'Complete', at_risk: 'At risk' };
 const money = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
-const tabs = ['Overview', 'Tasks', 'Milestones', 'Team', 'Budget', 'Files & links', 'Time', 'Discussion'] as const;
+const tabs = ['Overview', 'Tasks', 'Milestones', 'Team', 'Funding', 'Files & links', 'Time', 'Discussion'] as const;
 
 export const ProjectPage: React.FC<{ projectId: string }> = ({ projectId }) => {
   const { users, currentUser } = useWorkspace();
@@ -46,7 +46,7 @@ export const ProjectPage: React.FC<{ projectId: string }> = ({ projectId }) => {
       supabase.from('program_tasks').select('id,title,status,priority,assignee_id,due_date,parent_task_id').eq('project_id', projectId).order('created_at', { ascending: true }),
       supabase.from('program_milestones').select('id,title,due_date,status').eq('project_id', projectId).order('due_date', { ascending: true, nullsFirst: false }),
       supabase.from('project_members').select('user_id,role').eq('project_id', projectId),
-      supabase.from('finance_records').select('id,record_type,name,amount,status').eq('project_id', projectId),
+      supabase.from('grants').select('id,stage,name,amount_awarded,amount_requested').eq('project_id', projectId),
       supabase.from('entity_time_entries').select('minutes').eq('entity_type', 'project').eq('entity_id', projectId),
     ]);
     if (p.error) { setError(p.error.message); return; }
@@ -55,7 +55,7 @@ export const ProjectPage: React.FC<{ projectId: string }> = ({ projectId }) => {
     setTasks((t.data || []) as TaskLite[]);
     setMilestones((m.data || []) as Milestone[]);
     setMembers((mem.data || []) as Member[]);
-    setFinance((f.data || []) as FinanceLite[]);
+    setFinance(((f.data || []) as { id: string; stage: string; name: string; amount_awarded: number | null; amount_requested: number | null }[]).map((g) => ({ id: g.id, record_type: g.stage, name: g.name, amount: g.amount_awarded ?? g.amount_requested, status: g.stage })));
     const taskMinutes = await supabase.from('entity_time_entries').select('minutes,entity_id').eq('entity_type', 'task').in('entity_id', (t.data || []).map((row) => row.id));
     setMinutes(((time.data || []) as { minutes: number }[]).reduce((s, r) => s + r.minutes, 0) + ((taskMinutes.data || []) as { minutes: number }[]).reduce((s, r) => s + r.minutes, 0));
   }, [projectId]);
@@ -72,8 +72,8 @@ export const ProjectPage: React.FC<{ projectId: string }> = ({ projectId }) => {
   const top = useMemo(() => tasks.filter((task) => !task.parent_task_id), [tasks]);
   const done = top.filter((task) => task.status === 'completed').length;
   const progress = top.length ? Math.round((done / top.length) * 100) : project?.progress ?? 0;
-  const spent = finance.filter((row) => row.record_type === 'expenses').reduce((sum, row) => sum + Number(row.amount || 0), 0);
-  const budget = Number(project?.budget_amount || 0) || finance.filter((row) => row.record_type === 'budgets').reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const spent = finance.filter((row) => ['awarded', 'reporting', 'closed'].includes(row.record_type)).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const budget = Number(project?.budget_amount || 0);
   const today = new Date().toISOString().slice(0, 10);
   const userName = (id: string | null) => users.find((user) => user.id === id)?.name || 'Unassigned';
 
@@ -145,7 +145,7 @@ export const ProjectPage: React.FC<{ projectId: string }> = ({ projectId }) => {
               {[
                 { icon: CheckCircle2, label: 'Progress', value: `${progress}%`, detail: `${done} of ${top.length} tasks done` },
                 { icon: Clock, label: 'Time logged', value: formatMinutes(minutes), detail: 'Project and task time' },
-                { icon: DollarSign, label: 'Budget used', value: budget ? `${Math.round((spent / budget) * 100)}%` : '—', detail: `${money(spent)} of ${budget ? money(budget) : 'no budget'}` },
+                { icon: DollarSign, label: 'Funded by grants', value: budget ? `${Math.round((spent / budget) * 100)}%` : money(spent), detail: `${money(spent)} of ${budget ? money(budget) : 'no budget set'}` },
                 { icon: CalendarDays, label: 'Milestones', value: `${milestones.filter((m) => m.status === 'complete').length}/${milestones.length}`, detail: project.end_date ? `Due ${project.end_date}` : 'No due date' },
               ].map(({ icon: Icon, label, value, detail }) => <div key={label} className={card}><p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500"><Icon className="h-4 w-4 text-brand-600" />{label}</p><p className="mt-2 text-2xl font-bold text-slate-900">{value}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></div>)}
             </section>
@@ -202,14 +202,14 @@ export const ProjectPage: React.FC<{ projectId: string }> = ({ projectId }) => {
           </section>
         )}
 
-        {tab === 'Budget' && (
+        {tab === 'Funding' && (
           <section className={card}>
-            <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-bold text-slate-900">Finance records linked to this project</h3><button type="button" onClick={() => navigate('/finance/expenses')} className="text-xs font-bold text-brand-600">Open Finance</button></div>
-            <p className="mt-2 text-xs text-slate-500">Budget {budget ? money(budget) : 'not set'} · Spent {money(spent)}{budget ? ` · Remaining ${money(budget - spent)}` : ''}</p>
-            {budget > 0 && <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full ${spent > budget ? 'bg-rose-500' : 'bg-brand-500'}`} style={{ width: `${Math.min(100, (spent / budget) * 100)}%` }} /></div>}
+            <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-bold text-slate-900">Grants funding this project</h3><button type="button" onClick={() => navigate('/finance/grants')} className="text-xs font-bold text-brand-600">Open Grants</button></div>
+            <p className="mt-2 text-xs text-slate-500">Budget {budget ? money(budget) : 'not set'} · Awarded {money(spent)}{budget ? ` · Gap ${money(Math.max(0, budget - spent))}` : ''}</p>
+            {budget > 0 && <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full ${'bg-brand-500'}`} style={{ width: `${Math.min(100, (spent / budget) * 100)}%` }} /></div>}
             <ul className="mt-3 divide-y divide-slate-100">
               {finance.map((row) => <li key={row.id} className="flex items-center justify-between py-2 text-xs"><span className="font-semibold text-slate-800">{row.name}<span className="ml-2 text-slate-400">{row.record_type}</span></span><span className="text-slate-700">{row.amount == null ? '—' : money(Number(row.amount))}</span></li>)}
-              {!finance.length && <li className="py-3 text-xs text-slate-400">No finance records are linked yet. Choose this project when adding an expense or budget in Finance.</li>}
+              {!finance.length && <li className="py-3 text-xs text-slate-400">No grants are linked yet. Choose this project on a grant to show it here.</li>}
             </ul>
           </section>
         )}
