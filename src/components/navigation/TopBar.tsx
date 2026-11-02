@@ -23,7 +23,6 @@ import { NotificationCenter } from '../notifications/NotificationCenter';
 export const TopBar: React.FC = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAppsOpen, setIsAppsOpen] = useState(false);
-  const [appSearch, setAppSearch] = useState('');
   const notificationsRef = useRef<HTMLDivElement>(null);
   const appsRef = useRef<HTMLDivElement>(null);
   const {
@@ -92,18 +91,16 @@ export const TopBar: React.FC = () => {
     : activeTab === 'drive' ? 'My Drive'
     : activeTab === 'organization' ? 'Directory'
     : 'Overview';
-  const appQuery = appSearch.trim().toLowerCase();
   const access = useAllAppAccess();
   const accessKey: Record<string, string> = { customers: 'customers', finance: 'finance', legal: 'legal', admin: 'systems' };
   // Apps whose data is restricted are hidden until a role grants access.
   const hasAccess = (id: string) => !accessKey[id] || !access || (access[accessKey[id]] ?? 0) >= 1 || (id === 'admin' && currentUser.systemRole === 'admin');
   const visibleGroups = appGroups
-    .map((group) => ({ ...group, apps: group.apps.filter((app) => hasAccess(app.id) && app.name.toLowerCase().includes(appQuery)) }))
+    .map((group) => ({ ...group, apps: group.apps.filter((app) => hasAccess(app.id)) }))
     .filter((group) => group.apps.length > 0);
   const openApp = (id: string) => {
     setActiveTab(id as Parameters<typeof setActiveTab>[0]);
     setIsAppsOpen(false);
-    setAppSearch('');
   };
   const query = searchQuery.trim().toLowerCase();
   const recordHits = useRecordSearch(searchQuery);
@@ -288,8 +285,7 @@ export const TopBar: React.FC = () => {
             onClick={() => {
               setIsAppsOpen((open) => !open);
               setIsNotificationsOpen(false);
-              setAppSearch('');
-            }}
+                      }}
             aria-label="More Flown apps"
             aria-haspopup="dialog"
             aria-expanded={isAppsOpen}
@@ -307,39 +303,26 @@ export const TopBar: React.FC = () => {
             </span>
           </button>
           {isAppsOpen && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3 text-slate-800 shadow-2xl">
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                <input autoFocus value={appSearch} onChange={(event) => setAppSearch(event.target.value)} placeholder="Search and launch" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-brand-400 focus:bg-white" />
-              </div>
-              <div className="space-y-3">
-                {visibleGroups.map((group) => (
-                  <section key={group.title}>
-                    <h4 className="sr-only">{group.title}</h4>
-                    <div className="grid grid-cols-3 gap-1">
-                      {group.apps.map((app) => {
-                        const Icon = app.icon;
-                        const isActive = activeTab === app.id;
-                        return (
-                          <button
-                            key={app.id}
-                            type="button"
-                            onClick={() => openApp(app.id)}
-                            title={app.name}
-                            aria-label={app.name}
-                            aria-current={isActive ? 'page' : undefined}
-                            className="group flex min-h-[56px] flex-col items-center justify-center rounded-xl p-2 text-center"
-                          >
-                            <span className={`flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white transition-all group-hover:opacity-100 ${isActive ? 'opacity-100' : 'opacity-60'}`}>
-                              <Icon className="h-5 w-5" />
-                            </span>
-                            <span className="sr-only">{app.name}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </section>
-                ))}
+            <div className="absolute right-0 top-full z-50 mt-2 w-[min(300px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-4 text-slate-800 shadow-2xl">
+              <div className="grid grid-cols-4 gap-3">
+                {visibleGroups.flatMap((group) => group.apps).map((app) => {
+                  const Icon = app.icon;
+                  return (
+                    <button
+                      key={app.id}
+                      type="button"
+                      onClick={() => openApp(app.id)}
+                      title={app.name}
+                      aria-label={app.name}
+                      aria-current={activeTab === app.id ? 'page' : undefined}
+                      className="flex h-14 items-center justify-center rounded-xl"
+                    >
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-700 text-white shadow-sm transition-colors hover:bg-brand-800">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
               {visibleGroups.length === 0 && <p className="px-2 py-6 text-center text-xs text-slate-400">No apps found</p>}
             </div>
