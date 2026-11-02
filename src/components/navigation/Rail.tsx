@@ -195,6 +195,7 @@ export const Rail: React.FC = () => {
             <>{[
               { label: 'Overview', path: '/gtm', icon: House },
               { label: 'Marketing', path: '/gtm/marketing', icon: Target },
+              { label: 'Content Calendar', path: '/gtm/calendar', icon: CalendarIcon },
               { label: 'Communications', path: '/gtm/communications', icon: Megaphone },
               { label: 'Brand Management', path: '/gtm/brand', icon: Network },
               { label: 'Media & Content', path: '/gtm/content', icon: FileText },
