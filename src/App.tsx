@@ -31,7 +31,7 @@ import { LegalPage } from './components/legal/LegalPage';
 import { AdminPage } from './components/admin/AdminPage';
 import { HomePage } from './components/home/HomePage';
 import { NotFoundPage } from './components/NotFoundPage';
-import { HelpPage } from './components/help/HelpPage';
+import { SupportPage } from './components/support/SupportPage';
 import { InsightsPage } from './components/insights/InsightsPage';
 import { OrganizationPage } from './components/organization/OrganizationPage';
 import { ProgramsPage } from './components/programs/ProgramsPage';
@@ -97,7 +97,7 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'finance' && <FinancePage />}
           {activeTab === 'operations' && <OperationsPage />}
           {activeTab === 'legal' && <LegalPage />}
-          {activeTab === 'help' && <HelpPage />}
+          {activeTab === 'help' && <SupportPage />}
           {activeTab === 'insights' && <InsightsPage />}
           {activeTab === 'organization' && <OrganizationPage />}
           {activeTab === 'programs' && <ProgramsPage />}
