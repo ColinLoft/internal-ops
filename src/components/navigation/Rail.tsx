@@ -207,7 +207,6 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
               { label: 'Grant Tracker', icon: Landmark, path: '/finance/grants' },
               { label: 'Possible Grants', icon: Target, path: '/finance/prospects' },
               { label: 'Deadlines', icon: CalendarIcon, path: '/finance/deadlines' },
-              { label: 'Funders', icon: Building2, path: '/finance/funders' },
               { label: 'Resources', icon: BookOpen, path: '/finance/resources' },
               { label: 'Reports & Payments', icon: BarChart3, path: '/finance/reports' },
               { label: 'Automation', icon: ListChecks, path: '/finance/automation' },

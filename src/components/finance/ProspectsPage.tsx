@@ -21,6 +21,7 @@ export const ProspectsPage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('open');
   const [open, setOpen] = useState<Prospect | 'new' | null>(null);
+  const [researching, setResearching] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error: loadError } = await supabase.from('grant_prospects').select('*').order('deadline', { ascending: true, nullsFirst: false });
@@ -42,7 +43,10 @@ export const ProspectsPage: React.FC = () => {
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
         <div><h1 className="text-xl font-bold text-slate-900">Possible grants</h1><p className="mt-1 text-xs text-slate-500">Research opportunities, score the fit, and move the best ones into the tracker.</p></div>
-        <button type="button" onClick={() => setOpen('new')} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white md:min-h-0 md:py-2"><Plus className="h-3.5 w-3.5" />Add opportunity</button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => setResearching(true)} className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-brand-300 bg-white px-3 text-xs font-bold text-brand-700 md:min-h-0 md:py-2"><Sparkles className="h-3.5 w-3.5" />Research with AI</button>
+          <button type="button" onClick={() => setOpen('new')} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white md:min-h-0 md:py-2"><Plus className="h-3.5 w-3.5" />Add opportunity</button>
+        </div>
       </header>
       <div className="space-y-4 p-5 sm:p-8">
         {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</p>}
@@ -62,6 +66,7 @@ export const ProspectsPage: React.FC = () => {
           ))}</div>
         ) : <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-500">No opportunities yet. Add one, or paste a funding announcement and let AI fill it in.</div>}
       </div>
+      {researching && <ResearchModal userId={currentUser.id} onClose={() => setResearching(false)} onAdded={() => void load()} />}
       {open && <ProspectModal prospect={open === 'new' ? null : open} userId={currentUser.id} users={users} onClose={() => setOpen(null)} onSaved={() => { setOpen(null); void load(); }} onConvert={convert} />}
     </main>
   );
@@ -132,6 +137,54 @@ const ProspectModal: React.FC<{ prospect: Prospect | null; userId: string; users
             <button type="button" onClick={async () => { if (await save()) onSaved(); }} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white">Save</button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+type Suggestion = { name: string; funder_name: string | null; url: string | null; amount_min: number | null; amount_max: number | null; deadline: string | null; focus_areas: string; eligibility: string; why_fit: string; fit_score: number };
+
+const ResearchModal: React.FC<{ userId: string; onClose: () => void; onAdded: () => void }> = ({ userId, onClose, onAdded }) => {
+  const [focus, setFocus] = useState('');
+  const [items, setItems] = useState<Suggestion[]>([]);
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [error, setError] = useState('');
+  const run = async () => {
+    setBusy(true); setError('');
+    try {
+      const result = await askGrantAi<{ suggestions: Suggestion[] }>({ action: 'research', focus });
+      setItems(result.suggestions || []); setPicked(new Set((result.suggestions || []).map((_, index) => index))); setSearched(true);
+    } catch (aiError) { setError(aiError instanceof Error ? aiError.message : 'AI request failed.'); } finally { setBusy(false); }
+  };
+  const addPicked = async () => {
+    const rows = items.filter((_, index) => picked.has(index)).map((item) => ({ name: item.name, funder_name: item.funder_name, url: item.url, amount_min: item.amount_min, amount_max: item.amount_max, deadline: item.deadline, focus_areas: item.focus_areas, eligibility: item.eligibility, fit_score: item.fit_score, fit_notes: item.why_fit, status: 'new', source: 'Research / search', notes: 'Suggested by AI research. Verify the details, deadline and eligibility with the funder before applying.', owner_id: userId, created_by: userId }));
+    if (!rows.length) return;
+    const { error: insertError } = await supabase.from('grant_prospects').insert(rows);
+    if (insertError) { setError(insertError.message); return; }
+    onAdded(); onClose();
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-label="Research grants">
+      <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
+        <div className="mb-3 flex items-center justify-between"><h2 className="text-base font-bold text-slate-900">Research possible grants</h2><button type="button" aria-label="Close" onClick={onClose}><X className="h-4 w-4" /></button></div>
+        <p className="mb-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">AI suggests established programs from its general knowledge and does not browse the web. Treat every result as a lead and verify deadlines, amounts and eligibility with the funder.</p>
+        <label className="text-xs font-semibold text-slate-500">What should it look for? (optional)<textarea rows={2} value={focus} onChange={(event) => setFocus(event.target.value)} placeholder="e.g. youth technology programs, Pacific Northwest, under $50k" className={field} /></label>
+        <button type="button" disabled={busy} onClick={() => void run()} className="mt-2 inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-60"><Sparkles className="h-3.5 w-3.5" />{busy ? 'Researching…' : 'Find grants'}</button>
+        {error && <p role="alert" className="mt-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+        {searched && !items.length && <p className="mt-3 text-xs text-slate-500">No new suggestions. Try a different focus.</p>}
+        {items.length > 0 && <>
+          <ul className="mt-3 space-y-2">{items.map((item, index) => (
+            <li key={index} className="rounded-xl border border-slate-200 p-3 text-xs">
+              <label className="flex items-start gap-2"><input type="checkbox" checked={picked.has(index)} onChange={(event) => setPicked((current) => { const next = new Set(current); if (event.target.checked) next.add(index); else next.delete(index); return next; })} className="mt-0.5 h-4 w-4" />
+                <span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-2"><span className="font-bold text-slate-900">{item.name}</span><span className={`shrink-0 rounded-full px-2 py-0.5 font-bold ${scoreTone(item.fit_score)}`}>{item.fit_score}% fit</span></span>
+                  <span className="block text-slate-500">{item.funder_name || 'Unknown funder'}{item.amount_min || item.amount_max ? ` · ${money(item.amount_min)} – ${money(item.amount_max)}` : ''}</span>
+                  <span className="mt-1 block text-slate-600">{item.why_fit}</span></span></label>
+            </li>
+          ))}</ul>
+          <div className="mt-3 flex justify-end gap-2"><button type="button" onClick={onClose} className="px-3 py-2 text-xs font-semibold text-slate-500">Cancel</button><button type="button" disabled={!picked.size} onClick={() => void addPicked()} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">Add {picked.size} for review</button></div>
+        </>}
       </div>
     </div>
   );

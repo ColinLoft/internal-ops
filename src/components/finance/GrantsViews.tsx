@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Sparkles, X } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { card, field } from '../work/EntityPanels';
@@ -107,38 +107,6 @@ export const GrantReports: React.FC = () => {
       <section className={card}><h2 className="mb-2 text-sm font-bold text-slate-900">Payments</h2>
         {payments.length ? <ul className="divide-y divide-slate-100">{payments.map((p) => <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs"><button type="button" onClick={() => goTo(`/finance/grants/${p.grant_id}`)} className="text-left"><span className="font-semibold text-slate-800">{money(p.amount)}</span><span className="block text-slate-400">{name(p.grant_id)}</span></button><span className="flex items-center gap-2"><span className={p.status === 'expected' ? dueTone(p.expected_date) : 'text-slate-500'}>{p.status === 'received' ? `Received ${p.received_date || ''}` : `Expected ${p.expected_date || '—'}`}</span>{p.status === 'expected' && <button type="button" onClick={() => void mark('grant_payments', p.id, { status: 'received', received_date: today })} className="rounded-lg border border-emerald-200 px-2 py-1 font-bold text-emerald-700">Mark received</button>}</span></li>)}</ul> : <p className="text-xs text-slate-400">No payments yet.</p>}
       </section>
-    </Shell>
-  );
-};
-
-export const GrantFunders: React.FC = () => {
-  const { currentUser } = useWorkspace();
-  const { grants, error } = useGrantData();
-  const [orgs, setOrgs] = useState<Org[]>([]);
-  const [orgError, setOrgError] = useState('');
-  const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: '', website: '' });
-  const load = useCallback(async () => { const { data, error: e } = await supabase.from('crm_organizations').select('id,name,category,website').order('name'); if (e) setOrgError(`CRM organizations could not be loaded: ${e.message}`); else setOrgs((data || []) as Org[]); }, []);
-  useEffect(() => { void load(); }, [load]);
-  const funders = useMemo(() => {
-    const linked = new Set(grants.map((g) => g.funder_org_id).filter(Boolean));
-    return orgs.filter((o) => o.category === 'funder' || linked.has(o.id));
-  }, [orgs, grants]);
-  const unlinked = useMemo(() => [...new Set(grants.filter((g) => !g.funder_org_id && g.funder_name).map((g) => g.funder_name as string))], [grants]);
-  const create = async (name: string, website?: string) => {
-    const { error: e } = await supabase.from('crm_organizations').insert({ name: name.trim(), category: 'funder', website: website?.trim() || null, owner_id: currentUser.id, created_by: currentUser.id });
-    if (e) { setOrgError(e.message); return; }
-    setAdding(false); setForm({ name: '', website: '' }); setOrgError(''); await load();
-  };
-  return (
-    <Shell title="Funders" blurb="Funder organizations from your CRM, with giving history and open applications." error={orgError || error} actions={<button type="button" onClick={() => setAdding(true)} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white md:min-h-0 md:py-2"><Plus className="h-3.5 w-3.5" />Add funder</button>}>
-      {funders.length ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{funders.map((org) => { const rows = grants.filter((g) => g.funder_org_id === org.id); return (
-        <article key={org.id} className={card}><h3 className="text-sm font-bold text-slate-900">{org.name}</h3>{org.website && /^https?:\/\//i.test(org.website) && <a href={org.website} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-600">{org.website}</a>}
-          <p className="mt-2 text-xs text-slate-500">{rows.length} grant{rows.length === 1 ? '' : 's'} · {money(rows.reduce((s, g) => s + Number(g.amount_awarded || 0), 0))} awarded</p>
-          <ul className="mt-1 space-y-1">{rows.slice(0, 4).map((g) => <li key={g.id}><button type="button" onClick={() => goTo(`/finance/grants/${g.id}`)} className="flex w-full items-center justify-between text-left text-xs"><span className="truncate text-slate-700">{g.name}</span><span className={`ml-2 rounded-full px-2 py-0.5 font-semibold ${stageTone(g.stage)}`}>{stageLabel(g.stage)}</span></button></li>)}</ul>
-        </article>); })}</div> : <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-500">No funders yet. Add one here, or link a funder when editing a grant.</div>}
-      {unlinked.length > 0 && <section className={card}><h2 className="mb-1 text-sm font-bold text-slate-900">Not in the CRM yet</h2><p className="mb-2 text-xs text-slate-500">These funder names appear on grants but are not linked to a CRM organization.</p><div className="flex flex-wrap gap-2">{unlinked.map((n) => <button key={n} type="button" onClick={() => void create(n)} className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 hover:border-brand-400">+ {n}</button>)}</div></section>}
-      {adding && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-label="Add funder"><div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"><div className="mb-3 flex items-center justify-between"><h2 className="text-base font-bold text-slate-900">Add funder</h2><button type="button" aria-label="Close" onClick={() => setAdding(false)}><X className="h-4 w-4" /></button></div><div className="space-y-2"><input autoFocus value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Funder name" className={field} /><input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="Website" className={field} /><div className="flex justify-end gap-2"><button type="button" onClick={() => setAdding(false)} className="px-3 py-2 text-xs font-semibold text-slate-500">Cancel</button><button type="button" disabled={!form.name.trim()} onClick={() => void create(form.name, form.website)} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">Save</button></div></div></div></div>}
     </Shell>
   );
 };

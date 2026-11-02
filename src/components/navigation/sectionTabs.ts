@@ -60,7 +60,6 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
         tab('Grant Tracker', 'Tracker', Landmark, '/finance/grants'),
         tab('Possible Grants', 'Prospects', Target, '/finance/prospects'),
         tab('Deadlines', 'Dates', CalendarRange, '/finance/deadlines'),
-        tab('Funders', 'Funders', Building2, '/finance/funders'),
         tab('Resources', 'Library', BookOpen, '/finance/resources'),
         tab('Reports & Payments', 'Reports', BarChart3, '/finance/reports'),
         tab('Automation', 'Auto', ListChecks, '/finance/automation'),

@@ -14,7 +14,6 @@ export const GrantsPage: React.FC = () => {
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [stage, setStage] = useState('all');
-  const [mode, setMode] = useState<'board' | 'list'>('board');
   const [creating, setCreating] = useState(false);
   const [settings, setSettings] = useState(false);
 
@@ -32,7 +31,6 @@ export const GrantsPage: React.FC = () => {
     awarded: grants.filter((g) => ['awarded', 'reporting', 'closed'].includes(g.stage)).reduce((sum, g) => sum + Number(g.amount_awarded || 0), 0),
     open: grants.filter((g) => !['declined', 'closed'].includes(g.stage)).length,
   }), [grants]);
-  const today = new Date().toISOString().slice(0, 10);
   const exportCsv = () => downloadCsv('grants.csv', [['Name', 'Funder', 'Stage', 'Requested', 'Awarded', 'Source', 'Secured by', 'Submitted', 'Decision', 'Next follow-up'], ...shown.map((g) => [g.name, g.funder_name, stageLabel(g.stage), g.amount_requested, g.amount_awarded, g.source, userName(g.secured_by_id), g.application_submitted_at, g.decision_at, g.next_follow_up_at])]);
   const canConfigure = ['admin', 'coordinator'].includes(currentUser.systemRole);
 
@@ -52,28 +50,8 @@ export const GrantsPage: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search grants" className={`${field} pl-9`} /></div>
           <select value={stage} onChange={(event) => setStage(event.target.value)} aria-label="Filter by stage" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="all">All stages</option>{GRANT_STAGES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select>
-          <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-bold">{(['board', 'list'] as const).map((value) => <button type="button" key={value} onClick={() => setMode(value)} className={`rounded-md px-3 py-1.5 capitalize ${mode === value ? 'bg-brand-600 text-white' : 'text-slate-500'}`}>{value}</button>)}</div>
         </div>
-        {loading ? <p className="py-10 text-center text-xs text-slate-400">Loading…</p> : mode === 'board' ? (
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {GRANT_STAGES.filter(([value]) => stage === 'all' || value === stage).map(([value, name]) => {
-              const items = shown.filter((grant) => grant.stage === value);
-              return (
-                <section key={value} className="w-64 shrink-0 rounded-2xl bg-slate-100/70 p-2">
-                  <h3 className="flex items-center justify-between px-2 py-1 text-xs font-bold text-slate-600">{name}<span>{items.length}</span></h3>
-                  <div className="space-y-2">{items.map((grant) => (
-                    <button type="button" key={grant.id} onClick={() => goTo(`/finance/grants/${grant.id}`)} className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm hover:border-brand-400">
-                      <p className="text-xs font-bold text-slate-900">{grant.name}</p>
-                      <p className="text-xs text-slate-500">{grant.funder_name || 'No funder'}</p>
-                      <p className="mt-2 text-xs font-semibold text-slate-700">{money(grant.amount_awarded ?? grant.amount_requested)}</p>
-                      {grant.next_follow_up_at && <p className={`text-xs ${grant.next_follow_up_at < today ? 'font-semibold text-rose-600' : 'text-slate-500'}`}>Follow up {grant.next_follow_up_at}</p>}
-                    </button>
-                  ))}{!items.length && <p className="px-2 py-3 text-xs text-slate-400">Empty</p>}</div>
-                </section>
-              );
-            })}
-          </div>
-        ) : shown.length ? (
+        {loading ? <p className="py-10 text-center text-xs text-slate-400">Loading…</p> : shown.length ? (
           <div className="space-y-2">{shown.map((grant) => (
             <button type="button" key={grant.id} onClick={() => goTo(`/finance/grants/${grant.id}`)} className="flex w-full flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-brand-400">
               <div className="min-w-0"><p className="text-sm font-bold text-slate-900">{grant.name}</p><p className="text-xs text-slate-500">{grant.funder_name || 'No funder'} · {userName(grant.owner_id)}{grant.source ? ` · ${grant.source}` : ''}</p></div>
