@@ -54,7 +54,8 @@ export const HomePage: React.FC = () => {
   const upcoming = useMemo(() => {
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    return calendarEvents.filter((event) => event.date >= today).sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`)).slice(0, 4);
+    const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    return calendarEvents.filter((event) => event.date > today || (event.date === today && (event.endTime || event.startTime) >= nowTime)).sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`)).slice(0, 4);
   }, [calendarEvents]);
   const mentions = useMemo(() => {
     const handle = `@${currentUser.name.toLowerCase()}`;

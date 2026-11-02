@@ -1,155 +1,252 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle,
-  BarChart3,
-  Beaker,
-  BookOpen,
-  ChevronRight,
-  Code2,
-  FileCheck2,
-  FileText,
-  GitBranch,
-  Layers3,
-  Plus,
-  Search,
-  ShieldCheck,
-  X,
+  AlertTriangle, BarChart3, Beaker, BookOpen, ChevronRight, Code2, Download, ExternalLink, FileCheck2,
+  FileText, GitBranch, Layers3, Plus, Search, ShieldCheck, Trash2, X,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
-type EngineeringView = 'overview' | 'products' | 'requirements' | 'design' | 'cad-pcb' | 'testing' | 'changes' | 'reviews';
-type RecordItem = { id: string; name: string; detail: string; status: string; owner: string; updated: string };
+type SectionId = 'products' | 'requirements' | 'design' | 'cad-pcb' | 'testing' | 'changes' | 'reviews';
+type EngineeringView = 'overview' | SectionId;
+type Meta = Record<string, string>;
+type EngRecord = { id: string; record_type: SectionId; name: string; description: string | null; status: string; owner_id: string | null; due_date: string | null; metadata: Meta; created_by: string; created_at: string; updated_at: string };
+type FieldDef = { key: string; label: string; options?: string[]; type?: 'url' | 'productRef' | 'text' };
+type SectionDef = { id: SectionId; label: string; icon: React.FC<{ className?: string }>; blurb: string; singular: string; statuses: string[]; doneStatuses: string[]; dateLabel: string; fields: FieldDef[] };
 
-const navigation: { id: EngineeringView; label: string; icon: React.FC<{ className?: string }> }[] = [
-  { id: 'overview', label: 'Overview', icon: BarChart3 },
-  { id: 'products', label: 'Products & Systems', icon: Layers3 },
-  { id: 'requirements', label: 'Requirements', icon: FileCheck2 },
-  { id: 'design', label: 'Design Documentation', icon: BookOpen },
-  { id: 'cad-pcb', label: 'CAD & PCB Records', icon: Code2 },
-  { id: 'testing', label: 'Testing & Validation', icon: Beaker },
-  { id: 'changes', label: 'Engineering Changes', icon: GitBranch },
-  { id: 'reviews', label: 'Technical Reviews', icon: ShieldCheck },
+const SECTIONS: SectionDef[] = [
+  { id: 'products', label: 'Products & Systems', icon: Layers3, singular: 'product', blurb: 'Products, assemblies and systems under development, with lifecycle stage and revision.', statuses: ['draft', 'active', 'on_hold', 'retired'], doneStatuses: ['retired'], dateLabel: 'Target release', fields: [{ key: 'version', label: 'Version / revision' }, { key: 'stage', label: 'Lifecycle stage', options: ['Concept', 'Prototype', 'Development', 'Production', 'End of life'] }] },
+  { id: 'requirements', label: 'Requirements', icon: FileCheck2, singular: 'requirement', blurb: 'Traceable requirements with priority and verification method.', statuses: ['draft', 'approved', 'implemented', 'verified', 'rejected'], doneStatuses: ['verified', 'rejected'], dateLabel: 'Needed by', fields: [{ key: 'req_id', label: 'Requirement ID' }, { key: 'category', label: 'Category', options: ['Functional', 'Performance', 'Safety', 'Regulatory', 'Interface'] }, { key: 'priority', label: 'Priority', options: ['Must', 'Should', 'Could'] }, { key: 'verification', label: 'Verification method', options: ['Test', 'Inspection', 'Analysis', 'Demonstration'] }, { key: 'product_id', label: 'Product', type: 'productRef' }] },
+  { id: 'design', label: 'Design Documentation', icon: BookOpen, singular: 'document', blurb: 'Specifications, architecture and design notes under revision control.', statuses: ['draft', 'in_review', 'approved', 'superseded'], doneStatuses: ['approved', 'superseded'], dateLabel: 'Review by', fields: [{ key: 'doc_type', label: 'Document type', options: ['Specification', 'Architecture', 'Schematic notes', 'Interface control', 'User manual', 'Datasheet'] }, { key: 'revision', label: 'Revision' }, { key: 'product_id', label: 'Product', type: 'productRef' }, { key: 'link', label: 'Document link', type: 'url' }] },
+  { id: 'cad-pcb', label: 'CAD & PCB Records', icon: Code2, singular: 'CAD/PCB record', blurb: 'Mechanical, electrical and PCB design files, releases and bills of materials.', statuses: ['draft', 'in_review', 'released', 'obsolete'], doneStatuses: ['released', 'obsolete'], dateLabel: 'Release date', fields: [{ key: 'file_type', label: 'Record type', options: ['CAD model', 'PCB layout', 'Schematic', 'BOM', 'Gerber / fabrication'] }, { key: 'tool', label: 'Tool', options: ['SolidWorks', 'Fusion 360', 'KiCad', 'Altium', 'Other'] }, { key: 'revision', label: 'Revision' }, { key: 'product_id', label: 'Product', type: 'productRef' }, { key: 'link', label: 'File link', type: 'url' }] },
+  { id: 'testing', label: 'Testing & Validation', icon: Beaker, singular: 'test', blurb: 'Test plans and results validating requirements and products.', statuses: ['planned', 'in_progress', 'passed', 'failed', 'blocked'], doneStatuses: ['passed', 'failed'], dateLabel: 'Test date', fields: [{ key: 'test_type', label: 'Test type', options: ['Unit', 'Integration', 'Environmental', 'Safety', 'Acceptance'] }, { key: 'product_id', label: 'Product', type: 'productRef' }, { key: 'requirement', label: 'Requirement ID covered' }, { key: 'result_notes', label: 'Result summary' }] },
+  { id: 'changes', label: 'Engineering Changes', icon: GitBranch, singular: 'change', blurb: 'Change requests and orders with impact and approval tracking.', statuses: ['submitted', 'in_review', 'approved', 'implemented', 'rejected'], doneStatuses: ['implemented', 'rejected'], dateLabel: 'Effective date', fields: [{ key: 'change_no', label: 'Change number' }, { key: 'change_type', label: 'Change type', options: ['ECR', 'ECO', 'Deviation', 'Waiver'] }, { key: 'impact', label: 'Impact', options: ['Low', 'Medium', 'High'] }, { key: 'product_id', label: 'Product', type: 'productRef' }, { key: 'reason', label: 'Reason for change' }] },
+  { id: 'reviews', label: 'Technical Reviews', icon: ShieldCheck, singular: 'review', blurb: 'Design and safety reviews with outcomes and follow-up actions.', statuses: ['scheduled', 'completed', 'action_required', 'closed'], doneStatuses: ['completed', 'closed'], dateLabel: 'Review date', fields: [{ key: 'review_type', label: 'Review type', options: ['Peer review', 'Preliminary design', 'Critical design', 'Safety review', 'Release readiness'] }, { key: 'product_id', label: 'Product', type: 'productRef' }, { key: 'outcome', label: 'Outcome', options: ['Pending', 'Approved', 'Approved with actions', 'Rejected'] }, { key: 'attendees', label: 'Attendees' }] },
 ];
 
-const records: Record<EngineeringView, RecordItem[]> = {
-  overview: [], products: [], requirements: [], design: [], 'cad-pcb': [],
-  testing: [], changes: [], reviews: [],
-};
+const bySection = (id: SectionId) => SECTIONS.find((section) => section.id === id) as SectionDef;
+const label = (value: string) => value.replace(/_/g, ' ').replace(/^./, (char) => char.toUpperCase());
+const today = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; };
+const tone = (status: string) => (['active', 'approved', 'verified', 'released', 'passed', 'implemented', 'completed', 'closed'].includes(status) ? 'bg-emerald-50 text-emerald-700' : ['failed', 'rejected', 'blocked', 'action_required'].includes(status) ? 'bg-rose-50 text-rose-700' : ['in_review', 'in_progress', 'submitted', 'scheduled', 'on_hold'].includes(status) ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600');
+const inputClass = 'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base outline-none focus:border-brand-400 md:text-xs';
+const viewFromPath = (path: string): EngineeringView => { const segment = path.split('/')[2]; return SECTIONS.some((section) => section.id === segment) ? segment as SectionId : 'overview'; };
 
 export const EngineeringPage: React.FC = () => {
-  const { currentUser } = useWorkspace();
+  const { currentUser, users } = useWorkspace();
   const [view, setView] = useState<EngineeringView>(() => viewFromPath(window.location.pathname));
-  const [search, setSearch] = useState('');
-  const [showNew, setShowNew] = useState(false);
-  const [recordState, setRecordState] = useState(records);
+  const [records, setRecords] = useState<EngRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [editing, setEditing] = useState<EngRecord | 'new' | null>(null);
 
-  useEffect(() => {
-    void supabase.from('engineering_records').select('id,record_type,name,description,status,owner_id,created_at').order('created_at', { ascending: false }).then(({ data, error: loadError }) => {
-      if (loadError) { setError(loadError.message); return; }
-      const next = { ...records };
-      for (const item of data || []) {
-        const target = item.record_type as EngineeringView;
-        if (!Object.prototype.hasOwnProperty.call(next, target)) continue;
-        next[target] = [...next[target], {
-          id: item.id,
-          name: item.name,
-          detail: item.description || '',
-          status: item.status,
-          owner: item.owner_id || 'Unassigned',
-          updated: new Date(item.created_at).toLocaleDateString(),
-        }];
-      }
-      setRecordState(next);
-    });
-    const onRoute = () => setView(viewFromPath(window.location.pathname));
-    window.addEventListener('popstate', onRoute);
-    return () => window.removeEventListener('popstate', onRoute);
+  const load = useCallback(async () => {
+    const { data, error: loadError } = await supabase.from('engineering_records').select('*').order('created_at', { ascending: false });
+    if (loadError) setError(`Engineering records could not be loaded: ${loadError.message}`);
+    else { setError(''); setRecords((data || []).map((row) => ({ ...row, metadata: (row.metadata && typeof row.metadata === 'object' ? row.metadata : {}) as Meta })) as EngRecord[]); }
+    setLoading(false);
   }, []);
 
+  useEffect(() => {
+    void load();
+    const onRoute = () => { setView(viewFromPath(window.location.pathname)); setStatusFilter('all'); setSearch(''); };
+    window.addEventListener('popstate', onRoute);
+    return () => window.removeEventListener('popstate', onRoute);
+  }, [load]);
+
   const navigate = (next: EngineeringView) => {
-    const path = next === 'overview' ? '/engineering' : `/engineering/${next}`;
-    window.history.pushState({}, '', path);
-    setView(next);
+    window.history.pushState({}, '', next === 'overview' ? '/engineering' : `/engineering/${next}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   };
 
-  const filteredRecords = useMemo(() => recordState[view].filter((record) =>
-    Object.values(record).join(' ').toLowerCase().includes(search.toLowerCase())), [view, search]);
-  const currentLabel = navigation.find((item) => item.id === view)?.label || 'Overview';
+  const owner = (id: string | null) => users.find((user) => user.id === id)?.name || 'Unassigned';
+  const section = view === 'overview' ? null : bySection(view);
+  const sectionRecords = useMemo(() => (section ? records.filter((record) => record.record_type === section.id) : []), [records, section]);
+  const shown = sectionRecords.filter((record) => (statusFilter === 'all' || record.status === statusFilter) && `${record.name} ${record.description || ''} ${Object.values(record.metadata).join(' ')} ${owner(record.owner_id)}`.toLowerCase().includes(search.toLowerCase()));
+  const products = records.filter((record) => record.record_type === 'products');
+  const productName = (id: string | undefined) => products.find((product) => product.id === id)?.name || '';
+
+  const exportCsv = () => {
+    if (!section) return;
+    const columns = ['Name', 'Status', 'Owner', section.dateLabel, ...section.fields.map((field) => field.label), 'Description'];
+    const rows = shown.map((record) => [record.name, label(record.status), owner(record.owner_id), record.due_date || '', ...section.fields.map((field) => (field.type === 'productRef' ? productName(record.metadata[field.key]) : record.metadata[field.key] || '')), record.description || '']);
+    const csv = [columns, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `engineering-${section.id}-${today()}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-5 sm:px-8">
         <div>
-          <h1 className="mt-1 text-xl font-bold text-slate-900">{currentLabel}</h1>
-          <p className="mt-1 text-xs text-slate-500">Manage product development, technical documentation, requirements, records, testing, revisions, and engineering reviews.</p>
+          <h1 className="text-xl font-bold text-slate-900">{section?.label || 'Overview'}</h1>
+          <p className="mt-1 text-xs text-slate-500">{section?.blurb || 'Product development, requirements, design records, testing, revisions and technical reviews at a glance.'}</p>
         </div>
-        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:flex-nowrap">
-          <div className="relative w-full md:w-auto">
-            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search engineering" className="w-full md:w-52 rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 text-xs outline-none focus:border-brand-400" />
-          </div>
-          <button type="button" onClick={() => setShowNew(true)} className="rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700"><Plus className="mr-1 inline h-3.5 w-3.5" /> New record</button>
+        <div className="flex flex-wrap items-center gap-2">
+          {section && <button type="button" onClick={exportCsv} disabled={!shown.length} className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 disabled:opacity-40 md:min-h-0 md:py-2"><Download className="h-3.5 w-3.5" />Export</button>}
+          <button type="button" onClick={() => (section ? setEditing('new') : navigate('products'))} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white hover:bg-brand-700 md:min-h-0 md:py-2"><Plus className="h-3.5 w-3.5" />{section ? `New ${section.singular}` : 'Get started'}</button>
         </div>
       </header>
-      <div className="mx-auto max-w-7xl p-5 sm:p-8">
-        {error && <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
-        {view === 'overview' ? <Overview onNavigate={navigate} /> : <RecordSection view={view} items={filteredRecords} />}
+
+      <div className="mx-auto max-w-7xl space-y-5 p-5 sm:p-8">
+        {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
+        {loading ? <p className="py-10 text-center text-xs text-slate-400">Loading…</p> : !section ? <Overview records={records} owner={owner} navigate={navigate} onOpen={setEditing} /> : (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative min-w-0 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${section.label.toLowerCase()}`} className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-base outline-none focus:border-brand-400 md:text-xs" /></div>
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter by status" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="all">All statuses ({sectionRecords.length})</option>{section.statuses.map((status) => <option key={status} value={status}>{label(status)} ({sectionRecords.filter((record) => record.status === status).length})</option>)}</select>
+            </div>
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+              <table className="w-full min-w-[720px] text-left text-xs">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3 font-bold">Record</th>{section.fields.slice(0, 2).map((field) => <th key={field.key} className="px-4 py-3 font-bold">{field.label}</th>)}<th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3 font-bold">Owner</th><th className="px-4 py-3 font-bold">{section.dateLabel}</th></tr></thead>
+                <tbody>
+                  {shown.map((record) => (
+                    <tr key={record.id} onClick={() => setEditing(record)} className="cursor-pointer border-t border-slate-100 hover:bg-slate-50">
+                      <td className="px-4 py-3"><div className="flex items-center gap-2"><FileText className="h-4 w-4 shrink-0 text-brand-600" /><div><b className="text-slate-800">{record.name}</b>{record.description && <p className="line-clamp-1 text-slate-400">{record.description}</p>}</div></div></td>
+                      {section.fields.slice(0, 2).map((field) => <td key={field.key} className="px-4 py-3 text-slate-500">{field.type === 'productRef' ? productName(record.metadata[field.key]) || '—' : record.metadata[field.key] || '—'}</td>)}
+                      <td className="px-4 py-3"><span className={`rounded-md px-2 py-1 font-bold ${tone(record.status)}`}>{label(record.status)}</span></td>
+                      <td className="px-4 py-3 text-slate-500">{owner(record.owner_id)}</td>
+                      <td className={`px-4 py-3 ${record.due_date && record.due_date < today() && !section.doneStatuses.includes(record.status) ? 'font-semibold text-rose-600' : 'text-slate-500'}`}>{record.due_date || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!shown.length && <p className="p-10 text-center text-xs text-slate-500">{sectionRecords.length ? 'No records match your filters.' : `No ${section.label.toLowerCase()} yet. Create the first ${section.singular}.`}</p>}
+            </div>
+          </>
+        )}
       </div>
-      {showNew && <NewEngineeringRecord onClose={() => setShowNew(false)} onSaved={(record) => {
-        void supabase.from('engineering_records').insert({ ...record, created_by: currentUser.id, owner_id: currentUser.id }).then(({ error: insertError }) => {
-          if (insertError) { setError(insertError.message); return; }
-          setShowNew(false);
-          window.location.reload();
-        });
-      }} />}
+
+      {editing && <RecordModal record={editing === 'new' ? null : editing} section={section || bySection(editing === 'new' ? 'products' : editing.record_type)} products={products} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await load(); }} userId={currentUser.id} />}
     </main>
   );
 };
 
-const Overview: React.FC<{ onNavigate: (view: EngineeringView) => void }> = ({ onNavigate }) => (
-  <>
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <Metric label="Active products" value="0" detail="No engineering records yet" />
-      <Metric label="Open requirements" value="0" detail="No engineering records yet" />
-      <Metric label="Validation progress" value="0%" detail="No validation records yet" />
-      <Metric label="Pending changes" value="0" detail="No engineering records yet" color="text-amber-600" />
-    </div>
-    <div className="mt-5 grid gap-5 lg:grid-cols-2">
-      <Panel title="Engineering workstreams" icon={<Layers3 className="h-4 w-4" />}>
-        {navigation.slice(1).map((item) => {
-          const Icon = item.icon;
-          return <button key={item.id} type="button" onClick={() => onNavigate(item.id)} className="flex w-full items-center gap-3 border-b border-slate-100 py-3 text-left last:border-0"><span className="text-brand-600"><Icon className="h-4 w-4" /></span><span className="flex-1"><b className="block text-xs text-slate-800">{item.label}</b><span className="text-xs text-slate-400">{item.id === 'testing' ? '18 complete · 5 remaining' : item.id === 'changes' ? '4 open changes · 2 pending approval' : 'Review current records and baselines'}</span></span><ChevronRight className="h-4 w-4 text-slate-300" /></button>;
-        })}
-      </Panel>
-      <Panel title="Attention needed" icon={<AlertTriangle className="h-4 w-4" />}>
-        <p className="text-xs text-slate-500">Attention items will appear when engineering records are added.</p>
-      </Panel>
-    </div>
-  </>
-);
+const Overview: React.FC<{ records: EngRecord[]; owner: (id: string | null) => string; navigate: (view: EngineeringView) => void; onOpen: (record: EngRecord) => void }> = ({ records, owner, navigate, onOpen }) => {
+  const of = (type: SectionId) => records.filter((record) => record.record_type === type);
+  const tests = of('testing');
+  const requirements = of('requirements');
+  const activeProducts = of('products').filter((record) => record.status === 'active').length;
+  const openReqs = requirements.filter((record) => !['verified', 'rejected'].includes(record.status)).length;
+  const settled = tests.filter((record) => ['passed', 'failed'].includes(record.status));
+  const passRate = tests.length ? Math.round((tests.filter((record) => record.status === 'passed').length / tests.length) * 100) : 0;
+  const pendingChanges = of('changes').filter((record) => ['submitted', 'in_review'].includes(record.status)).length;
+  const coveredIds = new Set(tests.map((record) => (record.metadata.requirement || '').trim().toLowerCase()).filter(Boolean));
+  const uncovered = requirements.filter((record) => !['rejected'].includes(record.status) && !coveredIds.has((record.metadata.req_id || '').trim().toLowerCase()));
+  const attention = records.filter((record) => {
+    const def = bySection(record.record_type);
+    if (record.due_date && record.due_date < today() && !def.doneStatuses.includes(record.status)) return true;
+    return ['failed', 'blocked', 'action_required'].includes(record.status);
+  }).slice(0, 8);
 
-const RecordSection: React.FC<{ view: EngineeringView; items: RecordItem[] }> = ({ view, items }) => (
-  <section className="rounded-2xl border border-slate-200 bg-white p-5">
-    <div className="mb-5 flex items-start justify-between"><div><h2 className="text-lg font-bold text-slate-900">{navigation.find((item) => item.id === view)?.label}</h2><p className="mt-1 text-xs text-slate-500">Track ownership, status, revisions, and supporting engineering evidence.</p></div><span className="rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700">{items.length} records</span></div>
-    <div className="overflow-hidden rounded-xl border border-slate-200">
-      <div className="grid grid-cols-[1.4fr_1.2fr_0.8fr_0.8fr] bg-slate-50 px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-500"><span>Record</span><span>Details</span><span>Status</span><span>Updated</span></div>
-      {items.map((item) => <div key={item.name} className="grid grid-cols-[1.4fr_1.2fr_0.8fr_0.8fr] items-center border-t border-slate-100 px-4 py-3 text-xs"><div className="flex items-center gap-2"><FileText className="h-4 w-4 text-brand-600" /><b className="text-slate-800">{item.name}</b></div><span className="text-slate-500">{item.detail} · {item.owner}</span><span className="w-fit rounded-md bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{item.status}</span><span className="text-slate-500">{item.updated}</span></div>)}
-    </div>
-  </section>
-);
-
-const Panel: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode }> = ({ title, icon, children }) => <section className="rounded-2xl border border-slate-200 bg-white p-5"><div className="mb-4 flex items-center gap-2 text-brand-600">{icon}<h2 className="text-sm font-bold text-slate-900">{title}</h2></div>{children}</section>;
-const Metric: React.FC<{ label: string; value: string; detail: string; color?: string }> = ({ label, value, detail, color = 'text-brand-600' }) => <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">{label}</p><p className={`mt-2 text-2xl font-bold ${color}`}>{value}</p><p className="mt-1 text-xs text-slate-400">{detail}</p></div>;
-const Attention: React.FC<{ title: string; detail: string }> = ({ title, detail }) => <div className="flex items-center gap-3 border-b border-slate-100 py-3 last:border-0"><span className="h-2 w-2 rounded-full bg-amber-500" /><span className="flex-1"><b className="block text-xs text-slate-800">{title}</b><span className="text-xs text-slate-400">{detail}</span></span><ChevronRight className="h-4 w-4 text-slate-300" /></div>;
-const NewEngineeringRecord: React.FC<{ onClose: () => void; onSaved: (record: { name: string; record_type: string; description: string; status: string }) => void }> = ({ onClose, onSaved }) => {
-  const [name, setName] = useState('');
-  const [recordType, setRecordType] = useState<EngineeringView>('products');
-  const [description, setDescription] = useState('');
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"><div className="max-h-[calc(100dvh-2rem)] overflow-y-auto w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">New engineering record</h2><button type="button" onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center md:min-h-0 md:min-w-0"><X className="h-4 w-4 text-slate-400" /></button></div><div className="mt-4 space-y-3"><input value={name} onChange={(event) => setName(event.target.value)} required placeholder="Record name or identifier" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-base md:text-xs outline-none focus:border-brand-400" /><select value={recordType} onChange={(event) => setRecordType(event.target.value as EngineeringView)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-base md:text-xs outline-none focus:border-brand-400">{navigation.slice(1).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={3} placeholder="Description" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-base md:text-xs outline-none focus:border-brand-400" /></div><button type="button" disabled={!name.trim()} onClick={() => onSaved({ name: name.trim(), record_type: recordType, description: description.trim(), status: 'draft' })} className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white disabled:opacity-50">Save engineering record</button></div></div>;
+  return (
+    <>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric label="Active products" value={String(activeProducts)} detail={`${of('products').length} total products`} />
+        <Metric label="Open requirements" value={String(openReqs)} detail={`${requirements.filter((record) => record.status === 'verified').length} verified`} />
+        <Metric label="Test pass rate" value={`${passRate}%`} detail={`${settled.length} of ${tests.length} tests complete`} />
+        <Metric label="Pending changes" value={String(pendingChanges)} detail="Awaiting review or approval" amber={pendingChanges > 0} />
+      </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-900"><BarChart3 className="h-4 w-4 text-brand-600" />Workstreams</h2>
+          {SECTIONS.map((section) => {
+            const items = of(section.id);
+            const done = items.filter((record) => section.doneStatuses.includes(record.status)).length;
+            const Icon = section.icon;
+            return (
+              <button key={section.id} type="button" onClick={() => navigate(section.id)} className="flex w-full items-center gap-3 border-b border-slate-100 py-3 text-left last:border-0">
+                <Icon className="h-4 w-4 shrink-0 text-brand-600" />
+                <span className="min-w-0 flex-1"><b className="block text-xs text-slate-800">{section.label}</b><span className="text-xs text-slate-400">{items.length} records · {done} complete · {items.length - done} open</span></span>
+                <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100"><span className="block h-full bg-brand-500" style={{ width: `${items.length ? (done / items.length) * 100 : 0}%` }} /></span>
+                <ChevronRight className="h-4 w-4 text-slate-300" />
+              </button>
+            );
+          })}
+        </section>
+        <div className="space-y-5">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-900"><AlertTriangle className="h-4 w-4 text-amber-500" />Attention needed</h2>
+            {attention.length ? attention.map((record) => (
+              <button key={record.id} type="button" onClick={() => onOpen(record)} className="flex w-full items-center justify-between gap-3 border-b border-slate-100 py-2.5 text-left last:border-0">
+                <span className="min-w-0"><b className="block truncate text-xs text-slate-800">{record.name}</b><span className="text-xs text-slate-400">{bySection(record.record_type).label} · {owner(record.owner_id)}{record.due_date ? ` · due ${record.due_date}` : ''}</span></span>
+                <span className={`shrink-0 rounded-md px-2 py-1 text-xs font-bold ${tone(record.status)}`}>{label(record.status)}</span>
+              </button>
+            )) : <p className="text-xs text-slate-500">Nothing needs attention. Overdue, failed, blocked and action-required records appear here.</p>}
+          </section>
+          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-900"><FileCheck2 className="h-4 w-4 text-brand-600" />Requirement coverage</h2>
+            <p className="text-xs text-slate-500">{requirements.length ? `${requirements.length - uncovered.length} of ${requirements.length} requirements have a linked test.` : 'Add requirements and tests to track verification coverage.'}</p>
+            {uncovered.slice(0, 4).map((record) => <button key={record.id} type="button" onClick={() => onOpen(record)} className="mt-2 block w-full truncate rounded-lg bg-slate-50 px-3 py-2 text-left text-xs text-slate-600 hover:bg-slate-100">{record.metadata.req_id ? `${record.metadata.req_id} · ` : ''}{record.name} — no test linked</button>)}
+          </section>
+        </div>
+      </div>
+    </>
+  );
 };
-const viewFromPath = (path: string): EngineeringView => {
-  const segment = path.split('/')[2] as EngineeringView;
-  return navigation.some((item) => item.id === segment) ? segment : 'overview';
+
+const Metric: React.FC<{ label: string; value: string; detail: string; amber?: boolean }> = ({ label: title, value, detail, amber }) => (
+  <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">{title}</p><p className={`mt-1 text-2xl font-bold ${amber ? 'text-amber-600' : 'text-slate-900'}`}>{value}</p><p className="mt-1 text-xs text-slate-400">{detail}</p></div>
+);
+
+const RecordModal: React.FC<{ record: EngRecord | null; section: SectionDef; products: EngRecord[]; userId: string; onClose: () => void; onSaved: () => void }> = ({ record, section, products, userId, onClose, onSaved }) => {
+  const { users } = useWorkspace();
+  const def = record ? bySection(record.record_type) : section;
+  const [form, setForm] = useState({ name: record?.name || '', description: record?.description || '', status: record?.status || def.statuses[0], owner_id: record?.owner_id || userId, due_date: record?.due_date || '' });
+  const [meta, setMeta] = useState<Meta>(record?.metadata || {});
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!form.name.trim()) { setError('A name is required.'); return; }
+    const link = meta.link?.trim();
+    if (link && !/^https?:\/\//i.test(link)) { setError('Links must start with http:// or https://.'); return; }
+    setSaving(true);
+    const payload = { name: form.name.trim(), description: form.description.trim() || null, status: form.status, owner_id: form.owner_id || null, due_date: form.due_date || null, metadata: Object.fromEntries(Object.entries(meta).filter(([, value]) => value)), updated_at: new Date().toISOString() };
+    const { error: saveError } = record ? await supabase.from('engineering_records').update(payload).eq('id', record.id) : await supabase.from('engineering_records').insert({ ...payload, record_type: def.id, created_by: userId });
+    setSaving(false);
+    if (saveError) setError(saveError.message); else onSaved();
+  };
+  const remove = async () => {
+    if (!record || !window.confirm(`Delete "${record.name}"?`)) return;
+    const { error: deleteError } = await supabase.from('engineering_records').delete().eq('id', record.id);
+    if (deleteError) setError(deleteError.message); else onSaved();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-3" onClick={onClose}>
+      <div role="dialog" aria-label={record ? 'Edit record' : `New ${def.singular}`} onClick={(event) => event.stopPropagation()} className="max-h-[calc(100dvh-1.5rem)] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
+        <div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">{record ? `${def.label} record` : `New ${def.singular}`}</h2><button type="button" onClick={onClose} aria-label="Close" className="-m-2 p-2"><X className="h-4 w-4 text-slate-400" /></button></div>
+        <div className="mt-4 space-y-3">
+          {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+          <label className="block text-xs font-semibold text-slate-600">Name<input autoFocus={!record} value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} className={inputClass} /></label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-xs font-semibold text-slate-600">Status<select value={form.status} onChange={(event) => setForm((value) => ({ ...value, status: event.target.value }))} className={inputClass}>{def.statuses.map((status) => <option key={status} value={status}>{label(status)}</option>)}</select></label>
+            <label className="text-xs font-semibold text-slate-600">Owner<select value={form.owner_id} onChange={(event) => setForm((value) => ({ ...value, owner_id: event.target.value }))} className={inputClass}><option value="">Unassigned</option>{users.filter((user) => user.accountStatus !== 'removed').map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></label>
+            {def.fields.map((field) => (
+              <label key={field.key} className="text-xs font-semibold text-slate-600">{field.label}
+                {field.type === 'productRef' ? <select value={meta[field.key] || ''} onChange={(event) => setMeta((value) => ({ ...value, [field.key]: event.target.value }))} className={inputClass}><option value="">None</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
+                  : field.options ? <select value={meta[field.key] || ''} onChange={(event) => setMeta((value) => ({ ...value, [field.key]: event.target.value }))} className={inputClass}><option value="">Not set</option>{field.options.map((option) => <option key={option} value={option}>{option}</option>)}</select>
+                    : <input type={field.type === 'url' ? 'url' : 'text'} value={meta[field.key] || ''} onChange={(event) => setMeta((value) => ({ ...value, [field.key]: event.target.value }))} placeholder={field.type === 'url' ? 'https://' : ''} className={inputClass} />}
+              </label>
+            ))}
+            <label className="text-xs font-semibold text-slate-600">{def.dateLabel}<input type="date" value={form.due_date} onChange={(event) => setForm((value) => ({ ...value, due_date: event.target.value }))} className={inputClass} /></label>
+          </div>
+          <label className="block text-xs font-semibold text-slate-600">Description / notes<textarea value={form.description} onChange={(event) => setForm((value) => ({ ...value, description: event.target.value }))} className={`${inputClass} min-h-24`} /></label>
+          {record && <p className="text-xs text-slate-400">Created {new Date(record.created_at).toLocaleDateString()} · updated {new Date(record.updated_at || record.created_at).toLocaleString()}</p>}
+          <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center gap-3">
+              {record && <button type="button" onClick={() => void remove()} className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600"><Trash2 className="h-3.5 w-3.5" />Delete</button>}
+              {meta.link && /^https?:\/\//i.test(meta.link) && <a href={meta.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600"><ExternalLink className="h-3.5 w-3.5" />Open link</a>}
+            </div>
+            <button type="button" disabled={saving} onClick={() => void save()} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-60">{saving ? 'Saving…' : record ? 'Save changes' : `Create ${def.singular}`}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };

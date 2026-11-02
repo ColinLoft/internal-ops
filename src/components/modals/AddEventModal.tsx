@@ -22,6 +22,7 @@ export const AddEventModal: React.FC = () => {
   const [location, setLocation] = useState('');
   const [departments, setDepartments] = useState<string[]>([]);
   const [teamIds, setTeamIds] = useState<string[]>([]);
+  const [everyone, setEveryone] = useState(false);
   const [isCall, setIsCall] = useState(false);
   const [repeats, setRepeats] = useState(false);
   const [days, setDays] = useState<number[]>([]);
@@ -41,7 +42,7 @@ export const AddEventModal: React.FC = () => {
 
   if (!isAddEventOpen) return null;
 
-  const toggleTeam = (name: string) => setTeamIds((prev) => (prev.includes(name) ? prev.filter((item) => item !== name) : [...prev, name]));
+  const toggleTeam = (name: string) => { setEveryone(false); setTeamIds((prev) => (prev.includes(name) ? prev.filter((item) => item !== name) : [...prev, name])); };
   const toggleDay = (day: number) => setDays((prev) => (prev.includes(day) ? prev.filter((item) => item !== day) : [...prev, day]));
 
   const close = () => {
@@ -57,7 +58,7 @@ export const AddEventModal: React.FC = () => {
     setSaving(true);
     setError('');
     try {
-      const shared = teamIds.length > 0;
+      const shared = everyone || teamIds.length > 0;
       await createCalendarEvent({
         title: title.trim(),
         description: description.trim(),
@@ -65,7 +66,7 @@ export const AddEventModal: React.FC = () => {
         startTime,
         endTime,
         scope: shared ? 'team' : 'personal',
-        teamIds,
+        teamIds: everyone ? [] : teamIds,
         isCall,
         category: shared ? 'community' : 'personal',
         location: location.trim() || undefined,
@@ -75,6 +76,7 @@ export const AddEventModal: React.FC = () => {
       setDescription('');
       setLocation('');
       setTeamIds([]);
+      setEveryone(false);
       setIsCall(false);
       setRepeats(false);
       setDays([]);
@@ -118,16 +120,13 @@ export const AddEventModal: React.FC = () => {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Share with teams</label>
-            {departments.length === 0 ? (
-              <p className="text-xs text-slate-500">No teams have been created in Organization yet, so this event will be just for you.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {departments.map((name) => (
-                  <button key={name} type="button" onClick={() => toggleTeam(name)} aria-pressed={teamIds.includes(name)} className={`min-h-11 md:min-h-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${teamIds.includes(name) ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>{name}</button>
-                ))}
-              </div>
-            )}
-            <p className="mt-1.5 text-xs text-slate-500">{teamIds.length ? `Visible to ${teamIds.join(', ')}.` : 'Only you will see this event.'}</p>
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" onClick={() => { setEveryone((v) => !v); setTeamIds([]); }} aria-pressed={everyone} className={`min-h-11 md:min-h-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${everyone ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>Everyone</button>
+              {departments.map((name) => (
+                <button key={name} type="button" onClick={() => toggleTeam(name)} aria-pressed={teamIds.includes(name)} className={`min-h-11 md:min-h-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${teamIds.includes(name) ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>{name}</button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-slate-500">{everyone ? 'Visible to everyone in the organization.' : teamIds.length ? `Visible to ${teamIds.join(', ')}.` : 'Only you will see this event.'}</p>
           </div>
 
           <div>

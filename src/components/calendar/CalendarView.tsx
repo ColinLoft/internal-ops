@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CalendarEvent } from '../../types';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -10,10 +11,29 @@ import {
   Globe,
   Lock,
   Video,
+  X,
+  Users,
+  Repeat,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
 const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const TEAM_PALETTE = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#EC4899', '#14B8A6', '#84CC16'];
+const EVERYONE_COLOR = '#2563EB';
+const PERSONAL_COLOR = '#8B5CF6';
+const teamColor = (name: string) => {
+  let hash = 0;
+  for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return TEAM_PALETTE[hash % TEAM_PALETTE.length];
+};
+const eventGroup = (evt: CalendarEvent, myTeam: string) => {
+  if (evt.scope === 'personal') return { key: 'personal', label: 'Personal', color: PERSONAL_COLOR };
+  const teams = evt.teamIds || [];
+  if (!teams.length) return { key: 'everyone', label: 'Everyone', color: EVERYONE_COLOR };
+  const team = teams.includes(myTeam) ? myTeam : teams[0];
+  return { key: `team:${team}`, label: teams.join(', '), color: teamColor(team) };
+};
 
 export const CalendarView: React.FC = () => {
   const {
@@ -21,11 +41,15 @@ export const CalendarView: React.FC = () => {
     deleteCalendarEvent,
     setIsAddEventOpen,
     startCall,
+    currentUser,
+    users,
   } = useWorkspace();
 
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
-  const [scopeFilter, setScopeFilter] = useState<'all' | 'team' | 'personal'>('all');
+  const [scopeFilter, setScopeFilter] = useState('all');
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const myTeam = currentUser.department || '';
   const [search, setSearch] = useState('');
 
   const formatTime = (time: string) => {
@@ -45,10 +69,25 @@ export const CalendarView: React.FC = () => {
       evt.title.toLowerCase().includes(search.toLowerCase()) ||
       (evt.description && evt.description.toLowerCase().includes(search.toLowerCase()));
 
-    if (scopeFilter === 'team') return matchesSearch && evt.scope === 'team';
-    if (scopeFilter === 'personal') return matchesSearch && evt.scope === 'personal';
-    return matchesSearch;
+    if (scopeFilter === 'all') return matchesSearch;
+    const group = eventGroup(evt, myTeam);
+    if (scopeFilter.startsWith('team:')) return matchesSearch && (evt.teamIds || []).includes(scopeFilter.slice(5));
+    return matchesSearch && group.key === scopeFilter;
   });
+  const nowDate = new Date();
+  const nowTimeStr = `${String(nowDate.getHours()).padStart(2, '0')}:${String(nowDate.getMinutes()).padStart(2, '0')}`;
+  const upcomingEvents = filteredEvents
+    .filter((evt) => evt.date > todayStr || (evt.date === todayStr && (evt.endTime || evt.startTime) >= nowTimeStr))
+    .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
+  const filterOptions = [
+    { key: 'all', label: 'All Events', color: '#64748B', icon: CalendarIcon },
+    { key: 'everyone', label: 'Everyone', color: EVERYONE_COLOR, icon: Globe },
+    ...(myTeam ? [{ key: `team:${myTeam}`, label: myTeam, color: teamColor(myTeam), icon: Users }] : []),
+    { key: 'personal', label: 'Personal', color: PERSONAL_COLOR, icon: Lock },
+  ];
+  const countFor = (key: string) => key === 'all'
+    ? calendarEvents.length
+    : calendarEvents.filter((evt) => key.startsWith('team:') ? (evt.teamIds || []).includes(key.slice(5)) : eventGroup(evt, myTeam).key === key).length;
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -145,36 +184,24 @@ export const CalendarView: React.FC = () => {
 
               {/* Event chips */}
               <div className="space-y-1 overflow-hidden">
-                {dayEvents.slice(0, 2).map((evt) => (
-                  <div
-                    key={evt.id}
-                    className={`group/chip relative px-2 py-1 rounded-lg text-xs font-semibold flex items-center justify-between gap-1 shadow-2xs border ${
-                      evt.scope === 'team'
-                        ? 'bg-brand-50 border-brand-200 text-brand-800'
-                        : 'bg-brand-50 border-brand-200 text-brand-800'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1 min-w-0">
-                      <span
-                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: evt.color || '#2569F5' }}
-                      />
-                      <span className="truncate">{evt.title}</span>
-                    </div>
-                    <span className="text-xs font-medium opacity-70 whitespace-nowrap">
-                      {formatTime(evt.startTime)}
-                    </span>
+                {dayEvents.slice(0, 2).map((evt) => {
+                  const group = eventGroup(evt, myTeam);
+                  return (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteCalendarEvent(evt.id);
-                      }}
-                      className="opacity-0 group-hover/chip:opacity-100 p-0.5 hover:text-rose-600 transition-opacity"
+                      type="button"
+                      key={evt.id}
+                      onClick={() => setSelectedEvent(evt)}
+                      style={{ backgroundColor: `${group.color}1F`, borderColor: `${group.color}66` }}
+                      className="w-full px-2 py-1 rounded-lg text-xs font-semibold flex items-center justify-between gap-1 border text-left text-slate-800 hover:brightness-95"
                     >
-                      <Trash2 className="w-2.5 h-2.5" />
+                      <span className="flex items-center gap-1 min-w-0">
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
+                        <span className="truncate">{evt.title}</span>
+                      </span>
+                      <span className="text-xs font-medium opacity-70 whitespace-nowrap">{formatTime(evt.startTime)}</span>
                     </button>
-                  </div>
-                ))}
+                  );
+                })}
                 {dayEvents.length > 2 && (
                   <div className="text-xs text-slate-500 font-semibold px-1">
                     + {dayEvents.length - 2} more...
@@ -190,7 +217,7 @@ export const CalendarView: React.FC = () => {
 
   // Week View
   const renderWeekView = () => {
-    const hours = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+    const hours = Array.from({ length: 16 }, (_, i) => `${String(i + 6).padStart(2, '0')}:00`);
     const curr = new Date(currentDate);
     const dayOfWeek = curr.getDay() || 7; // 1 = Monday
     curr.setDate(curr.getDate() - dayOfWeek + 1);
@@ -229,19 +256,21 @@ export const CalendarView: React.FC = () => {
 
                 return (
                   <div key={dIdx} className="p-1 border-r border-slate-100 relative hover:bg-slate-50/50">
-                    {hourEvents.map((evt) => (
-                      <div
-                        key={evt.id}
-                        className={`p-1.5 rounded-xl border text-xs font-semibold shadow-2xs leading-tight ${
-                          evt.scope === 'team'
-                            ? 'bg-brand-50 border-brand-200 text-brand-900'
-                            : 'bg-brand-50 border-brand-200 text-brand-900'
-                        }`}
-                      >
-                        <p className="truncate font-bold">{evt.title}</p>
-                        <p className="text-xs opacity-75">{formatTime(evt.startTime)} - {formatTime(evt.endTime)}</p>
-                      </div>
-                    ))}
+                    {hourEvents.map((evt) => {
+                      const group = eventGroup(evt, myTeam);
+                      return (
+                        <button
+                          type="button"
+                          key={evt.id}
+                          onClick={() => setSelectedEvent(evt)}
+                          style={{ backgroundColor: `${group.color}1F`, borderColor: `${group.color}66` }}
+                          className="w-full p-1.5 rounded-xl border text-left text-xs font-semibold leading-tight text-slate-800 hover:brightness-95"
+                        >
+                          <p className="truncate font-bold">{evt.title}</p>
+                          <p className="text-xs opacity-75">{formatTime(evt.startTime)} - {formatTime(evt.endTime)}</p>
+                        </button>
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -290,59 +319,33 @@ export const CalendarView: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {todayEvents.map((evt) => (
-              <div
-                key={evt.id}
-                className={`p-4 rounded-2xl border shadow-xs flex items-center justify-between ${
-                  evt.scope === 'team'
-                    ? 'bg-brand-50/70 border-brand-200'
-                    : 'bg-brand-50/70 border-brand-200'
-                }`}
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        evt.scope === 'team'
-                          ? 'bg-brand-600 text-white'
-                          : 'bg-brand-600 text-white'
-                      }`}
-                    >
-                      {evt.scope === 'team' ? (evt.teamIds?.length ? `Shared · ${evt.teamIds.join(', ')}` : 'Shared event') : 'Personal Event'}
-                    </span>
-                    <span className="text-xs font-bold text-slate-500">
-                      {formatTime(evt.startTime)} - {formatTime(evt.endTime)}
-                    </span>
+            {todayEvents.map((evt) => {
+              const group = eventGroup(evt, myTeam);
+              return (
+                <div
+                  key={evt.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedEvent(evt)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') setSelectedEvent(evt); }}
+                  style={{ backgroundColor: `${group.color}14`, borderColor: `${group.color}55` }}
+                  className="p-4 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer hover:brightness-95"
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: group.color }}>{group.label}</span>
+                      <span className="text-xs font-bold text-slate-500">{formatTime(evt.startTime)} - {formatTime(evt.endTime)}</span>
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-900">{evt.title}</h4>
+                    {evt.description && <p className="text-xs text-slate-600 line-clamp-2">{evt.description}</p>}
+                    {evt.location && (
+                      <p className="text-xs text-slate-500 flex items-center gap-1 pt-1"><MapPin className="w-3.5 h-3.5 text-brand-600" /> {evt.location}</p>
+                    )}
                   </div>
-                  <h4 className="text-sm font-bold text-slate-900">{evt.title}</h4>
-                  {evt.description && <p className="text-xs text-slate-600">{evt.description}</p>}
-                  {evt.location && (
-                    <p className="text-xs text-slate-500 flex items-center gap-1 pt-1">
-                      <MapPin className="w-3.5 h-3.5 text-brand-600" /> {evt.location}
-                    </p>
-                  )}
+                  <span className="text-xs font-semibold text-brand-600">Details</span>
                 </div>
-
-                <div className="flex items-center gap-1">
-                  {evt.isCall && (
-                    <button
-                      onClick={() => void startCall('video', undefined, undefined, evt.attendees)}
-                      className="flex min-h-11 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white hover:bg-brand-700 md:min-h-0 md:py-1.5"
-                    >
-                      <Video className="w-3.5 h-3.5" /> Start call
-                    </button>
-                  )}
-                  <button
-                    onClick={() => deleteCalendarEvent(evt.id)}
-                    className="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-white transition-colors"
-                    title="Remove Event"
-                    aria-label="Remove event"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -359,51 +362,22 @@ export const CalendarView: React.FC = () => {
             Event View Filter
           </label>
           <div className="flex flex-col gap-1">
-            <button
-              onClick={() => setScopeFilter('all')}
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                scopeFilter === 'all'
-                  ? 'bg-brand-50 text-brand-700 border border-brand-200'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <span>All Events</span>
-              <span className="text-xs bg-white px-1.5 py-0.5 rounded-full border border-slate-200 font-bold">
-                {calendarEvents.length}
-              </span>
-            </button>
-            <button
-              onClick={() => setScopeFilter('team')}
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                scopeFilter === 'team'
-                  ? 'bg-brand-50 text-brand-700 border border-brand-200'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <div className="flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 text-brand-600" />
-                <span>Shared / Whole Team</span>
-              </div>
-              <span className="text-xs bg-white px-1.5 py-0.5 rounded-full border border-slate-200 font-bold">
-                {calendarEvents.filter((e) => e.scope === 'team').length}
-              </span>
-            </button>
-            <button
-              onClick={() => setScopeFilter('personal')}
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                scopeFilter === 'personal'
-                  ? 'bg-brand-50 text-brand-700 border border-brand-200'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <div className="flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-brand-600" />
-                <span>Personal Events</span>
-              </div>
-              <span className="text-xs bg-white px-1.5 py-0.5 rounded-full border border-slate-200 font-bold">
-                {calendarEvents.filter((e) => e.scope === 'personal').length}
-              </span>
-            </button>
+            {filterOptions.map(({ key, label, color, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => setScopeFilter(key)}
+                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  scopeFilter === key ? 'bg-brand-50 text-brand-700 border border-brand-200' : 'text-slate-600 hover:bg-slate-100 border border-transparent'
+                }`}
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+                  <Icon className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="truncate">{label}</span>
+                </span>
+                <span className="text-xs bg-white px-1.5 py-0.5 rounded-full border border-slate-200 font-bold">{countFor(key)}</span>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -462,7 +436,7 @@ export const CalendarView: React.FC = () => {
               <Clock className="w-3.5 h-3.5 text-brand-600" /> Upcoming
             </span>
           </div>
-          {filteredEvents.length === 0 ? (
+          {upcomingEvents.length === 0 ? (
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
               <p className="text-xs text-slate-400 mb-2">No upcoming events</p>
               <button
@@ -474,27 +448,26 @@ export const CalendarView: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-2">
-              {filteredEvents.slice(0, 4).map((evt) => (
-                <div
-                  key={evt.id}
-                  className="p-2.5 rounded-xl border border-slate-100 bg-white hover:border-slate-200 shadow-2xs transition-all space-y-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`text-xs font-bold uppercase tracking-wider px-1.5 py-0.2 rounded ${
-                        evt.scope === 'team'
-                          ? 'bg-brand-50 text-brand-700'
-                          : 'bg-brand-50 text-brand-700'
-                      }`}
-                    >
-                      {evt.scope === 'team' ? 'Shared' : 'Personal'}
-                    </span>
-                    <span className="text-xs text-slate-400 font-medium">{formatTime(evt.startTime)}</span>
-                  </div>
-                  <h5 className="text-xs font-bold text-slate-800 truncate">{evt.title}</h5>
-                  <p className="text-xs text-slate-400 truncate">{evt.date}</p>
-                </div>
-              ))}
+              {upcomingEvents.slice(0, 5).map((evt) => {
+                const group = eventGroup(evt, myTeam);
+                return (
+                  <button
+                    type="button"
+                    key={evt.id}
+                    onClick={() => setSelectedEvent(evt)}
+                    className="w-full text-left p-2.5 rounded-xl border border-slate-100 bg-white hover:border-slate-200 shadow-2xs transition-all space-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: group.color }}>
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: group.color }} />{group.label}
+                      </span>
+                      <span className="text-xs text-slate-400 font-medium">{formatTime(evt.startTime)}</span>
+                    </div>
+                    <h5 className="text-xs font-bold text-slate-800 truncate">{evt.title}</h5>
+                    <p className="text-xs text-slate-400 truncate">{new Date(`${evt.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -593,6 +566,55 @@ export const CalendarView: React.FC = () => {
         </div>
         </div>
       </div>
+
+      {selectedEvent && (() => {
+        const evt = selectedEvent;
+        const group = eventGroup(evt, myTeam);
+        const creator = users.find((user) => user.id === evt.createdBy);
+        const attendees = (evt.attendees || []).map((id) => users.find((user) => user.id === id)).filter(Boolean);
+        const canDelete = evt.createdBy === currentUser.id || currentUser.systemRole === 'admin' || currentUser.systemRole === 'coordinator';
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-2 backdrop-blur-sm md:p-4" onClick={() => setSelectedEvent(null)}>
+            <div role="dialog" aria-label="Event details" onClick={(e) => e.stopPropagation()} className="max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto rounded-3xl border border-slate-200/80 bg-white shadow-2xl">
+              <div className="h-2 rounded-t-3xl" style={{ backgroundColor: group.color }} />
+              <div className="space-y-4 p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: group.color }}>{group.label}</span>
+                    <h3 className="mt-1 text-lg font-bold text-slate-900">{evt.title}</h3>
+                  </div>
+                  <button type="button" onClick={() => setSelectedEvent(null)} aria-label="Close" className="-m-1.5 rounded-full p-2.5 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+                </div>
+                <dl className="space-y-2.5 text-xs text-slate-600">
+                  <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-brand-600" />{new Date(`${evt.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · {formatTime(evt.startTime)} – {formatTime(evt.endTime)}</div>
+                  {evt.location && <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-brand-600" />{evt.location}</div>}
+                  {evt.isCall && <div className="flex items-center gap-2"><Video className="h-4 w-4 text-brand-600" />Scheduled as a call</div>}
+                  {evt.recurrenceId && <div className="flex items-center gap-2"><Repeat className="h-4 w-4 text-brand-600" />Part of a recurring series</div>}
+                  <div className="flex items-center gap-2"><Users className="h-4 w-4 text-brand-600" />{evt.scope === 'personal' ? 'Only you' : evt.teamIds?.length ? `Shared with ${evt.teamIds.join(', ')}` : 'Shared with everyone'}</div>
+                  {creator && <div className="text-slate-500">Created by {creator.name}</div>}
+                </dl>
+                {evt.description && <p className="whitespace-pre-wrap rounded-2xl bg-slate-50 p-3 text-xs text-slate-700">{evt.description}</p>}
+                {attendees.length > 0 && evt.scope !== 'personal' && (
+                  <div>
+                    <p className="mb-1.5 text-xs font-bold text-slate-700">Invited ({attendees.length})</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {attendees.map((user) => user && <span key={user.id} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 py-0.5 pl-0.5 pr-2 text-xs text-slate-700"><img src={user.avatar} alt="" className="h-5 w-5 rounded-full object-cover" />{user.name}</span>)}
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                  {canDelete ? (
+                    <button type="button" onClick={() => { void deleteCalendarEvent(evt.id); setSelectedEvent(null); }} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-rose-600 hover:bg-rose-50 md:min-h-0 md:py-2"><Trash2 className="h-4 w-4" />Delete</button>
+                  ) : <span />}
+                  {evt.isCall && (
+                    <button type="button" onClick={() => { void startCall('video', undefined, undefined, evt.attendees); setSelectedEvent(null); }} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-bold text-white hover:bg-brand-700 md:min-h-0 md:py-2"><Video className="h-4 w-4" />Start call</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

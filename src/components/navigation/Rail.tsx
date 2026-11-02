@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  CalendarRange,
+  CalendarRange, CheckSquare,
   MessageSquare,
   Hash,
   Calendar as CalendarIcon,
@@ -173,16 +173,9 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
           {isPrograms ? (
             <>
               {[
-              { label: 'All Programs', icon: Gauge, section: 'all' },
-              { label: 'Program Overview', icon: Network, section: 'overview' },
-              { label: 'Projects & Tasks', icon: FolderKanban, section: 'projects' },
-              { label: 'Team & Personnel', icon: Users, section: 'team' },
-              { label: 'Budget & Funding', icon: WalletCards, section: 'budgets' },
-              { label: 'Timeline', icon: CalendarRange, section: 'timeline' },
-              { label: 'Milestones', icon: Target, section: 'milestones' },
-              { label: 'Documentation', icon: BookOpen, section: 'documents' },
-              { label: 'Reports', icon: BarChart3, section: 'reports' },
-              ].map((item) => { const Icon = item.icon; const segments = routePath.split('/'); const programId = segments[2] === 'program' ? segments[3] : null; const path = item.section === 'all' ? '/programs' : programId ? `/programs/program/${programId}/${item.section === 'overview' ? '' : item.section}`.replace(/\/$/, '') : `/programs/${item.section}`; const selected = routePath === path; return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => { if (routePath !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}
+              { label: 'Projects', icon: FolderKanban, section: 'projects' },
+              { label: 'Tasks', icon: CheckSquare, section: 'tasks' },
+              ].map((item) => { const Icon = item.icon; const path = item.section === 'projects' ? '/programs' : '/programs/tasks'; const selected = item.section === 'tasks' ? routePath.startsWith('/programs/tasks') : !routePath.startsWith('/programs/tasks'); return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => { if (routePath !== path) window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}
             </>
           ) : isOrganization ? (
             <>{[
@@ -196,10 +189,10 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
           ) : isInsights ? (
             <>{[
               { label: 'Executive Overview', icon: House, section: 'executive' },
-              { label: 'Program Performance', icon: Target, section: 'programs' },
+              { label: 'Projects & Tasks', icon: FolderKanban, section: 'programs' },
               { label: 'Financial Reports', icon: Landmark, section: 'financial' },
-              { label: 'Project Reports', icon: FolderKanban, section: 'projects' },
-              { label: 'Custom Reports', icon: BarChart3, section: 'custom' },
+              { label: 'Departments', icon: Users, section: 'projects' },
+              { label: 'Activity & Usage', icon: BarChart3, section: 'custom' },
             ].map((item) => { const Icon = item.icon; const selected = (window.location.pathname.split('/')[2] || 'executive') === item.section; return <RailButton key={item.label} label={item.label} icon={Icon} selected={selected} onClick={() => openInsightsSection(item.section)} />; })}</>
           ) : isCustomers ? (
             <>{[

@@ -243,6 +243,28 @@ const getFunctionError = async (error: unknown): Promise<Error> => {
   return error instanceof Error ? error : new Error('The Supabase function request failed.');
 };
 
+const PRESENCE_TIMEOUT_MS = 4 * 60 * 1000;
+
+const formatLastSeen = (iso: string) => {
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return undefined;
+  const minutes = Math.max(1, Math.round((Date.now() - then) / 60_000));
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  const when = new Date(then);
+  const days = Math.round(hours / 24);
+  return days < 7 ? `${days} day${days === 1 ? '' : 's'} ago` : when.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
+// Presence is automatic: a recent heartbeat means online; otherwise offline with a last-seen time.
+const derivePresence = (row: Record<string, any>): { status: UserStatus; lastSeen?: string } => {
+  const seenAt = typeof row.last_seen_at === 'string' ? row.last_seen_at : null;
+  if (!seenAt) return { status: row.status === 'busy' ? 'busy' : (row.status || 'offline') };
+  if (Date.now() - Date.parse(seenAt) <= PRESENCE_TIMEOUT_MS) return { status: row.status === 'busy' ? 'busy' : 'online' };
+  return { status: 'offline', lastSeen: formatLastSeen(seenAt) };
+};
+
 const mapSupabaseProfile = (row: Record<string, any>, currentUserId: string): User => {
   const suspendedUntil = typeof row.suspended_until === 'string' ? row.suspended_until : null;
   const suspensionExpired = suspendedUntil !== null && Date.parse(suspendedUntil) <= Date.now();
@@ -255,7 +277,7 @@ const mapSupabaseProfile = (row: Record<string, any>, currentUserId: string): Us
     department: row.department || '',
     phone: row.phone || '',
     avatar: row.avatar_url || '',
-    status: row.status || 'offline',
+    ...derivePresence(row),
     accountStatus: suspensionExpired ? 'active' : (row.account_status as AccountStatus) || 'active',
     suspendedUntil,
     systemRole: row.system_role || 'member',
@@ -1081,6 +1103,35 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     sounds.setRingtone(workspaceSettings.ringtone);
   }, [workspaceSettings.theme, workspaceSettings.accentColor, workspaceSettings.ringtone]);
 
+  useEffect(() => {
+    if (!currentUser.id) return undefined;
+    let cancelled = false;
+    const beat = async () => {
+      await supabase.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', currentUser.id);
+      const { data } = await supabase.from('profiles').select('id,status,last_seen_at');
+      if (cancelled || !data) return;
+      const presence = new Map(data.map((row) => [row.id as string, derivePresence(row)]));
+      const apply = (user: User): User => {
+        const next = presence.get(user.id);
+        if (!next || (next.status === user.status && next.lastSeen === user.lastSeen)) return user;
+        return { ...user, status: next.status, lastSeen: next.lastSeen };
+      };
+      setUsers((previous) => previous.map(apply));
+      setCurrentUser((previous) => apply(previous));
+    };
+    void beat();
+    const timer = window.setInterval(() => void beat(), 60_000);
+    const wake = () => { if (document.visibilityState === 'visible') void beat(); };
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('focus', wake);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', wake);
+      window.removeEventListener('focus', wake);
+    };
+  }, [currentUser.id]);
+
   const automaticStatusRef = React.useRef<{ userId: string; previousStatus: UserStatus } | null>(null);
   useEffect(() => {
     const evaluateAutomaticStatus = () => {
@@ -1195,27 +1246,33 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   const updateStaffUser = async (userId: string, updates: Partial<User>) => {
+    const profilePayload = {
+      name: updates.name,
+      email: updates.email,
+      role: updates.role,
+      department: updates.department,
+      phone: updates.phone,
+      avatar_url: updates.avatar,
+      status_message: updates.statusMessage,
+      bio: updates.bio,
+      location: updates.location,
+      banner: updates.banner,
+      system_role: updates.systemRole,
+    };
+    const existing = users.find((user) => user.id === userId);
+    const emailChanged = typeof updates.email === 'string' && updates.email !== existing?.email;
     const { error } = await supabase.functions.invoke('admin-manage-user', {
-      body: {
-        action: 'update-profile',
-        userId,
-        profile: {
-          name: updates.name,
-          email: updates.email,
-          role: updates.role,
-          department: updates.department,
-          phone: updates.phone,
-          avatar_url: updates.avatar,
-          status: updates.status,
-          status_message: updates.statusMessage,
-          bio: updates.bio,
-          location: updates.location,
-          banner: updates.banner,
-          system_role: updates.systemRole,
-        },
-      },
+      body: { action: 'update-profile', userId, profile: profilePayload },
     });
-    if (error) throw await getFunctionError(error);
+    if (error) {
+      const unreachable = error instanceof Error && !('context' in error && error.context instanceof Response);
+      if (!unreachable) throw await getFunctionError(error);
+      if (emailChanged) throw new Error('The account service is unreachable, so the sign-in email could not be changed. Deploy the admin-manage-user Edge Function and retry.');
+      const { avatar_url: _avatar, email: _email, ...rpcProfile } = profilePayload;
+      const cleaned = Object.fromEntries(Object.entries(rpcProfile).filter(([, value]) => value !== undefined));
+      const { error: rpcError } = await supabase.rpc('admin_update_profile', { p_user_id: userId, p_profile: cleaned });
+      if (rpcError) throw new Error(rpcError.message);
+    }
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -1962,7 +2019,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     const stamp = Date.now();
     const teamIds = event.scope === 'team' ? event.teamIds || [] : [];
     const attendees = event.scope === 'team'
-      ? [...new Set([currentUser.id, ...users.filter((user) => teamIds.includes(user.department)).map((user) => user.id)])]
+      ? [...new Set([currentUser.id, ...users.filter((user) => !teamIds.length || teamIds.includes(user.department)).map((user) => user.id)])]
       : [currentUser.id];
     const dates = [event.date];
     if (recurrence && recurrence.count > 1 && recurrence.days.length) {

@@ -353,17 +353,10 @@ export const EmailInboxPage: React.FC = () => {
     const onVisible = () => { if (document.visibilityState === 'visible') void sync(); };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
-    const channel = supabase
-      .channel(`email-messages:${activeMailboxId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'email_messages', filter: `mailbox_id=eq.${activeMailboxId}` }, () => {
-        void loadMessages(activeMailboxId).catch(() => undefined);
-      })
-      .subscribe();
     return () => {
       window.clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
-      void supabase.removeChannel(channel);
     };
   }, [activeMailboxId, loadMessages, loadMailboxes]);
 

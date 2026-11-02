@@ -52,16 +52,7 @@ export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) =
             <h4 className="font-bold text-sm text-slate-900 truncate">{currentUser.name}</h4>
             <div className="flex items-center gap-1.5 mt-1">
               <span className={`w-2 h-2 rounded-full ${currentStatus.color}`} />
-              <select
-                aria-label="Availability status"
-                value={currentUser.status}
-                onChange={(event) => updateCurrentUser({ status: event.target.value as UserStatus })}
-                className="text-base md:text-xs text-slate-500 bg-transparent outline-none cursor-pointer"
-              >
-                {statuses.map((status) => (
-                  <option key={status.value} value={status.value}>{status.label}</option>
-                ))}
-              </select>
+              <span className="text-xs text-slate-500">{currentStatus.label}</span>
             </div>
           </div>
         </div>

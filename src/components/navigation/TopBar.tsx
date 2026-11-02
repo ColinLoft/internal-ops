@@ -332,7 +332,7 @@ export const TopBar: React.FC = () => {
                             aria-current={isActive ? 'page' : undefined}
                             className="group flex min-h-[56px] flex-col items-center justify-center rounded-xl p-2 text-center"
                           >
-                            <span className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all group-hover:opacity-100 ${isActive ? 'text-brand-600 opacity-100' : 'text-slate-500 opacity-60'}`}>
+                            <span className={`flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white transition-all group-hover:opacity-100 ${isActive ? 'opacity-100' : 'opacity-60'}`}>
                               <Icon className="h-5 w-5" />
                             </span>
                             <span className="sr-only">{app.name}</span>
