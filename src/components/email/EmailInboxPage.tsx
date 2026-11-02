@@ -22,7 +22,6 @@ import {
   Printer,
   RefreshCw,
   Send,
-  Settings2,
   Sparkles,
   Star,
   Underline,
@@ -35,7 +34,6 @@ import {
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import type { Attachment } from '../../types';
-import { EmailRulesPanel } from './EmailRulesPanel';
 import { sanitizeEmailHtml } from '../../lib/sanitizeEmailHtml';
 
 type Mailbox = {
@@ -220,7 +218,6 @@ export const EmailInboxPage: React.FC = () => {
   const [forwardBusy, setForwardBusy] = useState(false);
   const [sending, setSending] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
-  const [rulesOpen, setRulesOpen] = useState(false);
   const editorRef = React.useRef<HTMLDivElement>(null);
   const inlineReplyEditorRef = React.useRef<HTMLDivElement>(null);
   const [showScheduledSends, setShowScheduledSends] = useState(false);
@@ -335,6 +332,40 @@ export const EmailInboxPage: React.FC = () => {
       .finally(() => active && setLoading(false));
     return () => { active = false; };
   }, [loadMailboxes]);
+
+  const silentSyncRef = React.useRef(false);
+  useEffect(() => {
+    if (!activeMailboxId) return;
+    const sync = async () => {
+      if (silentSyncRef.current || document.visibilityState !== 'visible') return;
+      silentSyncRef.current = true;
+      try {
+        await supabase.functions.invoke('mail-sync', { body: { mailboxId: activeMailboxId } });
+        await loadMessages(activeMailboxId);
+        await loadMailboxes();
+      } catch {
+        // The next interval retries; manual sync still reports errors.
+      } finally {
+        silentSyncRef.current = false;
+      }
+    };
+    const interval = window.setInterval(() => void sync(), 30_000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void sync(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    const channel = supabase
+      .channel(`email-messages:${activeMailboxId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'email_messages', filter: `mailbox_id=eq.${activeMailboxId}` }, () => {
+        void loadMessages(activeMailboxId).catch(() => undefined);
+      })
+      .subscribe();
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+      void supabase.removeChannel(channel);
+    };
+  }, [activeMailboxId, loadMessages, loadMailboxes]);
 
   useEffect(() => {
     if (!activeMailboxId) return;
@@ -1086,7 +1117,7 @@ export const EmailInboxPage: React.FC = () => {
     }
   };
 
-  useEffect(() => { setMobileFoldersOpen(false); }, [activeFolder, showScheduledSends, messageFilter, rulesOpen]);
+  useEffect(() => { setMobileFoldersOpen(false); }, [activeFolder, showScheduledSends, messageFilter]);
 
   const sharedMailboxControl = mailboxes.length > 0 && currentUser.systemRole === 'admin' ? (
     <div className="relative">
@@ -1214,9 +1245,6 @@ export const EmailInboxPage: React.FC = () => {
         </div>
         <div className="mt-4 border-t border-slate-100 pt-4">
           <p className="mb-2 px-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Workspace tools</p>
-          <button type="button" onClick={() => setRulesOpen(true)} disabled={!activeMailbox || activeMailbox.connected_by !== currentUser.id} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
-            <Settings2 className="h-4 w-4 text-slate-400" /> Inbox rules <ChevronRight className="ml-auto h-3.5 w-3.5 text-slate-300" />
-          </button>
           <button type="button" onClick={() => void refresh(true)} disabled={!activeMailbox || syncing} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-40">
             <RefreshCw className={`h-4 w-4 text-slate-400 ${syncing ? 'animate-spin' : ''}`} /> Sync mailbox <span className="ml-auto text-xs text-slate-400">{activeMailbox?.last_synced_at ? new Date(activeMailbox.last_synced_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Never'}</span>
           </button>
@@ -1243,16 +1271,6 @@ export const EmailInboxPage: React.FC = () => {
               <span className="h-2 w-2 rounded-full bg-brand-500" />
               {activeMailbox.display_name || activeMailbox.email}
             </div>
-          )}
-          {!activeMailbox && mailboxes.length === 0 && !loading && (
-            <button
-              type="button"
-              onClick={() => void connectMailbox('microsoft', 'personal')}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700"
-            >
-              <Plus className="h-4 w-4" />
-              Connect Microsoft 365
-            </button>
           )}
         </div>
         {error && <div role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</div>}
@@ -1314,25 +1332,17 @@ export const EmailInboxPage: React.FC = () => {
               </div>
             )
           ) : !activeMailbox ? (
-            <div className="mx-auto mt-10 max-w-xl rounded-3xl border border-slate-200/80 bg-white p-8 text-center shadow-[0_12px_40px_rgba(37,99,235,0.08)] sm:p-10">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-600 to-brand-500 text-white shadow-lg shadow-brand-500/20"><Mail className="h-8 w-8" /></div>
-              <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-brand-600">A calmer inbox starts here</p>
-              <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Connect your work email</h3>
-              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-500">Bring your Microsoft 365 inbox into the workspace. Threads, rich content, drafts, scheduled sends, templates, and AI tools stay together in one organized place.</p>
-              <div className="mx-auto mt-6 grid max-w-md grid-cols-3 gap-2 text-xs font-semibold text-slate-500">
-                <span className="rounded-xl bg-brand-50 px-2 py-3 text-brand-700">Organized threads</span>
-                <span className="rounded-xl bg-brand-50 px-2 py-3 text-brand-700">Smart drafts</span>
-                <span className="rounded-xl bg-brand-50 px-2 py-3 text-brand-700">Secure sync</span>
-              </div>
+            <div className="mx-auto mt-16 max-w-sm p-6 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600"><Mail className="h-6 w-6" /></div>
+              <h3 className="mt-4 text-lg font-bold text-slate-900">Connect your email</h3>
               <button
                 type="button"
                 onClick={() => void connectMailbox('microsoft', 'personal')}
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+                className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 md:min-h-0"
               >
                 <Plus className="h-4 w-4" />
-                Connect Microsoft 365
+                Connect with Microsoft
               </button>
-              <p className="mt-3 text-xs text-slate-400">Provider OAuth credentials must be configured by an administrator before you can connect an account.</p>
             </div>
           ) : loading ? (
             <div className="flex h-48 items-center justify-center text-sm text-slate-500"><LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> Loading messages…</div>
@@ -1671,20 +1681,6 @@ export const EmailInboxPage: React.FC = () => {
             </div>
           </form>
         </div>
-      )}
-      {rulesOpen && activeMailbox && (
-        <EmailRulesPanel
-          mailboxId={activeMailbox.id}
-          userId={currentUser.id}
-          onActivity={(eventType, summary) => recordSystemActivity({
-            eventType,
-            summary,
-            targetType: 'mailbox',
-            targetId: activeMailbox.id,
-            targetName: activeMailbox.email,
-          })}
-          onClose={() => setRulesOpen(false)}
-        />
       )}
     </main>
   );

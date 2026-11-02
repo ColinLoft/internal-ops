@@ -9,6 +9,7 @@ import {
   Trash2,
   Globe,
   Lock,
+  Video,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
@@ -19,6 +20,7 @@ export const CalendarView: React.FC = () => {
     calendarEvents,
     deleteCalendarEvent,
     setIsAddEventOpen,
+    startCall,
   } = useWorkspace();
 
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -306,7 +308,7 @@ export const CalendarView: React.FC = () => {
                           : 'bg-brand-600 text-white'
                       }`}
                     >
-                      {evt.scope === 'team' ? 'Whole Team Event' : 'Personal Event'}
+                      {evt.scope === 'team' ? (evt.teamIds?.length ? `Shared · ${evt.teamIds.join(', ')}` : 'Shared event') : 'Personal Event'}
                     </span>
                     <span className="text-xs font-bold text-slate-500">
                       {formatTime(evt.startTime)} - {formatTime(evt.endTime)}
@@ -321,13 +323,24 @@ export const CalendarView: React.FC = () => {
                   )}
                 </div>
 
-                <button
-                  onClick={() => deleteCalendarEvent(evt.id)}
-                  className="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-white transition-colors"
-                  title="Remove Event"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  {evt.isCall && (
+                    <button
+                      onClick={() => void startCall('video', undefined, undefined, evt.attendees)}
+                      className="flex min-h-11 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white hover:bg-brand-700 md:min-h-0 md:py-1.5"
+                    >
+                      <Video className="w-3.5 h-3.5" /> Start call
+                    </button>
+                  )}
+                  <button
+                    onClick={() => deleteCalendarEvent(evt.id)}
+                    className="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-white transition-colors"
+                    title="Remove Event"
+                    aria-label="Remove event"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -474,7 +487,7 @@ export const CalendarView: React.FC = () => {
                           : 'bg-brand-50 text-brand-700'
                       }`}
                     >
-                      {evt.scope === 'team' ? 'Whole Team' : 'Personal'}
+                      {evt.scope === 'team' ? 'Shared' : 'Personal'}
                     </span>
                     <span className="text-xs text-slate-400 font-medium">{formatTime(evt.startTime)}</span>
                   </div>

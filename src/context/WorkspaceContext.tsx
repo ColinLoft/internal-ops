@@ -119,10 +119,22 @@ interface WorkspaceContextType {
     postingRoles: UserRole[];
     isPrivate: boolean;
     category?: Channel['category'];
+    imageUrl?: string;
+    memberIds?: string[];
+  }) => Promise<void>;
+  deleteChannel: (id: string) => Promise<void>;
+  updateChannel: (id: string, changes: {
+    name: string;
+    description: string;
+    type: 'standard' | 'announcement';
+    postingRoles: UserRole[];
+    isPrivate: boolean;
+    imageUrl?: string;
+    memberIds: string[];
   }) => Promise<void>;
   
   createConversation: (participantIds: string[], name?: string, isGroup?: boolean) => string;
-  createCalendarEvent: (event: Omit<CalendarEvent, 'id' | 'createdBy'>) => void;
+  createCalendarEvent: (event: Omit<CalendarEvent, 'id' | 'createdBy'>, recurrence?: { days: number[]; count: number }) => Promise<void>;
   deleteCalendarEvent: (id: string) => void;
   
   markNotificationRead: (id: string) => void;
@@ -131,7 +143,7 @@ interface WorkspaceContextType {
   toggleSound: () => void;
   
   // Calling
-  startCall: (type: 'audio' | 'video', peerUser?: User, channel?: Channel) => Promise<void>;
+  startCall: (type: 'audio' | 'video', peerUser?: User, channel?: Channel, participantIds?: string[]) => Promise<void>;
   endCall: () => void;
   acceptIncomingCall: () => void;
   dismissIncomingCall: () => void;
@@ -319,6 +331,14 @@ const loadSupabaseProfiles = async (authUser: SupabaseAuthUser) => {
   };
 };
 
+const hydrateConversation = (conversation: Conversation, currentUserId: string, users: User[]): Conversation => {
+  if (conversation.type === 'group') {
+    return { ...conversation, description: `${conversation.participants.length} members`, avatar: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80' };
+  }
+  const peer = users.find((user) => user.id !== currentUserId && conversation.participants.includes(user.id));
+  return { ...conversation, name: peer?.name || 'Direct message', avatar: peer?.avatar, description: peer?.role };
+};
+
 const loadSupabaseWorkspaceData = async (userIds: string[]) => {
     let channelResult = await supabase.from('channels').select('*').order('created_at', { ascending: true });
     if (channelResult.error) throw channelResult.error;
@@ -362,6 +382,8 @@ const loadSupabaseWorkspaceData = async (userIds: string[]) => {
       description: row.description || '',
       type: row.type === 'announcement' ? 'announcement' : 'standard',
       isPrivate: Boolean(row.is_private),
+      imageUrl: row.image_url || undefined,
+      createdBy: row.created_by || undefined,
       members: row.is_private
         ? membersByChannel.get(row.id) || []
         : userIds,
@@ -427,7 +449,50 @@ const loadSupabaseWorkspaceData = async (userIds: string[]) => {
       }
     }
 
-  return { channels, messages, threadReplies };
+  const eventResult = await supabase.from('calendar_events').select('*').order('date', { ascending: true });
+  if (eventResult.error) console.error('Unable to load calendar events:', eventResult.error);
+  const calendarEvents: CalendarEvent[] | null = eventResult.error ? null : eventResult.data.map((row) => ({
+    id: row.id,
+    title: row.title,
+    description: row.description || undefined,
+    date: row.date,
+    startTime: String(row.start_time || '').slice(0, 5),
+    endTime: String(row.end_time || '').slice(0, 5),
+    scope: row.scope === 'personal' ? 'personal' : 'team',
+    category: row.category || 'community',
+    location: row.location || undefined,
+    color: row.color || undefined,
+    attendees: Array.isArray(row.attendees) ? row.attendees : undefined,
+    teamIds: Array.isArray(row.team_ids) ? row.team_ids : [],
+    isCall: Boolean(row.is_call),
+    recurrenceId: row.recurrence_id || undefined,
+    createdBy: row.created_by,
+  }));
+
+  const conversationResult = await supabase.from('conversation_participants').select('conversation_id, user_id');
+  if (conversationResult.error) throw conversationResult.error;
+  const metaResult = await supabase.from('conversations').select('id, type, name');
+  const conversationMeta = new Map<string, { type?: string; name?: string }>((metaResult.error ? [] : metaResult.data).map((row) => [row.id, row]));
+  const participantsByConversation = new Map<string, string[]>();
+  for (const row of conversationResult.data) {
+    participantsByConversation.set(row.conversation_id, [...(participantsByConversation.get(row.conversation_id) || []), row.user_id]);
+  }
+  const conversations: Conversation[] = [...participantsByConversation.entries()].map(([id, participants]) => {
+    const meta = conversationMeta.get(id);
+    const isGroup = meta?.type === 'group' || participants.length > 2;
+    const history = messages[id] || [];
+    const last = history[history.length - 1];
+    return {
+      id,
+      type: isGroup ? 'group' : 'direct',
+      name: meta?.name || (isGroup ? 'Group Chat' : ''),
+      participants,
+      unreadCount: 0,
+      lastMessage: last ? { text: last.text, timestamp: last.timestamp, senderId: last.senderId } : undefined,
+    };
+  });
+
+  return { channels, messages, threadReplies, calendarEvents, conversations };
 };
 
 export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -478,10 +543,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const [threadReplies, setThreadReplies] = useState<Record<string, Message[]>>(initialThreadReplies);
 
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}events`);
-    try { return saved ? JSON.parse(saved) : initialCalendarEvents; } catch { return initialCalendarEvents; }
-  });
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(initialCalendarEvents);
 
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
 
@@ -681,6 +743,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           setChannels(workspaceData.channels);
           setMessages(workspaceData.messages);
           setThreadReplies(workspaceData.threadReplies);
+          if (workspaceData.calendarEvents) setCalendarEvents(workspaceData.calendarEvents);
+          setConversations(workspaceData.conversations.map((conversation) => hydrateConversation(conversation, profileData.currentUser.id, profileData.users)));
           setIsAuthenticated(true);
           setRequiresPasswordSetup(session.user.app_metadata?.password_reset_required === true);
           setRequiresOnboarding(session.user.user_metadata?.onboarding_completed !== true);
@@ -724,10 +788,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}events`, JSON.stringify(calendarEvents));
-  }, [calendarEvents]);
-
-  useEffect(() => {
     localStorage.setItem(`${STORAGE_PREFIX}sound_enabled`, String(soundEnabled));
     sounds.setSoundEnabled(soundEnabled);
   }, [soundEnabled]);
@@ -752,6 +812,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       setChannels(workspaceData.channels);
       setMessages(workspaceData.messages);
       setThreadReplies(workspaceData.threadReplies);
+      if (workspaceData.calendarEvents) setCalendarEvents(workspaceData.calendarEvents);
+      setConversations(workspaceData.conversations.map((conversation) => hydrateConversation(conversation, profileData.currentUser.id, profileData.users)));
       resetAppAccessCache();
       setIsAuthenticated(true);
       setRequiresPasswordSetup(data.user.app_metadata?.password_reset_required === true);
@@ -1696,6 +1758,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     postingRoles,
     isPrivate,
     category = 'General',
+    imageUrl,
+    memberIds: selectedMemberIds,
   }: {
     name: string;
     description: string;
@@ -1703,8 +1767,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     postingRoles: UserRole[];
     isPrivate: boolean;
     category?: Channel['category'];
+    imageUrl?: string;
+    memberIds?: string[];
   }) => {
     if (!currentUser.id) throw new Error('Sign in before creating a channel.');
+    const memberIds = [...new Set([currentUser.id, ...(isPrivate ? selectedMemberIds || [] : users.map((user) => user.id))])];
     const cleanName = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-_]/g, '');
     const newChan: Channel = {
       id: `chan-${crypto.randomUUID()}`,
@@ -1712,7 +1779,9 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       description,
       type,
       isPrivate,
-      members: users.map((u) => u.id),
+      imageUrl,
+      createdBy: currentUser.id,
+      members: memberIds,
       postingRoles,
       unreadCount: 0,
       category,
@@ -1727,11 +1796,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       is_private: newChan.isPrivate,
       posting_roles: newChan.postingRoles,
       category: newChan.category,
+      image_url: imageUrl || null,
       created_by: currentUser.id,
     });
     if (channelError) throw channelError;
 
-    const memberIds = [...new Set([...users.map((user) => user.id), currentUser.id])];
     if (memberIds.length) {
       const { error: membersError } = await supabase.from('channel_members').upsert(
         memberIds.map((userId) => ({ channel_id: newChan.id, user_id: userId })),
@@ -1757,6 +1826,69 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       targetId: newChan.id,
       targetName: newChan.name,
       metadata: { private: newChan.isPrivate, announcement: newChan.type === 'announcement' },
+    });
+  };
+
+  const deleteChannel = async (id: string) => {
+    const channel = channels.find((item) => item.id === id);
+    if (!channel) return;
+    const { error: messagesError } = await supabase.from('messages').delete().eq('conversation_id', id);
+    if (messagesError) throw messagesError;
+    const { error: channelError } = await supabase.from('channels').delete().eq('id', id);
+    if (channelError) throw channelError;
+    const remaining = channels.filter((item) => item.id !== id);
+    setChannels(remaining);
+    setActiveChannelId(remaining[0]?.id || '');
+    await recordSystemActivity({ eventType: 'channel_deleted', summary: `Deleted channel #${channel.name}.`, targetType: 'channel', targetId: id, targetName: channel.name, metadata: {} });
+  };
+
+  const updateChannel: WorkspaceContextType['updateChannel'] = async (id, changes) => {
+    const channel = channels.find((item) => item.id === id);
+    if (!channel) throw new Error('That channel could not be found.');
+    const cleanName = changes.name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-_]/g, '');
+    if (!cleanName) throw new Error('Enter a channel name.');
+    if (channels.some((item) => item.id !== id && item.name === cleanName)) throw new Error(`A channel named #${cleanName} already exists.`);
+    const { error: channelError } = await supabase.from('channels').update({
+      name: cleanName,
+      description: changes.description,
+      type: changes.type,
+      is_private: changes.isPrivate,
+      posting_roles: changes.postingRoles,
+      image_url: changes.imageUrl || null,
+    }).eq('id', id);
+    if (channelError) throw channelError;
+
+    const ownerId = channel.createdBy || currentUser.id;
+    const nextMembers = [...new Set([ownerId, ...changes.memberIds])];
+    if (changes.isPrivate) {
+      const { error: upsertError } = await supabase.from('channel_members').upsert(
+        nextMembers.map((userId) => ({ channel_id: id, user_id: userId })),
+        { onConflict: 'channel_id,user_id' }
+      );
+      if (upsertError) throw upsertError;
+      const removed = channel.members.filter((userId) => !nextMembers.includes(userId));
+      if (removed.length) {
+        const { error: removeError } = await supabase.from('channel_members').delete().eq('channel_id', id).in('user_id', removed);
+        if (removeError) throw removeError;
+      }
+    }
+    setChannels((previous) => previous.map((item) => item.id === id ? {
+      ...item,
+      name: cleanName,
+      description: changes.description,
+      type: changes.type,
+      isPrivate: changes.isPrivate,
+      postingRoles: changes.postingRoles,
+      imageUrl: changes.imageUrl,
+      members: changes.isPrivate ? nextMembers : users.map((user) => user.id),
+    } : item));
+    await recordSystemActivity({
+      eventType: 'channel_updated',
+      summary: `Updated channel #${cleanName}.`,
+      targetType: 'channel',
+      targetId: id,
+      targetName: cleanName,
+      metadata: { private: changes.isPrivate },
     });
   };
 
@@ -1791,6 +1923,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     void supabase
+      .from('conversations')
+      .upsert({ id: newId, type: newConv.type, name: isGroup ? newConv.name : null, created_by: currentUser.id }, { onConflict: 'id' })
+      .then(({ error }) => { if (error) console.warn('Conversation details were not saved:', error.message); });
+    void supabase
       .from('conversation_participants')
       .upsert({ conversation_id: newId, user_id: currentUser.id }, { onConflict: 'conversation_id,user_id' })
       .then(async ({ error }) => {
@@ -1822,59 +1958,78 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   // Calendar Event
-  const createCalendarEvent = async (event: Omit<CalendarEvent, 'id' | 'createdBy'>) => {
-    const newEvt: CalendarEvent = {
+  const createCalendarEvent = async (event: Omit<CalendarEvent, 'id' | 'createdBy'>, recurrence?: { days: number[]; count: number }) => {
+    const stamp = Date.now();
+    const teamIds = event.scope === 'team' ? event.teamIds || [] : [];
+    const attendees = event.scope === 'team'
+      ? [...new Set([currentUser.id, ...users.filter((user) => teamIds.includes(user.department)).map((user) => user.id)])]
+      : [currentUser.id];
+    const dates = [event.date];
+    if (recurrence && recurrence.count > 1 && recurrence.days.length) {
+      const [y, m, d] = event.date.split('-').map(Number);
+      const cursor = new Date(y, m - 1, d);
+      for (let guard = 0; dates.length < Math.min(recurrence.count, 60) && guard < 800; guard += 1) {
+        cursor.setDate(cursor.getDate() + 1);
+        if (recurrence.days.includes(cursor.getDay())) {
+          dates.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`);
+        }
+      }
+    }
+    const recurrenceId = dates.length > 1 ? `rec-${stamp}` : undefined;
+    const created: CalendarEvent[] = dates.map((date, index) => ({
       ...event,
-      id: `evt-${Date.now()}`,
+      date,
+      teamIds,
+      attendees,
+      recurrenceId,
+      id: `evt-${stamp}-${index}`,
       createdBy: currentUser.id,
-    };
-    setCalendarEvents((prev) => [newEvt, ...prev]);
-    sounds.playNotification();
+    }));
 
+    const { error } = await supabase.from('calendar_events').insert(created.map((evt) => ({
+      id: evt.id,
+      title: evt.title,
+      description: evt.description,
+      date: evt.date,
+      start_time: evt.startTime,
+      end_time: evt.endTime,
+      scope: evt.scope,
+      category: evt.category,
+      location: evt.location,
+      color: evt.color,
+      team_ids: teamIds,
+      attendees,
+      is_call: Boolean(evt.isCall),
+      recurrence_id: recurrenceId || null,
+      created_by: currentUser.id,
+    })));
+    if (error) throw new Error(`The event could not be saved: ${error.message}`);
+
+    setCalendarEvents((prev) => [...created, ...prev]);
+    sounds.playNotification();
     if (event.scope === 'team') {
       setNotifications((prev) => [
         {
-          id: `notif-team-${Date.now()}`,
+          id: `notif-team-${stamp}`,
           type: 'calendar',
-          title: `New Team Event Added: ${event.title}`,
+          title: `New event: ${event.title}`,
           description: `${currentUser.name} scheduled an event on ${event.date} at ${event.startTime}`,
           timestamp: 'Just now',
           isRead: false,
           linkTab: 'calendar',
-          targetId: newEvt.id,
+          targetId: created[0].id,
         },
         ...prev,
       ]);
     }
-
-    try {
-      const { error } = await supabase.from('calendar_events').insert({
-        id: newEvt.id,
-        title: newEvt.title,
-        description: newEvt.description,
-        date: newEvt.date,
-        start_time: newEvt.startTime,
-        end_time: newEvt.endTime,
-        scope: newEvt.scope,
-        category: newEvt.category,
-        location: newEvt.location,
-        color: newEvt.color,
-        created_by: currentUser.id,
-      });
-      if (error) throw error;
-      await recordSystemActivity({
-        eventType: 'calendar_event_created',
-        summary: newEvt.scope === 'team'
-          ? `Scheduled a team calendar event: ${newEvt.title}.`
-          : 'Added a personal calendar event.',
-        targetType: 'calendar_event',
-        targetId: newEvt.scope === 'team' ? newEvt.id : undefined,
-        targetName: newEvt.scope === 'team' ? newEvt.title : undefined,
-        metadata: newEvt.scope === 'team' ? { date: newEvt.date, scope: newEvt.scope } : { scope: newEvt.scope },
-      });
-    } catch {
-      // Activity is only logged when the event was persisted.
-    }
+    void recordSystemActivity({
+      eventType: 'calendar_event_created',
+      summary: event.scope === 'team' ? `Scheduled a shared calendar event: ${event.title}.` : 'Added a personal calendar event.',
+      targetType: 'calendar_event',
+      targetId: event.scope === 'team' ? created[0].id : undefined,
+      targetName: event.scope === 'team' ? event.title : undefined,
+      metadata: { date: event.date, scope: event.scope, occurrences: created.length },
+    });
   };
 
   const deleteCalendarEvent = async (id: string) => {
@@ -1900,7 +2055,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   // Calls
-  const startCall = async (type: 'audio' | 'video', peerUser?: User, channel?: Channel) => {
+  const startCall = async (type: 'audio' | 'video', peerUser?: User, channel?: Channel, participantIds?: string[]) => {
     setCallError('');
     if (callSession.active) {
       setCallError('You are already in a call.');
@@ -1914,7 +2069,9 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     const isChannelCall = Boolean(channel) || (!peerUser && activeTab === 'channels');
     const targetChannel = channel || (isChannelCall ? channels.find((item) => item.id === activeChannelId) : undefined);
     const conversation = conversations.find((item) => item.id === activeConversationId);
-    const participants = isChannelCall && targetChannel
+    const participants = participantIds
+      ? [...new Set([currentUser.id, ...participantIds])]
+      : isChannelCall && targetChannel
       ? [...new Set([currentUser.id, ...targetChannel.members])]
       : peerUser
         ? conversation?.participants.includes(peerUser.id)
@@ -1924,7 +2081,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           ? [...new Set([currentUser.id, ...conversation.participants])]
           : [];
 
-    if (!targetChannel && !peerUser && !conversation) {
+    if (!participantIds && !targetChannel && !peerUser && !conversation) {
       setCallError('Open a direct message or channel before starting a call.');
       return;
     }
@@ -1945,7 +2102,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     const row = {
       id: sessionId,
       room_name: sessionId,
-      conversation_id: targetChannel ? null : conversation?.id || null,
+      conversation_id: targetChannel || participantIds ? null : conversation?.id || null,
       channel_id: targetChannel?.id || null,
       caller_id: currentUser.id,
       participant_ids: participants,
@@ -2212,6 +2369,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         togglePinConversation,
         togglePinChannel,
         createChannel,
+        updateChannel,
+        deleteChannel,
         createConversation,
         createCalendarEvent,
         deleteCalendarEvent,

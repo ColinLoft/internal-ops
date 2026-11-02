@@ -8,13 +8,16 @@ import {
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { UserRole } from '../../types';
+import { ChannelMemberPicker } from './EditChannelModal';
 
 export const CreateChannelModal: React.FC = () => {
   const {
     isCreateChannelOpen,
     setIsCreateChannelOpen,
     createChannel,
+    currentUser,
   } = useWorkspace();
+  const [memberIds, setMemberIds] = useState<string[]>([]);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -44,12 +47,15 @@ export const CreateChannelModal: React.FC = () => {
         type,
         postingRoles,
         isPrivate,
+        memberIds,
       });
       setIsCreateChannelOpen(false);
       setName('');
       setDescription('');
       setType('standard');
       setPostingLevel('all');
+      setIsPrivate(false);
+      setMemberIds([]);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Please try again.');
     } finally {
@@ -223,6 +229,13 @@ export const CreateChannelModal: React.FC = () => {
               />
             </button>
           </div>
+
+          {isPrivate && (
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-slate-700">Who can access this channel</p>
+              <ChannelMemberPicker selected={memberIds} lockedId={currentUser.id} onChange={setMemberIds} />
+            </div>
+          )}
 
           {/* Actions */}
           <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">

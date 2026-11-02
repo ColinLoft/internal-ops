@@ -11,10 +11,12 @@ import {
   Plus,
   UserPlus,
   ArrowLeft,
+  Settings,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { MessageBubble } from './MessageBubble';
 import { MessageComposer } from './MessageComposer';
+import { EditChannelModal } from '../modals/EditChannelModal';
 
 interface ChatFeedProps {
   onBack?: () => void;
@@ -41,6 +43,7 @@ export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
   } = useWorkspace();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isEditingChannel, setIsEditingChannel] = React.useState(false);
 
   const isChannel = activeTab === 'channels';
   const currentConv = conversations.find((c) => c.id === activeConversationId);
@@ -134,7 +137,9 @@ export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
                   currentChan?.isPrivate ? 'bg-slate-100 text-slate-700' : 'bg-brand-100 text-brand-700'
                 }`}
               >
-                {currentChan?.isPrivate ? (
+                {currentChan?.imageUrl ? (
+                  <img src={currentChan.imageUrl} alt="" className="h-10 w-10 rounded-2xl object-cover" />
+                ) : currentChan?.isPrivate ? (
                   <Lock className="w-4 h-4" />
                 ) : (
                   <Hash className="w-5 h-5 font-bold" />
@@ -225,6 +230,18 @@ export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
             <Video className="w-4 h-4" />
           </button>
 
+          {isChannel && currentChan && (currentChan.createdBy === currentUser.id || currentUser.systemRole === 'admin' || currentUser.systemRole === 'coordinator') && (
+            <button
+              type="button"
+              onClick={() => setIsEditingChannel(true)}
+              aria-label="Edit channel"
+              className="p-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80 transition-all shadow-2xs"
+              title="Edit channel"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
+
           {/* Right Drawer Info Toggle */}
           <button
             onClick={toggleRightDrawer}
@@ -287,6 +304,7 @@ export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
           isAnnouncementRestricted={isAnnouncementRestricted}
         />
       </div>
+      {isEditingChannel && currentChan && <EditChannelModal key={currentChan.id} channel={currentChan} onClose={() => setIsEditingChannel(false)} />}
     </div>
   );
 };

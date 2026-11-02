@@ -467,7 +467,7 @@ export const DrivePage: React.FC = () => {
                   icon={itemIcon(item.item_type)}
                   iconClass={itemColor(item.item_type)}
                   moveTargets={moveTargetsFor(item)}
-                  onOpen={() => item.item_type === 'folder' || item.item_type === 'file' ? setSelectedItem(item) : openEditor(item)}
+                  onOpen={() => item.item_type === 'folder' ? (setSection('drive'), setSelectedItem(null), setCurrentFolderId(item.id)) : item.item_type === 'file' ? setSelectedItem(item) : openEditor(item)}
                   onEnter={() => item.item_type === 'folder' ? (setSection('drive'), setCurrentFolderId(item.id)) : item.item_type === 'file' ? setSelectedItem(item) : openEditor(item)}
                   onToggleStar={() => void toggleStar(item)}
                   onRename={(name) => void renameItem(item, name)}

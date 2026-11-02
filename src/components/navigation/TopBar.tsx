@@ -317,7 +317,7 @@ export const TopBar: React.FC = () => {
               <div className="space-y-3">
                 {visibleGroups.map((group) => (
                   <section key={group.title}>
-                    <p className="mb-1 px-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">{group.title}</p>
+                    <h4 className="sr-only">{group.title}</h4>
                     <div className="grid grid-cols-3 gap-1">
                       {group.apps.map((app) => {
                         const Icon = app.icon;
@@ -329,9 +329,10 @@ export const TopBar: React.FC = () => {
                             onClick={() => openApp(app.id)}
                             title={app.name}
                             aria-label={app.name}
-                            className={`group flex min-h-[64px] flex-col items-center justify-center rounded-xl border p-2 text-center transition-colors ${isActive ? 'border-brand-300 bg-brand-50' : 'border-transparent hover:border-slate-200 hover:bg-slate-50'}`}
+                            aria-current={isActive ? 'page' : undefined}
+                            className="group flex min-h-[56px] flex-col items-center justify-center rounded-xl p-2 text-center"
                           >
-                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 transition-colors group-hover:bg-brand-100">
+                            <span className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all group-hover:opacity-100 ${isActive ? 'text-brand-600 opacity-100' : 'text-slate-500 opacity-60'}`}>
                               <Icon className="h-5 w-5" />
                             </span>
                             <span className="sr-only">{app.name}</span>

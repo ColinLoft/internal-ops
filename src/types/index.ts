@@ -165,6 +165,8 @@ export interface Channel {
   description: string;
   type: 'standard' | 'announcement';
   isPrivate: boolean;
+  imageUrl?: string;
+  createdBy?: string;
   members: string[]; // user IDs
   postingRoles: UserRole[]; // e.g. ['admin', 'coordinator'] for announcements, or ['admin', 'coordinator', 'member']
   isPinned?: boolean;
@@ -193,6 +195,9 @@ export interface CalendarEvent {
   category: EventCategory;
   location?: string;
   attendees?: string[]; // user IDs
+  teamIds?: string[]; // department names the event is shared with; empty = only the creator
+  isCall?: boolean;
+  recurrenceId?: string;
   createdBy: string;
   color?: string;
 }
