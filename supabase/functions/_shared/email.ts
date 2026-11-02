@@ -1,7 +1,8 @@
 import { createClient, type User } from 'https://esm.sh/@supabase/supabase-js@2';
 
 export const emailCorsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('SITE_URL') ? new URL(Deno.env.get('SITE_URL')!).origin : '*',
+  'Vary': 'Origin',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -644,4 +645,16 @@ const normalizeGraphMessage = async (
     expires_at: expiresAt(receivedAt),
     synced_at: new Date().toISOString(),
   };
+};
+
+export const timingSafeEqual = (a: string | null, b: string | null) => {
+  if (!a || !b) return false;
+  const encoder = new TextEncoder();
+  const left = encoder.encode(a);
+  const right = encoder.encode(b);
+  let diff = left.length ^ right.length;
+  for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+    diff |= (left[index] ?? 0) ^ (right[index] ?? 0);
+  }
+  return diff === 0;
 };

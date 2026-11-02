@@ -1,7 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('SITE_URL') ? new URL(Deno.env.get('SITE_URL')!).origin : '*',
+  'Vary': 'Origin',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -72,7 +73,7 @@ Deno.serve(async (request: Request) => {
   if (!siteUrl) return jsonResponse({ error: 'The invitation function requires the SITE_URL secret.' }, 500);
 
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
-  const randomBytes = crypto.getRandomValues(new Uint8Array(8));
+  const randomBytes = crypto.getRandomValues(new Uint8Array(16));
   const temporaryPassword = Array.from(randomBytes, (byte) => alphabet[byte % alphabet.length]).join('');
   const { data: existingProfile, error: existingProfileError } = await adminClient
     .from('profiles')

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { bytesToBase64Url, getAccessToken, recordEmailActivity } from '../_shared/email.ts';
+import { bytesToBase64Url, getAccessToken, recordEmailActivity, timingSafeEqual } from '../_shared/email.ts';
 
 const jsonResponse = (body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -169,7 +169,7 @@ const processScheduledSends = async (adminClient: ReturnType<typeof createClient
 Deno.serve(async (request: Request) => {
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405);
   const expectedSecret = Deno.env.get('MAIL_MAINTENANCE_SECRET');
-  if (!expectedSecret || request.headers.get('x-mail-maintenance-secret') !== expectedSecret) {
+  if (!expectedSecret || !timingSafeEqual(request.headers.get('x-mail-maintenance-secret'), expectedSecret)) {
     return jsonResponse({ error: 'Maintenance authentication failed.' }, 401);
   }
 
