@@ -166,7 +166,7 @@ export const UpcomingDates: React.FC<{ grants: Grant[] }> = ({ grants }) => {
   prospects.forEach((row) => row.deadline && items.push({ date: row.deadline, label: row.name, kind: 'Application deadline', path: '/finance/prospects' }));
   reports.forEach((row) => row.due_date && items.push({ date: row.due_date, label: `${row.title} — ${grants.find((g) => g.id === row.grant_id)?.name || ''}`, kind: 'Report due', path: `/finance/grants/${row.grant_id}` }));
   grants.forEach((g) => {
-    if (g.decision_due_at && g.stage === 'under_review') items.push({ date: g.decision_due_at, label: g.name, kind: 'Decision expected', path: `/finance/grants/${g.id}` });
+    if (g.decision_due_at && g.stage === 'applied') items.push({ date: g.decision_due_at, label: g.name, kind: 'Decision expected', path: `/finance/grants/${g.id}` });
     if (g.next_follow_up_at && !['declined', 'closed'].includes(g.stage)) items.push({ date: g.next_follow_up_at.slice(0, 10), label: g.name, kind: 'Follow up', path: `/finance/grants/${g.id}` });
     if (g.term_end && ['awarded', 'reporting'].includes(g.stage)) items.push({ date: g.term_end, label: g.name, kind: 'Grant term ends', path: `/finance/grants/${g.id}` });
   });

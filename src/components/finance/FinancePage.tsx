@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { GrantDetail } from './GrantDetail';
 import { GrantsPage } from './GrantsPage';
-import { GrantAutomation, GrantReports, GrantsOverview } from './GrantsViews';
 import { ProspectsPage } from './ProspectsPage';
 import { ResourcesPage } from './ResourcesPage';
 
@@ -23,8 +22,6 @@ export const FinancePage: React.FC = () => {
     case 'grants': return route.id ? <GrantDetail key={route.id} grantId={route.id} /> : <GrantsPage />;
     case 'prospects': return <ProspectsPage />;
     case 'resources': return <ResourcesPage />;
-    case 'reports': return <GrantReports />;
-    case 'automation': return <GrantAutomation />;
-    default: return <GrantsOverview />;
+    default: return <GrantsPage />;
   }
 };

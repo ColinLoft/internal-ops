@@ -15,9 +15,18 @@ type InboxEmail = { id: string; subject: string; sender_name: string; sender_ema
 
 const EVENT_TYPES = ['note', 'email_sent', 'email_received', 'application', 'call', 'meeting', 'decision', 'payment', 'report', 'follow_up', 'document'];
 const eventLabel = (value: string) => value.replace(/_/g, ' ').replace(/^./, (char) => char.toUpperCase());
-const TABS = ['Overview', 'People', 'Application', 'Timeline', 'Emails', 'Money & reports', 'Tasks', 'Files & links', 'AI', 'Discussion'] as const;
+const TABS = ['Overview', 'Activity', 'Files & reports'] as const;
 type Tab = typeof TABS[number];
 const label = 'text-xs font-semibold text-slate-500';
+const Fold: React.FC<{ title: string; open?: boolean; children: React.ReactNode }> = ({ title, open = false, children }) => {
+  const [shown, setShown] = useState(open);
+  return (
+    <section className={card}>
+      <button type="button" aria-expanded={shown} onClick={() => setShown(!shown)} className="flex w-full items-center justify-between text-left text-sm font-bold text-slate-900">{title}<span className="text-xs font-semibold text-slate-400">{shown ? 'Hide' : 'Show'}</span></button>
+      {shown && <div className="mt-3">{children}</div>}
+    </section>
+  );
+};
 
 export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
   const { users, currentUser } = useWorkspace();
@@ -121,8 +130,7 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
               <label className={label}>Other funder email addresses (comma separated, used to match emails)<input value={grant.funder_emails.join(', ')} onChange={(event) => setGrant({ ...grant, funder_emails: event.target.value.split(',').map((item) => item.trim()) })} onBlur={() => void patch({ funder_emails: grant.funder_emails.filter(Boolean).map((item) => item.toLowerCase()) })} className={field} /></label>
               <div className="flex flex-wrap gap-3 text-xs font-semibold text-brand-600">{[['Website', grant.website_url], ['Portal', grant.portal_url], ['Application', grant.application_url]].map(([name, url]) => url && /^https?:\/\//i.test(url) ? <a key={name} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1"><ExternalLink className="h-3 w-3" />{name}</a> : null)}</div>
             </section>
-            <section className={`${card} space-y-3`}>
-              <h3 className="text-sm font-bold text-slate-900">How we found it & who secured it</h3>
+            <Fold title="How we found it & who secured it"><div className="space-y-3">
               <label className={label}>Source<select value={grant.source || ''} onChange={(event) => void patch({ source: event.target.value || null })} className={field}><option value="">Not recorded</option>{SOURCES.map((item) => <option key={item}>{item}</option>)}</select></label>
               {area('source_detail', 'How we heard about it', 'Who told us, where we saw it, the story…')}
               <div className="grid gap-3 sm:grid-cols-2">
@@ -131,34 +139,45 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
               </div>
               <label className={label}>Linked project<select value={grant.project_id || ''} onChange={(event) => void patch({ project_id: event.target.value || null }, 'linked a project')} className={field}><option value="">None</option>{projects.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
               {grant.project_id && <button type="button" onClick={() => goTo(`/programs/project/${grant.project_id}`)} className="text-xs font-bold text-brand-600">Open project</button>}
-            </section>
+            </div></Fold>
             <section className={`${card} space-y-3`}>
               <h3 className="text-sm font-bold text-slate-900">Ask & award</h3>
               <label className={label}>Grant type<select value={grant.grant_type} onChange={(event) => void patch({ grant_type: event.target.value }, 'changed the grant type')} className={field}>{GRANT_TYPES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
               <div className="grid gap-3 sm:grid-cols-2">{grant.grant_type !== 'product' && amount('amount_requested', 'Cash requested ($)')}{grant.grant_type !== 'product' && amount('amount_awarded', 'Cash awarded ($)')}{grant.grant_type !== 'money' && text('in_kind_requested', 'Product requested')}{grant.grant_type !== 'money' && text('in_kind_awarded', 'Product awarded')}</div>
               <div className="grid gap-3 sm:grid-cols-2">{text('application_submitted_at', 'Application sent', 'date')}{text('decision_due_at', 'Decision expected', 'date')}{text('decision_at', 'Decision received', 'date')}{text('award_date', 'Award date', 'date')}{text('term_start', 'Term start', 'date')}{text('term_end', 'Term end', 'date')}{text('next_follow_up_at', 'Next follow-up', 'date')}</div>
             </section>
-            <section className={`${card} space-y-3`}>
-              <h3 className="text-sm font-bold text-slate-900">Response, terms & what we owe</h3>
+            <Fold title="Response, terms & what we owe"><div className="space-y-3">
               {area('funder_response', 'Funder response', 'What the funder said about our application')}
               {area('decision_notes', 'Decision notes')}
               {area('obligations', 'What we must do in return', 'Recognition, reports, events, deliverables…')}
               {area('restrictions', 'Restrictions on use of funds')}
               {text('match_required', 'Matching funds required')}
-            </section>
+            </div></Fold>
             <section className="lg:col-span-2"><h3 className="mb-2 text-sm font-bold text-slate-900">Notes</h3><RichNotes value={grant.notes || ''} onSave={(html) => patch({ notes: html }, 'updated notes')} placeholder="Research, strategy, internal notes…" /></section>
           </div>
         )}
 
-        {tab === 'People' && <PeopleTab grant={grant} onError={setError} onGrantChange={(values) => setGrant((current) => (current ? { ...current, ...values } : current))} />}
-        {tab === 'Application' && <RequirementsTab grantId={grantId} userName={userName} users={users} onError={setError} />}
-        {tab === 'AI' && <AiTab grantId={grantId} onSaveDraft={(title, body) => addEvent({ title, body, event_type: 'note', event_date: new Date().toISOString() })} />}
-        {tab === 'Timeline' && <TimelineTab events={events} onAdd={addEvent} onDelete={async (id) => { await supabase.from('grant_events').delete().eq('id', id); await load(); }} userName={userName} />}
-        {tab === 'Emails' && <EmailsTab grant={grant} events={events} onLog={addEvent} onFollowUp={() => setTab('Tasks')} />}
-        {tab === 'Money & reports' && <MoneyTab grantId={grantId} payments={payments} reports={reports} onChanged={load} onError={setError} />}
-        {tab === 'Tasks' && <TasksTab grant={grant} tasks={tasks} currentUserId={currentUser.id} userName={userName} onChanged={load} onError={setError} />}
-        {tab === 'Files & links' && <div className="grid gap-4 lg:grid-cols-2"><AttachmentsPanel entityType="grant" entityId={grantId} /><LinksPanel entityType="grant" entityId={grantId} /></div>}
-        {tab === 'Discussion' && <div className="grid gap-4 lg:grid-cols-2"><CommentsPanel entityType="grant" entityId={grantId} /><ActivityPanel entityType="grant" entityId={grantId} /></div>}
+        {tab === 'Overview' && (
+          <div className="space-y-4">
+            <Fold title="People & contacts"><PeopleTab grant={grant} onError={setError} onGrantChange={(values) => setGrant((current) => (current ? { ...current, ...values } : current))} /></Fold>
+            <Fold title="Application requirements"><RequirementsTab grantId={grantId} userName={userName} users={users} onError={setError} /></Fold>
+            <Fold title="AI assistant"><AiTab grantId={grantId} onSaveDraft={(title, body) => addEvent({ title, body, event_type: 'note', event_date: new Date().toISOString() })} /></Fold>
+          </div>
+        )}
+        {tab === 'Activity' && (
+          <div className="space-y-4">
+            <Fold title="Timeline" open><TimelineTab events={events} onAdd={addEvent} onDelete={async (id) => { await supabase.from('grant_events').delete().eq('id', id); await load(); }} userName={userName} /></Fold>
+            <Fold title="Tasks"><TasksTab grant={grant} tasks={tasks} currentUserId={currentUser.id} userName={userName} onChanged={load} onError={setError} /></Fold>
+            <Fold title="Emails"><EmailsTab grant={grant} events={events} onLog={addEvent} onFollowUp={() => undefined} /></Fold>
+            <Fold title="Discussion"><div className="grid gap-4 lg:grid-cols-2"><CommentsPanel entityType="grant" entityId={grantId} /><ActivityPanel entityType="grant" entityId={grantId} /></div></Fold>
+          </div>
+        )}
+        {tab === 'Files & reports' && (
+          <div className="space-y-4">
+            <MoneyTab grantId={grantId} payments={payments} reports={reports} onChanged={load} onError={setError} />
+            <div className="grid gap-4 lg:grid-cols-2"><AttachmentsPanel entityType="grant" entityId={grantId} /><LinksPanel entityType="grant" entityId={grantId} /></div>
+          </div>
+        )}
       </div>
     </main>
   );

@@ -14,10 +14,9 @@ export const typeLabel = (type: string) => (type === 'product' ? 'Product' : typ
 export const typeTone = (type: string) => (type === 'product' ? 'bg-violet-50 text-violet-700' : type === 'both' ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600');
 
 export const GRANT_STAGES = [
-  ['prospect', 'Prospect'], ['researching', 'Researching'], ['preparing', 'Preparing'], ['applied', 'Applied'], ['under_review', 'Under review'],
-  ['awarded', 'Awarded'], ['declined', 'Declined'], ['reporting', 'Reporting'], ['closed', 'Closed'],
+  ['prospect', 'Prospect'], ['applied', 'Applied'], ['awarded', 'Awarded'], ['reporting', 'Reporting'], ['closed', 'Closed / declined'],
 ] as const;
-export const stageLabel = (stage: string) => GRANT_STAGES.find(([value]) => value === stage)?.[1] || stage;
+export const stageLabel = (stage: string) => GRANT_STAGES.find(([value]) => value === stage)?.[1] || (stage === 'declined' ? 'Closed / declined' : stage);
 export const stageTone = (stage: string) => (['awarded', 'reporting'].includes(stage) ? 'bg-emerald-50 text-emerald-700' : stage === 'declined' ? 'bg-rose-50 text-rose-700' : stage === 'closed' ? 'bg-slate-100 text-slate-600' : ['applied', 'under_review'].includes(stage) ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700');
 export const SOURCES = ['Research / search', 'Referral', 'Board member', 'Staff connection', 'Funder outreach', 'Event / conference', 'Newsletter / listing', 'Previous funder', 'Other'];
 export const money = (value: number | null | undefined) => (value == null ? '—' : new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(value)));

@@ -204,12 +204,9 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
             ].map((item) => { const Icon = item.icon; return <RailButton key={item.label} label={item.label} icon={Icon} selected={routePath === item.path} onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
           ) : isFinance ? (
             <>{[
-              { label: 'Overview', icon: House, path: '/finance' },
-              { label: 'Grant Tracker', icon: Landmark, path: '/finance/grants' },
-              { label: 'Possible Grants', icon: Target, path: '/finance/prospects' },
+              { label: 'Grants', icon: Landmark, path: '/finance/grants' },
+              { label: 'Find Grants', icon: Target, path: '/finance/prospects' },
               { label: 'Resources', icon: BookOpen, path: '/finance/resources' },
-              { label: 'Reports & Payments', icon: BarChart3, path: '/finance/reports' },
-              { label: 'Automation', icon: ListChecks, path: '/finance/automation' },
             ].map((item) => { const Icon = item.icon; return <RailButton key={item.label} label={item.label} icon={Icon} selected={routePath === item.path} onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} />; })}</>
           ) : isGtm ? (
             <>{[

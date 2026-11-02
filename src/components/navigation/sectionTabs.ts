@@ -58,12 +58,9 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
       ];
     case 'finance':
       return [
-        tab('Overview', 'Overview', House, '/finance'),
-        tab('Grant Tracker', 'Tracker', Landmark, '/finance/grants'),
-        tab('Possible Grants', 'Prospects', Target, '/finance/prospects'),
+        tab('Grants', 'Grants', Landmark, '/finance/grants'),
+        tab('Find Grants', 'Find', Target, '/finance/prospects'),
         tab('Resources', 'Library', BookOpen, '/finance/resources'),
-        tab('Reports & Payments', 'Reports', BarChart3, '/finance/reports'),
-        tab('Automation', 'Auto', ListChecks, '/finance/automation'),
       ];
     case 'gtm':
       return [

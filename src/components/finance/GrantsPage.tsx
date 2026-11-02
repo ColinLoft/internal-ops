@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Download, Plus, Search, Settings2, Trash2, X } from 'lucide-react';
+import { Download, Plus, Search, Upload, Settings2, Trash2, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { card, field } from '../work/EntityPanels';
+import { GrantImport } from './GrantImport';
 import { UpcomingDates } from './GrantExtras';
 import { GRANT_STAGES, GRANT_TYPES, Grant, SOURCES, downloadCsv, goTo, money, stageLabel, stageTone, typeLabel, typeTone } from './grantShared';
 
@@ -17,6 +18,7 @@ export const GrantsPage: React.FC = () => {
   const [stage, setStage] = useState('all');
   const [creating, setCreating] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error: loadError } = await supabase.from('grants').select('*').order('updated_at', { ascending: false });
@@ -28,7 +30,7 @@ export const GrantsPage: React.FC = () => {
   const shown = useMemo(() => grants.filter((grant) => (stage === 'all' || grant.stage === stage) && `${grant.name} ${grant.funder_name || ''}`.toLowerCase().includes(query.toLowerCase())), [grants, stage, query]);
   const userName = (id: string | null) => users.find((user) => user.id === id)?.name || 'Unassigned';
   const totals = useMemo(() => ({
-    pipeline: grants.filter((g) => ['prospect', 'researching', 'preparing', 'applied', 'under_review'].includes(g.stage)).reduce((sum, g) => sum + Number(g.amount_requested || 0), 0),
+    pipeline: grants.filter((g) => ['prospect', 'applied'].includes(g.stage)).reduce((sum, g) => sum + Number(g.amount_requested || 0), 0),
     awarded: grants.filter((g) => ['awarded', 'reporting', 'closed'].includes(g.stage)).reduce((sum, g) => sum + Number(g.amount_awarded || 0), 0),
     open: grants.filter((g) => !['declined', 'closed'].includes(g.stage)).length,
   }), [grants]);
@@ -40,6 +42,7 @@ export const GrantsPage: React.FC = () => {
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
         <div><h1 className="text-xl font-bold text-slate-900">Grants</h1><p className="mt-1 text-xs text-slate-500">Track every funder from first idea through award, reporting and follow-up.</p></div>
         <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => setImporting(true)} className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 md:min-h-0 md:py-2"><Upload className="h-3.5 w-3.5" />Import</button>
           <button type="button" onClick={exportCsv} className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 md:min-h-0 md:py-2"><Download className="h-3.5 w-3.5" />Export</button>
           {canConfigure && <button type="button" onClick={() => setSettings(true)} className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 md:min-h-0 md:py-2"><Settings2 className="h-3.5 w-3.5" />Award checklist</button>}
           <button type="button" onClick={() => setCreating(true)} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white md:min-h-0 md:py-2"><Plus className="h-3.5 w-3.5" />New grant</button>
@@ -63,6 +66,7 @@ export const GrantsPage: React.FC = () => {
         ) : <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-500">{grants.length ? 'No grants match your filters.' : 'No grants yet. Add the first funder you are pursuing.'}</div>}
       </div>
       {creating && <NewGrantModal userId={currentUser.id} onClose={() => setCreating(false)} onCreated={(id) => goTo(`/finance/grants/${id}`)} />}
+      {importing && <GrantImport userId={currentUser.id} existing={grants} onClose={() => setImporting(false)} onDone={() => void load()} />}
       {settings && <TemplatesModal onClose={() => setSettings(false)} />}
     </main>
   );
