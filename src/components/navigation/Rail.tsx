@@ -179,10 +179,7 @@ export const Rail: React.FC = () => {
               { label: 'Overview', icon: House, path: '/customers' },
               { label: 'Contacts', icon: ContactRound, path: '/customers/contacts' },
               { label: 'Organizations', icon: Building2, path: '/customers/organizations' },
-              { label: 'Support', icon: LifeBuoy, path: '/customers/support' },
-              { label: 'Activity', icon: ListChecks, path: '/customers/activity' },
-              { label: 'Knowledge', icon: BookOpen, path: '/customers/knowledge' },
-              { label: 'Reports', icon: BarChart3, path: '/customers/reports' },
+              { label: 'Interactions', icon: ListChecks, path: '/customers/activity' },
             ].map((item) => { const Icon = item.icon; return <button key={item.label} type="button" onClick={() => { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className="group relative rounded-2xl p-3 text-slate-400 transition-all hover:bg-slate-800/70 hover:text-slate-100" title={item.label}><Icon className="h-5 w-5" /><span className="absolute left-[78px] z-50 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</>
           ) : isFinance ? (
             <>{[
