@@ -227,6 +227,8 @@ export const EmailInboxPage: React.FC = () => {
   const [draftSaving, setDraftSaving] = useState(false);
   const [drafts, setDrafts] = useState<EmailDraft[]>([]);
 
+  const activeMailboxIdRef = React.useRef('');
+  activeMailboxIdRef.current = activeMailboxId;
   const activeMailbox = mailboxes.find((mailbox) => mailbox.id === activeMailboxId) || null;
   const forwardableChannels = channels.filter((channel) =>
     (!channel.isPrivate || channel.members.includes(currentUser.id))
@@ -291,39 +293,34 @@ export const EmailInboxPage: React.FC = () => {
 
   const refresh = useCallback(async (sync = false, requestedMailboxId?: string) => {
     setError('');
-    setLoading(true);
     try {
       const available = await loadMailboxes();
       const mailboxId = available.find((mailbox) => mailbox.id === requestedMailboxId)?.id
-        || available.find((mailbox) => mailbox.id === activeMailboxId)?.id
+        || available.find((mailbox) => mailbox.id === activeMailboxIdRef.current)?.id
         || available[0]?.id
         || '';
       if (mailboxId) setActiveMailboxId(mailboxId);
-      let activityLogWarning = '';
-      let syncWarning = '';
+      await loadMessages(mailboxId);
+      setLoading(false);
       if (sync && mailboxId) {
         setSyncing(true);
         const { data, error: syncError } = await supabase.functions.invoke('mail-sync', {
           body: { mailboxId },
         });
-        if (syncError) {
-          syncWarning = await getFunctionErrorMessage(syncError);
-        } else if (data?.error) {
-          syncWarning = data.error;
-        } else {
-          activityLogWarning = data?.activityLogWarning || '';
-        }
+        const warning = syncError
+          ? await getFunctionErrorMessage(syncError)
+          : data?.error || data?.activityLogWarning || '';
+        await loadMessages(mailboxId);
+        await loadMailboxes();
+        if (warning) setError(String(warning));
       }
-      await loadMessages(mailboxId);
-      const warnings = [syncWarning, activityLogWarning].filter(Boolean);
-      if (warnings.length) setError(warnings.join(' '));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Email could not be loaded.');
     } finally {
       setLoading(false);
       setSyncing(false);
     }
-  }, [loadMailboxes]);
+  }, [loadMailboxes, loadMessages]);
 
   useEffect(() => {
     let active = true;
@@ -334,11 +331,13 @@ export const EmailInboxPage: React.FC = () => {
   }, [loadMailboxes]);
 
   const silentSyncRef = React.useRef(false);
+  const lastSilentSyncRef = React.useRef(0);
   useEffect(() => {
     if (!activeMailboxId) return;
     const sync = async () => {
-      if (silentSyncRef.current || document.visibilityState !== 'visible') return;
+      if (silentSyncRef.current || document.visibilityState !== 'visible' || Date.now() - lastSilentSyncRef.current < 20_000) return;
       silentSyncRef.current = true;
+      lastSilentSyncRef.current = Date.now();
       try {
         await supabase.functions.invoke('mail-sync', { body: { mailboxId: activeMailboxId } });
         await loadMessages(activeMailboxId);
@@ -412,6 +411,7 @@ export const EmailInboxPage: React.FC = () => {
 
   useEffect(() => {
     if (!activeMailboxId) return;
+    let timer = 0;
     const channel = supabase
       .channel(`email-messages:${activeMailboxId}`)
       .on('postgres_changes', {
@@ -420,10 +420,13 @@ export const EmailInboxPage: React.FC = () => {
         table: 'email_messages',
         filter: `mailbox_id=eq.${activeMailboxId}`,
       }, () => {
-        void loadMessages().catch((loadError) => setError(loadError.message));
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          void loadMessages(activeMailboxId).catch((loadError) => setError(loadError.message));
+        }, 1500);
       })
       .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    return () => { window.clearTimeout(timer); void supabase.removeChannel(channel); };
   }, [activeMailboxId, loadMessages]);
 
   useEffect(() => {

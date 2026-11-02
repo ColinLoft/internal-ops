@@ -476,7 +476,7 @@ export const syncMailbox = async (
       ] as const;
       const folderMessages = await Promise.all(folders.map(async ([folder, folderId]) => {
         const url = new URL(`https://graph.microsoft.com/v1.0/${userPath}/mailFolders/${folderId}/messages`);
-        url.searchParams.set('$top', '100');
+        url.searchParams.set('$top', folder === 'inbox' ? '100' : '30');
         url.searchParams.set('$orderby', 'receivedDateTime desc');
         url.searchParams.set('$select', 'id,conversationId,subject,from,toRecipients,ccRecipients,body,bodyPreview,receivedDateTime,isRead,flag,hasAttachments,parentFolderId');
         const response = await fetch(url, {
@@ -621,6 +621,10 @@ const normalizeGraphMessage = async (
   const from = message.from?.emailAddress || {};
   const bodyHtml = message.body?.contentType === 'html'
     ? await embedGraphInlineImages(String(message.body.content || ''), message, mailbox, accessToken)
+      .catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        return String(message.body.content || '');
+      })
     : '';
   return {
     mailbox_id: mailbox.id,
