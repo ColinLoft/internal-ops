@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { House, MessageSquare, Mail, Calendar as CalendarIcon, Menu } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { getSectionTabs, isSectionSelected } from './sectionTabs';
 
 interface MobileTabBarProps {
   isMenuOpen: boolean;
@@ -11,7 +12,15 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({ isMenuOpen, onToggle
   const { activeTab, setActiveTab, conversations } = useWorkspace();
   const unread = conversations.reduce((total, conversation) => total + (conversation.unreadCount || 0), 0);
 
-  const tabs = [
+  const [routePath, setRoutePath] = useState(window.location.pathname);
+  useEffect(() => {
+    const onRoute = () => setRoutePath(window.location.pathname);
+    window.addEventListener('popstate', onRoute);
+    return () => window.removeEventListener('popstate', onRoute);
+  }, []);
+
+  const sectionTabs = getSectionTabs(activeTab, routePath);
+  const workspaceTabs = [
     { label: 'Home', icon: House, isActive: activeTab === 'home', onSelect: () => setActiveTab('home') },
     {
       label: 'Messages',
@@ -24,6 +33,19 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({ isMenuOpen, onToggle
     { label: 'Calendar', icon: CalendarIcon, isActive: activeTab === 'calendar', onSelect: () => setActiveTab('calendar') },
   ];
 
+  const tabs = sectionTabs
+    ? sectionTabs.slice(0, 4).map((item) => ({
+        label: item.short,
+        icon: item.icon,
+        isActive: isSectionSelected(item, routePath),
+        badge: 0,
+        onSelect: () => {
+          if (window.location.pathname !== item.path) window.history.pushState({}, '', item.path);
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        },
+      }))
+    : workspaceTabs;
+
   const itemClass = (active: boolean) =>
     `relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-colors ${
       active ? 'text-brand-600' : 'text-slate-500 hover:text-slate-800'
@@ -31,7 +53,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({ isMenuOpen, onToggle
 
   return (
     <nav
-      aria-label="Main"
+      aria-label={sectionTabs ? 'Section' : 'Main'}
       className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200/80 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >
       {tabs.map(({ label, icon: Icon, isActive, badge, onSelect }) => (
