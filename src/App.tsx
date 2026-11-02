@@ -28,6 +28,7 @@ import { CustomerPage } from './components/customers/CustomerPage';
 import { FinancePage } from './components/finance/FinancePage';
 import { OperationsPage } from './components/operations/OperationsPage';
 import { LegalPage } from './components/legal/LegalPage';
+import { AdminPage } from './components/admin/AdminPage';
 import { HomePage } from './components/home/HomePage';
 import { NotFoundPage } from './components/NotFoundPage';
 import { HelpPage } from './components/help/HelpPage';
@@ -42,7 +43,7 @@ const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
 }));
 
-const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|finance(?:\/[^/]+)?|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|help|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)?|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
+const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|finance(?:\/[^/]+)?|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|help|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)?|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|systems(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
 
 const WorkspaceShell: React.FC = () => {
   const {
@@ -101,6 +102,7 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'organization' && <OrganizationPage />}
           {activeTab === 'programs' && <ProgramsPage />}
           {activeTab === 'gtm' && <GTMPage />}
+          {activeTab === 'admin' && <AdminPage />}
           {activeTab === 'engineering' && <EngineeringPage />}
           {activeTab === 'messages' && (
             <>
