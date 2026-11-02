@@ -181,7 +181,6 @@ export const SupportPage: React.FC = () => {
       <header className="border-b border-slate-200 bg-white px-5 py-5 sm:px-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-600">Support</p>
             <h1 className="mt-1 text-xl font-bold text-slate-900">Tickets</h1>
             <p className="mt-1 text-xs text-slate-500">Track requests from new through resolution.</p>
           </div>

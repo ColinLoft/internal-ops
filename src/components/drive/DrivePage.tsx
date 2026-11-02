@@ -382,9 +382,9 @@ export const DrivePage: React.FC = () => {
           <p className="mt-2 text-xs font-bold text-slate-800">Drive AI</p>
           <p className="mt-1 text-xs leading-4 text-slate-500">Summarize, draft, and organize your workspace files.</p>
         </div>
-        <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-xl border border-slate-200 bg-white/80 p-2 text-slate-500 hover:border-brand-200 hover:text-brand-700" title="Upload files"><Upload className="h-4 w-4" /></button>
+        <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-3 flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-semibold text-slate-600 hover:border-brand-200 hover:text-brand-700"><Upload className="h-4 w-4" />Upload files</button>
         <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(event) => { const files = Array.from(event.target.files || []); void Promise.all(files.map(uploadFile)); event.target.value = ''; }} />
-        <button type="button" onClick={() => setIsTemplateOpen(true)} className="hidden rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-semibold text-slate-600 hover:border-brand-200 hover:text-brand-700 md:block">Templates</button>
+        <button type="button" onClick={() => setIsTemplateOpen(true)} className="mt-2 hidden w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-left text-xs font-semibold text-slate-600 hover:border-brand-200 hover:text-brand-700 md:block">Templates</button>
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">
@@ -392,7 +392,6 @@ export const DrivePage: React.FC = () => {
           <div className="flex min-w-0 items-center gap-2">
             {currentFolderId && <button type="button" onClick={() => setCurrentFolderId(currentFolder?.parent_id || null)} aria-label="Back" className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 md:min-h-0 md:min-w-0"><ArrowLeft className="h-4 w-4" /></button>}
             <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-600">Flown Drive</p>
               <h1 className="truncate text-lg font-bold text-slate-900">{section === 'shared' ? 'Shared with me' : section === 'starred' ? 'Starred' : section === 'trash' ? 'Trash' : driveView === 'documents' ? 'Docs' : driveView === 'presentations' ? 'Slides' : driveView === 'spreadsheets' ? 'Sheets' : driveView === 'forms' ? 'Forms' : currentFolder?.name || 'My Drive'}</h1>
             </div>
           </div>
@@ -503,7 +502,7 @@ const DriveCreationWorkspace: React.FC<{
       <button type="button" onClick={onBack} className="mb-6 flex min-h-11 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-brand-700 md:min-h-0"><ArrowLeft className="h-4 w-4" /> Back to Drive</button>
       <div className="flex items-start gap-4">
         <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${config.color} text-white shadow-lg`}><Icon className="h-7 w-7" /></div>
-        <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-600">Flown workspace</p><h1 className="mt-1 text-2xl font-bold text-slate-900 md:text-3xl">{config.label}</h1><p className="mt-2 max-w-xl text-sm text-slate-500">{config.description}</p></div>
+        <div><h1 className="mt-1 text-2xl font-bold text-slate-900 md:text-3xl">{config.label}</h1><p className="mt-2 max-w-xl text-sm text-slate-500">{config.description}</p></div>
       </div>
       <section className="mt-10"><div className="mb-4 flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">{`Recent ${config.label.toLowerCase()}`}</h2><span className="text-xs text-slate-400">{recent.length} item{recent.length === 1 ? '' : 's'}</span></div>{recent.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-14 text-center"><Icon className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">Nothing here yet</p><p className="mt-1 text-xs text-slate-500">{`Create your first ${config.label.toLowerCase().replace(/s$/, '')} to get started.`}</p></div> : <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{recent.map((item) => <button key={item.id} type="button" onClick={() => onOpen(item)} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-brand-300 hover:shadow-md"><span className={`flex h-9 w-9 items-center justify-center rounded-xl ${itemColor(item.item_type)}`}><Icon className="h-4 w-4" /></span><span className="mt-4 block truncate text-xs font-bold text-slate-800">{item.name}</span><span className="mt-1 block text-xs text-slate-400">Updated {new Date(item.updated_at).toLocaleDateString()}</span></button>)}</div>}</section>
     </div>
