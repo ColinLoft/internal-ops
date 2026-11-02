@@ -1,21 +1,17 @@
 import React, { useState } from 'react';
 import {
   Message,
-  User,
-} from '../../types';
+  } from '../../types';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
   Phone,
-  PhoneOff,
   Play,
   Pause,
   MessageSquare,
-  Smile,
   FileText,
   MapPin,
   Download,
   Vote,
-  Sparkles,
   CheckCheck,
 } from 'lucide-react';
 

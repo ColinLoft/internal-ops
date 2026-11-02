@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Activity, BarChart3, CalendarDays, CheckCircle2, ChevronDown, Clock3, Download, FileText, FolderKanban, Landmark, Plus, Target, TrendingUp, Users } from 'lucide-react';
+import { Activity, BarChart3, CalendarDays, CheckCircle2, ChevronDown, Clock3, Download, FileText, FolderKanban, Landmark, Plus, Target, TrendingUp, } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 type Section = 'executive' | 'programs' | 'financial' | 'projects' | 'custom';

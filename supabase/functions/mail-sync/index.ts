@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { clientsFor, emailCorsHeaders, hasMailboxAccess, jsonResponse, recordEmailActivity, syncMailbox } from '../_shared/email.ts';
+import { clientsFor, emailCorsHeaders, hasMailboxAccess, jsonResponse, recordEmailActivity, syncMailbox, timingSafeEqual } from '../_shared/email.ts';
 
 Deno.serve(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: emailCorsHeaders });
@@ -20,7 +20,7 @@ Deno.serve(async (request: Request) => {
     let adminClient;
     let callerUser: Awaited<ReturnType<typeof clientsFor>>['user'] | null = null;
 
-    if (webhookKey && internalKey === webhookKey) {
+    if (timingSafeEqual(internalKey, webhookKey ?? null)) {
       const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
       const supabaseUrl = Deno.env.get('SUPABASE_URL');
       if (!serviceRoleKey || !supabaseUrl) throw new Error('Email service is missing Supabase configuration.');

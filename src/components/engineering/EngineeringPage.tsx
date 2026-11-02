@@ -4,7 +4,6 @@ import {
   BarChart3,
   Beaker,
   BookOpen,
-  CheckCircle2,
   ChevronRight,
   Code2,
   FileCheck2,

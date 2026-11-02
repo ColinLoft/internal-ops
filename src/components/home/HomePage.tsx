@@ -7,7 +7,6 @@ import {
   Clock3,
   FileText,
   FolderOpen,
-  Mail,
   MessageSquare,
   Plus,
   Target,

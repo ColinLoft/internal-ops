@@ -1,96 +1,207 @@
-import React, { useMemo, useState } from 'react';
-import {
-  Activity,
-  ArrowUpRight,
-  BarChart3,
-  BookOpen,
-  Building2,
-  CalendarDays,
-  CheckCircle2,
-  ChevronRight,
-  Clock3,
-  ContactRound,
-  Filter,
-  LifeBuoy,
-  Mail,
-  MoreHorizontal,
-  Phone,
-  Plus,
-  Search,
-  Send,
-  Paperclip,
-  MessageCircle,
-  ChevronDown,
-  Tag,
-  UserRound,
-  Users,
-  X,
-} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Building2, CheckCircle2, ContactRound, Plus, Search, Trash2, X, Clock3, MessageSquare } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { useAppAccess } from '../../lib/useAppAccess';
+import { useWorkspace } from '../../context/WorkspaceContext';
 
-type CustomerView = 'overview' | 'contacts' | 'organizations' | 'support' | 'activity' | 'knowledge' | 'reports';
-type Contact = { id: string; name: string; organization: string; role: string; email: string; phone: string; relationship: string; source: string; owner: string; status: 'Customer' | 'Prospect' | 'Partner' };
-type Organization = { id: string; name: string; type: string; description: string; contacts: number; owner: string; status: string; activity: string; };
-type Ticket = { id: string; subject: string; severity: 'Urgent' | 'High' | 'Normal'; status: 'New' | 'In progress' | 'Waiting' | 'Closed'; organization: string; owner: string; updated: string };
-type ActivityItem = { id: string; type: string; subject: string; contact: string; date: string; owner: string };
+type View = 'overview' | 'contacts' | 'organizations' | 'activity';
+type Org = { id: string; name: string; category: string; website: string | null; notes: string | null; owner_id: string | null; created_at: string };
+type Contact = { id: string; organization_id: string | null; name: string; role_title: string | null; email: string | null; phone: string | null; notes: string | null; owner_id: string | null };
+type Interaction = { id: string; organization_id: string | null; contact_id: string | null; kind: string; subject: string; body: string | null; occurred_at: string; follow_up_at: string | null; follow_up_done: boolean; owner_id: string | null };
 
-const contacts: Contact[] = [];
-const organizations: Organization[] = [];
-const initialTickets: Ticket[] = [];
-const initialActivity: ActivityItem[] = [];
+const categories = ['customer', 'prospect', 'partner', 'funder', 'vendor', 'government', 'media', 'community', 'other'];
+const kinds = ['note', 'call', 'email', 'meeting', 'follow_up'];
+const label = (v: string) => v.replace('_', ' ').replace(/^\w/, (c) => c.toUpperCase());
+const viewFromPath = (path: string): View => {
+  const seg = path.split('/')[2];
+  return seg === 'contacts' || seg === 'organizations' || seg === 'activity' ? seg : 'overview';
+};
+const fmt = (d: string) => new Date(d).toLocaleDateString();
+const input = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400';
+const btn = 'inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-50';
+
+type Dialog = { kind: 'org' | 'contact' | 'interaction'; orgId?: string } | null;
 
 export const CustomerPage: React.FC = () => {
-  const [view, setView] = useState<CustomerView>(() => viewFromPath(window.location.pathname));
+  const { currentUser, users } = useWorkspace();
+  const { canView, canEdit, canManage } = useAppAccess('customers');
+  const [view, setView] = useState<View>(() => viewFromPath(window.location.pathname));
+  const [orgs, setOrgs] = useState<Org[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [items, setItems] = useState<Interaction[]>([]);
   const [search, setSearch] = useState('');
-  const [tickets, setTickets] = useState(initialTickets);
-  const [activity, setActivity] = useState(initialActivity);
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [showNew, setShowNew] = useState(false);
+  const [category, setCategory] = useState('all');
+  const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<Dialog>(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    const handleRoute = () => setView(viewFromPath(window.location.pathname));
-    window.addEventListener('popstate', handleRoute);
-    return () => window.removeEventListener('popstate', handleRoute);
+  useEffect(() => {
+    const onRoute = () => setView(viewFromPath(window.location.pathname));
+    window.addEventListener('popstate', onRoute);
+    return () => window.removeEventListener('popstate', onRoute);
   }, []);
 
-  const navigate = (next: CustomerView) => {
-    const path = next === 'overview' ? '/customers' : `/customers/${next}`;
-    window.history.pushState({}, '', path);
-    setView(next);
+  const load = useCallback(async () => {
+    const [o, c, i] = await Promise.all([
+      supabase.from('crm_organizations').select('*').order('name'),
+      supabase.from('crm_contacts').select('*').order('name'),
+      supabase.from('crm_interactions').select('*').order('occurred_at', { ascending: false }).limit(500),
+    ]);
+    const failure = o.error || c.error || i.error;
+    if (failure) setError(failure.message);
+    else setError('');
+    setOrgs((o.data as Org[]) || []);
+    setContacts((c.data as Contact[]) || []);
+    setItems((i.data as Interaction[]) || []);
+    setLoading(false);
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  const orgName = useCallback((id: string | null) => orgs.find((o) => o.id === id)?.name || '—', [orgs]);
+  const contactName = useCallback((id: string | null) => contacts.find((c) => c.id === id)?.name || '', [contacts]);
+  const userName = (id: string | null) => users.find((u) => u.id === id)?.name || '—';
+  const q = search.trim().toLowerCase();
+
+  const run = async (op: PromiseLike<{ error: { message: string } | null }>) => {
+    const { error: e } = await op;
+    if (e) setError(e.message); else { setError(''); await load(); }
   };
-  const filteredContacts = contacts.filter((contact) => Object.values(contact).join(' ').toLowerCase().includes(search.toLowerCase()));
-  const filteredOrganizations = organizations.filter((organization) => Object.values(organization).join(' ').toLowerCase().includes(search.toLowerCase()));
-  const filteredTickets = tickets.filter((ticket) => Object.values(ticket).join(' ').toLowerCase().includes(search.toLowerCase()));
 
-  return <main className="flex min-w-0 flex-1 overflow-hidden bg-[#f7f9fc]">
-    <section className="min-w-0 flex-1 overflow-y-auto"><header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-600">Customer management</p><h1 className="mt-1 text-xl font-bold text-slate-900">{navItems.find((item) => item.id === view)?.label}</h1></div><div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:flex-nowrap"><div className="relative w-full md:w-auto"><Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search this workspace" className="w-full md:w-52 rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-2 text-xs outline-none focus:border-brand-400" /></div><button type="button" onClick={() => setShowNew(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-brand-700"><Plus className="h-3.5 w-3.5" /> Add {view === 'support' ? 'ticket' : view === 'activity' ? 'activity' : 'record'}</button><button type="button" className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"><MoreHorizontal className="h-4 w-4" /></button></div></header><div className="mx-auto max-w-7xl p-5 sm:p-8">{view === 'overview' && <Overview tickets={tickets} organizations={organizations} contacts={contacts} onNavigate={navigate} />} {view === 'contacts' && <ContactsTable contacts={filteredContacts} onSelect={setSelectedContact} />} {view === 'organizations' && <OrganizationsTable organizations={filteredOrganizations} onSelect={setSelectedOrganization} />} {view === 'support' && <SupportTable tickets={filteredTickets} onSelect={setSelectedTicket} onUpdate={(id, status) => setTickets((current) => current.map((ticket) => ticket.id === id ? { ...ticket, status } : ticket))} />} {view === 'activity' && <ActivityTable activity={activity} onAdd={(entry) => setActivity((current) => [entry, ...current])} />} {view === 'knowledge' && <KnowledgeBase />} {view === 'reports' && <Reports tickets={tickets} organizations={organizations} />} {selectedContact && <ContactDrawer contact={selectedContact} onClose={() => setSelectedContact(null)} />} {selectedOrganization && <OrganizationDrawer organization={selectedOrganization} onClose={() => setSelectedOrganization(null)} />} {selectedTicket && <TicketDetail ticket={selectedTicket} onClose={() => setSelectedTicket(null)} onStatusChange={(status) => { setTickets((current) => current.map((ticket) => ticket.id === selectedTicket.id ? { ...ticket, status } : ticket)); setSelectedTicket({ ...selectedTicket, status }); }} />} {showNew && <NewRecordModal view={view} onClose={() => setShowNew(false)} onCreate={(entry) => { setShowNew(false); if (view === 'activity') setActivity((current) => [entry as ActivityItem, ...current]); }} />}</div></section>
-  </main>;
+  const today = new Date();
+  const followUps = useMemo(() => items.filter((i) => i.follow_up_at && !i.follow_up_done).sort((a, b) => a.follow_up_at!.localeCompare(b.follow_up_at!)), [items]);
+  const overdue = followUps.filter((i) => new Date(i.follow_up_at!) < today);
+
+  const tabs: [View, string][] = [['overview', 'Overview'], ['organizations', 'Organizations'], ['contacts', 'Contacts'], ['activity', 'Interactions']];
+  const go = (v: View) => { window.history.pushState({}, '', v === 'overview' ? '/customers' : `/customers/${v}`); setView(v); };
+
+  const filteredOrgs = orgs.filter((o) => (category === 'all' || o.category === category) && (!q || `${o.name} ${o.notes || ''} ${o.website || ''}`.toLowerCase().includes(q)));
+  const filteredContacts = contacts.filter((c) => !q || `${c.name} ${c.email || ''} ${c.role_title || ''} ${orgName(c.organization_id)}`.toLowerCase().includes(q));
+  const filteredItems = items.filter((i) => !q || `${i.subject} ${i.body || ''} ${orgName(i.organization_id)}`.toLowerCase().includes(q));
+  const org = orgs.find((o) => o.id === selectedOrg) || null;
+
+  const interactionRow = (i: Interaction) => (
+    <div key={i.id} className="flex items-start gap-3 rounded-xl border border-slate-100 p-3">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600">{i.follow_up_at && !i.follow_up_done ? <Clock3 className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}</div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-bold text-slate-800">{i.subject}</p>
+        <p className="text-xs text-slate-500">{label(i.kind)} · {orgName(i.organization_id)}{i.contact_id ? ` · ${contactName(i.contact_id)}` : ''} · {fmt(i.occurred_at)}</p>
+        {i.body && <p className="mt-1 whitespace-pre-wrap text-xs text-slate-600">{i.body}</p>}
+        {i.follow_up_at && <p className={`mt-1 text-xs font-semibold ${!i.follow_up_done && new Date(i.follow_up_at) < today ? 'text-rose-600' : 'text-slate-400'}`}>Follow-up {fmt(i.follow_up_at)}{i.follow_up_done ? ' · done' : ''}</p>}
+      </div>
+      {canEdit && i.follow_up_at && !i.follow_up_done && <button type="button" title="Mark follow-up done" onClick={() => run(supabase.from('crm_interactions').update({ follow_up_done: true }).eq('id', i.id))} className="text-emerald-600"><CheckCircle2 className="h-4 w-4" /></button>}
+      {canManage && <button type="button" title="Delete" onClick={() => window.confirm('Delete this interaction?') && run(supabase.from('crm_interactions').delete().eq('id', i.id))} className="text-slate-300 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>}
+    </div>
+  );
+
+  const table = (heads: string[], rows: React.ReactNode[][], empty: string) => (
+    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+      <table className="w-full min-w-[640px] text-xs">
+        <thead><tr className="border-b border-slate-100 bg-slate-50/70">{heads.map((h) => <th key={h} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">{h}</th>)}</tr></thead>
+        <tbody>{rows.length === 0 ? <tr><td colSpan={heads.length} className="px-4 py-8 text-center text-slate-400">{empty}</td></tr> : rows.map((r, i) => <tr key={i} className="border-b border-slate-100 last:border-0">{r.map((c, j) => <td key={j} className="px-4 py-3 text-slate-600">{c}</td>)}</tr>)}</tbody>
+      </table>
+    </div>
+  );
+
+  const addLabel = view === 'contacts' ? 'contact' : view === 'activity' ? 'interaction' : 'organization';
+
+  return (
+    <main className="flex min-w-0 flex-1 overflow-hidden bg-[#f7f9fc]">
+      <section className="min-w-0 flex-1 overflow-y-auto">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-600">Relationships</p>
+            <h1 className="mt-1 text-xl font-bold text-slate-900">{tabs.find((t) => t[0] === view)?.[1]}</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative hidden md:block"><Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search" className="w-52 rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-2 text-xs outline-none focus:border-brand-400" /></div>
+            {canEdit && view !== 'overview' && <button type="button" className={btn} onClick={() => setDialog({ kind: view === 'contacts' ? 'contact' : view === 'activity' ? 'interaction' : 'org' })}><Plus className="h-3.5 w-3.5" /> Add {addLabel}</button>}
+          </div>
+        </header>
+        <nav className="flex gap-1 border-b border-slate-200 bg-white px-5 sm:px-8">
+          {tabs.map(([id, name]) => <button key={id} type="button" onClick={() => go(id)} className={`border-b-2 px-3 py-2 text-xs font-semibold ${view === id ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{name}</button>)}
+        </nav>
+        <div className="mx-auto max-w-7xl space-y-5 p-5 sm:p-8">
+          {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</p>}
+          {loading ? <p className="text-xs text-slate-400">Loading…</p> : !canView && orgs.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-6 text-xs text-slate-500">You don't have access to Relationships. Ask an admin to assign the Relationships team role.</p> : <>
+            {view === 'overview' && <>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {[['Organizations', orgs.length], ['Contacts', contacts.length], ['Follow-ups due', followUps.length], ['Overdue', overdue.length]].map(([l, v]) => <div key={l} className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">{l}</p><p className={`mt-2 text-2xl font-bold ${l === 'Overdue' && Number(v) > 0 ? 'text-rose-600' : 'text-brand-600'}`}>{v}</p></div>)}
+              </div>
+              <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h2 className="text-sm font-bold text-slate-900">Follow-ups</h2>
+                <div className="mt-3 space-y-2">{followUps.length ? followUps.slice(0, 10).map(interactionRow) : <p className="text-xs text-slate-400">Nothing waiting. Log an interaction with a follow-up date to track it here.</p>}</div>
+              </section>
+            </>}
+            {view === 'organizations' && <>
+              <div className="flex flex-wrap gap-1.5">{['all', ...categories].map((c) => <button key={c} type="button" onClick={() => setCategory(c)} className={`rounded-full px-3 py-1 text-xs font-semibold ${category === c ? 'bg-brand-600 text-white' : 'bg-white text-slate-500 ring-1 ring-slate-200'}`}>{label(c)}</button>)}</div>
+              {table(['Organization', 'Category', 'Contacts', 'Owner', 'Added'], filteredOrgs.map((o) => [
+                <button type="button" onClick={() => setSelectedOrg(o.id)} className="flex items-center gap-2 font-bold text-slate-800"><Building2 className="h-4 w-4 text-brand-600" />{o.name}</button>,
+                label(o.category), contacts.filter((c) => c.organization_id === o.id).length, userName(o.owner_id), fmt(o.created_at),
+              ]), 'No organizations yet.')}
+            </>}
+            {view === 'contacts' && table(['Contact', 'Organization', 'Role', 'Email', 'Phone'], filteredContacts.map((c) => [
+              <span className="flex items-center gap-2 font-bold text-slate-800"><ContactRound className="h-4 w-4 text-brand-600" />{c.name}</span>, orgName(c.organization_id), c.role_title || '—', c.email || '—', c.phone || '—',
+            ]), 'No contacts yet.')}
+            {view === 'activity' && <div className="space-y-2">{filteredItems.length ? filteredItems.map(interactionRow) : <p className="text-xs text-slate-400">No interactions logged.</p>}</div>}
+          </>}
+        </div>
+      </section>
+
+      {org && (
+        <aside className="w-full max-w-md shrink-0 overflow-y-auto border-l border-slate-200 bg-white p-5">
+          <div className="flex items-start justify-between"><div><h2 className="text-base font-bold text-slate-900">{org.name}</h2><p className="text-xs text-slate-500">{label(org.category)}{org.website ? ` · ${org.website}` : ''}</p></div><button type="button" aria-label="Close" onClick={() => setSelectedOrg(null)}><X className="h-4 w-4 text-slate-400" /></button></div>
+          {org.notes && <p className="mt-3 whitespace-pre-wrap text-xs text-slate-600">{org.notes}</p>}
+          <h3 className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-400">Contacts</h3>
+          <ul className="mt-2 space-y-1 text-xs text-slate-700">{contacts.filter((c) => c.organization_id === org.id).map((c) => <li key={c.id}>{c.name}{c.role_title ? ` · ${c.role_title}` : ''}{c.email ? ` · ${c.email}` : ''}</li>)}</ul>
+          <div className="mt-3 flex gap-2">{canEdit && <><button type="button" className={btn} onClick={() => setDialog({ kind: 'contact', orgId: org.id })}><Plus className="h-3 w-3" /> Contact</button><button type="button" className={btn} onClick={() => setDialog({ kind: 'interaction', orgId: org.id })}><Plus className="h-3 w-3" /> Interaction</button></>}{canManage && <button type="button" className="rounded-xl border border-rose-200 px-3 py-2 text-xs font-bold text-rose-600" onClick={() => window.confirm(`Delete ${org.name} and its interactions?`) && run(supabase.from('crm_organizations').delete().eq('id', org.id)).then(() => setSelectedOrg(null))}>Delete</button>}</div>
+          <h3 className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-400">History</h3>
+          <div className="mt-2 space-y-2">{items.filter((i) => i.organization_id === org.id).map(interactionRow)}</div>
+        </aside>
+      )}
+
+      {dialog && <RecordDialog dialog={dialog} orgs={orgs} contacts={contacts} userId={currentUser.id} onClose={() => setDialog(null)} onSave={async (table, row) => { const { error: e } = await supabase.from(table).insert(row); if (e) return e.message; setDialog(null); await load(); return ''; }} />}
+    </main>
+  );
 };
 
-const viewFromPath = (path: string): CustomerView => { const segment = path.split('/')[2]; return (['contacts', 'organizations', 'support', 'activity', 'knowledge', 'reports'] as CustomerView[]).includes(segment as CustomerView) ? segment as CustomerView : 'overview'; };
-const navItems = [{ id: 'overview' as const, label: 'Overview', icon: BarChart3 }, { id: 'contacts' as const, label: 'Contacts', icon: ContactRound }, { id: 'organizations' as const, label: 'Organizations', icon: Building2 }, { id: 'support' as const, label: 'Support', icon: LifeBuoy }, { id: 'activity' as const, label: 'Activity & follow-ups', icon: Activity }, { id: 'knowledge' as const, label: 'Knowledge base', icon: BookOpen }, { id: 'reports' as const, label: 'Reports', icon: BarChart3 }];
-const Metric: React.FC<{ label: string; value: string; detail: string; color: string }> = ({ label, value, detail, color }) => <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">{label}</p><p className={`mt-2 text-2xl font-bold ${color}`}>{value}</p><p className="mt-1 text-xs text-slate-400">{detail}</p></div>;
-const Overview: React.FC<{ tickets: Ticket[]; organizations: Organization[]; contacts: Contact[]; onNavigate: (view: CustomerView) => void }> = ({ tickets, organizations, contacts, onNavigate }) => <><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Open support requests" value={String(tickets.filter((ticket) => ticket.status !== 'Closed').length)} detail="2 need attention today" color="text-rose-600" /><Metric label="Active opportunities" value="8" detail="$184k estimated value" color="text-brand-600" /><Metric label="Follow-ups due" value="12" detail="4 overdue" color="text-brand-600" /><Metric label="Active organizations" value={String(organizations.length)} detail={`${contacts.length} tracked contacts`} color="text-brand-600" /></div><div className="mt-5 grid gap-5 xl:grid-cols-3"><section className="rounded-2xl border border-slate-200 bg-white p-5 xl:col-span-2"><SectionTitle title="Follow-ups due" icon={<Clock3 className="h-4 w-4" />} action="View activity" onClick={() => onNavigate('activity')} /><div className="mt-4 space-y-2">{initialActivity.map((item) => <div key={item.id} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600"><Phone className="h-4 w-4" /></div><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-slate-800">{item.subject}</p><p className="text-xs text-slate-500">{item.contact} · {item.date}</p></div><button type="button" className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-500">Log</button></div>)}</div></section><section className="rounded-2xl border border-slate-200 bg-white p-5"><SectionTitle title="Support queue" icon={<LifeBuoy className="h-4 w-4" />} action="View queue" onClick={() => onNavigate('support')} /><div className="mt-4 space-y-3">{tickets.map((ticket) => <button key={ticket.id} type="button" onClick={() => onNavigate('support')} className="flex w-full items-start gap-2 text-left"><span className={`mt-1 h-2 w-2 rounded-full ${ticket.severity === 'Urgent' ? 'bg-rose-500' : ticket.severity === 'High' ? 'bg-brand-500' : 'bg-brand-500'}`} /><span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-700">{ticket.subject}</span><span className="text-xs text-slate-400">{ticket.id} · {ticket.status}</span></span></button>)}</div></section></div></>;
-const SectionTitle: React.FC<{ title: string; icon: React.ReactNode; action: string; onClick: () => void }> = ({ title, icon, action, onClick }) => <div className="flex items-center gap-2"><span className="text-brand-600">{icon}</span><h2 className="flex-1 text-sm font-bold text-slate-900">{title}</h2><button type="button" onClick={onClick} className="text-xs font-bold text-brand-700">{action} <ArrowUpRight className="ml-1 inline h-3 w-3" /></button></div>;
-const ContactsTable: React.FC<{ contacts: Contact[]; onSelect: (contact: Contact) => void }> = ({ contacts, onSelect }) => <DataTable headers={['Contact', 'Organization', 'Role', 'Relationship', 'Email', 'Owner']} rows={contacts.map((contact) => [<button type="button" onClick={() => onSelect(contact)} className="flex items-center gap-2 text-left font-bold text-slate-800"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-brand-700">{contact.name[0]}</span>{contact.name}</button>, contact.organization, contact.role, <Badge text={contact.relationship} />, contact.email, contact.owner])} />;
-const OrganizationsTable: React.FC<{ organizations: Organization[]; onSelect: (organization: Organization) => void }> = ({ organizations, onSelect }) => <DataTable headers={['Organization', 'Type', 'Status', 'Contacts', 'Account owner', 'Recent activity']} rows={organizations.map((organization) => [<button type="button" onClick={() => onSelect(organization)} className="flex items-center gap-2 text-left font-bold text-slate-800"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-100 text-brand-700"><Building2 className="h-4 w-4" /></span>{organization.name}</button>, organization.type, <Badge text={organization.status} />, String(organization.contacts), organization.owner, organization.activity])} />;
-const SupportTable: React.FC<{ tickets: Ticket[]; onSelect: (ticket: Ticket) => void; onUpdate: (id: string, status: Ticket['status']) => void }> = ({ tickets, onSelect, onUpdate }) => <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><div className="flex flex-wrap items-center gap-2 border-b border-slate-200 p-4"><div className="flex-1"><p className="text-sm font-bold text-slate-900">Ticket queue</p><p className="mt-1 text-xs text-slate-400">Open a ticket to view the conversation and manage the case.</p></div><button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600"><Filter className="mr-1 inline h-3.5 w-3.5" /> Filters</button><button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">Last 6 days <ChevronDown className="ml-1 inline h-3 w-3" /></button></div><div className="grid grid-cols-2 gap-3 border-b border-slate-100 p-4 sm:grid-cols-5">{[['New', tickets.filter((ticket) => ticket.status === 'New').length, 'text-brand-600'], ['In progress', tickets.filter((ticket) => ticket.status === 'In progress').length, 'text-brand-600'], ['Waiting', tickets.filter((ticket) => ticket.status === 'Waiting').length, 'text-brand-600'], ['Closed', tickets.filter((ticket) => ticket.status === 'Closed').length, 'text-brand-600'], ['All tickets', tickets.length, 'text-slate-700']].map(([label, count, color]) => <div key={label} className="rounded-xl border border-slate-200 p-3"><p className="text-xs text-slate-500">{label}</p><p className={`mt-1 text-xl font-bold ${color}`}>{count}</p></div>)}</div><div className="overflow-x-auto"><table className="w-full min-w-[820px] text-xs"><thead><tr className="border-b border-slate-100 bg-slate-50/70">{['Ticket ID', 'Subject', 'Severity', 'Status', 'Organization', 'Owner', 'Updated', ''].map((header) => <th key={header} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">{header}</th>)}</tr></thead><tbody>{tickets.map((ticket) => <tr key={ticket.id} onClick={() => onSelect(ticket)} className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-brand-50/40"><td className="px-4 py-3 font-bold text-slate-800">{ticket.id}</td><td className="max-w-[230px] truncate px-4 py-3 font-semibold text-slate-700">{ticket.subject}</td><td className="px-4 py-3"><Badge text={ticket.severity} /></td><td className="px-4 py-3" onClick={(event) => event.stopPropagation()}><select value={ticket.status} onChange={(event) => onUpdate(ticket.id, event.target.value as Ticket['status'])} className="rounded-lg border border-slate-200 px-2 py-1 text-xs"><option>New</option><option>In progress</option><option>Waiting</option><option>Closed</option></select></td><td className="px-4 py-3 text-slate-500">{ticket.organization}</td><td className="px-4 py-3 text-slate-500">{ticket.owner}</td><td className="px-4 py-3 text-slate-400">{ticket.updated}</td><td className="px-4 py-3 text-slate-400"><MoreHorizontal className="h-4 w-4" /></td></tr>)}</tbody></table></div></div>;
-const ActivityTable: React.FC<{ activity: ActivityItem[]; onAdd: (entry: ActivityItem) => void }> = ({ activity }) => <DataTable headers={['Type', 'Subject', 'Contact', 'Date', 'Owner']} rows={activity.map((item) => [<Badge text={item.type} />, item.subject, item.contact, item.date, item.owner])} />;
-const DataTable: React.FC<{ headers: string[]; rows: React.ReactNode[][] }> = ({ headers, rows }) => <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><div className="flex items-center justify-between border-b border-slate-200 p-4"><div className="flex items-center gap-2 text-xs text-slate-500"><Filter className="h-3.5 w-3.5" /> Filter <span className="text-slate-300">·</span> Sort</div><span className="text-xs text-slate-400">{rows.length} records</span></div><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-xs"><thead><tr className="border-b border-slate-100 bg-slate-50/70">{headers.map((header) => <th key={header} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">{header}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={index} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">{row.map((cell, cellIndex) => <td key={cellIndex} className="px-4 py-3 text-slate-500">{cell}</td>)}</tr>)}</tbody></table></div></div>;
-const Badge: React.FC<{ text: string }> = ({ text }) => <span className="inline-flex rounded-md bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700">{text}</span>;
-const ContactDrawer: React.FC<{ contact: Contact; onClose: () => void }> = ({ contact, onClose }) => <Drawer title={contact.name} onClose={onClose}><p className="text-xs text-slate-500">{contact.role} at {contact.organization}</p><div className="mt-5 space-y-3"><Info icon={<Mail />} label="Email" value={contact.email} /><Info icon={<Phone />} label="Phone" value={contact.phone} /><Info icon={<Tag />} label="Relationship" value={contact.relationship} /><Info icon={<UserRound />} label="Account owner" value={contact.owner} /></div><div className="mt-7 border-t border-slate-100 pt-5"><h3 className="text-xs font-bold text-slate-800">Account history</h3><p className="mt-2 text-xs leading-5 text-slate-500">Support requests, purchases, meetings, emails, files, and notes will be linked here as the customer record grows.</p></div></Drawer>;
-const OrganizationDrawer: React.FC<{ organization: Organization; onClose: () => void }> = ({ organization, onClose }) => <Drawer title={organization.name} onClose={onClose}><Badge text={organization.status} /><p className="mt-4 text-sm leading-6 text-slate-600">{organization.description}</p><div className="mt-5 space-y-3"><Info icon={<Users />} label="Contacts" value={String(organization.contacts)} /><Info icon={<UserRound />} label="Account owner" value={organization.owner} /><Info icon={<Activity />} label="Activity" value={organization.activity} /></div></Drawer>;
-const TicketDetail: React.FC<{ ticket: Ticket; onClose: () => void; onStatusChange: (status: Ticket['status']) => void }> = ({ ticket, onClose, onStatusChange }) => {
-  const [tab, setTab] = useState<'Conversation' | 'Task' | 'Activity logs' | 'Notes'>('Conversation');
-  const [reply, setReply] = useState('');
-  const [messages, setMessages] = useState<{ author: string; time: string; body: string }[]>([]);
-  const sendReply = () => { const text = reply.trim(); if (!text) return; setMessages((current) => [...current, { author: 'You', time: 'Just now', body: text }]); setReply(''); };
-  return <div className="fixed inset-0 z-50 flex bg-[#eef2f6]"><div className="flex min-w-0 flex-1 flex-col bg-white"><header className="flex items-center gap-2 border-b border-slate-200 px-3 py-3 md:gap-3 md:px-5"><button type="button" onClick={onClose} aria-label="Back to ticket list" className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:min-h-0 md:min-w-0"><ChevronRight className="h-4 w-4 rotate-180" /></button><span className="hidden text-xs font-semibold text-slate-500 md:inline">Ticket list</span><span className="hidden text-slate-300 md:inline">/</span><span className="hidden text-xs font-bold text-slate-800 md:inline">{ticket.id}</span><h2 className="min-w-0 flex-1 truncate text-sm font-bold text-slate-900">{ticket.subject}</h2><button type="button" onClick={() => onStatusChange('Closed')} className="min-h-11 shrink-0 rounded-lg bg-brand-500 px-3 py-2 text-xs font-bold text-white hover:bg-brand-600 md:min-h-0 md:text-xs">Submit as Closed</button><button type="button" aria-label="More actions" className="min-h-11 min-w-11 shrink-0 rounded-lg border border-slate-200 p-2 md:min-h-0 md:min-w-0"><MoreHorizontal className="h-4 w-4 text-slate-500" /></button></header><nav className="flex items-center gap-6 overflow-x-auto border-b border-slate-200 px-4 md:px-16">{(['Conversation', 'Task', 'Activity logs', 'Notes'] as const).map((item) => <button key={item} type="button" onClick={() => setTab(item)} className={`shrink-0 whitespace-nowrap border-b-2 px-1 py-3 text-xs font-bold ${tab === item ? 'border-brand-500 text-brand-600' : 'border-transparent text-slate-500'}`}>{item}</button>)}</nav>{tab === 'Conversation' ? <><div className="flex-1 overflow-y-auto bg-slate-50/50 px-5 py-6 sm:px-16"><div className="mx-auto max-w-3xl"><p className="mb-6 text-center text-xs text-slate-400">Today</p>{messages.map((message, index) => <div key={`${message.author}-${index}`} className={`mb-7 flex gap-3 ${message.author === 'You' ? 'justify-end' : ''}`}><div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${message.author === 'Contact' ? 'bg-brand-100 text-brand-700' : 'bg-brand-100 text-brand-700'}`}>{message.author[0]}</div><div className={`max-w-2xl ${message.author === 'You' ? 'order-first text-right' : ''}`}><p className="mb-1 text-xs text-slate-400">{message.author} · {message.time}</p><div className={`rounded-2xl px-4 py-3 text-xs leading-5 ${message.author === 'You' ? 'bg-brand-600 text-white' : 'bg-white text-slate-700 shadow-sm ring-1 ring-slate-100'}`}>{message.body}</div></div></div>)}</div></div><div className="border-t border-slate-200 bg-white p-4 sm:px-16"><div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white shadow-sm"><textarea value={reply} onChange={(event) => setReply(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) sendReply(); }} placeholder="Write a reply..." className="h-20 w-full resize-none rounded-t-xl px-4 py-3 text-base md:text-xs outline-none" /><div className="flex items-center justify-between border-t border-slate-100 px-3 py-2"><button type="button" aria-label="Attach file" className="flex min-h-11 min-w-11 items-center justify-center text-slate-400 md:min-h-0 md:min-w-0"><Paperclip className="h-4 w-4" /></button><span className="text-xs text-slate-400">⌘ Enter to send</span><button type="button" onClick={sendReply} aria-label="Send reply" className="flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-brand-500 p-2 text-white hover:bg-brand-600 md:min-h-0 md:min-w-0"><Send className="h-4 w-4" /></button></div></div></div></> : <div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-slate-400">{tab} will appear here for this ticket.</div>}</div><aside className="hidden w-72 shrink-0 overflow-y-auto border-l border-slate-200 bg-white p-5 lg:block"><div className="flex items-center justify-between"><h3 className="text-sm font-bold text-slate-900">Ticket details</h3><button type="button" onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center md:min-h-0 md:min-w-0"><X className="h-4 w-4 text-slate-400" /></button></div><div className="mt-5 space-y-4"><div><label className="text-xs font-bold uppercase tracking-wider text-slate-400">Status</label><select value={ticket.status} onChange={(event) => onStatusChange(event.target.value as Ticket['status'])} className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-2 text-base md:text-xs"><option>New</option><option>In progress</option><option>Waiting</option><option>Closed</option></select></div><Info icon={<LifeBuoy />} label="Severity" value={ticket.severity} /><Info icon={<Building2 />} label="Organization" value={ticket.organization} /><Info icon={<UserRound />} label="Owner" value={ticket.owner} /><div className="border-t border-slate-100 pt-4"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Contact</p><p className="mt-2 text-xs font-bold text-slate-800">Contact</p><p className="mt-1 text-xs text-slate-500">contact email unavailable</p><p className="text-xs text-slate-500">contact phone unavailable</p><button type="button" className="mt-3 w-full rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-600"><ContactRound className="mr-1 inline h-3.5 w-3.5" /> View contact</button></div><div className="border-t border-slate-100 pt-4"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Actions</p><button type="button" className="mt-2 w-full rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-600"><Tag className="mr-1 inline h-3.5 w-3.5" /> Add tag</button><button type="button" className="mt-2 w-full rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-600"><BookOpen className="mr-1 inline h-3.5 w-3.5" /> Attach knowledge</button><button type="button" className="mt-2 w-full rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-600"><MessageCircle className="mr-1 inline h-3.5 w-3.5" /> Add internal note</button></div></div></aside></div>;
+const RecordDialog: React.FC<{
+  dialog: NonNullable<Dialog>; orgs: Org[]; contacts: Contact[]; userId: string; onClose: () => void;
+  onSave: (table: string, row: Record<string, unknown>) => Promise<string>;
+}> = ({ dialog, orgs, contacts, userId, onClose, onSave }) => {
+  const [f, setF] = useState<Record<string, string>>({ organization_id: dialog.orgId || '', category: 'other', kind: 'note' });
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF((s) => ({ ...s, [k]: e.target.value }));
+  const blank = (v?: string) => (v && v.trim() ? v.trim() : null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    let table = 'crm_organizations';
+    let row: Record<string, unknown> = { name: f.name?.trim(), category: f.category, website: blank(f.website), notes: blank(f.notes), owner_id: userId };
+    if (dialog.kind === 'contact') {
+      table = 'crm_contacts';
+      row = { name: f.name?.trim(), organization_id: blank(f.organization_id), role_title: blank(f.role_title), email: blank(f.email), phone: blank(f.phone), notes: blank(f.notes), owner_id: userId };
+    } else if (dialog.kind === 'interaction') {
+      table = 'crm_interactions';
+      row = { subject: f.subject?.trim(), kind: f.kind, body: blank(f.body), organization_id: blank(f.organization_id), contact_id: blank(f.contact_id), follow_up_at: f.follow_up_at ? new Date(f.follow_up_at).toISOString() : null, owner_id: userId };
+    }
+    setErr(await onSave(table, row));
+    setBusy(false);
+  };
+
+  const orgSelect = <select value={f.organization_id} onChange={set('organization_id')} className={input}><option value="">No organization</option>{orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+      <form onSubmit={submit} className="w-full max-w-md space-y-3 rounded-2xl bg-white p-5 shadow-xl">
+        <div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">New {dialog.kind === 'org' ? 'organization' : dialog.kind}</h2><button type="button" aria-label="Close" onClick={onClose}><X className="h-4 w-4 text-slate-400" /></button></div>
+        {dialog.kind === 'org' && <><input required maxLength={200} placeholder="Name" value={f.name || ''} onChange={set('name')} className={input} /><select value={f.category} onChange={set('category')} className={input}>{categories.map((c) => <option key={c} value={c}>{label(c)}</option>)}</select><input placeholder="Website" value={f.website || ''} onChange={set('website')} className={input} /><textarea placeholder="Notes" value={f.notes || ''} onChange={set('notes')} className={input} rows={3} /></>}
+        {dialog.kind === 'contact' && <><input required maxLength={200} placeholder="Name" value={f.name || ''} onChange={set('name')} className={input} />{orgSelect}<input placeholder="Role / title" value={f.role_title || ''} onChange={set('role_title')} className={input} /><input type="email" placeholder="Email" value={f.email || ''} onChange={set('email')} className={input} /><input placeholder="Phone" value={f.phone || ''} onChange={set('phone')} className={input} /></>}
+        {dialog.kind === 'interaction' && <><input required maxLength={300} placeholder="Subject" value={f.subject || ''} onChange={set('subject')} className={input} /><select value={f.kind} onChange={set('kind')} className={input}>{kinds.map((k) => <option key={k} value={k}>{label(k)}</option>)}</select>{orgSelect}<select value={f.contact_id || ''} onChange={set('contact_id')} className={input}><option value="">No contact</option>{contacts.filter((c) => !f.organization_id || c.organization_id === f.organization_id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select><textarea placeholder="Details" value={f.body || ''} onChange={set('body')} className={input} rows={3} /><label className="block text-xs text-slate-500">Follow-up date (optional)<input type="date" value={f.follow_up_at || ''} onChange={set('follow_up_at')} className={`${input} mt-1`} /></label></>}
+        {err && <p role="alert" className="text-xs text-rose-600">{err}</p>}
+        <button type="submit" disabled={busy} className={`${btn} w-full justify-center`}>{busy ? 'Saving…' : 'Save'}</button>
+      </form>
+    </div>
+  );
 };
-const Drawer: React.FC<{ title: string; onClose: () => void; children: React.ReactNode }> = ({ title, onClose, children }) => <aside className="fixed right-0 top-0 z-50 h-full w-full max-w-md overflow-y-auto border-l border-slate-200 bg-white p-4 shadow-2xl md:p-6"><button type="button" onClick={onClose} aria-label="Close" className="float-right flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button><h2 className="text-xl font-bold text-slate-900">{title}</h2>{children}</aside>;
-const Info: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({ icon, label, value }) => <div className="flex items-center gap-3"><span className="text-slate-400 [&>svg]:h-4 [&>svg]:w-4">{icon}</span><span className="w-24 text-xs text-slate-400">{label}</span><span className="text-xs font-semibold text-slate-700">{value}</span></div>;
-const MiniStat: React.FC<{ label: string; value: string }> = ({ label, value }) => <div className="rounded-xl bg-slate-50 p-3"><p className="text-xl font-bold text-slate-800">{value}</p><p className="text-xs text-slate-400">{label}</p></div>;
-const KnowledgeBase: React.FC = () => <div className="grid gap-5 lg:grid-cols-[1fr_280px]"><section className="rounded-2xl border border-slate-200 bg-white p-5"><div className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-brand-600" /><h2 className="text-lg font-bold text-slate-900">Internal knowledge base</h2></div><p className="mt-2 text-xs leading-5 text-slate-500">Create agent guides and customer-facing help articles. Flown AI can use approved articles when suggesting support responses.</p><div className="mt-6 space-y-2">{['Account access and security', 'Billing and payment troubleshooting', 'Onboarding checklist', 'Grant reporting guidance'].map((article, index) => <button key={article} type="button" className="flex w-full items-center gap-3 rounded-xl border border-slate-100 p-3 text-left hover:border-brand-200 hover:bg-brand-50/40"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-100 text-brand-700">{index + 1}</span><span className="flex-1 text-xs font-bold text-slate-700">{article}<span className="mt-1 block text-xs font-normal text-slate-400">Updated recently · Agent guide</span></span><ChevronRight className="h-4 w-4 text-slate-300" /></button>)}</div></section><div className="rounded-2xl border border-slate-200 bg-white p-5"><h3 className="text-sm font-bold text-slate-900">Knowledge actions</h3><button type="button" className="mt-4 w-full rounded-xl bg-brand-600 px-3 py-2.5 text-xs font-bold text-white"><Plus className="mr-1 inline h-3.5 w-3.5" /> New article</button><button type="button" className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600">Create agent form</button></div></div>;
-const Reports: React.FC<{ tickets: Ticket[]; organizations: Organization[] }> = ({ tickets, organizations }) => <div className="grid gap-5 lg:grid-cols-3"><Metric label="Resolution rate" value="86%" detail="Up 8% this month" color="text-brand-600" /><Metric label="Average first response" value="42m" detail="Down 12 minutes" color="text-brand-600" /><Metric label="Customer health" value="92%" detail={`${organizations.length} active organizations`} color="text-brand-600" /><section className="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2"><h2 className="text-sm font-bold text-slate-900">Support volume by status</h2>{['New', 'In progress', 'Waiting', 'Closed'].map((status, index) => <div key={status} className="mt-4 flex items-center gap-3"><span className="w-20 text-xs text-slate-500">{status}</span><div className="h-3 flex-1 rounded-full bg-slate-100"><div className={`h-full rounded-full ${index === 3 ? 'bg-brand-500' : 'bg-brand-500'}`} style={{ width: `${Math.max(12, (tickets.filter((ticket) => ticket.status === status).length / Math.max(tickets.length, 1)) * 100)}%` }} /></div><span className="w-8 text-right text-xs font-bold text-slate-700">{tickets.filter((ticket) => ticket.status === status).length}</span></div>)}</section></div>;
-const NewRecordModal: React.FC<{ view: CustomerView; onClose: () => void; onCreate: (entry: unknown) => void }> = ({ view, onClose, onCreate }) => <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/30 p-4"><form onSubmit={(event) => { event.preventDefault(); onCreate({ id: crypto.randomUUID(), type: 'Note', subject: 'New customer activity', contact: 'New contact', date: 'Just now', owner: 'You' }); }} className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-lg font-bold text-slate-900">Add {view === 'support' ? 'support ticket' : view === 'activity' ? 'activity' : 'record'}</h2><button type="button" onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center md:min-h-0 md:min-w-0"><X className="h-4 w-4 text-slate-400" /></button></div><input aria-label="Subject or name" required placeholder="Subject or name" className="mt-5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-base md:text-sm outline-none focus:border-brand-400" /><textarea aria-label="Notes, context, or details" placeholder="Notes, context, or details" className="mt-3 h-24 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-base md:text-sm outline-none focus:border-brand-400" /><button type="submit" className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white">Create record</button></form></div>;

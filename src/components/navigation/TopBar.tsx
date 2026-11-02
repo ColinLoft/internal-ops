@@ -2,28 +2,27 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Search,
   Bell,
-  HardDrive,
   UsersRound,
   Landmark,
-  MessageSquare,
   BriefcaseBusiness,
   Scale,
-  PhoneCall,
-  Video,
   Megaphone,
   FolderKanban,
   Network,
   Code2,
   Lightbulb,
   CircleHelp,
+  House,
+  Settings,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useRecordSearch } from '../../lib/useRecordSearch';
+import { useAllAppAccess } from '../../lib/useAppAccess';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 
 export const TopBar: React.FC = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAppsOpen, setIsAppsOpen] = useState(false);
-  const [selectedApp, setSelectedApp] = useState<string | null>(null);
   const [appSearch, setAppSearch] = useState('');
   const notificationsRef = useRef<HTMLDivElement>(null);
   const appsRef = useRef<HTMLDivElement>(null);
@@ -45,6 +44,7 @@ export const TopBar: React.FC = () => {
     unreadNotificationCount,
     callSession,
     startCall,
+    currentUser,
   } = useWorkspace();
 
   useEffect(() => {
@@ -54,7 +54,6 @@ export const TopBar: React.FC = () => {
       }
       if (appsRef.current && !appsRef.current.contains(event.target as Node)) {
         setIsAppsOpen(false);
-        setSelectedApp(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -63,82 +62,43 @@ export const TopBar: React.FC = () => {
 
   const currentConv = conversations.find((conversation) => conversation.id === activeConversationId);
   const currentChan = channels.find((channel) => channel.id === activeChannelId);
-  const appDestinations = [
-    {
-      id: 'home',
-      name: 'Home',
-      icon: MessageSquare,
-      accent: 'from-brand-500 to-brand-600',
-    },
-    {
-      id: 'insights',
-      name: 'Insights',
-      icon: Lightbulb,
-      accent: 'from-brand-500 to-brand-600',
-    },
-    {
-      id: 'organization',
-      name: 'Organization',
-      icon: Network,
-      accent: 'from-brand-500 to-brand-600',
-    },
-    {
-      id: 'programs',
-      name: 'Programs',
-      icon: FolderKanban,
-      accent: 'from-brand-500 to-brand-600',
-    },
-    {
-      id: 'gtm',
-      name: 'GTM',
-      icon: Megaphone,
-      accent: 'from-brand-500 to-brand-600',
-    },
-    {
-      id: 'operations',
-      name: 'Operations',
-      icon: BriefcaseBusiness,
-      accent: 'from-brand-500 to-brand-600',
-    },
-    {
-      id: 'customers',
-      name: 'Customers',
-      icon: UsersRound,
-      accent: 'from-brand-500 to-brand-600',
-    },
-    {
-      id: 'communications',
-      name: 'GTM',
-      icon: Megaphone,
-      accent: 'from-brand-500 to-brand-600',
-    },
-    {
-      id: 'finance',
-      name: 'Finance',
-      icon: Landmark,
-      accent: 'from-brand-500 to-brand-600',
-    },
-    {
-      id: 'legal',
-      name: 'Legal',
-      icon: Scale,
-      accent: 'from-brand-500 to-brand-600',
-    },
-    {
-      id: 'engineering',
-      name: 'Engineering',
-      icon: Code2,
-      accent: 'from-brand-500 to-brand-600',
-    },
-    {
-      id: 'help',
-      name: 'Help',
-      icon: CircleHelp,
-      accent: 'from-brand-500 to-brand-600',
-    },
+  const appGroups = [
+    { title: 'General', apps: [
+      { id: 'home', name: 'Home', icon: House },
+      { id: 'insights', name: 'Insights', icon: Lightbulb },
+      { id: 'organization', name: 'Organization', icon: Network },
+    ] },
+    { title: 'Work & Development', apps: [
+      { id: 'programs', name: 'Projects', icon: FolderKanban },
+      { id: 'engineering', name: 'Engineering', icon: Code2 },
+      { id: 'operations', name: 'Operations', icon: BriefcaseBusiness },
+    ] },
+    { title: 'External Relations', apps: [
+      { id: 'customers', name: 'Relationships', icon: UsersRound },
+      { id: 'gtm', name: 'Marketing', icon: Megaphone },
+      { id: 'help', name: 'Support', icon: CircleHelp },
+    ] },
+    { title: 'Systems', apps: [
+      { id: 'finance', name: 'Finance', icon: Landmark },
+      { id: 'legal', name: 'Legal', icon: Scale },
+      { id: 'admin', name: 'Systems', icon: Settings },
+    ] },
   ];
-  const visibleApps = appDestinations.filter((app) => app.name.toLowerCase().includes(appSearch.trim().toLowerCase()));
+  const appQuery = appSearch.trim().toLowerCase();
+  const access = useAllAppAccess();
+  const accessKey: Record<string, string> = { customers: 'customers', finance: 'finance', legal: 'legal', admin: 'systems' };
+  // Apps whose data is restricted are hidden until a role grants access.
+  const hasAccess = (id: string) => !accessKey[id] || !access || (access[accessKey[id]] ?? 0) >= 1 || (id === 'admin' && currentUser.systemRole === 'admin');
+  const visibleGroups = appGroups
+    .map((group) => ({ ...group, apps: group.apps.filter((app) => hasAccess(app.id) && app.name.toLowerCase().includes(appQuery)) }))
+    .filter((group) => group.apps.length > 0);
+  const openApp = (id: string) => {
+    setActiveTab(id as Parameters<typeof setActiveTab>[0]);
+    setIsAppsOpen(false);
+    setAppSearch('');
+  };
   const query = searchQuery.trim().toLowerCase();
+  const recordHits = useRecordSearch(searchQuery);
   const searchResults = query
     ? [
         ...channels
@@ -208,7 +168,17 @@ export const TopBar: React.FC = () => {
             detail: `${event.date}${event.location ? ` · ${event.location}` : ''}`,
             onSelect: () => setActiveTab('calendar'),
           })),
-      ].slice(0, 8)
+        ...recordHits.map((hit) => ({
+          id: hit.id,
+          type: hit.type,
+          title: hit.title,
+          detail: hit.detail,
+          onSelect: () => {
+            window.history.pushState({}, '', hit.path);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          },
+        })),
+      ].slice(0, 12)
     : [];
 
   return (
@@ -218,7 +188,7 @@ export const TopBar: React.FC = () => {
         <div className="flex items-center text-sm font-semibold text-slate-800 tracking-tight">
           <span className="text-brand-600 font-bold">Flown</span>
           <span className="mx-2 text-slate-400">/</span>
-          <span className="text-slate-600 font-medium">{activeTab === 'operations' ? 'Operations' : activeTab === 'engineering' ? 'Engineering' : activeTab === 'gtm' ? 'GTM' : activeTab === 'legal' ? 'Legal' : activeTab === 'finance' ? 'Finance' : activeTab === 'customers' ? 'Customers' : activeTab === 'programs' ? 'Programs' : activeTab === 'home' ? 'Home' : activeTab === 'admin' ? 'Administration' : activeTab === 'help' ? 'Help Center' : activeTab === 'insights' ? `Insights${window.location.pathname.split('/')[2] ? ` / ${window.location.pathname.split('/')[2]}` : ''}` : activeTab === 'organization' ? 'Organization' : activeTab === 'inbox' ? 'Email inbox' : activeTab === 'drive' ? 'Drive' : activeTab === 'messages' ? 'Direct messages' : activeTab === 'channels' ? 'Channels' : 'Workspace'}</span>
+          <span className="text-slate-600 font-medium">{activeTab === 'operations' ? 'Operations' : activeTab === 'engineering' ? 'Engineering' : activeTab === 'gtm' ? 'Marketing' : activeTab === 'legal' ? 'Legal' : activeTab === 'finance' ? 'Finance' : activeTab === 'customers' ? 'Relationships' : activeTab === 'programs' ? 'Projects' : activeTab === 'home' ? 'Home' : activeTab === 'admin' ? 'Systems' : activeTab === 'help' ? 'Support' : activeTab === 'insights' ? `Insights${window.location.pathname.split('/')[2] ? ` / ${window.location.pathname.split('/')[2]}` : ''}` : activeTab === 'organization' ? 'Organization' : activeTab === 'inbox' ? 'Email inbox' : activeTab === 'drive' ? 'Drive' : activeTab === 'messages' ? 'Direct messages' : activeTab === 'channels' ? 'Channels' : 'Workspace'}</span>
           <span className="mx-2 text-slate-400">/</span>
           <span className="text-slate-900 bg-brand-50 px-2 py-0.5 rounded-md text-xs font-semibold text-brand-700 border border-brand-100/80">
             {activeTab === 'operations' ? (window.location.pathname.split('/')[2] || 'Overview').replace(/^\w/, (value) => value.toUpperCase()) : activeTab === 'customers' ? 'Overview' : activeTab === 'home' ? 'Overview' : activeTab === 'messages' ? currentConv?.name : activeTab === 'channels' ? `#${currentChan?.name}` : activeTab === 'calendar' ? 'Schedule' : activeTab === 'inbox' ? 'Connected mailboxes' : activeTab === 'drive' ? 'My Drive' : 'Staff directory'}
@@ -310,7 +280,6 @@ export const TopBar: React.FC = () => {
             onClick={() => {
               setIsAppsOpen((open) => !open);
               setIsNotificationsOpen(false);
-              setSelectedApp(null);
               setAppSearch('');
             }}
             aria-label="More Flown apps"
@@ -330,85 +299,38 @@ export const TopBar: React.FC = () => {
             </span>
           </button>
           {isAppsOpen && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-[min(300px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3 text-slate-800 shadow-2xl">
+            <div className="absolute right-0 top-full z-50 mt-2 w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3 text-slate-800 shadow-2xl">
               <div className="relative mb-3">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <input autoFocus value={appSearch} onChange={(event) => setAppSearch(event.target.value)} placeholder="Search and launch" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-brand-400 focus:bg-white" />
               </div>
-              <div className="grid grid-cols-3 gap-1">
-                {visibleApps.map((app) => {
-                  const Icon = app.icon;
-                  const isSelected = selectedApp === app.id;
-                  return (
-                    <button
-                      key={app.id}
-                      type="button"
-                      onClick={() => {
-                        if (app.id === 'customers') {
-                          setActiveTab('customers');
-                          setIsAppsOpen(false);
-                          setSelectedApp(null);
-                        } else if (app.id === 'finance') {
-                          setActiveTab('finance');
-                          setIsAppsOpen(false);
-                          setSelectedApp(null);
-                        } else if (app.id === 'operations') {
-                          setActiveTab('operations');
-                          setIsAppsOpen(false);
-                          setSelectedApp(null);
-                        } else if (app.id === 'legal') {
-                          setActiveTab('legal');
-                          setIsAppsOpen(false);
-                          setSelectedApp(null);
-                        } else if (app.id === 'engineering') {
-                          setActiveTab('engineering');
-                          setIsAppsOpen(false);
-                          setSelectedApp(null);
-                        } else if (app.id === 'communications') {
-                          setSelectedApp(isSelected ? null : app.id);
-                        } else if (app.id === 'home') {
-                          setActiveTab('home');
-                          setIsAppsOpen(false);
-                          setSelectedApp(null);
-                        } else if (app.id === 'help') {
-                          setActiveTab('help');
-                          setIsAppsOpen(false);
-                          setSelectedApp(null);
-                        } else if (app.id === 'insights') {
-                          setActiveTab('insights');
-                          setIsAppsOpen(false);
-                          setSelectedApp(null);
-                        } else if (app.id === 'organization') {
-                          setActiveTab('organization');
-                          setIsAppsOpen(false);
-                          setSelectedApp(null);
-                        } else if (app.id === 'programs') {
-                          setActiveTab('programs');
-                          setIsAppsOpen(false);
-                          setSelectedApp(null);
-                        } else if (app.id === 'gtm') {
-                          setActiveTab('gtm');
-                          setIsAppsOpen(false);
-                          setSelectedApp(null);
-                        } else {
-                          setSelectedApp(isSelected ? null : app.id);
-                        }
-                      }}
-                      className={`flex min-h-[78px] flex-col items-center justify-center rounded-xl border border-transparent p-2 text-center transition-all ${
-                        isSelected
-                          ? 'border-brand-300 bg-brand-50 shadow-sm'
-                          : 'hover:border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className={`mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${app.accent} text-white shadow-sm`}>
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <span className="block max-w-full truncate text-xs font-semibold leading-4 text-slate-700">{app.name}</span>
-                    </button>
-                  );
-                })}
+              <div className="space-y-3">
+                {visibleGroups.map((group) => (
+                  <section key={group.title}>
+                    <p className="mb-1 px-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">{group.title}</p>
+                    <div className="grid grid-cols-3 gap-1">
+                      {group.apps.map((app) => {
+                        const Icon = app.icon;
+                        const isActive = activeTab === app.id;
+                        return (
+                          <button
+                            key={app.id}
+                            type="button"
+                            onClick={() => openApp(app.id)}
+                            className={`flex min-h-[72px] flex-col items-center justify-center rounded-xl border p-2 text-center transition-colors ${isActive ? 'border-brand-300 bg-brand-50' : 'border-transparent hover:border-slate-200 hover:bg-slate-50'}`}
+                          >
+                            <span className="mb-1.5 flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white">
+                              <Icon className="h-4 w-4" />
+                            </span>
+                            <span className="block max-w-full truncate text-xs font-semibold leading-4 text-slate-700">{app.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
               </div>
-              {visibleApps.length === 0 && <p className="px-2 py-6 text-center text-xs text-slate-400">No apps found</p>}
+              {visibleGroups.length === 0 && <p className="px-2 py-6 text-center text-xs text-slate-400">No apps found</p>}
             </div>
           )}
         </div>

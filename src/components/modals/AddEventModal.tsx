@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar as CalendarIcon, Globe, Lock, Plus, MapPin } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Globe, Lock, Plus, } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { CalendarScope, EventCategory } from '../../types';
 
