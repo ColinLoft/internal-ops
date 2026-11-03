@@ -34,6 +34,7 @@ import { AdminPage } from './components/admin/AdminPage';
 import { HomePage } from './components/home/HomePage';
 import { NotFoundPage } from './components/NotFoundPage';
 import { SupportPage } from './components/support/SupportPage';
+import { HelpCenterPage } from './components/help/HelpCenterPage';
 import { InsightsPage } from './components/insights/InsightsPage';
 import { OrganizationPage } from './components/organization/OrganizationPage';
 import { ProgramsPage } from './components/programs/ProgramsPage';
@@ -48,7 +49,7 @@ const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
 }));
 
-const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|finance(?:\/[^/]+)*|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|help|contact|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)*|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|systems(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
+const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|finance(?:\/[^/]+)*|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|help|help-center|contact|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)*|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|systems(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
 
 const WorkspaceShell: React.FC = () => {
   const {
@@ -130,6 +131,7 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'finance' && <AccessGate app="finance" name="Finance"><FinancePage /></AccessGate>}
           {activeTab === 'legal' && <AccessGate app="legal" name="Legal"><LegalPage /></AccessGate>}
           {activeTab === 'help' && <SupportPage />}
+          {activeTab === 'helpcenter' && <HelpCenterPage />}
           {activeTab === 'insights' && <InsightsPage />}
           {activeTab === 'organization' && <OrganizationPage />}
           {activeTab === 'programs' && <ProgramsPage />}

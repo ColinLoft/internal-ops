@@ -45,6 +45,10 @@ const categories = [
   { id: 'general', label: 'General question' },
   { id: 'internal_it', label: 'Internal IT request' },
   { id: 'equipment', label: 'Equipment issue' },
+  { id: 'bug', label: 'Bug report' },
+  { id: 'help', label: 'Help with the system' },
+  { id: 'feature_request', label: 'Feature request' },
+  { id: 'access', label: 'Access request' },
 ];
 
 const priorities: Priority[] = ['low', 'normal', 'high', 'urgent'];

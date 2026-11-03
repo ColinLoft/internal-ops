@@ -83,8 +83,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const { data, error } = await supabase.from('support_conversations').select('unread_staff').gt('unread_staff', 0).limit(200);
-      if (active && !error) setSupportUnread((data ?? []).reduce((sum, row) => sum + (row.unread_staff as number), 0));
+      const [chats, tickets] = await Promise.all([
+        supabase.from('support_conversations').select('unread_staff').gt('unread_staff', 0).limit(200),
+        supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('status', 'new').neq('requester_id', currentUser.id),
+      ]);
+      // Counts tickets from other people; non-agents can only read their own, so it stays 0 for them.
+      if (active && !chats.error) setSupportUnread((chats.data ?? []).reduce((sum, row) => sum + (row.unread_staff as number), 0) + (tickets.count ?? 0));
     };
     void load();
     const timer = window.setInterval(load, 30000);
@@ -95,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
       window.clearInterval(timer);
       window.removeEventListener('flown-support-changed', refresh);
     };
-  }, []);
+  }, [currentUser.id]);
 
   const hasAccess = (id: Tab) => {
     const key = accessKey[id];
@@ -209,9 +213,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
       </nav>
 
       <div className="space-y-1 border-t border-white/15 p-3">
-        <button type="button" title="Help & support" onClick={() => setActiveTab('help')} className={row(false)}>
+        <button type="button" title="Help Center" onClick={() => setActiveTab('helpcenter')} className={row(activeTab === 'helpcenter')}>
           <CircleHelp className="h-[18px] w-[18px] shrink-0" />
-          {!collapsed && 'Help & support'}
+          {!collapsed && 'Help Center'}
         </button>
         <div className="relative" ref={profileRef}>
           <div className={`flex items-center gap-2.5 rounded-2xl bg-white/10 p-2 ${collapsed ? 'justify-center' : ''}`}>
