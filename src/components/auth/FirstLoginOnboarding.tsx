@@ -245,7 +245,7 @@ export const FirstLoginOnboarding: React.FC = () => {
   }
 
   return (
-    <div className={`fixed inset-0 z-[70] ${stage === 'tour' ? 'pointer-events-none' : 'flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm'}`}>
+    <div className={`fixed inset-0 z-[70] ${stage === 'tour' ? 'pointer-events-none' : 'flex items-center justify-center bg-slate-950/60 p-4'}`}>
       {stage === 'tour' && (
         <>
           {!spotlightRect && <div className="absolute inset-0 bg-slate-950/55" />}
@@ -267,20 +267,20 @@ export const FirstLoginOnboarding: React.FC = () => {
         aria-labelledby="onboarding-title"
         aria-modal={stage === 'profile'}
         role="dialog"
-        className={`w-full overflow-hidden rounded-3xl border border-white/70 bg-white shadow-2xl ${
+        className={`w-full overflow-hidden rounded-2xl border border-white/70 bg-white shadow-2xl ${
           stage === 'profile'
             ? 'max-w-xl'
             : 'pointer-events-auto fixed bottom-4 right-4 max-h-[calc(100dvh-2rem)] max-w-sm overflow-y-auto sm:bottom-6 sm:right-6'
         }`}
       >
-        <div className="h-1.5 bg-gradient-to-r from-brand-500 via-brand-500 to-brand-400" />
+        <div className="h-1.5 bg-brand-600" />
         {stage === 'profile' ? (
           <>
             <div className="p-6 pb-4 sm:p-8 sm:pb-5">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
                 <UserRound className="h-6 w-6" />
               </div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Welcome to your workspace</p>
+              <p className="text-xs font-bold tracking-[0.16em] text-brand-700">Welcome to your workspace</p>
               <h1 id="onboarding-title" className="mt-2 text-2xl font-bold text-slate-900">Set up your profile</h1>
               <p className="mt-1 text-sm text-slate-500">Help your teammates recognize you and know what you do.</p>
             </div>
@@ -367,7 +367,7 @@ export const FirstLoginOnboarding: React.FC = () => {
           <>
             <div className="p-5 pb-4">
               <div className="mb-5 flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Workspace tour</p>
+                <p className="text-xs font-bold tracking-[0.16em] text-brand-700">Workspace tour</p>
                 <span className="text-xs font-semibold text-slate-400">Step {tourIndex + 1} of {tourSteps.length}</span>
               </div>
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">

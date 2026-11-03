@@ -79,7 +79,7 @@ export const ContentCalendar: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-7 overflow-hidden rounded-2xl border border-slate-200 bg-white text-xs">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => <div key={d} className="border-b border-slate-100 bg-slate-50 px-2 py-1.5 font-bold uppercase tracking-wider text-slate-400">{d}</div>)}
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => <div key={d} className="border-b border-slate-100 bg-slate-50 px-2 py-1.5 font-bold  text-slate-400">{d}</div>)}
         {cells.map((d) => (
           <div key={d.toISOString()} className={`min-h-[84px] space-y-1 border-b border-r border-slate-100 p-1.5 ${d.getMonth() === month.getMonth() ? '' : 'bg-slate-50/60 text-slate-300'}`}>
             <span className="font-semibold">{d.getDate()}</span>

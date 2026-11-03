@@ -155,7 +155,7 @@ export const CalendarView: React.FC = () => {
     }
 
     return (
-      <div className="flex-1 grid grid-cols-7 grid-rows-5 min-h-[480px] md:min-h-0 border-t border-l border-slate-200/80 bg-white/70 backdrop-blur-md rounded-2xl overflow-hidden shadow-xs">
+      <div className="flex-1 grid grid-cols-7 grid-rows-5 min-h-[480px] md:min-h-0 border-t border-l border-slate-200/80 bg-white rounded-2xl overflow-hidden shadow-xs">
         {cells.map((cell, idx) => {
           const dayEvents = filteredEvents.filter((e) => e.date === cell.dateStr);
           const isToday = cell.dateStr === todayStr;
@@ -232,7 +232,7 @@ export const CalendarView: React.FC = () => {
     });
 
     return (
-      <div className="flex-1 flex flex-col bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs">
+      <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs">
         <div className="grid grid-cols-8 border-b border-slate-200 bg-slate-50/80 text-xs font-bold text-slate-700 py-2">
           <div className="text-center text-slate-400">Time</div>
           {weekDays.map((d, i) => (
@@ -287,7 +287,7 @@ export const CalendarView: React.FC = () => {
     const todayEvents = filteredEvents.filter((e) => e.date === selectedDateStr);
 
     return (
-      <div className="flex-1 bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 p-4 md:p-6 overflow-y-auto shadow-xs">
+      <div className="flex-1 bg-white rounded-2xl border border-slate-200/80 p-4 md:p-6 overflow-y-auto shadow-xs">
         <div className="mb-4 pb-3 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-slate-900">
@@ -333,7 +333,7 @@ export const CalendarView: React.FC = () => {
                 >
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: group.color }}>{group.label}</span>
+                      <span className="text-xs font-bold  px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: group.color }}>{group.label}</span>
                       <span className="text-xs font-bold text-slate-500">{formatTime(evt.startTime)} - {formatTime(evt.endTime)}</span>
                     </div>
                     <h4 className="text-sm font-bold text-slate-900">{evt.title}</h4>
@@ -355,10 +355,10 @@ export const CalendarView: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden bg-slate-50/50">
       {/* Left Mini Sidebar */}
-      <div className="order-2 md:order-1 w-full md:w-72 border-t md:border-t-0 md:border-r border-slate-200/80 bg-white/80 backdrop-blur-xl p-4 flex flex-col gap-5 flex-shrink-0 md:overflow-y-auto">
+      <div className="order-2 md:order-1 w-full md:w-72 border-t md:border-t-0 md:border-r border-slate-200/80 bg-white p-4 flex flex-col gap-5 flex-shrink-0 md:overflow-y-auto">
         {/* Scope Filters */}
         <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2 px-1">
+          <label className="text-xs font-bold  text-slate-400 block mb-2 px-1">
             Event View Filter
           </label>
           <div className="flex flex-col gap-1">
@@ -458,7 +458,7 @@ export const CalendarView: React.FC = () => {
                     className="w-full text-left p-2.5 rounded-xl border border-slate-100 bg-white hover:border-slate-200 shadow-2xs transition-all space-y-1"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: group.color }}>
+                      <span className="text-xs font-bold  flex items-center gap-1.5" style={{ color: group.color }}>
                         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: group.color }} />{group.label}
                       </span>
                       <span className="text-xs text-slate-400 font-medium">{formatTime(evt.startTime)}</span>
@@ -574,13 +574,13 @@ export const CalendarView: React.FC = () => {
         const attendees = (evt.attendees || []).map((id) => users.find((user) => user.id === id)).filter(Boolean);
         const canDelete = evt.createdBy === currentUser.id || currentUser.systemRole === 'admin' || currentUser.systemRole === 'coordinator';
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-2 backdrop-blur-sm md:p-4" onClick={() => setSelectedEvent(null)}>
-            <div role="dialog" aria-label="Event details" onClick={(e) => e.stopPropagation()} className="max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto rounded-3xl border border-slate-200/80 bg-white shadow-2xl">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-2 md:p-4" onClick={() => setSelectedEvent(null)}>
+            <div role="dialog" aria-label="Event details" onClick={(e) => e.stopPropagation()} className="max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200/80 bg-white shadow-2xl">
               <div className="h-2 rounded-t-3xl" style={{ backgroundColor: group.color }} />
               <div className="space-y-4 p-6">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: group.color }}>{group.label}</span>
+                    <span className="text-xs font-bold " style={{ color: group.color }}>{group.label}</span>
                     <h3 className="mt-1 text-lg font-bold text-slate-900">{evt.title}</h3>
                   </div>
                   <button type="button" onClick={() => setSelectedEvent(null)} aria-label="Close" className="-m-1.5 rounded-full p-2.5 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button>

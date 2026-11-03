@@ -193,7 +193,7 @@ export const SupportPage: React.FC = () => {
       {error && <div className="mx-5 mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 sm:mx-8">{error}</div>}
 
       <div className="grid min-h-0 flex-1 gap-5 p-5 sm:p-8 lg:grid-cols-[minmax(320px,2fr)_3fr]">
-        <section className="flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <section className="flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white">
           <div className="space-y-3 border-b border-slate-100 p-3">
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -235,7 +235,7 @@ export const SupportPage: React.FC = () => {
           </ul>
         </section>
 
-        <section className="min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5">
           {!selected ? (
             <div className="flex h-full min-h-[240px] flex-col items-center justify-center gap-2 text-xs text-slate-400"><LifeBuoy className="h-6 w-6" />Select a ticket to view its details.</div>
           ) : (
@@ -278,7 +278,7 @@ export const SupportPage: React.FC = () => {
               )}
 
               <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-400"><Clock3 className="mr-1 inline h-3 w-3" />Conversation</p>
+                <p className="mb-2 text-xs font-bold tracking-[0.14em] text-slate-400"><Clock3 className="mr-1 inline h-3 w-3" />Conversation</p>
                 <div className="space-y-2">
                   {comments.map((comment) => (
                     <div key={comment.id} className={`rounded-xl p-3 text-xs ${comment.is_internal ? 'border border-amber-200 bg-amber-50' : 'bg-slate-50'}`}>

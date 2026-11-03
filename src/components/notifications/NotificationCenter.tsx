@@ -45,7 +45,7 @@ export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose 
   };
 
   return (
-    <div role="dialog" aria-label="Notification center" className="w-[min(20rem,calc(100vw-1rem))] md:w-80 bg-white/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-150">
+    <div role="dialog" aria-label="Notification center" className="w-[min(20rem,calc(100vw-1rem))] md:w-80 bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-150">
       {/* Header */}
       <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
         <div className="flex items-center gap-2">

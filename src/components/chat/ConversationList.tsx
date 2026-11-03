@@ -179,7 +179,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
   };
 
   return (
-    <div data-onboarding-target="conversation-list" className="w-full md:w-80 h-full bg-white/80 backdrop-blur-xl border-r border-slate-200/80 flex flex-col flex-shrink-0">
+    <div data-onboarding-target="conversation-list" className="w-full md:w-80 h-full bg-white border-r border-slate-200/80 flex flex-col flex-shrink-0">
       {/* Top Header */}
       <div className="p-4 pb-2">
         <div className="flex items-center justify-between mb-3">
@@ -245,7 +245,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
       <div className="flex-1 overflow-y-auto px-3 pb-2">
         <div className="mb-4">
           <div className="mb-2 flex items-center justify-between px-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Channels</p>
+            <p className="text-xs font-bold  text-slate-400">Channels</p>
             <button type="button" onClick={() => setIsCreateChannelOpen(true)} className="rounded-md p-1 text-slate-400 hover:bg-brand-50 hover:text-brand-600" title="Create channel">
               <Plus className="h-3.5 w-3.5" />
             </button>
@@ -253,7 +253,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
           <div className="space-y-0.5">{channels.map(renderChannelItem)}</div>
         </div>
         <div className="mb-2 flex items-center justify-between px-2">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Direct messages</p>
+          <p className="text-xs font-bold  text-slate-400">Direct messages</p>
           <button type="button" onClick={() => setIsNewMessageOpen(true)} className="rounded-md p-1 text-slate-400 hover:bg-brand-50 hover:text-brand-600" title="Start direct message">
             <Plus className="h-3.5 w-3.5" />
           </button>

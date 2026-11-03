@@ -91,8 +91,8 @@ export const EditProfileModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-3xl overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200/80 w-full max-w-3xl overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
           <div className="flex items-center gap-2 text-slate-800">
@@ -133,7 +133,7 @@ export const EditProfileModal: React.FC = () => {
             <img
               src={avatar}
               alt={name}
-              className="w-16 h-16 rounded-2xl object-cover border-2 border-brand-500 shadow-sm"
+              className="w-16 h-16 rounded-2xl object-cover border-2 border-brand-500"
             />
 
             <input
@@ -258,14 +258,14 @@ export const EditProfileModal: React.FC = () => {
 
             <aside className="lg:sticky lg:top-0 self-start">
               <p className="text-xs font-semibold text-slate-500 mb-2">Profile preview</p>
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
                 <div className={`h-16 ${PROFILE_BANNERS.find((option) => option.value === banner)?.className || PROFILE_BANNERS[0].className}`} />
                 <div className="px-4 pb-4">
                   <div className="relative -mt-8 mb-3 w-fit">
                     <img
                       src={avatar}
                       alt={name || 'Profile preview'}
-                      className="w-16 h-16 rounded-2xl object-cover border-4 border-white shadow-sm"
+                      className="w-16 h-16 rounded-2xl object-cover border-4 border-white"
                     />
                     <span className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
                       currentUser.status === 'online'

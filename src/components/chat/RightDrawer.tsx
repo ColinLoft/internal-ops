@@ -66,7 +66,7 @@ export const RightDrawer: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 w-full md:static md:z-20 md:w-80 h-full bg-white/95 backdrop-blur-2xl border-l border-slate-200/80 flex flex-col shadow-xl flex-shrink-0 animate-in slide-in-from-right duration-200">
+    <div className="fixed inset-0 z-50 w-full md:static md:z-20 md:w-80 h-full bg-white border-l border-slate-200/80 flex flex-col shadow-xl flex-shrink-0 animate-in slide-in-from-right duration-200">
       {/* Header */}
       <div className="h-16 px-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
         <h3 className="text-xs font-bold text-slate-900">
@@ -84,7 +84,7 @@ export const RightDrawer: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
         {/* Profile Card Header */}
         <div className="text-center pb-2">
-          <div className="w-20 h-20 mx-auto rounded-3xl overflow-hidden shadow-md border-2 border-white mb-3">
+          <div className="w-20 h-20 mx-auto rounded-2xl overflow-hidden shadow-md border-2 border-white mb-3">
             <img
               src={
                 isChannel

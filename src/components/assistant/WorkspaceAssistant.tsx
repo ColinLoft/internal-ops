@@ -163,7 +163,7 @@ export const WorkspaceAssistant: React.FC = () => {
       </button>
       {open && (
         <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-3 md:right-4 md:bottom-4 z-[80] flex h-[min(500px,calc(100dvh-10rem))] w-[calc(100vw-1.5rem)] max-w-[340px] md:h-[min(500px,calc(100vh-6.5rem))] md:w-[min(340px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
-          <header className="flex items-center gap-2.5 border-b border-slate-100 bg-gradient-to-r from-brand-600 to-brand-600 px-3 py-2.5 text-white">
+          <header className="flex items-center gap-2.5 border-b border-slate-100 bg-brand-600 px-3 py-2.5 text-white">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15"><Bot className="h-4 w-4" /></div>
             <div className="min-w-0 flex-1">
               <h2 className="text-xs font-bold">Workspace assistant</h2>
@@ -186,7 +186,7 @@ export const WorkspaceAssistant: React.FC = () => {
             ))}
             {proposal && (
               <div className="rounded-xl border border-brand-200 bg-brand-50 p-3">
-                <p className="text-xs font-bold uppercase tracking-wide text-brand-800">Confirmation required</p>
+                <p className="text-xs font-bold  text-brand-800">Confirmation required</p>
                 <p className="mt-1 text-xs text-brand-900">{proposal.type === 'post_channel' ? 'Post this in' : 'Send this to'} <strong>{proposal.targetName}</strong>?</p>
                 <p className="mt-2 whitespace-pre-wrap rounded-lg bg-white/70 p-2 text-xs text-slate-700">{proposal.content}</p>
                 <div className="mt-3 flex gap-2">

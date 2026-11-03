@@ -55,7 +55,7 @@ const RailButton: React.FC<RailButtonProps> = ({ label, icon: Icon, selected = f
     onClick={onClick}
     data-onboarding-target={onboardingTarget}
     aria-current={selected ? 'page' : undefined}
-    className={`group relative flex items-center justify-center rounded-2xl p-3 transition-colors ${selected ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`}
+    className={`group relative flex items-center justify-center rounded-2xl p-3 transition-colors ${selected ? 'bg-brand-600 text-white' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'}`}
   >
     <Icon className="h-5 w-5 shrink-0" />
     {badge > 0 && (
@@ -146,7 +146,7 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
   return (
     <aside
       aria-label="Primary navigation"
-      className={`fixed inset-y-0 left-0 z-50 h-dvh w-[72px] shrink-0 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/80 flex flex-col items-center py-4 justify-between select-none shadow-2xl transition-transform duration-200 md:static md:z-30 md:translate-x-0 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`fixed inset-y-0 left-0 z-50 h-dvh w-[72px] shrink-0 bg-slate-900/95 border-r border-slate-800/80 flex flex-col items-center py-4 justify-between select-none shadow-2xl transition-transform duration-200 md:static md:z-30 md:translate-x-0 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
     >
       {/* Top Brand Logo */}
       <div className="flex flex-col items-center gap-6">
@@ -160,7 +160,7 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
             if (window.location.pathname !== '/home') window.history.pushState({}, '', '/home');
             window.dispatchEvent(new PopStateEvent('popstate'));
           }}
-          className="group relative cursor-pointer w-11 h-11 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-500 flex items-center justify-center text-white shadow-lg shadow-brand-500/25 transition-transform hover:scale-105 active:scale-95"
+          className="group relative cursor-pointer w-11 h-11 rounded-2xl bg-brand-600 flex items-center justify-center text-white transition-transform hover:scale-105 active:scale-95"
           title="Flown Workspace"
         >
           <img src="/brand-icon.png" alt="Flown Workspace" className="w-6 h-6 object-contain group-hover:rotate-12 transition-transform duration-300" />
@@ -280,7 +280,7 @@ export const Rail: React.FC<RailProps> = ({ isMobileOpen = false }) => {
 
           {isQuickActionsOpen && (
             <div className="absolute bottom-0 left-[64px] z-50 w-64 rounded-2xl border border-slate-200 bg-white p-2 text-slate-800 shadow-2xl animate-in fade-in zoom-in-95 duration-150" aria-label="Quick create">
-              <p className="px-3 pb-2 pt-1 text-xs font-bold uppercase tracking-wider text-slate-400">Quick create</p>
+              <p className="px-3 pb-2 pt-1 text-xs font-bold  text-slate-400">Quick create</p>
               <button
                 type="button"
                 onClick={() => {

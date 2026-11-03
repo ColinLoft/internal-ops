@@ -7,7 +7,7 @@ export type EntityType = 'project' | 'task' | 'grant';
 type Props = { entityType: EntityType; entityId: string; onChanged?: () => void };
 
 export const field = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base outline-none focus:border-brand-400 md:text-xs';
-export const card = 'rounded-2xl border border-slate-200 bg-white p-4 shadow-sm';
+export const card = 'rounded-2xl border border-slate-200 bg-white p-4';
 const button = 'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3 text-xs font-bold text-white disabled:opacity-50 md:min-h-0 md:py-2';
 
 export const logActivity = (entityType: EntityType, entityId: string, action: string, detail?: string) =>

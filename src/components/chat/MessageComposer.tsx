@@ -204,7 +204,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   }
 
   return (
-    <div className="relative bg-white/90 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-lg p-2.5 transition-all focus-within:border-brand-500/60 focus-within:ring-4 focus-within:ring-brand-500/10">
+    <div className="relative bg-white border border-slate-200/90 rounded-2xl shadow-lg p-2.5 transition-all focus-within:border-brand-500/60 focus-within:ring-4 focus-within:ring-brand-500/10">
       {sendError && (
         <p role="alert" className="mb-2 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">
           Message was not saved: {sendError}
@@ -238,7 +238,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
       {/* Autocomplete mention dropdown */}
       {showMentionMenu && (
         <div className="absolute bottom-full left-4 mb-2 w-64 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-slate-200 p-1.5 z-40 animate-in fade-in zoom-in-95 duration-150">
-          <div className="px-2 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider">
+          <div className="px-2 py-1 text-xs font-bold text-slate-400 ">
             Mention Member or Channel
           </div>
           <button

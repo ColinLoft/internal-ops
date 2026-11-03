@@ -78,7 +78,7 @@ export const TaskDetail: React.FC<{ task: TaskRow; allTasks: TaskRow[]; onClose:
         </label>
 
         <section>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Subtasks {subtasks.length > 0 && `(${done}/${subtasks.length})`}</h3>
+          <h3 className="text-xs font-bold  text-slate-400">Subtasks {subtasks.length > 0 && `(${done}/${subtasks.length})`}</h3>
           <ul className="mt-2 space-y-1">{subtasks.map((s) => (
             <li key={s.id} className="flex items-center gap-2 text-xs">
               <input type="checkbox" checked={s.status === 'completed'} onChange={(e) => run(supabase.from('program_tasks').update({ status: e.target.checked ? 'completed' : 'in_progress', progress: e.target.checked ? 100 : 0 }).eq('id', s.id))} />
@@ -93,7 +93,7 @@ export const TaskDetail: React.FC<{ task: TaskRow; allTasks: TaskRow[]; onClose:
         </section>
 
         <section>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Depends on</h3>
+          <h3 className="text-xs font-bold  text-slate-400">Depends on</h3>
           <ul className="mt-2 space-y-1">{blockers.map((b) => (
             <li key={b.id} className="flex items-center gap-2 text-xs"><span className={`flex-1 ${b.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{b.title}</span>
               <button type="button" aria-label="Remove dependency" onClick={() => run(supabase.from('program_task_dependencies').delete().eq('task_id', task.id).eq('depends_on_task_id', b.id))}><X className="h-3.5 w-3.5 text-slate-300 hover:text-rose-600" /></button></li>
@@ -105,7 +105,7 @@ export const TaskDetail: React.FC<{ task: TaskRow; allTasks: TaskRow[]; onClose:
         </section>
 
         <section>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Comments</h3>
+          <h3 className="text-xs font-bold  text-slate-400">Comments</h3>
           <div className="mt-2 space-y-2">{comments.map((c) => (
             <div key={c.id} className="rounded-lg bg-slate-50 p-2 text-xs"><p className="text-xs text-slate-400">{userName(c.author_id)} · {new Date(c.created_at).toLocaleString()}{c.author_id === currentUser.id && <button type="button" className="ml-2 text-rose-500" onClick={() => run(supabase.from('program_task_comments').delete().eq('id', c.id))}>delete</button>}</p><p className="whitespace-pre-wrap text-slate-700">{c.body}</p></div>
           ))}</div>

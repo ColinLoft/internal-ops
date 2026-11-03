@@ -102,7 +102,7 @@ export const EngineeringPage: React.FC = () => {
             </div>
             <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
               <table className="w-full min-w-[720px] text-left text-xs">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3 font-bold">Record</th>{section.fields.slice(0, 2).map((field) => <th key={field.key} className="px-4 py-3 font-bold">{field.label}</th>)}<th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3 font-bold">Owner</th><th className="px-4 py-3 font-bold">{section.dateLabel}</th></tr></thead>
+                <thead className="bg-slate-50 text-xs  text-slate-500"><tr><th className="px-4 py-3 font-bold">Record</th>{section.fields.slice(0, 2).map((field) => <th key={field.key} className="px-4 py-3 font-bold">{field.label}</th>)}<th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3 font-bold">Owner</th><th className="px-4 py-3 font-bold">{section.dateLabel}</th></tr></thead>
                 <tbody>
                   {shown.map((record) => (
                     <tr key={record.id} onClick={() => setEditing(record)} className="cursor-pointer border-t border-slate-100 hover:bg-slate-50">

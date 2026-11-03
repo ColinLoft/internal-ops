@@ -107,7 +107,7 @@ const Overview: React.FC<{ onNavigate: (view: LegalView) => void }> = ({ onNavig
 const Contracts: React.FC<{ items: Contract[]; onStatus: (name: string, status: Contract['status']) => void }> = ({ items, onStatus }) => (
   <Section title="Contracts & Agreements" description="Track counterparties, reviews, renewals, and execution status.">
     <div className="overflow-hidden rounded-xl border border-slate-200">
-      <div className="grid grid-cols-[1.4fr_1fr_0.8fr_0.8fr] bg-slate-50 px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+      <div className="grid grid-cols-[1.4fr_1fr_0.8fr_0.8fr] bg-slate-50 px-4 py-3 text-xs font-bold  text-slate-500">
         <span>Agreement</span><span>Counterparty</span><span>Status</span><span>Renewal</span>
       </div>
       {items.map((item) => (

@@ -184,7 +184,7 @@ export const AdminPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 text-brand-600">
               <ShieldCheck className="h-5 w-5" />
-              <span className="text-xs font-bold uppercase tracking-wider">Administration</span>
+              <span className="text-xs font-bold ">Administration</span>
             </div>
             <h1 className="mt-2 text-2xl font-bold text-slate-900">People &amp; access</h1>
             <p className="mt-1 text-sm text-slate-500">Manage staff profiles, workspace roles, and account passwords.</p>
@@ -206,7 +206,7 @@ export const AdminPage: React.FC = () => {
         )}
 
         <div className="space-y-6">
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                 <Users className="h-4 w-4 text-brand-600" />
@@ -229,7 +229,7 @@ export const AdminPage: React.FC = () => {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate text-sm font-semibold text-slate-900">{user.name}</p>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                         user.accountStatus === 'suspended'
                           ? 'bg-brand-100 text-brand-700'
                           : user.systemRole === 'admin'
@@ -320,7 +320,7 @@ export const AdminPage: React.FC = () => {
 
           <EmailAdminPanel />
 
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
@@ -390,7 +390,7 @@ export const AdminPage: React.FC = () => {
       </div>
 
       {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-2 md:p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-2 md:p-4">
           <form onSubmit={handleSaveProfile} className="max-h-[calc(100dvh-1rem)] w-full max-w-2xl md:max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4">
               <div>
@@ -438,7 +438,7 @@ export const AdminPage: React.FC = () => {
       )}
 
       {temporaryPasswordUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-2 md:p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-2 md:p-4">
           <form onSubmit={handleSetPassword} className="max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-start justify-between border-b border-slate-100 p-5">
               <div>
@@ -483,7 +483,7 @@ const ActivityRow: React.FC<{ entry: SystemActivityLog }> = ({ entry }) => (
   <article className="flex flex-col gap-1.5 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-brand-700">
+        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-bold  text-brand-700">
           {entry.event_type.replace(/_/g, ' ')}
         </span>
         <span className="text-xs font-semibold text-slate-700">{entry.actor_name}</span>

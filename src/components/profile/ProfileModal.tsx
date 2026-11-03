@@ -42,13 +42,13 @@ export const ProfileModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Modal Banner */}
         <div className={`h-28 relative p-4 flex justify-end ${PROFILE_BANNERS.find((option) => option.value === activeProfileModalUser.banner)?.className || PROFILE_BANNERS[0].className}`}>
           <button
             onClick={closeUserProfile}
-            className="p-1.5 rounded-full bg-black/20 hover:bg-black/30 text-white backdrop-blur-md transition-colors"
+            className="p-1.5 rounded-full bg-black/20 hover:bg-black/30 text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -61,7 +61,7 @@ export const ProfileModal: React.FC = () => {
               <img
                 src={activeProfileModalUser.avatar}
                 alt={activeProfileModalUser.name}
-                className="w-24 h-24 rounded-3xl object-cover border-4 border-white shadow-xl"
+                className="w-24 h-24 rounded-2xl object-cover border-4 border-white shadow-xl"
               />
               <span
                 className={`absolute bottom-1 right-1 w-5 h-5 rounded-full border-2 border-white ${
@@ -109,7 +109,7 @@ export const ProfileModal: React.FC = () => {
           <div className="space-y-1 mb-4">
             <div className="flex items-center gap-2">
               <h3 className="text-xl font-bold text-slate-900">{activeProfileModalUser.name}</h3>
-              <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">
+              <span className="inline-flex items-center gap-1 text-xs font-semibold  px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">
                 <ShieldCheck className="w-3 h-3 text-brand-500" />
                 {activeProfileModalUser.systemRole}
               </span>
@@ -157,7 +157,7 @@ export const ProfileModal: React.FC = () => {
                 <Mail className="w-4 h-4 text-slate-400" />
                 <span className="font-medium">{activeProfileModalUser.email}</span>
               </div>
-              <span className="text-xs text-slate-400 uppercase font-semibold">Email</span>
+              <span className="text-xs text-slate-400 font-semibold">Email</span>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 transition-colors">
@@ -165,7 +165,7 @@ export const ProfileModal: React.FC = () => {
                 <Phone className="w-4 h-4 text-slate-400" />
                 <span className="font-medium">{activeProfileModalUser.phone}</span>
               </div>
-              <span className="text-xs text-slate-400 uppercase font-semibold">Phone</span>
+              <span className="text-xs text-slate-400 font-semibold">Phone</span>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 transition-colors">
@@ -173,7 +173,7 @@ export const ProfileModal: React.FC = () => {
                 <Briefcase className="w-4 h-4 text-slate-400" />
                 <span className="font-medium">{activeProfileModalUser.department}</span>
               </div>
-              <span className="text-xs text-slate-400 uppercase font-semibold">Org Team</span>
+              <span className="text-xs text-slate-400 font-semibold">Org Team</span>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 transition-colors">
@@ -181,7 +181,7 @@ export const ProfileModal: React.FC = () => {
                 <MapPin className="w-4 h-4 text-slate-400" />
                 <span className="font-medium">{activeProfileModalUser.location || 'Location not set'}</span>
               </div>
-              <span className="text-xs text-slate-400 uppercase font-semibold">Office</span>
+              <span className="text-xs text-slate-400 font-semibold">Office</span>
             </div>
           </div>
         </div>

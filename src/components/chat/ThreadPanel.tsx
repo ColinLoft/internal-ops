@@ -31,7 +31,7 @@ export const ThreadPanel: React.FC = () => {
   if (!activeThreadMessageId || !parentMessage) return null;
 
   return (
-    <div className="fixed inset-0 z-50 w-full md:static md:z-20 md:w-96 h-full bg-white/95 backdrop-blur-2xl border-l border-slate-200/80 flex flex-col shadow-xl flex-shrink-0 animate-in slide-in-from-right duration-200">
+    <div className="fixed inset-0 z-50 w-full md:static md:z-20 md:w-96 h-full bg-white border-l border-slate-200/80 flex flex-col shadow-xl flex-shrink-0 animate-in slide-in-from-right duration-200">
       {/* Thread Header */}
       <div className="h-16 px-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
         <div className="flex items-center gap-2">
@@ -58,7 +58,7 @@ export const ThreadPanel: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {/* Original Parent Message */}
         <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/70">
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+          <div className="text-xs font-bold text-slate-400  mb-2 flex items-center gap-1">
             <CornerDownRight className="w-3 h-3 text-brand-500" /> Original Post
           </div>
           <MessageBubble
@@ -71,7 +71,7 @@ export const ThreadPanel: React.FC = () => {
         {/* Divider */}
         <div className="flex items-center gap-2 py-1">
           <div className="h-px bg-slate-200 flex-1" />
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+          <span className="text-xs font-bold text-slate-400 ">
             {replies.length > 0 ? 'Replies' : 'No replies yet'}
           </span>
           <div className="h-px bg-slate-200 flex-1" />

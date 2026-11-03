@@ -300,7 +300,7 @@ export const CallOverlay: React.FC = () => {
       )}
 
       {callSession.active && (
-        <div className={`fixed ${callSession.isMinimized ? 'bottom-[4.5rem] right-3 w-[min(25rem,calc(100vw-1.5rem))] md:bottom-6 md:right-6 md:w-[min(25rem,calc(100vw-2rem))]' : 'inset-3 sm:inset-6'} z-50 flex flex-col overflow-hidden rounded-3xl border border-slate-700 bg-slate-950 text-white shadow-2xl`}>
+        <div className={`fixed ${callSession.isMinimized ? 'bottom-[4.5rem] right-3 w-[min(25rem,calc(100vw-1.5rem))] md:bottom-6 md:right-6 md:w-[min(25rem,calc(100vw-2rem))]' : 'inset-3 sm:inset-6'} z-50 flex flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 text-white shadow-2xl`}>
           <header className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-4 py-3 sm:px-5">
             <div className="flex min-w-0 items-center gap-3">
               <span className={`h-2.5 w-2.5 rounded-full ${connectionState === ConnectionState.Connected ? 'bg-brand-400' : 'bg-brand-400 animate-pulse'}`} />
