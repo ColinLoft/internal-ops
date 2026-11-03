@@ -3,6 +3,14 @@ import { Headset, Mail, MessageSquare, Plus, Search, Send, Sparkles, StickyNote,
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAppAccess } from '../../lib/useAppAccess';
+import { PanelLayout } from '../common/PanelLayout';
+
+const TEMPLATES = [
+  ['Thanks for reaching out', 'Hi {name}, thanks for reaching out! Let me look into this and get back to you shortly.'],
+  ['Need more info', 'Hi {name}, could you share a few more details so we can help you faster?'],
+  ['Resolved', 'Hi {name}, we believe this is now resolved. Let us know if anything else comes up!'],
+  ['Follow-up', 'Hi {name}, just checking in to see if you still need help with this.'],
+] as const;
 
 type Status = 'open' | 'pending' | 'resolved';
 type Priority = 'low' | 'normal' | 'high' | 'urgent';
@@ -223,8 +231,9 @@ export const SupportInbox: React.FC = () => {
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden bg-white/40">
-      {/* Conversation list */}
-      <section className={`${selected ? 'hidden lg:flex' : 'flex'} w-full flex-col border-r border-slate-200 bg-white/70 lg:w-72 lg:shrink-0`}>
+      <PanelLayout storageKey="support-inbox" leftLabel="conversations" rightLabel="customer details" showSidesOnMobile={!selected}
+        left={(
+      <section className="flex h-full w-full flex-col bg-white/70">
         <div className="space-y-2 border-b border-slate-200 p-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-800">Customer messages</h2>
@@ -263,73 +272,9 @@ export const SupportInbox: React.FC = () => {
           })}
         </ul>
       </section>
-
-      {/* Conversation */}
-      <section className={`${selected ? 'flex' : 'hidden lg:flex'} min-w-0 flex-1 flex-col`}>
-        {!selected || !customer ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-xs text-slate-400"><MessageSquare className="h-7 w-7" />Select a conversation to reply.</div>
-        ) : (
-          <>
-            <header className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white/70 px-4 py-2.5">
-              <button type="button" onClick={() => setSelectedId(null)} className="rounded-md p-1 text-slate-500 hover:bg-slate-100 lg:hidden" aria-label="Back"><X className="h-4 w-4" /></button>
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate text-sm font-semibold text-slate-800">{customer.name}</h3>
-                <p className="truncate text-xs text-slate-500">{selected.subject}</p>
-              </div>
-              <select disabled={!isAgent} value={selected.status} onChange={(e) => void patchConversation({ status: e.target.value as Status })} aria-label="Status" className={`rounded-lg border-0 px-2 py-1 text-xs font-semibold ${statusStyle[selected.status]}`}>
-                <option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option>
-              </select>
-            </header>
-
-            <div className="flex-1 space-y-3 overflow-y-auto p-4">
-              {messages.map((item) => {
-                const mine = item.sender_type === 'agent';
-                if (item.sender_type === 'note') return (
-                  <div key={item.id} className="mx-auto max-w-[85%] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                    <span className="mb-0.5 flex items-center gap-1 font-semibold"><StickyNote className="h-3 w-3" />Internal note · {assigneeName(item.sender_id)}</span>
-                    <span className="whitespace-pre-wrap break-words">{item.body}</span>
-                  </div>
-                );
-                return (
-                  <div key={item.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[75%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm ${mine ? 'rounded-br-sm bg-brand-600 text-white' : 'rounded-bl-sm border border-slate-200 bg-white text-slate-800'}`}>
-                      {item.body}
-                      <span className={`mt-1 flex items-center gap-1 text-[11px] ${mine ? 'text-blue-100' : 'text-slate-400'}`}>
-                        {item.channel === 'email' ? <Mail className="h-3 w-3" /> : <MessageSquare className="h-3 w-3" />}
-                        {mine ? assigneeName(item.sender_id).split(' ')[0] : customer.name.split(' ')[0]} · {relTime(item.created_at)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-              <div ref={bottomRef} />
-            </div>
-
-            {isAgent && (
-              <footer className="border-t border-slate-200 bg-white/80 p-3">
-                {error && <p role="alert" className="pb-2 text-xs text-rose-600">{error}</p>}
-                <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                  {([['chat', 'Chat reply', MessageSquare], ['email', 'Email', Mail], ['note', 'Internal note', StickyNote]] as const).map(([id, label, Icon]) => (
-                    <button key={id} type="button" onClick={() => setMode(id)} className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${mode === id ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}><Icon className="h-3 w-3" />{label}</button>
-                  ))}
-                  {workspaceSettings.aiSuggestedReplies && <button type="button" disabled={busy === 'suggest'} onClick={() => void runAi('suggest')} className="ml-auto flex items-center gap-1 rounded-md bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-60"><Sparkles className="h-3 w-3" />{busy === 'suggest' ? 'Thinking…' : 'Suggest reply'}</button>}
-                </div>
-                <div className="flex gap-2">
-                  <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={2} maxLength={10000} aria-label="Reply"
-                    onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void sendReply(); }}
-                    placeholder={mode === 'note' ? 'Add a private note for your team…' : mode === 'email' ? `Email ${customer.email ?? 'customer'}…` : 'Reply in chat…'}
-                    className={`${inputClass} resize-none ${mode === 'note' ? 'bg-amber-50' : ''}`} />
-                  <button type="button" disabled={!draft.trim() || busy === 'send'} onClick={() => void sendReply()} aria-label="Send" className="self-end rounded-lg bg-brand-600 p-2.5 text-white hover:bg-brand-700 disabled:opacity-50"><Send className="h-4 w-4" /></button>
-                </div>
-              </footer>
-            )}
-          </>
         )}
-      </section>
-
-      {/* Customer profile and journey */}
-      {selected && customer && (
-        <aside className="hidden w-80 shrink-0 space-y-4 overflow-y-auto border-l border-slate-200 bg-white/70 p-4 xl:block">
+        right={selected && customer ? (
+        <aside className="h-full w-full space-y-4 overflow-y-auto bg-white/70 p-4">
           <div className="flex items-center gap-3">
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">{initials(customer.name)}</span>
             <div className="min-w-0">
@@ -386,7 +331,72 @@ export const SupportInbox: React.FC = () => {
             </ol>
           </div>
         </aside>
-      )}
+        ) : undefined}
+      >
+      <section className={`${selected ? 'flex' : 'hidden lg:flex'} h-full min-w-0 flex-1 flex-col`}>
+        {!selected || !customer ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-xs text-slate-400"><MessageSquare className="h-7 w-7" />Select a conversation to reply.</div>
+        ) : (
+          <>
+            <header className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white/70 px-4 py-2.5">
+              <button type="button" onClick={() => setSelectedId(null)} className="rounded-md p-1 text-slate-500 hover:bg-slate-100 lg:hidden" aria-label="Back"><X className="h-4 w-4" /></button>
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-semibold text-slate-800">{customer.name}</h3>
+                <p className="truncate text-xs text-slate-500">{selected.subject}</p>
+              </div>
+              <select disabled={!isAgent} value={selected.status} onChange={(e) => void patchConversation({ status: e.target.value as Status })} aria-label="Status" className={`rounded-lg border-0 px-2 py-1 text-xs font-semibold ${statusStyle[selected.status]}`}>
+                <option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option>
+              </select>
+            </header>
+
+            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              {messages.map((item) => {
+                const mine = item.sender_type === 'agent';
+                if (item.sender_type === 'note') return (
+                  <div key={item.id} className="mx-auto max-w-[85%] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    <span className="mb-0.5 flex items-center gap-1 font-semibold"><StickyNote className="h-3 w-3" />Internal note · {assigneeName(item.sender_id)}</span>
+                    <span className="whitespace-pre-wrap break-words">{item.body}</span>
+                  </div>
+                );
+                return (
+                  <div key={item.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[75%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm ${mine ? 'rounded-br-sm bg-brand-600 text-white' : 'rounded-bl-sm border border-slate-200 bg-white text-slate-800'}`}>
+                      {item.body}
+                      <span className={`mt-1 flex items-center gap-1 text-[11px] ${mine ? 'text-blue-100' : 'text-slate-400'}`}>
+                        {item.channel === 'email' ? <Mail className="h-3 w-3" /> : <MessageSquare className="h-3 w-3" />}
+                        {mine ? assigneeName(item.sender_id).split(' ')[0] : customer.name.split(' ')[0]} · {relTime(item.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={bottomRef} />
+            </div>
+
+            {isAgent && (
+              <footer className="border-t border-slate-200 bg-white/80 p-3">
+                {error && <p role="alert" className="pb-2 text-xs text-rose-600">{error}</p>}
+                <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                  {([['chat', 'Chat reply', MessageSquare], ['email', 'Email', Mail], ['note', 'Internal note', StickyNote]] as const).map(([id, label, Icon]) => (
+                    <button key={id} type="button" onClick={() => setMode(id)} className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${mode === id ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}><Icon className="h-3 w-3" />{label}</button>
+                  ))}
+                  <select aria-label="Insert template" value="" onChange={(e) => { const t = TEMPLATES[Number(e.target.value)]; if (t) setDraft((d) => (d ? d + '\n' : '') + t[1].replace('{name}', customer.name.split(' ')[0])); }} className="ml-auto rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-600"><option value="">Templates…</option>{TEMPLATES.map((t, i) => <option key={t[0]} value={i}>{t[0]}</option>)}</select>
+                  {workspaceSettings.aiSuggestedReplies && <button type="button" disabled={busy === 'suggest'} onClick={() => void runAi('suggest')} className="flex items-center gap-1 rounded-md bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-60"><Sparkles className="h-3 w-3" />{busy === 'suggest' ? 'Thinking…' : 'Suggest reply'}</button>}
+                </div>
+                <div className="flex gap-2">
+                  <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={2} maxLength={10000} aria-label="Reply"
+                    onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void sendReply(); }}
+                    placeholder={mode === 'note' ? 'Add a private note for your team…' : mode === 'email' ? `Email ${customer.email ?? 'customer'}…` : 'Reply in chat…'}
+                    className={`${inputClass} resize-none ${mode === 'note' ? 'bg-amber-50' : ''}`} />
+                  <button type="button" disabled={!draft.trim() || busy === 'send'} onClick={() => void sendReply()} aria-label="Send" className="self-end rounded-lg bg-brand-600 p-2.5 text-white hover:bg-brand-700 disabled:opacity-50"><Send className="h-4 w-4" /></button>
+                </div>
+              </footer>
+            )}
+          </>
+        )}
+      </section>
+
+      </PanelLayout>
 
       {showNew && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-label="New conversation">
