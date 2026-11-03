@@ -111,7 +111,7 @@ const WorkspaceShell: React.FC = () => {
   }
 
   return (
-    <div className="flex h-dvh min-h-dvh w-screen overflow-hidden bg-chrome-900">
+    <div className="flex h-dvh min-h-dvh w-screen overflow-hidden bg-[#fafbfc]">
       <Sidebar isMobileOpen={isNavOpen} />
       {isNavOpen && (
         <button
@@ -126,7 +126,7 @@ const WorkspaceShell: React.FC = () => {
       <div className="mb-14 flex min-w-0 flex-1 flex-col overflow-hidden md:mb-0">
         <TopBar />
         {/* Workspace Body */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gradient-to-br from-slate-200/80 via-slate-100 to-brand-50 md:mb-2 md:mr-2 md:rounded-b-2xl md:shadow-xl">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#fafbfc]">
           <Breadcrumbs />
           <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
           {activeTab === 'home' && <HomePage />}

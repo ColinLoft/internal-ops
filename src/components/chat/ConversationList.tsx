@@ -68,10 +68,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
           setActiveTab('messages');
           onSelect?.();
         }}
-        className={`group relative flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-150 ${
+        className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer transition-all duration-150 ${
           isActive
-            ? 'bg-brand-50/80 border border-brand-200/60 shadow-xs'
-            : 'hover:bg-slate-100/70 border border-transparent'
+            ? 'bg-brand-50/90 text-slate-900 ring-1 ring-brand-200/60'
+            : 'hover:bg-slate-100/70 text-slate-700'
         }`}
       >
         {/* Avatar with Status Bubble */}
@@ -79,39 +79,39 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
           <img
             src={conv.avatar || (partner?.avatar ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150')}
             alt={conv.name}
-            className="w-11 h-11 rounded-2xl object-cover shadow-2xs"
+            className="w-9 h-9 rounded-full object-cover"
           />
           {conv.type === 'direct' && (
             <span
-              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${
+              className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
                 partner?.status === 'online'
-                  ? 'bg-brand-500'
+                  ? 'bg-emerald-500'
                   : partner?.status === 'busy'
                   ? 'bg-rose-500'
                   : partner?.status === 'away'
-                  ? 'bg-brand-500'
+                  ? 'bg-amber-400'
                   : 'bg-slate-400'
               }`}
             />
           )}
           {conv.type === 'group' && (
-            <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-brand-600 text-white flex items-center justify-center text-xs border-2 border-white">
-              <UsersIcon className="w-2.5 h-2.5" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-brand-600 text-white flex items-center justify-center text-[9px] border border-white">
+              <UsersIcon className="w-2 h-2" />
             </span>
           )}
         </div>
 
         {/* Content details */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center justify-between mb-0.5">
             <h4
-              className={`text-sm font-bold truncate ${
-                isActive ? 'text-brand-900' : 'text-slate-900'
+              className={`text-[13px] font-medium truncate ${
+                isActive ? 'text-brand-900 font-semibold' : 'text-slate-900'
               }`}
             >
               {conv.name}
             </h4>
-            <span className="text-xs text-slate-400 font-medium whitespace-nowrap ml-1">
+            <span className="text-[11px] text-slate-400 font-normal whitespace-nowrap ml-1">
               {conv.lastMessage?.timestamp || 'Just now'}
             </span>
           </div>
@@ -119,7 +119,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
           <div className="flex items-center justify-between gap-1">
             <p
               className={`text-xs truncate ${
-                conv.unreadCount > 0 ? 'text-slate-900 font-semibold' : 'text-slate-500'
+                conv.unreadCount > 0 ? 'text-slate-900 font-medium' : 'text-slate-500'
               }`}
             >
               {conv.lastMessage?.text || 'No messages yet'}
@@ -127,11 +127,11 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
 
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {conv.unreadCount > 0 ? (
-                <span className="min-w-[18px] h-[18px] px-1 bg-brand-600 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-xs">
+                <span className="min-w-[18px] h-[18px] px-1 bg-brand-600 text-white text-[11px] font-semibold rounded-full flex items-center justify-center">
                   {conv.unreadCount}
                 </span>
               ) : (
-                <CheckCheck className="w-3.5 h-3.5 text-brand-600" />
+                <CheckCheck className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-500" />
               )}
             </div>
           </div>
@@ -165,39 +165,39 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
           setActiveTab('channels');
           onSelect?.();
         }}
-        className={`group flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition-all ${
-          isActive ? 'bg-brand-50 text-brand-900' : 'text-slate-600 hover:bg-slate-100'
+        className={`group flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
+          isActive ? 'bg-brand-50/90 text-brand-900 font-medium ring-1 ring-brand-200/50' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
         }`}
       >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-100/70 text-brand-700">
-          {channel.isPrivate ? <Lock className="h-3.5 w-3.5" /> : <Hash className="h-4 w-4" />}
+        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${isActive ? 'text-brand-700 bg-brand-100/60' : 'text-slate-400 group-hover:text-slate-600'}`}>
+          {channel.isPrivate ? <Lock className="h-3.5 w-3.5" /> : <Hash className="h-3.5 w-3.5" />}
         </span>
-        <span className="min-w-0 flex-1 truncate text-xs font-semibold">#{channel.name}</span>
-        {channel.unreadCount > 0 && <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-xs font-bold text-white">{channel.unreadCount}</span>}
+        <span className="min-w-0 flex-1 truncate text-xs">{channel.name}</span>
+        {channel.unreadCount > 0 && <span className="rounded-full bg-brand-600 px-1.5 py-0.2 text-[11px] font-bold text-white">{channel.unreadCount}</span>}
       </button>
     );
   };
 
   return (
-    <div data-onboarding-target="conversation-list" className="w-full md:w-80 h-full bg-white/80 backdrop-blur-xl border-r border-slate-200/80 flex flex-col flex-shrink-0">
+    <div data-onboarding-target="conversation-list" className="w-full md:w-80 h-full bg-white border-r border-slate-200/70 flex flex-col flex-shrink-0">
       {/* Top Header */}
-      <div className="p-4 pb-2">
+      <div className="p-3.5 pb-2 border-b border-slate-100">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Communications</h2>
-            <p className="text-xs text-slate-500 font-medium">Channels and direct messages</p>
+            <h2 className="text-base font-semibold text-slate-900 tracking-tight">Communications</h2>
+            <p className="text-[11px] text-slate-500 font-normal">Channels and direct messages</p>
           </div>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setIsAddTeammateOpen(true)}
-              className="p-2 rounded-xl text-slate-500 hover:text-brand-600 hover:bg-brand-50 transition-colors shadow-2xs"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
               title="Add Teammate / Invite Colleague"
             >
               <UserPlus className="w-4 h-4" />
             </button>
             <button
               onClick={() => setIsNewMessageOpen(true)}
-              className="p-2 rounded-xl bg-brand-50 hover:bg-brand-100 text-brand-600 transition-colors shadow-2xs"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
               title="Start New Chat"
             >
               <Plus className="w-4 h-4" />
@@ -206,24 +206,24 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
         </div>
 
         {/* Search Input */}
-        <div className="relative mb-3">
+        <div className="relative mb-2.5">
           <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search chat or person..."
-            className="w-full pl-8 pr-3 py-1.5 bg-slate-100/80 focus:bg-white text-xs text-slate-800 placeholder:text-slate-400 rounded-xl border border-transparent focus:border-brand-500/40 outline-none transition-all"
+            className="w-full pl-8 pr-3 py-1.5 bg-slate-100/70 focus:bg-white text-xs text-slate-800 placeholder:text-slate-400 rounded-lg border border-transparent focus:border-slate-300 focus:ring-2 focus:ring-slate-100 outline-none transition-all"
           />
         </div>
 
         {/* All vs Unread Tabs */}
-        <div className="flex items-center gap-1 p-0.5 bg-slate-100/90 rounded-xl">
+        <div className="flex items-center gap-1 p-0.5 bg-slate-100/80 rounded-lg">
           <button
             onClick={() => setFilterTab('all')}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`flex-1 py-1 text-xs font-medium rounded-md transition-all ${
               filterTab === 'all'
-                ? 'bg-white text-slate-900 shadow-2xs'
+                ? 'bg-white text-slate-900 shadow-2xs font-semibold'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -231,9 +231,9 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
           </button>
           <button
             onClick={() => setFilterTab('unread')}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`flex-1 py-1 text-xs font-medium rounded-md transition-all ${
               filterTab === 'unread'
-                ? 'bg-white text-slate-900 shadow-2xs'
+                ? 'bg-white text-slate-900 shadow-2xs font-semibold'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -242,23 +242,23 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 pb-2">
-        <div className="mb-4">
-          <div className="mb-2 flex items-center justify-between px-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Channels</p>
-            <button type="button" onClick={() => setIsCreateChannelOpen(true)} className="rounded-md p-1 text-slate-400 hover:bg-brand-50 hover:text-brand-600" title="Create channel">
+      <div className="flex-1 overflow-y-auto px-2.5 py-2 [scrollbar-width:none]">
+        <div className="mb-3">
+          <div className="mb-1.5 flex items-center justify-between px-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Channels</p>
+            <button type="button" onClick={() => setIsCreateChannelOpen(true)} className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors" title="Create channel">
               <Plus className="h-3.5 w-3.5" />
             </button>
           </div>
           <div className="space-y-0.5">{channels.map(renderChannelItem)}</div>
         </div>
-        <div className="mb-2 flex items-center justify-between px-2">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Direct messages</p>
-          <button type="button" onClick={() => setIsNewMessageOpen(true)} className="rounded-md p-1 text-slate-400 hover:bg-brand-50 hover:text-brand-600" title="Start direct message">
+        <div className="mb-1.5 flex items-center justify-between px-2 pt-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Direct messages</p>
+          <button type="button" onClick={() => setIsNewMessageOpen(true)} className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors" title="Start direct message">
             <Plus className="h-3.5 w-3.5" />
           </button>
         </div>
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {pinnedConversations.map(renderConversationItem)}
           {otherConversations.map(renderConversationItem)}
         </div>

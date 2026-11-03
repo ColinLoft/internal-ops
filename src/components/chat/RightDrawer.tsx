@@ -66,25 +66,25 @@ export const RightDrawer: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 w-full md:static md:z-20 md:w-80 h-full bg-white/95 backdrop-blur-2xl border-l border-slate-200/80 flex flex-col shadow-xl flex-shrink-0 animate-in slide-in-from-right duration-200">
+    <div className="fixed inset-0 z-50 w-full md:static md:z-20 md:w-80 h-full bg-white border-l border-slate-200/70 flex flex-col shadow-subtle flex-shrink-0 animate-in slide-in-from-right duration-200">
       {/* Header */}
-      <div className="h-16 px-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-        <h3 className="text-xs font-bold text-slate-900">
+      <div className="h-14 px-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/40">
+        <h3 className="text-xs font-semibold text-slate-900">
           {isChannel ? 'Channel Details' : 'Conversation Info'}
         </h3>
         <button
           onClick={toggleRightDrawer}
-          className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
+          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Info Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 [scrollbar-width:none]">
         {/* Profile Card Header */}
         <div className="text-center pb-2">
-          <div className="w-20 h-20 mx-auto rounded-3xl overflow-hidden shadow-md border-2 border-white mb-3">
+          <div className="w-16 h-16 mx-auto rounded-2xl overflow-hidden shadow-xs border border-slate-100 mb-2.5">
             <img
               src={
                 isChannel
