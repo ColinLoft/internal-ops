@@ -34,7 +34,6 @@ const appDropdowns: NavItem[] = [
 ];
 const adminItems: NavItem[] = [
   { id: 'help', label: 'Support', icon: Headset },
-  { id: 'admin', label: 'Systems', icon: Settings },
 ];
 
 const accessKey: Partial<Record<Tab, string>> = { customers: 'customers', finance: 'finance', legal: 'legal', admin: 'systems' };
@@ -44,7 +43,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
-  const { activeTab, setActiveTab, conversations, currentUser, setIsWorkspaceSettingsOpen, logout } = useWorkspace();
+  const { activeTab, setActiveTab, conversations, currentUser, logout } = useWorkspace();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('flown-sidebar-groups') || '{}'); } catch { return {}; } });
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -120,9 +119,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
           type="button"
           onClick={() => { setActiveTab('home'); goTo('/home'); }}
           title="Flown home"
-          className={`h-12 min-w-0 flex-1 items-center justify-center rounded-xl bg-white px-3 hover:bg-white/90 ${collapsed ? 'flex md:hidden' : 'flex'}`}
+          className={`h-12 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-xl bg-white/15 hover:bg-white/20 ${collapsed ? 'flex md:hidden' : 'flex'}`}
         >
-          <img src="/flown-logo.png" alt="Flown" className="h-9 w-auto max-w-full object-contain" />
+          <img src="/flown-logo.png" alt="Flown" className="h-auto w-[118%] max-w-none shrink-0 brightness-0 invert" />
         </button>
         <button
           type="button"
@@ -251,7 +250,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
             {!collapsed && (
               <>
                 <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold">{currentUser.name}</span><span className="block truncate text-[11px] text-white/65">{currentUser.role}</span></span>
-                <button type="button" onClick={() => setIsWorkspaceSettingsOpen(true)} aria-label="Settings" title="Settings" className="rounded-lg p-1.5 text-white/80 hover:bg-white/15 hover:text-white"><Settings className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setActiveTab('settings')} aria-label="Settings" title="Settings" className="rounded-lg p-1.5 text-white/80 hover:bg-white/15 hover:text-white"><Settings className="h-4 w-4" /></button>
                 <button type="button" onClick={() => void logout()} aria-label="Sign out" title="Sign out" className="rounded-lg p-1.5 text-white/80 hover:bg-white/15 hover:text-white"><LogOut className="h-4 w-4" /></button>
               </>
             )}

@@ -39,7 +39,7 @@ const parseSummary = (raw: string | null): Summary | null => {
 const notifyChanged = () => window.dispatchEvent(new Event('flown-support-changed'));
 
 export const SupportInbox: React.FC = () => {
-  const { currentUser, users, requestEmailCompose } = useWorkspace();
+  const { currentUser, users, requestEmailCompose, workspaceSettings } = useWorkspace();
   const { canEdit: isAgent } = useAppAccess('support');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [customers, setCustomers] = useState<Record<string, Customer>>({});
@@ -312,7 +312,7 @@ export const SupportInbox: React.FC = () => {
                   {([['chat', 'Chat reply', MessageSquare], ['email', 'Email', Mail], ['note', 'Internal note', StickyNote]] as const).map(([id, label, Icon]) => (
                     <button key={id} type="button" onClick={() => setMode(id)} className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${mode === id ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}><Icon className="h-3 w-3" />{label}</button>
                   ))}
-                  <button type="button" disabled={busy === 'suggest'} onClick={() => void runAi('suggest')} className="ml-auto flex items-center gap-1 rounded-md bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-60"><Sparkles className="h-3 w-3" />{busy === 'suggest' ? 'Thinking…' : 'Suggest reply'}</button>
+                  {workspaceSettings.aiSuggestedReplies && <button type="button" disabled={busy === 'suggest'} onClick={() => void runAi('suggest')} className="ml-auto flex items-center gap-1 rounded-md bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-60"><Sparkles className="h-3 w-3" />{busy === 'suggest' ? 'Thinking…' : 'Suggest reply'}</button>}
                 </div>
                 <div className="flex gap-2">
                   <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={2} maxLength={10000} aria-label="Reply"

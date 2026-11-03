@@ -73,6 +73,8 @@ export interface WorkspaceSettings {
   ringtone: Ringtone;
   showCameraPreview: boolean;
   noiseSuppression: boolean;
+  aiAssistantEnabled: boolean;
+  aiSuggestedReplies: boolean;
 }
 
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
@@ -85,6 +87,8 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   ringtone: 'classic',
   showCameraPreview: true,
   noiseSuppression: true,
+  aiAssistantEnabled: true,
+  aiSuggestedReplies: true,
 };
 
 export interface Attachment {

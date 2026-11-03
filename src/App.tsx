@@ -16,7 +16,7 @@ import { PasswordSetupModal } from './components/auth/PasswordSetupModal';
 import { FirstLoginOnboarding } from './components/auth/FirstLoginOnboarding';
 import { ProfileModal } from './components/profile/ProfileModal';
 import { EditProfileModal } from './components/profile/EditProfileModal';
-import { SettingsModal } from './components/profile/SettingsModal';
+import { SettingsPage } from './components/settings/SettingsPage';
 import { CreateChannelModal } from './components/modals/CreateChannelModal';
 import { CreatePollModal } from './components/modals/CreatePollModal';
 import { NewMessageModal } from './components/modals/NewMessageModal';
@@ -30,7 +30,6 @@ import { AccessGate } from './components/common/AccessGate';
 import { CustomerPage } from './components/customers/CustomerPage';
 import { FinancePage } from './components/finance/FinancePage';
 import { LegalPage } from './components/legal/LegalPage';
-import { AdminPage } from './components/admin/AdminPage';
 import { HomePage } from './components/home/HomePage';
 import { NotFoundPage } from './components/NotFoundPage';
 import { SupportPage } from './components/support/SupportPage';
@@ -49,7 +48,7 @@ const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
 }));
 
-const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|finance(?:\/[^/]+)*|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|help|help-center|contact|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)*|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|systems(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
+const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|finance(?:\/[^/]+)*|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|help|help-center|settings|contact|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)*|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|systems(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
 
 const WorkspaceShell: React.FC = () => {
   const {
@@ -68,6 +67,7 @@ const WorkspaceShell: React.FC = () => {
     setIsAddTeammateOpen,
     inviteReadyData,
     setInviteReadyData,
+    workspaceSettings,
   } = useWorkspace();
   useOverlayA11y();
   const [isNavOpen, setIsNavOpen] = useState(false);
@@ -136,7 +136,7 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'organization' && <OrganizationPage />}
           {activeTab === 'programs' && <ProgramsPage />}
           {activeTab === 'gtm' && <GTMPage />}
-          {activeTab === 'admin' && <AdminPage />}
+          {activeTab === 'settings' && <SettingsPage />}
           {activeTab === 'engineering' && <EngineeringPage />}
           {activeTab === 'messages' && (
             <>
@@ -188,7 +188,6 @@ const WorkspaceShell: React.FC = () => {
       {/* Modals & Dialogs */}
       <ProfileModal />
       <EditProfileModal />
-      <SettingsModal />
       <CreateChannelModal />
       <CreatePollModal />
       <NewMessageModal />
@@ -202,7 +201,7 @@ const WorkspaceShell: React.FC = () => {
         onClose={() => setInviteReadyData(null)}
         inviteData={inviteReadyData}
       />
-      <WorkspaceAssistant />
+      {workspaceSettings.aiAssistantEnabled && <WorkspaceAssistant />}
       {requiresPasswordSetup && <PasswordSetupModal />}
       {!requiresPasswordSetup && requiresOnboarding && <FirstLoginOnboarding />}
       {!requiresPasswordSetup && !requiresOnboarding && <PendingDocumentPrompt userId={currentUser.id} />}

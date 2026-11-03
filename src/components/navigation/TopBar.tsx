@@ -9,7 +9,7 @@ type OpenTab = { path: string; app: string; label: string };
 const appLabels: Record<string, string> = {
   home: 'Home', messages: 'Messages', channels: 'Channels', calendar: 'Calendar', inbox: 'Email', drive: 'Drive',
   engineering: 'Engineering', gtm: 'Marketing', legal: 'Legal', finance: 'Grants', customers: 'Relationships',
-  programs: 'Projects', admin: 'Systems', help: 'Support', helpcenter: 'Help Center', insights: 'Insights', organization: 'Organization',
+  programs: 'Projects', admin: 'Settings', settings: 'Settings', help: 'Support', helpcenter: 'Help Center', insights: 'Insights', organization: 'Organization',
 };
 const storageKey = 'flown-open-tabs';
 const maxTabs = 10;

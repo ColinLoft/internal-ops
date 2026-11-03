@@ -1,0 +1,237 @@
+import React, { useEffect, useState } from 'react';
+import { Bell, Check, KeyRound, Loader2, LogOut, Palette, Phone, Play, Save, ShieldCheck, Sparkles, UserRound, Users } from 'lucide-react';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { supabase } from '../../lib/supabase';
+import { RINGTONES, WorkspaceSettings } from '../../types';
+import { sounds } from '../../lib/sound';
+import { AdminPage } from '../admin/AdminPage';
+
+type Section = 'profile' | 'appearance' | 'notifications' | 'calls' | 'ai' | 'security' | 'admin';
+
+const card = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm';
+const input = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-brand-500';
+
+const Toggle: React.FC<{ label: string; description: string; checked: boolean; onChange: (value: boolean) => void }> = ({ label, description, checked, onChange }) => (
+  <label className="flex cursor-pointer items-start justify-between gap-4 py-3">
+    <span>
+      <span className="block text-sm font-semibold text-slate-800">{label}</span>
+      <span className="mt-0.5 block text-xs text-slate-500">{description}</span>
+    </span>
+    <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+  </label>
+);
+
+export const SettingsPage: React.FC = () => {
+  const { currentUser, workspaceSettings, saveWorkspaceSettings, soundEnabled, toggleSound, setIsProfileSettingsOpen, logout } = useWorkspace();
+  const isAdmin = currentUser.systemRole === 'admin';
+  const [section, setSection] = useState<Section>('profile');
+  const [draft, setDraft] = useState<WorkspaceSettings>(workspaceSettings);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [deviceError, setDeviceError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [secMsg, setSecMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [secBusy, setSecBusy] = useState(false);
+
+  useEffect(() => { setDraft(workspaceSettings); }, [workspaceSettings]);
+
+  useEffect(() => {
+    if (section !== 'calls') return;
+    if (!navigator.mediaDevices?.enumerateDevices) { setDeviceError('This browser does not support selecting audio and video devices.'); return; }
+    navigator.mediaDevices.enumerateDevices().then(setDevices).catch((error: unknown) => setDeviceError(error instanceof Error ? error.message : 'Unable to list devices.'));
+  }, [section]);
+
+  const update = <K extends keyof WorkspaceSettings>(key: K, value: WorkspaceSettings[K]) => { setSaved(false); setDraft((previous) => ({ ...previous, [key]: value })); };
+  const dirty = JSON.stringify(draft) !== JSON.stringify(workspaceSettings);
+
+  const save = async () => {
+    setSaving(true); setSaveError('');
+    try { await saveWorkspaceSettings(draft); setSaved(true); }
+    catch (error) { setSaveError(error instanceof Error ? error.message : 'Unable to save settings.'); }
+    finally { setSaving(false); }
+  };
+
+  const changePassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (password.length < 10) { setSecMsg({ ok: false, text: 'Use at least 10 characters.' }); return; }
+    if (password !== confirm) { setSecMsg({ ok: false, text: 'Passwords do not match.' }); return; }
+    setSecBusy(true); setSecMsg(null);
+    const { error } = await supabase.auth.updateUser({ password });
+    setSecBusy(false);
+    if (error) setSecMsg({ ok: false, text: error.message });
+    else { setPassword(''); setConfirm(''); setSecMsg({ ok: true, text: 'Password updated.' }); }
+  };
+
+  const signOutOthers = async () => {
+    setSecBusy(true); setSecMsg(null);
+    const { error } = await supabase.auth.signOut({ scope: 'others' });
+    setSecBusy(false);
+    setSecMsg(error ? { ok: false, text: error.message } : { ok: true, text: 'Signed out of all other devices.' });
+  };
+
+  const nav: { id: Section; label: string; icon: React.ElementType }[] = [
+    { id: 'profile', label: 'Profile', icon: UserRound },
+    { id: 'appearance', label: 'Appearance', icon: Palette },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'calls', label: 'Calls & devices', icon: Phone },
+    { id: 'ai', label: 'AI', icon: Sparkles },
+    { id: 'security', label: 'Security', icon: ShieldCheck },
+    ...(isAdmin ? [{ id: 'admin' as Section, label: 'Administration', icon: Users }] : []),
+  ];
+
+  const audioInputs = devices.filter((device) => device.kind === 'audioinput');
+  const videoInputs = devices.filter((device) => device.kind === 'videoinput');
+  const prefsSection = section !== 'profile' && section !== 'security' && section !== 'admin';
+
+  return (
+    <main className="flex-1 overflow-y-auto">
+      <div className={`mx-auto p-5 sm:p-8 lg:p-10 ${section === 'admin' ? 'max-w-6xl' : 'max-w-5xl'}`}>
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Account</p>
+        <h1 className="mb-6 text-3xl font-bold text-slate-900">Settings</h1>
+        <div className="flex flex-col gap-6 md:flex-row">
+          <nav aria-label="Settings sections" className="flex shrink-0 gap-1 overflow-x-auto md:w-52 md:flex-col">
+            {nav.map(({ id, label, icon: Icon }) => (
+              <button key={id} type="button" onClick={() => setSection(id)} className={`flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-colors ${section === id ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}>
+                <Icon className="h-4 w-4" />{label}
+              </button>
+            ))}
+            <button type="button" onClick={() => void logout()} className="mt-2 flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 md:mt-4">
+              <LogOut className="h-4 w-4" />Sign out
+            </button>
+          </nav>
+
+          <div className="min-w-0 flex-1 space-y-4">
+            {section === 'profile' && (
+              <section className={card}>
+                <h2 className="text-lg font-bold text-slate-900">Your profile</h2>
+                <p className="mt-1 text-sm text-slate-500">Signed in as {currentUser.email}</p>
+                <div className="mt-5 flex items-center gap-4">
+                  {currentUser.avatar ? <img src={currentUser.avatar} alt="" className="h-16 w-16 rounded-full object-cover" /> : <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 text-xl font-bold text-brand-700">{currentUser.name.slice(0, 1)}</span>}
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-slate-900">{currentUser.name}</p>
+                    <p className="truncate text-sm text-slate-500">{[currentUser.role, currentUser.department].filter(Boolean).join(' · ') || 'No title set'}</p>
+                  </div>
+                  <button type="button" onClick={() => setIsProfileSettingsOpen(true)} className="ml-auto rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">Edit profile</button>
+                </div>
+                <dl className="mt-6 grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-2">
+                  {[['Phone', currentUser.phone], ['Location', currentUser.location], ['Workspace role', currentUser.systemRole]].map(([label, value]) => (
+                    <div key={label}><dt className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{label}</dt><dd className="mt-1 text-sm text-slate-800">{value || '—'}</dd></div>
+                  ))}
+                </dl>
+              </section>
+            )}
+
+            {section === 'appearance' && (
+              <section className={card}>
+                <h2 className="text-lg font-bold text-slate-900">Appearance</h2>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Theme</span>
+                    <select value={draft.theme} onChange={(event) => update('theme', event.target.value as WorkspaceSettings['theme'])} className={input}>
+                      <option value="light">Light</option><option value="dark">Dark</option>
+                    </select>
+                  </label>
+                  <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Accent color</span>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={draft.accentColor} onChange={(event) => update('accentColor', event.target.value)} aria-label="Accent color" className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" />
+                      <span className="font-mono text-xs text-slate-500">{draft.accentColor.toUpperCase()}</span>
+                    </div>
+                  </label>
+                </div>
+              </section>
+            )}
+
+            {section === 'notifications' && (
+              <section className={`${card} divide-y divide-slate-100`}>
+                <h2 className="pb-3 text-lg font-bold text-slate-900">Notifications &amp; availability</h2>
+                <Toggle label="Notification sounds" description="Play a subtle sound when notifications arrive." checked={soundEnabled} onChange={() => toggleSound()} />
+                <Toggle label="Busy while in a call" description="Switch to Busy during a call, then restore your previous status." checked={draft.autoBusyInCalls} onChange={(value) => update('autoBusyInCalls', value)} />
+                <Toggle label="Busy during calendar events" description="Switch to Busy during today's scheduled events, then restore your status." checked={draft.autoBusyDuringEvents} onChange={(value) => update('autoBusyDuringEvents', value)} />
+              </section>
+            )}
+
+            {section === 'calls' && (
+              <section className={card}>
+                <h2 className="text-lg font-bold text-slate-900">Calls &amp; devices</h2>
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <div><h3 className="text-sm font-semibold text-slate-800">Ringtone</h3><p className="text-xs text-slate-500">Choose and preview your call ringtone.</p></div>
+                  <button type="button" onClick={() => sounds.previewRingTone(draft.ringtone)} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100"><Play className="h-3 w-3" />Preview</button>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {RINGTONES.map((ringtone) => (
+                    <button key={ringtone.value} type="button" aria-pressed={draft.ringtone === ringtone.value} onClick={() => update('ringtone', ringtone.value)} className={`rounded-xl border p-3 text-left ${draft.ringtone === ringtone.value ? 'border-brand-400 bg-brand-50/70 ring-1 ring-brand-300' : 'border-slate-200 hover:border-slate-300'}`}>
+                      <span className="block text-xs font-semibold text-slate-800">{ringtone.label}</span>
+                      <span className="mt-0.5 block text-xs text-slate-500">{ringtone.description}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Microphone</span>
+                    <select value={draft.microphoneDeviceId} onChange={(event) => update('microphoneDeviceId', event.target.value)} className={input}>
+                      <option value="">System default</option>
+                      {audioInputs.map((device, index) => <option key={device.deviceId || index} value={device.deviceId}>{device.label || `Microphone ${index + 1}`}</option>)}
+                    </select>
+                  </label>
+                  <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Camera</span>
+                    <select value={draft.cameraDeviceId} onChange={(event) => update('cameraDeviceId', event.target.value)} className={input}>
+                      <option value="">System default</option>
+                      {videoInputs.map((device, index) => <option key={device.deviceId || index} value={device.deviceId}>{device.label || `Camera ${index + 1}`}</option>)}
+                    </select>
+                  </label>
+                </div>
+                {deviceError && <p role="alert" className="mt-3 text-xs text-brand-700">{deviceError}</p>}
+                <div className="mt-2 divide-y divide-slate-100">
+                  <Toggle label="Show my camera preview" description="Show your own video tile during video calls." checked={draft.showCameraPreview} onChange={(value) => update('showCameraPreview', value)} />
+                  <Toggle label="Noise suppression" description="Request browser noise suppression for your microphone; support varies." checked={draft.noiseSuppression} onChange={(value) => update('noiseSuppression', value)} />
+                </div>
+              </section>
+            )}
+
+            {section === 'ai' && (
+              <section className={`${card} divide-y divide-slate-100`}>
+                <h2 className="pb-1 text-lg font-bold text-slate-900">AI features</h2>
+                <p className="pb-3 text-sm text-slate-500">AI runs on the organization's Azure OpenAI deployment. Content is only sent when you use an AI feature.</p>
+                <Toggle label="Workspace AI assistant" description="Show the floating AI assistant button." checked={draft.aiAssistantEnabled} onChange={(value) => update('aiAssistantEnabled', value)} />
+                <Toggle label="Suggested replies" description="Show “Suggest reply” when answering customer messages." checked={draft.aiSuggestedReplies} onChange={(value) => update('aiSuggestedReplies', value)} />
+              </section>
+            )}
+
+            {section === 'security' && (
+              <>
+                <form onSubmit={changePassword} className={card}>
+                  <div className="flex items-center gap-2"><KeyRound className="h-4 w-4 text-brand-600" /><h2 className="text-lg font-bold text-slate-900">Change password</h2></div>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">New password</span><input type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className={input} /></label>
+                    <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Confirm password</span><input type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} className={input} /></label>
+                  </div>
+                  <button type="submit" disabled={secBusy || !password} className="mt-4 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">Update password</button>
+                </form>
+                <section className={card}>
+                  <h2 className="text-lg font-bold text-slate-900">Sessions</h2>
+                  <p className="mt-1 text-sm text-slate-500">Signed in as {currentUser.email}. If you used a shared or lost device, sign out everywhere else.</p>
+                  <button type="button" disabled={secBusy} onClick={() => void signOutOthers()} className="mt-4 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Sign out other devices</button>
+                </section>
+                {secMsg && <p role="status" className={`text-sm ${secMsg.ok ? 'text-emerald-600' : 'text-rose-600'}`}>{secMsg.text}</p>}
+              </>
+            )}
+
+            {section === 'admin' && isAdmin && <div className="-mx-5 -mt-5 sm:-mx-8 lg:-mx-10"><AdminPage /></div>}
+
+            {prefsSection && (
+              <div className="flex items-center justify-end gap-3">
+                {saveError && <p role="alert" className="mr-auto text-xs text-rose-600">{saveError}</p>}
+                {saved && !dirty && <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600"><Check className="h-3.5 w-3.5" />Saved</span>}
+                <button type="button" disabled={!dirty} onClick={() => setDraft(workspaceSettings)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-white/60 disabled:opacity-40">Reset</button>
+                <button type="button" disabled={!dirty || saving} onClick={() => void save()} className="flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Save changes
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+};

@@ -13,7 +13,7 @@ export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) =
     currentUser,
     updateCurrentUser,
     setIsProfileSettingsOpen,
-    setIsWorkspaceSettingsOpen,
+    setActiveTab,
     logout,
   } = useWorkspace();
 
@@ -98,7 +98,7 @@ export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) =
         </button>
         <button
           onClick={() => {
-            setIsWorkspaceSettingsOpen(true);
+            setActiveTab('settings');
             onClose();
           }}
           className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all"
