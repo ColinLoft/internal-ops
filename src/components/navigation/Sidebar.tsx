@@ -113,23 +113,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
   return (
     <aside
       aria-label="Primary navigation"
-      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-brand-600 text-white transition-all duration-200 md:static md:z-30 md:translate-x-0 ${collapsed ? 'md:w-[72px]' : 'md:w-64'} w-72 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-brand-600 text-white transition-all duration-200 md:static md:z-30 md:translate-x-0 ${collapsed ? 'md:w-16 md:[&>*:not(:first-child)]:hidden' : 'md:w-64'} w-72 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
     >
-      <div className={`flex items-center gap-2.5 p-3 ${collapsed ? 'flex-col' : ''}`}>
+      <div className="flex items-center gap-2.5 p-3">
         <button
           type="button"
           onClick={() => { setActiveTab('home'); goTo('/home'); }}
           title="Flown home"
-          className={`flex min-w-0 flex-1 items-center gap-3 rounded-2xl bg-white/15 p-2 text-left hover:bg-white/20 ${collapsed ? 'flex-none justify-center' : ''}`}
+          className={`h-12 min-w-0 flex-1 items-center justify-center rounded-xl bg-white px-3 hover:bg-white/90 ${collapsed ? 'flex md:hidden' : 'flex'}`}
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white"><img src="/brand-icon.png" alt="" className="h-5 w-5 object-contain" /></span>
-          {!collapsed && <span className="min-w-0"><span className="block truncate text-sm font-semibold">Flown</span><span className="block truncate text-xs text-white/70">Operations workspace</span></span>}
+          <img src="/flown-logo.png" alt="Flown" className="h-9 w-auto max-w-full object-contain" />
         </button>
         <button
           type="button"
           onClick={() => setCollapsed((value) => !value)}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 hover:bg-white/20 md:flex"
+          className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 hover:bg-white/20 md:flex"
         >
           {collapsed ? <ChevronsRight className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
         </button>
