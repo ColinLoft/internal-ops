@@ -124,7 +124,7 @@ const WorkspaceShell: React.FC = () => {
       <div className="mb-14 flex min-w-0 flex-1 flex-col overflow-hidden md:mb-0">
         <TopBar />
         {/* Workspace Body */}
-        <div className="flex h-full min-w-0 flex-1 overflow-hidden bg-gradient-to-br from-slate-200/80 via-slate-100 to-brand-50 md:mb-2 md:mr-2 md:rounded-2xl md:shadow-xl">
+        <div className="flex h-full min-w-0 flex-1 overflow-hidden bg-gradient-to-br from-slate-200/80 via-slate-100 to-brand-50 md:mb-2 md:mr-2 md:rounded-b-2xl md:shadow-xl">
           {activeTab === 'home' && <HomePage />}
           {activeTab === 'customers' && <AccessGate app="customers" name="Customers"><CustomerPage /></AccessGate>}
           {activeTab === 'finance' && <AccessGate app="finance" name="Finance"><FinancePage /></AccessGate>}

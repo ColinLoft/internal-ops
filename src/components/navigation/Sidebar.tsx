@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   House, Lightbulb, MessageSquare, Hash, Calendar as CalendarIcon, Mail, FolderKanban, Code2, HardDrive, Network,
-  UsersRound, Headset, Megaphone, Landmark, Scale, Settings, ChevronsLeft, ChevronsRight, ChevronDown, CircleHelp, LogOut, PanelLeftClose,
+  UsersRound, Headset, Megaphone, Landmark, Scale, Settings, ChevronsLeft, ChevronsRight, ChevronsUpDown, CircleHelp, LogOut, PanelLeftClose,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAllAppAccess } from '../../lib/useAppAccess';
@@ -109,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
   return (
     <aside
       aria-label="Primary navigation"
-      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-gradient-to-b from-chrome-700 to-chrome-900 text-white transition-all duration-200 md:static md:z-30 md:translate-x-0 ${collapsed ? 'md:w-16 md:[&>*:not(:first-child)]:hidden' : 'md:w-64'} w-72 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-gradient-to-b from-[#1a2850] via-[#233a6d] to-[#34508c] text-white transition-all duration-200 md:static md:z-30 md:translate-x-0 ${collapsed ? 'md:w-16 md:[&>*:not(:first-child)]:hidden' : 'md:w-64'} w-72 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
     >
       <div className="flex items-center gap-2.5 p-3">
         <button
@@ -132,121 +132,82 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
 
       {!collapsed && <div className="px-3 pb-2"><GlobalSearch /></div>}
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-1">
+      <nav className="flex-1 overflow-y-auto px-3 py-1">
         {(() => {
-          const renderLeaf = (item: NavItem) => {
+          const rowClass = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors ${active ? 'bg-white/10 font-semibold text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]' : 'font-medium text-slate-300 hover:bg-white/5 hover:text-white'}`;
+          const bar = <span className="absolute left-1 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-brand-400" />;
+          const section = (id: string, title: string, forceOpen: boolean, children: React.ReactNode) => {
+            const open = forceOpen || openGroups[id] === true || (openGroups[id] === undefined && id === 'overview');
+            return (
+              <div key={id} className="pb-1">
+                <button type="button" aria-expanded={open} onClick={() => setOpenGroups((current) => ({ ...current, [id]: !open }))} className="flex w-full items-center justify-between px-3 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400/80 hover:text-slate-200">
+                  {title}
+                  <ChevronsUpDown className="h-3 w-3 opacity-70" />
+                </button>
+                {open && <ul className="space-y-0.5">{children}</ul>}
+              </div>
+            );
+          };
+          const leaf = (item: NavItem) => {
             const Icon = item.icon;
+            const active = isActive(item.id);
             const badge = unread(item.id);
             return (
               <li key={item.id}>
-                <button type="button" title={item.label} aria-current={isActive(item.id) ? 'page' : undefined} onClick={() => setActiveTab(item.id)} className={row(isActive(item.id))}>
-                  <Icon className="h-[18px] w-[18px] shrink-0" />
-                  {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-                  {badge > 0 && (
-                    <span className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold leading-none text-white ${collapsed ? 'absolute right-2 top-0.5' : ''}`}>
-                      <span className="sr-only">{badge} unread, </span>{badge > 99 ? '99+' : badge}
-                    </span>
-                  )}
+                <button type="button" aria-current={active ? 'page' : undefined} onClick={() => setActiveTab(item.id)} className={rowClass(active)}>
+                  {active && bar}
+                  <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`} />
+                  <span className="flex-1 truncate">{item.label}</span>
+                  {badge > 0 && <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold leading-none text-white"><span className="sr-only">{badge} unread, </span>{badge > 99 ? '99+' : badge}</span>}
                 </button>
               </li>
             );
           };
-          const leafGroup = (id: string, title: string, items: NavItem[]) => {
-            const visible = items.filter((item) => hasAccess(item.id));
-            if (visible.length === 0) return null;
-            const open = collapsed || openGroups[id] !== false;
-            return (
-              <div key={id} className="pb-1">
-                {!collapsed && (
-                  <button type="button" onClick={() => setOpenGroups((current) => ({ ...current, [id]: !open }))} aria-expanded={open} className="flex w-full items-center justify-between px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-300">
-                    {title}
-                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
-                  </button>
-                )}
-                {collapsed && <div className="mx-3 mb-1 mt-2 border-t border-white/10" />}
-                {open && <ul className="space-y-0.5">{visible.map(renderLeaf)}</ul>}
-              </div>
-            );
-          };
-          const dropdowns = appDropdowns.filter((item) => hasAccess(item.id));
           return (
             <>
-              {leafGroup('overview', 'Overview', overviewItems)}
-              {dropdowns.length > 0 && (
-                <div className="pb-1">
-                  {collapsed ? <div className="mx-3 mb-1 mt-2 border-t border-white/10" /> : <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Apps</p>}
-                  <ul className="space-y-0.5">
-                    {dropdowns.map((item) => {
-                      const Icon = item.icon;
-                      const active = isActive(item.id);
-                      const pages = getSectionTabs(item.id, active ? routePath : '') ?? [];
-                      const open = !collapsed && (active || openGroups[item.id] === true);
-                      if (collapsed || pages.length === 0) {
-                        return renderLeaf(item);
-                      }
-                      return (
-                        <li key={item.id}>
-                          <button
-                            type="button"
-                            title={item.label}
-                            aria-expanded={open}
-                            onClick={() => {
-                              if (!active) setActiveTab(item.id);
-                              else setOpenGroups((current) => ({ ...current, [item.id]: !open }));
-                            }}
-                            className={row(false) + (active ? ' bg-white/5 text-white' : '')}
-                          >
-                            <Icon className="h-[18px] w-[18px] shrink-0" />
-                            <span className="flex-1 truncate">{item.label}</span>
-                            <ChevronDown className={`h-3.5 w-3.5 opacity-70 transition-transform ${open ? '' : '-rotate-90'}`} />
-                          </button>
-                          {open && (
-                            <ul className="mb-1 mt-0.5 space-y-0.5 pl-4">
-                              {pages.map((child) => {
-                                const ChildIcon = child.icon;
-                                const selected = active && isSectionSelected(child, routePath);
-                                return (
-                                  <li key={child.path}>
-                                    <button
-                                      type="button"
-                                      onClick={() => goTo(child.path)}
-                                      aria-current={selected ? 'page' : undefined}
-                                      className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-xs font-medium transition-colors ${selected ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
-                                    >
-                                      <ChildIcon className="h-3.5 w-3.5 shrink-0" />
-                                      <span className="truncate">{child.label}</span>
-                                    </button>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
+              {section('overview', 'Overview', false, overviewItems.filter((item) => hasAccess(item.id)).map(leaf))}
+              {appDropdowns.filter((item) => hasAccess(item.id)).map((item) => {
+                const active = isActive(item.id);
+                const pages = getSectionTabs(item.id, active ? routePath : '') ?? [];
+                if (pages.length === 0) return section(item.id, item.label, false, leaf(item));
+                return section(item.id, item.label, false, pages.map((child) => {
+                  const ChildIcon = child.icon;
+                  const selected = active && isSectionSelected(child, routePath);
+                  return (
+                    <li key={child.path}>
+                      <button type="button" aria-current={selected ? 'page' : undefined} onClick={() => goTo(child.path)} className={rowClass(selected)}>
+                        {selected && bar}
+                        <ChildIcon className={`h-[18px] w-[18px] shrink-0 ${selected ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`} />
+                        <span className="flex-1 truncate">{child.label}</span>
+                        {child.path === '/customers/support' && unread('customers') > 0 && <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold leading-none text-white">{unread('customers')}</span>}
+                      </button>
+                    </li>
+                  );
+                }));
+              })}
             </>
           );
         })()}
       </nav>
 
-      <div className="space-y-1 border-t border-white/10 p-3">
+      <div className="space-y-0.5 border-t border-white/10 p-3">
         <button type="button" title="Help Center" onClick={() => setActiveTab('helpcenter')} className={row(activeTab === 'helpcenter')}>
-          <CircleHelp className="h-[18px] w-[18px] shrink-0" />
-          {!collapsed && 'Help Center'}
+          <CircleHelp className="h-[18px] w-[18px] shrink-0 text-slate-400" />
+          Help &amp; Support
+        </button>
+        <button type="button" title="Settings" onClick={() => setActiveTab('settings')} className={row(activeTab === 'settings')}>
+          <Settings className="h-[18px] w-[18px] shrink-0 text-slate-400" />
+          Settings
         </button>
         <div className="relative" ref={profileRef}>
-          <div className={`flex items-center gap-2.5 rounded-2xl bg-white/10 p-2 ${collapsed ? 'justify-center' : ''}`}>
+          <div className={`flex items-center gap-2.5 rounded-xl bg-black/20 p-2 ${collapsed ? 'justify-center' : ''}`}>
             <button type="button" data-onboarding-target="profile-button" onClick={() => setProfileOpen((open) => !open)} aria-label="Profile and status" title={`${currentUser.name} (${currentUser.role})`} className="relative shrink-0 rounded-full">
               <img src={currentUser.avatar} alt={currentUser.name} className="h-9 w-9 rounded-full border border-white/40 object-cover" />
-              <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-brand-600 ${statusColor}`} />
+              <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#2a4379] ${statusColor}`} />
             </button>
             {!collapsed && (
               <>
-                <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold">{currentUser.name}</span><span className="block truncate text-[11px] text-white/65">{currentUser.role}</span></span>
-                <button type="button" onClick={() => setActiveTab('settings')} aria-label="Settings" title="Settings" className="rounded-lg p-1.5 text-white/80 hover:bg-white/15 hover:text-white"><Settings className="h-4 w-4" /></button>
+                <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold">{currentUser.name}</span><span className="block truncate text-[11px] text-slate-400">{currentUser.role}</span></span>
                 <button type="button" onClick={() => void logout()} aria-label="Sign out" title="Sign out" className="rounded-lg p-1.5 text-white/80 hover:bg-white/15 hover:text-white"><LogOut className="h-4 w-4" /></button>
               </>
             )}

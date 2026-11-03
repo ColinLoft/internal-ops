@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useRecordSearch } from '../../lib/useRecordSearch';
@@ -92,10 +92,20 @@ export const GlobalSearch: React.FC<{ className?: string }> = ({ className = '' 
       ].slice(0, 12)
     : [];
 
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); inputRef.current?.focus(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   return (
     <div className={`relative ${className}`}>
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
       <input
+        ref={inputRef}
         type="text"
         value={searchQuery}
         onChange={(event) => setSearchQuery(event.target.value)}
@@ -108,8 +118,9 @@ export const GlobalSearch: React.FC<{ className?: string }> = ({ className = '' 
         }}
         placeholder="Search everything..."
         aria-label="Search everything"
-        className="w-full rounded-xl border border-white/10 bg-black/20 py-2 pl-9 pr-3 text-xs font-medium text-white outline-none transition-colors placeholder:text-slate-500 focus:border-white/25 focus:bg-black/30"
+        className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-xs font-medium text-white outline-none transition-colors placeholder:text-slate-500 focus:border-white/25 focus:bg-black/30"
       />
+      {!searchQuery && <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">⌘K</kbd>}
       {query && (
         <div className="absolute left-0 top-full z-[80] mt-2 max-h-80 w-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-xl">
           {searchResults.length > 0 ? searchResults.map((result) => (

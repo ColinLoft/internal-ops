@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, Phone, Inbox, LayoutGrid, Plus, MessageSquarePlus, MailPlus, Hash, CalendarPlus, House, X } from 'lucide-react';
+import { House, MessageSquare, CalendarDays, Mail, HardDrive, Code2, Megaphone, Scale, Landmark, UsersRound, FolderKanban, Settings, CircleHelp, Lightbulb, Network, FileText, Bell, Phone, Inbox, Plus, MessageSquarePlus, MailPlus, Hash, CalendarPlus, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 import { getSectionTabs, isSectionSelected } from './sectionTabs';
@@ -10,6 +10,11 @@ const appLabels: Record<string, string> = {
   home: 'Home', messages: 'Messages', channels: 'Channels', calendar: 'Calendar', inbox: 'Email', drive: 'Drive',
   engineering: 'Engineering', gtm: 'Marketing', legal: 'Legal', finance: 'Grants', customers: 'Customers',
   programs: 'Projects', admin: 'Settings', settings: 'Settings', help: 'Support', helpcenter: 'Help Center', insights: 'Insights', organization: 'Organization',
+};
+const tabIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  home: House, messages: MessageSquare, channels: Hash, calendar: CalendarDays, inbox: Mail, drive: HardDrive,
+  engineering: Code2, gtm: Megaphone, legal: Scale, finance: Landmark, customers: UsersRound, programs: FolderKanban,
+  admin: Settings, settings: Settings, helpcenter: CircleHelp, insights: Lightbulb, organization: Network,
 };
 const storageKey = 'flown-open-tabs';
 const maxTabs = 10;
@@ -27,18 +32,15 @@ export const TopBar: React.FC = () => {
   const { activeTab, setActiveTab, unreadNotificationCount, callSession, conversations, setIsNewMessageOpen, setIsCreateChannelOpen, setIsAddEventOpen, requestEmailCompose } = useWorkspace();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isQuickOpen, setIsQuickOpen] = useState(false);
-  const [isAppsOpen, setIsAppsOpen] = useState(false);
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
   const [tabs, setTabs] = useState<OpenTab[]>(loadTabs);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const quickRef = useRef<HTMLDivElement>(null);
-  const appsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onDown = (event: MouseEvent) => {
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) setIsNotificationsOpen(false);
       if (quickRef.current && !quickRef.current.contains(event.target as Node)) setIsQuickOpen(false);
-      if (appsRef.current && !appsRef.current.contains(event.target as Node)) setIsAppsOpen(false);
     };
     const onRoute = () => setRoutePath(window.location.pathname);
     document.addEventListener('mousedown', onDown);
@@ -98,23 +100,18 @@ export const TopBar: React.FC = () => {
   ];
 
   const unreadMessages = conversations.reduce((sum, item) => sum + (item.unreadCount || 0), 0);
-  const launcherApps = Object.entries(appLabels).filter(([id]) => !['help'].includes(id));
   const pill = 'flex h-9 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 text-xs font-semibold text-slate-100 transition-colors hover:bg-white/10';
   const iconBtn = 'relative flex h-9 w-9 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/10 hover:text-white';
 
   return (
     <header className="flex-shrink-0 bg-chrome-800 text-slate-200">
-      <div className="flex h-14 items-center justify-between gap-3 px-3 md:px-5">
-        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2 text-xs">
-          <House className="h-4 w-4 text-slate-500" />
-          <span className="text-slate-600">/</span>
-          <span className="truncate font-semibold text-slate-100">{labelFor(activeTab, path)}</span>
-        </nav>
+      <div className="flex h-11 items-center justify-between gap-3 px-3 md:px-5">
+        <span />
         <div className="flex items-center gap-1.5">
           <div className="relative" ref={quickRef}>
             <button
               type="button"
-              onClick={() => { setIsQuickOpen((open) => !open); setIsNotificationsOpen(false); setIsAppsOpen(false); }}
+              onClick={() => { setIsQuickOpen((open) => !open); setIsNotificationsOpen(false); }}
               aria-label="Quick add"
               aria-haspopup="menu"
               aria-expanded={isQuickOpen}
@@ -146,22 +143,10 @@ export const TopBar: React.FC = () => {
             Inbox
             <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white">{unreadMessages}</span>
           </button>
-          <div className="relative" ref={appsRef}>
-            <button type="button" onClick={() => { setIsAppsOpen((open) => !open); setIsQuickOpen(false); setIsNotificationsOpen(false); }} aria-label="All apps" aria-haspopup="menu" aria-expanded={isAppsOpen} title="All apps" className={iconBtn}>
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            {isAppsOpen && (
-              <div role="menu" className="absolute right-0 top-full z-50 mt-2 grid w-64 grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl">
-                {launcherApps.map(([id, label]) => (
-                  <button key={id} type="button" role="menuitem" onClick={() => { setActiveTab(id as typeof activeTab); setIsAppsOpen(false); }} className={`rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-brand-50 ${activeTab === id ? 'bg-brand-50 text-brand-700' : 'text-slate-700'}`}>{label}</button>
-                ))}
-              </div>
-            )}
-          </div>
           <div className="relative" ref={notificationsRef}>
             <button
               type="button"
-              onClick={() => { setIsNotificationsOpen((open) => !open); setIsQuickOpen(false); setIsAppsOpen(false); }}
+              onClick={() => { setIsNotificationsOpen((open) => !open); setIsQuickOpen(false); }}
               aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ''}`}
               aria-haspopup="dialog"
               aria-expanded={isNotificationsOpen}
@@ -184,22 +169,24 @@ export const TopBar: React.FC = () => {
         </div>
       </div>
 
-      <div role="tablist" aria-label="Open pages" className="flex items-center gap-1 overflow-x-auto px-3 pb-2 md:px-5 [scrollbar-width:none]">
+      <div role="tablist" aria-label="Open pages" className="mr-2 flex items-center gap-1 overflow-x-auto rounded-t-2xl bg-white px-3 py-1.5 md:ml-0 [scrollbar-width:none]">
         {tabs.map((tab) => {
           const active = tab.path === path;
+          const Icon = tabIcons[tab.app] || FileText;
           return (
-            <div key={tab.path} className={`group flex shrink-0 items-center rounded-lg pr-1 transition-colors ${active ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+            <div key={tab.path} className={`group flex shrink-0 items-center rounded-lg pr-1 transition-colors ${active ? 'bg-brand-50 ring-1 ring-brand-100' : 'hover:bg-slate-50'}`}>
               <button
                 type="button"
                 role="tab"
                 aria-selected={active}
                 onClick={() => openTab(tab)}
-                className={`max-w-[11rem] truncate px-3 py-1.5 text-xs ${active ? 'font-semibold text-white' : 'font-medium text-slate-400 hover:text-slate-100'}`}
+                className={`flex max-w-[12rem] items-center gap-2 truncate px-3 py-1.5 text-xs ${active ? 'font-semibold text-slate-900' : 'font-medium text-slate-500 hover:text-slate-800'}`}
               >
-                {tab.label}
+                <Icon className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-brand-600' : 'text-slate-400'}`} />
+                <span className="truncate">{tab.label}</span>
               </button>
               {tabs.length > 1 && (
-                <button type="button" aria-label={`Close ${tab.label}`} onClick={() => closeTab(tab)} className="rounded p-0.5 text-slate-500 opacity-60 hover:bg-white/10 hover:text-white group-hover:opacity-100">
+                <button type="button" aria-label={`Close ${tab.label}`} onClick={() => closeTab(tab)} className="rounded p-0.5 text-slate-300 opacity-0 hover:bg-slate-200 hover:text-slate-600 group-hover:opacity-100">
                   <X className="h-3 w-3" />
                 </button>
               )}
