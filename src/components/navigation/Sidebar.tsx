@@ -13,33 +13,28 @@ import { getSectionTabs, isSectionSelected } from './sectionTabs';
 type Tab = ReturnType<typeof useWorkspace>['activeTab'];
 type NavItem = { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> };
 
-const groups: { title: string; items: NavItem[] }[] = [
-  { title: 'Overview', items: [
-    { id: 'home', label: 'Home', icon: House },
-    { id: 'insights', label: 'Insights', icon: Lightbulb },
-  ] },
-  { title: 'Communicate', items: [
-    { id: 'messages', label: 'Messages', icon: MessageSquare },
-    { id: 'channels', label: 'Channels', icon: Hash },
-    { id: 'inbox', label: 'Email', icon: Mail },
-    { id: 'calendar', label: 'Calendar', icon: CalendarIcon },
-  ] },
-  { title: 'Work', items: [
-    { id: 'programs', label: 'Projects', icon: FolderKanban },
-    { id: 'engineering', label: 'Engineering', icon: Code2 },
-    { id: 'drive', label: 'Drive', icon: HardDrive },
-  ] },
-  { title: 'People & customers', items: [
-    { id: 'organization', label: 'Organization', icon: Network },
-    { id: 'customers', label: 'Relationships', icon: UsersRound },
-    { id: 'help', label: 'Support', icon: Headset },
-    { id: 'gtm', label: 'Marketing', icon: Megaphone },
-  ] },
-  { title: 'Business', items: [
-    { id: 'finance', label: 'Grants', icon: Landmark },
-    { id: 'legal', label: 'Legal', icon: Scale },
-    { id: 'admin', label: 'Systems', icon: Settings },
-  ] },
+// Leaf pages live under Overview; apps with their own pages are dropdowns of their own.
+const overviewItems: NavItem[] = [
+  { id: 'home', label: 'Home', icon: House },
+  { id: 'messages', label: 'Messages', icon: MessageSquare },
+  { id: 'channels', label: 'Channels', icon: Hash },
+  { id: 'inbox', label: 'Email', icon: Mail },
+  { id: 'calendar', label: 'Calendar', icon: CalendarIcon },
+  { id: 'drive', label: 'Drive', icon: HardDrive },
+  { id: 'insights', label: 'Insights', icon: Lightbulb },
+];
+const appDropdowns: NavItem[] = [
+  { id: 'programs', label: 'Projects', icon: FolderKanban },
+  { id: 'engineering', label: 'Engineering', icon: Code2 },
+  { id: 'organization', label: 'Organization', icon: Network },
+  { id: 'customers', label: 'Relationships', icon: UsersRound },
+  { id: 'gtm', label: 'Marketing', icon: Megaphone },
+  { id: 'finance', label: 'Grants', icon: Landmark },
+  { id: 'legal', label: 'Legal', icon: Scale },
+];
+const adminItems: NavItem[] = [
+  { id: 'help', label: 'Support', icon: Headset },
+  { id: 'admin', label: 'Systems', icon: Settings },
 ];
 
 const accessKey: Partial<Record<Tab, string>> = { customers: 'customers', finance: 'finance', legal: 'legal', admin: 'systems' };
@@ -110,7 +105,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
     if (window.location.pathname !== path) window.history.pushState({}, '', path);
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
-  const sectionTabs = getSectionTabs(activeTab, routePath);
   const isActive = (id: Tab) => activeTab === id;
 
   const statusColor = currentUser.status === 'busy' ? 'bg-rose-400' : currentUser.status === 'offline' ? 'bg-slate-300' : 'bg-emerald-400';
@@ -144,72 +138,104 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
       {!collapsed && <div className="px-3 pb-2"><GlobalSearch /></div>}
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-1">
-        {groups.map((group) => {
-          const items = group.items.filter((item) => hasAccess(item.id));
-          if (items.length === 0) return null;
-          const hasActive = items.some((item) => isActive(item.id));
-          const open = collapsed || hasActive || openGroups[group.title] !== false;
-          return (
-            <div key={group.title} className="pb-1">
-              {!collapsed && (
-                <button
-                  type="button"
-                  onClick={() => setOpenGroups((current) => ({ ...current, [group.title]: !open }))}
-                  aria-expanded={open}
-                  className="flex w-full items-center justify-between px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-white/60 hover:text-white/90"
-                >
-                  {group.title}
-                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
+        {(() => {
+          const renderLeaf = (item: NavItem) => {
+            const Icon = item.icon;
+            const badge = unread(item.id);
+            return (
+              <li key={item.id}>
+                <button type="button" title={item.label} aria-current={isActive(item.id) ? 'page' : undefined} onClick={() => setActiveTab(item.id)} className={row(isActive(item.id))}>
+                  <Icon className="h-[18px] w-[18px] shrink-0" />
+                  {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+                  {badge > 0 && (
+                    <span className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold leading-none text-white ${collapsed ? 'absolute right-2 top-0.5' : ''}`}>
+                      <span className="sr-only">{badge} unread, </span>{badge > 99 ? '99+' : badge}
+                    </span>
+                  )}
                 </button>
-              )}
-              {collapsed && <div className="mx-3 mb-1 mt-2 border-t border-white/15" />}
-              {open && (
-                <ul className="space-y-0.5">
-                  {items.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.id);
-                    const badge = unread(item.id);
-                    const children = active && !collapsed && sectionTabs && sectionTabs.length > 0 ? sectionTabs : null;
-                    return (
-                      <li key={item.id}>
-                        <button type="button" title={item.label} aria-current={active ? 'page' : undefined} onClick={() => setActiveTab(item.id)} className={row(active && !children)}>
-                          <Icon className="h-[18px] w-[18px] shrink-0" />
-                          {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-                          {badge > 0 && (
-                            <span className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold leading-none text-white ${collapsed ? 'absolute right-2 top-0.5' : ''}`}>
-                              <span className="sr-only">{badge} unread, </span>{badge > 99 ? '99+' : badge}
-                            </span>
+              </li>
+            );
+          };
+          const leafGroup = (id: string, title: string, items: NavItem[]) => {
+            const visible = items.filter((item) => hasAccess(item.id));
+            if (visible.length === 0) return null;
+            const open = collapsed || openGroups[id] !== false;
+            return (
+              <div key={id} className="pb-1">
+                {!collapsed && (
+                  <button type="button" onClick={() => setOpenGroups((current) => ({ ...current, [id]: !open }))} aria-expanded={open} className="flex w-full items-center justify-between px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-white/60 hover:text-white/90">
+                    {title}
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
+                  </button>
+                )}
+                {collapsed && <div className="mx-3 mb-1 mt-2 border-t border-white/15" />}
+                {open && <ul className="space-y-0.5">{visible.map(renderLeaf)}</ul>}
+              </div>
+            );
+          };
+          const dropdowns = appDropdowns.filter((item) => hasAccess(item.id));
+          return (
+            <>
+              {leafGroup('overview', 'Overview', overviewItems)}
+              {dropdowns.length > 0 && (
+                <div className="pb-1">
+                  {collapsed ? <div className="mx-3 mb-1 mt-2 border-t border-white/15" /> : <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-white/60">Apps</p>}
+                  <ul className="space-y-0.5">
+                    {dropdowns.map((item) => {
+                      const Icon = item.icon;
+                      const active = isActive(item.id);
+                      const pages = getSectionTabs(item.id, active ? routePath : '') ?? [];
+                      const open = !collapsed && (active || openGroups[item.id] === true);
+                      if (collapsed || pages.length === 0) {
+                        return renderLeaf(item);
+                      }
+                      return (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            title={item.label}
+                            aria-expanded={open}
+                            onClick={() => {
+                              if (!active) setActiveTab(item.id);
+                              else setOpenGroups((current) => ({ ...current, [item.id]: !open }));
+                            }}
+                            className={row(false) + (active ? ' bg-white/15' : '')}
+                          >
+                            <Icon className="h-[18px] w-[18px] shrink-0" />
+                            <span className="flex-1 truncate">{item.label}</span>
+                            <ChevronDown className={`h-3.5 w-3.5 opacity-70 transition-transform ${open ? '' : '-rotate-90'}`} />
+                          </button>
+                          {open && (
+                            <ul className="mb-1 mt-0.5 space-y-0.5 pl-4">
+                              {pages.map((child) => {
+                                const ChildIcon = child.icon;
+                                const selected = active && isSectionSelected(child, routePath);
+                                return (
+                                  <li key={child.path}>
+                                    <button
+                                      type="button"
+                                      onClick={() => goTo(child.path)}
+                                      aria-current={selected ? 'page' : undefined}
+                                      className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-xs font-medium transition-colors ${selected ? 'bg-white text-brand-700 shadow-sm' : 'text-white/80 hover:bg-white/15 hover:text-white'}`}
+                                    >
+                                      <ChildIcon className="h-3.5 w-3.5 shrink-0" />
+                                      <span className="truncate">{child.label}</span>
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
                           )}
-                        </button>
-                        {children && (
-                          <ul className="mb-1 mt-0.5 space-y-0.5 pl-4">
-                            {children.map((child) => {
-                              const ChildIcon = child.icon;
-                              const selected = isSectionSelected(child, routePath);
-                              return (
-                                <li key={child.path}>
-                                  <button
-                                    type="button"
-                                    onClick={() => goTo(child.path)}
-                                    aria-current={selected ? 'page' : undefined}
-                                    className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-xs font-medium transition-colors ${selected ? 'bg-white text-brand-700 shadow-sm' : 'text-white/80 hover:bg-white/15 hover:text-white'}`}
-                                  >
-                                    <ChildIcon className="h-3.5 w-3.5 shrink-0" />
-                                    <span className="truncate">{child.label}</span>
-                                  </button>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               )}
-            </div>
+              {leafGroup('admin', 'Admin', adminItems)}
+            </>
           );
-        })}
+        })()}
       </nav>
 
       <div className="space-y-1 border-t border-white/15 p-3">
