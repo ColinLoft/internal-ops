@@ -153,7 +153,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               <div className="p-1.5 rounded-lg bg-brand-50 text-brand-600">
                 <Vote className="w-4 h-4" />
               </div>
-              <span className="text-xs font-bold text-brand-700 ">
+              <span className="text-xs font-bold text-brand-700 uppercase tracking-wider">
                 Staff Poll
               </span>
             </div>
@@ -385,7 +385,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
       {/* Hover Action Bar: Emoji React & Reply in Thread */}
       <div
-        className={`absolute -top-3 md:top-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-white rounded-2xl shadow-md border border-slate-200 px-1 py-0.5 flex items-center gap-0.5 z-10 ${
+        className={`absolute -top-3 md:top-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200 px-1 py-0.5 flex items-center gap-0.5 z-10 ${
           isCurrentUser ? 'left-4' : 'right-4'
         }`}
       >

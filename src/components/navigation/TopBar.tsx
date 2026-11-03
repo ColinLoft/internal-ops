@@ -187,7 +187,7 @@ export const TopBar: React.FC = () => {
     : [];
 
   return (
-    <header className="h-16 px-3 md:px-6 gap-3 bg-white border-b border-slate-200/80 flex items-center justify-between z-20 flex-shrink-0 shadow-xs">
+    <header className="h-16 px-3 md:px-6 gap-3 bg-white/70 backdrop-blur-xl border-b border-slate-200/80 flex items-center justify-between z-20 flex-shrink-0 shadow-xs">
       {/* Breadcrumb / Title */}
       <div className="hidden md:flex items-center gap-3">
         <div className="flex items-center text-sm font-semibold text-slate-800 tracking-tight">
@@ -237,7 +237,7 @@ export const TopBar: React.FC = () => {
                 }}
                 className="w-full text-left px-3 py-2 rounded-lg hover:bg-brand-50 transition-colors"
               >
-                <span className="block text-xs font-semibold  text-brand-600">
+                <span className="block text-xs font-semibold uppercase tracking-wide text-brand-600">
                   {result.type}
                 </span>
                 <span className="block text-xs font-semibold text-slate-800 truncate">{result.title}</span>
@@ -304,7 +304,7 @@ export const TopBar: React.FC = () => {
           </button>
           {isAppsOpen && (
             <div className="absolute right-0 top-full z-50 mt-2 w-[min(300px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-4 text-slate-800 shadow-2xl">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 {visibleGroups.flatMap((group) => group.apps).map((app) => {
                   const Icon = app.icon;
                   return (
@@ -317,7 +317,7 @@ export const TopBar: React.FC = () => {
                       aria-current={activeTab === app.id ? 'page' : undefined}
                       className="flex h-14 items-center justify-center rounded-xl"
                     >
-                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm transition-colors hover:bg-brand-700">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-700 text-white shadow-sm transition-colors hover:bg-brand-800">
                         <Icon className="h-5 w-5" />
                       </span>
                     </button>

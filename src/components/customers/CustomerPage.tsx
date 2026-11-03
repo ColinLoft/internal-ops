@@ -97,7 +97,7 @@ export const CustomerPage: React.FC = () => {
   const table = (heads: string[], rows: React.ReactNode[][], empty: string) => (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
       <table className="w-full min-w-[640px] text-xs">
-        <thead><tr className="border-b border-slate-100 bg-slate-50/70">{heads.map((h) => <th key={h} className="px-4 py-3 text-left text-xs font-bold  text-slate-400">{h}</th>)}</tr></thead>
+        <thead><tr className="border-b border-slate-100 bg-slate-50/70">{heads.map((h) => <th key={h} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">{h}</th>)}</tr></thead>
         <tbody>{rows.length === 0 ? <tr><td colSpan={heads.length} className="px-4 py-8 text-center text-slate-400">{empty}</td></tr> : rows.map((r, i) => <tr key={i} className="border-b border-slate-100 last:border-0">{r.map((c, j) => <td key={j} className="px-4 py-3 text-slate-600">{c}</td>)}</tr>)}</tbody>
       </table>
     </div>
@@ -151,10 +151,10 @@ export const CustomerPage: React.FC = () => {
         <aside className="w-full max-w-md shrink-0 overflow-y-auto border-l border-slate-200 bg-white p-5">
           <div className="flex items-start justify-between"><div><h2 className="text-base font-bold text-slate-900">{org.name}</h2><p className="text-xs text-slate-500">{label(org.category)}{org.website ? ` · ${org.website}` : ''}</p></div><button type="button" aria-label="Close" onClick={() => setSelectedOrg(null)}><X className="h-4 w-4 text-slate-400" /></button></div>
           {org.notes && <p className="mt-3 whitespace-pre-wrap text-xs text-slate-600">{org.notes}</p>}
-          <h3 className="mt-5 text-xs font-bold  text-slate-400">Contacts</h3>
+          <h3 className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-400">Contacts</h3>
           <ul className="mt-2 space-y-1 text-xs text-slate-700">{contacts.filter((c) => c.organization_id === org.id).map((c) => <li key={c.id}>{c.name}{c.role_title ? ` · ${c.role_title}` : ''}{c.email ? ` · ${c.email}` : ''}</li>)}</ul>
           <div className="mt-3 flex gap-2">{canEdit && <><button type="button" className={btn} onClick={() => setDialog({ kind: 'contact', orgId: org.id })}><Plus className="h-3 w-3" /> Contact</button><button type="button" className={btn} onClick={() => setDialog({ kind: 'interaction', orgId: org.id })}><Plus className="h-3 w-3" /> Interaction</button></>}{canManage && <button type="button" className="rounded-xl border border-rose-200 px-3 py-2 text-xs font-bold text-rose-600" onClick={() => window.confirm(`Delete ${org.name} and its interactions?`) && run(supabase.from('crm_organizations').delete().eq('id', org.id)).then(() => setSelectedOrg(null))}>Delete</button>}</div>
-          <h3 className="mt-5 text-xs font-bold  text-slate-400">History</h3>
+          <h3 className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-400">History</h3>
           <div className="mt-2 space-y-2">{items.filter((i) => i.organization_id === org.id).map(interactionRow)}</div>
         </aside>
       )}

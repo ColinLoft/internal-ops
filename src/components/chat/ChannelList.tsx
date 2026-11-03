@@ -72,7 +72,7 @@ export const ChannelList: React.FC = () => {
   };
 
   return (
-    <div data-onboarding-target="channel-list" className="w-full md:w-80 h-full bg-white border-r border-slate-200/80 flex flex-col flex-shrink-0">
+    <div data-onboarding-target="channel-list" className="w-full md:w-80 h-full bg-white/80 backdrop-blur-xl border-r border-slate-200/80 flex flex-col flex-shrink-0">
       {/* Top Header */}
       <div className="p-4 pb-2">
         <div className="flex items-center justify-between mb-3">

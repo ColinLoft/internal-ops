@@ -125,7 +125,7 @@ export const FormsEditor: React.FC<Props> = ({ itemId, name, content, onChange }
       <div className="min-h-0 flex-1 overflow-y-auto p-3 md:p-6">
         <div className="mx-auto max-w-2xl space-y-3">
           {mode !== 'responses' && (
-            <div className="rounded-xl border-t-8 border-brand-600 bg-white p-4">
+            <div className="rounded-xl border-t-8 border-brand-600 bg-white p-4 shadow-sm">
               {mode === 'build' ? <>
                 <input aria-label="Form title" value={title} onChange={(e) => { setTitle(e.target.value); push({ title: e.target.value }); }} className="w-full border-b border-slate-200 pb-1 text-xl font-bold text-slate-900 outline-none focus:border-brand-400" />
                 <textarea aria-label="Form description" rows={2} value={description} placeholder="Form description" onChange={(e) => { setDescription(e.target.value); push({ description: e.target.value }); }} className="mt-2 w-full resize-none border-b border-transparent text-base text-slate-600 outline-none focus:border-brand-400 md:text-xs" />

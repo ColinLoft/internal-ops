@@ -36,12 +36,12 @@ export const InviteReadyModal: React.FC<InviteReadyModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-2 md:p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-y-auto md:overflow-hidden max-h-[calc(100dvh-1rem)] md:max-h-none animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-2 md:p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md overflow-y-auto md:overflow-hidden max-h-[calc(100dvh-1rem)] md:max-h-none animate-in zoom-in-95 duration-200">
         {/* Banner */}
-        <div className="bg-brand-600 p-5 text-white flex items-center justify-between">
+        <div className="bg-gradient-to-r from-brand-600 to-brand-600 p-5 text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-white/20 rounded-xl">
+            <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md">
               <UserCheck className="w-5 h-5 text-white" />
             </div>
             <div>

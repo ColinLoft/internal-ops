@@ -54,7 +54,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({ isMenuOpen, onToggle
   return (
     <nav
       aria-label={sectionTabs ? 'Section' : 'Main'}
-      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200/80 bg-white/90 pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200/80 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >
       {tabs.map(({ label, icon: Icon, isActive, badge, onSelect }) => (
         <button

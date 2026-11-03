@@ -117,7 +117,7 @@ export const DocsEditor: React.FC<Props> = ({ name, content, onChange }) => {
             document.execCommand('insertHTML', false, html ? sanitizeDocHtml(html) : textToHtml(event.clipboardData.getData('text/plain')));
             emit();
           }}
-          className="doc-page mx-auto min-h-[70vh] max-w-3xl rounded-xl bg-white p-6 text-base leading-7 text-slate-900 outline-none md:p-12 [&_a]:text-brand-600 [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-slate-300 [&_blockquote]:pl-4 [&_h1]:text-3xl [&_h1]:font-bold [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:text-xl [&_h3]:font-bold [&_img]:max-w-full [&_ol]:list-decimal [&_ol]:pl-6 [&_pre]:rounded-lg [&_pre]:bg-slate-100 [&_pre]:p-3 [&_pre]:font-mono [&_ul]:list-disc [&_ul]:pl-6"
+          className="doc-page mx-auto min-h-[70vh] max-w-3xl rounded-xl bg-white p-6 text-base leading-7 text-slate-900 shadow-sm outline-none md:p-12 [&_a]:text-brand-600 [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-slate-300 [&_blockquote]:pl-4 [&_h1]:text-3xl [&_h1]:font-bold [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:text-xl [&_h3]:font-bold [&_img]:max-w-full [&_ol]:list-decimal [&_ol]:pl-6 [&_pre]:rounded-lg [&_pre]:bg-slate-100 [&_pre]:p-3 [&_pre]:font-mono [&_ul]:list-disc [&_ul]:pl-6"
         />
       </div>
       <footer className="border-t border-slate-200 bg-white px-4 py-1.5 text-xs text-slate-500">{words} {words === 1 ? 'word' : 'words'}</footer>

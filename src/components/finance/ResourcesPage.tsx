@@ -59,7 +59,7 @@ export const ResourcesPage: React.FC = () => {
         </div>
         {shown.length ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{shown.map((row) => (
           <article key={row.id} className={card}>
-            <p className="text-xs font-semibold text-brand-600">{CATEGORIES.find(([value]) => value === row.category)?.[1]}</p>
+            <p className="text-xs font-semibold uppercase text-brand-600">{CATEGORIES.find(([value]) => value === row.category)?.[1]}</p>
             <h3 className="text-sm font-bold text-slate-900">{row.title}</h3>
             {row.body && <p className="mt-1 line-clamp-4 whitespace-pre-wrap text-xs text-slate-600">{row.body}</p>}
             {row.tags.length > 0 && <p className="mt-2 text-xs text-slate-400">{row.tags.map((tag) => `#${tag}`).join(' ')}</p>}

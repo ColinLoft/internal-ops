@@ -86,8 +86,8 @@ export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
   // If in Messages tab but no conversation is active yet
   if (!isChannel && !currentConv) {
     return (
-      <div data-onboarding-target="message-feed" className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50/50 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-brand-600 text-white flex items-center justify-center mb-4">
+      <div data-onboarding-target="message-feed" className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50/50 backdrop-blur-md text-center">
+        <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-brand-600 to-brand-500 text-white flex items-center justify-center shadow-lg shadow-brand-500/25 mb-4">
           <MessageSquare className="w-8 h-8" />
         </div>
         <h3 className="text-lg font-bold text-slate-900">Your Messages</h3>
@@ -115,9 +115,9 @@ export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
   }
 
   return (
-    <div data-onboarding-target={isChannel ? 'channel-feed' : 'message-feed'} className="flex-1 flex flex-col h-full bg-slate-50/50 relative overflow-hidden">
+    <div data-onboarding-target={isChannel ? 'channel-feed' : 'message-feed'} className="flex-1 flex flex-col h-full bg-slate-50/50 backdrop-blur-md relative overflow-hidden">
       {/* Feed Top Header */}
-      <div className="h-16 px-3 md:px-6 bg-white border-b border-slate-200/80 flex items-center justify-between z-10 flex-shrink-0">
+      <div className="h-16 px-3 md:px-6 bg-white/80 backdrop-blur-xl border-b border-slate-200/80 flex items-center justify-between z-10 flex-shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           {onBack && (
             <button
@@ -262,7 +262,7 @@ export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
         {currentMessages.length === 0 ? (
           /* Polished Starter Prompt */
           <div className="text-center py-12 px-4 max-w-md mx-auto">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 mb-3 shadow-2xs">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-3xl bg-brand-50 text-brand-600 mb-3 shadow-2xs">
               {isChannel ? (
                 <Hash className="w-7 h-7" />
               ) : (

@@ -39,10 +39,10 @@ export const AuthScreen: React.FC = () => {
       <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-brand-400/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Main Glassy Card */}
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-white/20 overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-md bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200">
         {/* Top Brand Banner */}
-        <div className="bg-brand-600 p-6 text-white text-center relative">
-          <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-black/10">
+        <div className="bg-gradient-to-r from-brand-600 via-brand-700 to-brand-800 p-6 text-white text-center relative">
+          <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-black/10">
             <img src="/brand-icon.png" alt="Flown" className="w-8 h-8 object-contain" />
           </div>
           <h2 className="text-xl font-bold tracking-tight">Flown</h2>
@@ -109,7 +109,7 @@ export const AuthScreen: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group active:scale-95 disabled:opacity-50"
+              className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-500/25 transition-all flex items-center justify-center gap-2 group active:scale-95 disabled:opacity-50"
             >
               <span>{loading ? 'Authenticating...' : 'Sign In to Workspace'}</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />

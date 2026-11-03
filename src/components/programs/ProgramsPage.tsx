@@ -136,7 +136,7 @@ const ProgramsList: React.FC = () => {
                 const own = topTasks.filter((task) => task.project_id === project.id);
                 const progress = projectProgress(project);
                 return (
-                  <button type="button" key={project.id} onClick={() => navigate(`/programs/project/${project.id}`)} className="rounded-2xl border border-slate-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-brand-400 hover:shadow-md">
+                  <button type="button" key={project.id} onClick={() => navigate(`/programs/project/${project.id}`)} className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-400 hover:shadow-md">
                     <div className="flex items-start justify-between gap-2"><h3 className="text-sm font-bold text-slate-900">{project.name}</h3><span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${statusTone[project.status] || statusTone.planning}`}>{PROJECT_STATUS[project.status] || project.status}</span></div>
                     <p className="mt-1 line-clamp-2 min-h-8 text-xs text-slate-500">{project.description || 'No description yet.'}</p>
                     <div className="mt-4 space-y-1.5"><div className="flex justify-between text-xs text-slate-500"><span>{own.filter((task) => task.status === 'completed').length}/{own.length} tasks done</span><span>{progress}%</span></div><Progress value={progress} /></div>

@@ -71,8 +71,8 @@ export const EditChannelModal: React.FC<Props> = ({ channel, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-2 md:p-4">
-      <div className="max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200/80 bg-white shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-2 backdrop-blur-sm md:p-4">
+      <div className="max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto rounded-3xl border border-slate-200/80 bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-6 py-4">
           <h3 className="text-base font-bold text-slate-900">Edit channel</h3>
           <button type="button" onClick={onClose} aria-label="Close" className="-m-1.5 rounded-full p-2.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-600 md:m-0 md:p-1"><X className="h-5 w-5" /></button>

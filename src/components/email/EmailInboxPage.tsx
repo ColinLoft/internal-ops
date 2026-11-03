@@ -1172,9 +1172,9 @@ export const EmailInboxPage: React.FC = () => {
   return (
     <main className="flex min-w-0 flex-1 flex-col overflow-hidden md:flex-row bg-[linear-gradient(135deg,#f8fbff_0%,#eef6ff_52%,#f8fafc_100%)] print:bg-white">
       <aside className={`${mobileFoldersOpen ? 'flex' : 'hidden'} min-h-0 w-full flex-1 overflow-y-auto md:flex md:w-52 md:flex-none md:overflow-visible shrink-0 flex-col border-r border-slate-200/80 bg-white/90 p-2 shadow-[4px_0_24px_rgba(30,64,175,0.04)] print:hidden`}>
-        <div className="mb-3 flex items-center justify-between rounded-xl bg-brand-600 p-2.5 text-white">
+        <div className="mb-3 flex items-center justify-between rounded-xl bg-gradient-to-br from-brand-600 to-brand-600 p-2.5 text-white shadow-lg shadow-brand-500/15">
           <div>
-            <p className="text-xs font-bold tracking-[0.16em] text-white/70">Workspace mail</p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/70">Workspace mail</p>
             <h1 className="mt-0.5 text-base font-bold">Inbox</h1>
           </div>
           <button type="button" onClick={openNewCompose} aria-label="Compose email" title="Compose a new email" className="rounded-lg bg-white/15 p-3 text-white ring-1 ring-white/20 hover:bg-white/25 md:p-2">
@@ -1182,7 +1182,7 @@ export const EmailInboxPage: React.FC = () => {
           </button>
         </div>
         <div className="mb-2 flex items-center justify-between px-2">
-          <span className="text-xs font-bold tracking-[0.14em] text-slate-400">Mailboxes</span>
+          <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Mailboxes</span>
           <span className="text-xs font-semibold text-slate-400">{mailboxes.length} connected</span>
         </div>
         <div className="relative mb-4">
@@ -1205,7 +1205,7 @@ export const EmailInboxPage: React.FC = () => {
             </div>
           )}
         </div>
-        <div className="mb-2 px-2 text-xs font-bold tracking-[0.14em] text-slate-400">Folders</div>
+        <div className="mb-2 px-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Folders</div>
         <div className="space-y-1">
           {folders.map(({ id, label, icon: Icon }) => (
             <button
@@ -1249,7 +1249,7 @@ export const EmailInboxPage: React.FC = () => {
           )}
         </div>
         <div className="mt-4 border-t border-slate-100 pt-4">
-          <p className="mb-2 px-2 text-xs font-bold tracking-[0.14em] text-slate-400">Quick views</p>
+          <p className="mb-2 px-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Quick views</p>
           {[
             { label: 'Recent', icon: Clock3, filter: 'all' as MessageFilter },
             { label: 'Unread', icon: MailOpen, filter: 'unread' as MessageFilter },
@@ -1261,7 +1261,7 @@ export const EmailInboxPage: React.FC = () => {
           ))}
         </div>
         <div className="mt-4 border-t border-slate-100 pt-4">
-          <p className="mb-2 px-2 text-xs font-bold tracking-[0.14em] text-slate-400">Workspace tools</p>
+          <p className="mb-2 px-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Workspace tools</p>
           <button type="button" onClick={() => void refresh(true, undefined, true)} disabled={!activeMailbox || syncing} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-40">
             <RefreshCw className={`h-4 w-4 text-slate-400 ${syncing ? 'animate-spin' : ''}`} /> Sync mailbox <span className="ml-auto text-xs text-slate-400">{activeMailbox?.last_synced_at ? new Date(activeMailbox.last_synced_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Never'}</span>
           </button>
@@ -1280,7 +1280,7 @@ export const EmailInboxPage: React.FC = () => {
         <div className="flex items-center gap-3 border-b border-slate-200/80 bg-white/85 px-3 py-3 backdrop-blur md:px-5">
           <button type="button" onClick={() => setMobileFoldersOpen(true)} aria-label="Open folders" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 md:hidden"><Menu className="h-5 w-5" /></button>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold tracking-[0.14em] text-brand-600">{showScheduledSends ? 'Planning' : activeFolder === 'drafts' ? 'Unfinished work' : 'Mailbox'}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-600">{showScheduledSends ? 'Planning' : activeFolder === 'drafts' ? 'Unfinished work' : 'Mailbox'}</p>
             <h2 className="mt-0.5 truncate text-lg font-bold tracking-tight text-slate-900">{showScheduledSends ? 'Scheduled sends' : activeFolder === 'drafts' ? 'Drafts' : activeFolder === 'inbox' ? 'Inbox' : folders.find((folder) => folder.id === activeFolder)?.label || 'Email'}</h2>
           </div>
           {!showScheduledSends && activeMailbox && (
@@ -1393,7 +1393,7 @@ export const EmailInboxPage: React.FC = () => {
               </button>
               <button type="button" onClick={() => void openMessage(message)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
                 <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${message.is_read ? 'bg-transparent' : 'bg-brand-600'}`} />
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-brand-700 ring-1 ring-white">{senderInitials(message)}</span>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-100 to-brand-100 text-xs font-bold text-brand-700 ring-1 ring-white">{senderInitials(message)}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className={`truncate text-sm ${message.is_read ? 'font-medium text-slate-600' : 'font-bold text-slate-900'}`}>{message.sender_name || message.sender_email}</span>
@@ -1437,7 +1437,7 @@ export const EmailInboxPage: React.FC = () => {
           <div className="flex items-center gap-2 border-b border-slate-200/80 bg-white/90 px-3 py-3 md:px-5 print:hidden">
             <button type="button" onClick={() => setSelectedMessage(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 inline-flex min-h-11 min-w-11 items-center justify-center md:min-h-0 md:min-w-0 xl:hidden" aria-label="Back to list"><ArrowLeft className="h-4 w-4" /></button>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold tracking-[0.14em] text-brand-600">Conversation</p>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-600">Conversation</p>
               <h2 className="truncate text-base font-bold text-slate-900">{selectedMessage.subject || '(no subject)'}</h2>
             </div>
             {selectedThreadMessages.length > 1 && <span className="hidden text-xs sm:inline text-slate-500">{selectedThreadMessages.length} messages in thread</span>}
@@ -1462,7 +1462,7 @@ export const EmailInboxPage: React.FC = () => {
                 return next;
               })} className="flex w-full items-center justify-between gap-4 text-left">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-brand-700">{senderInitials(threadMessage)}</div>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-100 to-brand-100 text-xs font-bold text-brand-700">{senderInitials(threadMessage)}</div>
                 <div className="min-w-0">
                   <h1 className="truncate text-sm font-bold leading-5 text-slate-900">{threadMessage.sender_name || threadMessage.sender_email}</h1>
                   <p className="truncate text-xs text-slate-500">{threadMessage.subject || '(no subject)'}</p>
@@ -1527,7 +1527,7 @@ export const EmailInboxPage: React.FC = () => {
             ))}
           </div>
           <div className="border-t border-slate-200 p-3 print:hidden">
-            <form onSubmit={(event) => void sendInlineReply(event)} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <form onSubmit={(event) => void sendInlineReply(event)} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
               <div
                 ref={inlineReplyEditorRef}
                 contentEditable
@@ -1579,10 +1579,10 @@ export const EmailInboxPage: React.FC = () => {
 
       {composeOpen && activeMailbox && (
         <div className="fixed inset-0 z-[80] flex items-stretch justify-center bg-slate-950/40 md:items-center md:p-4">
-          <form onSubmit={(event) => void submitMessage(event)} className="flex h-dvh w-full max-w-3xl flex-col overflow-y-auto rounded-none md:overflow-hidden border md:block md:h-auto md:max-h-[calc(100dvh-2rem)] md:rounded-2xl border border-slate-200 bg-white shadow-2xl">
+          <form onSubmit={(event) => void submitMessage(event)} className="flex h-dvh w-full max-w-3xl flex-col overflow-y-auto rounded-none md:overflow-hidden border md:block md:h-auto md:max-h-[calc(100dvh-2rem)] md:rounded-3xl border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-6 py-5">
               <div>
-                <p className="text-xs font-bold tracking-[0.14em] text-brand-600">{replyMode ? 'Continue conversation' : 'New message'}</p>
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-600">{replyMode ? 'Continue conversation' : 'New message'}</p>
                 <h3 className="mt-1 text-lg font-bold text-slate-900">{replyMode ? 'Reply to email' : 'Compose email'}</h3>
                 <p className="mt-0.5 text-xs text-slate-400">Sending from {activeMailbox.email} · Drafts save automatically</p>
               </div>

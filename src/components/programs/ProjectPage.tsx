@@ -147,7 +147,7 @@ export const ProjectPage: React.FC<{ projectId: string }> = ({ projectId }) => {
                 { icon: Clock, label: 'Time logged', value: formatMinutes(minutes), detail: 'Project and task time' },
                 { icon: DollarSign, label: 'Funded by grants', value: budget ? `${Math.round((spent / budget) * 100)}%` : money(spent), detail: `${money(spent)} of ${budget ? money(budget) : 'no budget set'}` },
                 { icon: CalendarDays, label: 'Milestones', value: `${milestones.filter((m) => m.status === 'complete').length}/${milestones.length}`, detail: project.end_date ? `Due ${project.end_date}` : 'No due date' },
-              ].map(({ icon: Icon, label, value, detail }) => <div key={label} className={card}><p className="flex items-center gap-2 text-xs font-semibold  text-slate-500"><Icon className="h-4 w-4 text-brand-600" />{label}</p><p className="mt-2 text-2xl font-bold text-slate-900">{value}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></div>)}
+              ].map(({ icon: Icon, label, value, detail }) => <div key={label} className={card}><p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500"><Icon className="h-4 w-4 text-brand-600" />{label}</p><p className="mt-2 text-2xl font-bold text-slate-900">{value}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></div>)}
             </section>
             <section className={card}>
               <h3 className="mb-2 text-sm font-bold text-slate-900">Summary</h3>

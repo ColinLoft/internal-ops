@@ -40,13 +40,13 @@ export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) =
   };
 
   return (
-    <div className="w-[min(20rem,calc(100vw-1rem))] md:w-80 bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-150">
+    <div className="w-[min(20rem,calc(100vw-1rem))] md:w-80 bg-white/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-150">
       <div className="p-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
           <img
             src={currentUser.avatar}
             alt={currentUser.name}
-            className="w-12 h-12 rounded-full object-cover border border-slate-200"
+            className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-sm"
           />
           <div className="min-w-0">
             <h4 className="font-bold text-sm text-slate-900 truncate">{currentUser.name}</h4>
