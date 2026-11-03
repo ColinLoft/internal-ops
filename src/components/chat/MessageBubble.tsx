@@ -65,23 +65,23 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       <div className="relative flex-shrink-0 self-end">
         <button
           onClick={() => openUserProfile(sender)}
-          className="relative block rounded-2xl overflow-hidden hover:ring-2 hover:ring-brand-500/50 transition-all focus:outline-none"
+          className="relative block rounded-full overflow-hidden hover:ring-2 hover:ring-brand-500/40 transition-all focus:outline-none"
           title={`Click to view profile of ${sender.name}`}
         >
           <img
             src={sender.avatar}
             alt={sender.name}
-            className="w-10 h-10 rounded-2xl object-cover shadow-2xs"
+            className="w-8 h-8 rounded-full object-cover"
           />
         </button>
         <span
-          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
+          className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
             sender.status === 'online'
-              ? 'bg-brand-500'
+              ? 'bg-emerald-500'
               : sender.status === 'busy'
               ? 'bg-rose-500'
               : sender.status === 'away'
-              ? 'bg-brand-500'
+              ? 'bg-amber-400'
               : 'bg-slate-400'
           }`}
           title={`Status: ${sender.status}`}
@@ -95,19 +95,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         }`}
       >
         {/* Sender Name & Timestamp */}
-        <div className="flex items-center gap-2 mb-1 px-1">
+        <div className="flex items-center gap-1.5 mb-1 px-1">
           <button
             onClick={() => openUserProfile(sender)}
-            className="text-sm font-bold text-slate-800 hover:text-brand-600 transition-colors"
+            className="text-[13px] font-semibold text-slate-800 hover:text-brand-600 transition-colors"
           >
             {isCurrentUser ? 'You' : sender.name}
           </button>
           {sender.role && !isCurrentUser && (
-            <span className="text-xs text-slate-400 font-medium">
+            <span className="text-[11px] text-slate-400 font-normal">
               • {sender.role}
             </span>
           )}
-          <span className="text-xs text-slate-400 font-medium">{message.timestamp}</span>
+          <span className="text-[11px] text-slate-400 font-normal">{message.timestamp}</span>
         </div>
 
         {/* Message Content Body */}
@@ -221,10 +221,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         ) : (
           /* Standard Bubble */
           <div
-            className={`p-3.5 rounded-2xl text-sm leading-relaxed shadow-xs ${
+            className={`p-3 rounded-2xl text-[13px] leading-relaxed shadow-subtle ${
               isCurrentUser
-                ? 'bg-brand-600 text-white rounded-br-xs'
-                : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs'
+                ? 'bg-brand-600 text-white rounded-br-sm'
+                : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-sm'
             }`}
           >
             {/* Formatted Text Content */}
@@ -368,7 +368,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         {!isThreadReply && (message.threadCount || 0) > 0 && onOpenThread && (
           <button
             onClick={() => onOpenThread(message.id)}
-            className="flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-xl bg-brand-50/80 hover:bg-brand-100 border border-brand-200/60 text-brand-700 text-xs font-bold transition-all"
+            className="flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-brand-50 hover:bg-brand-100/80 border border-brand-200/60 text-brand-700 text-xs font-medium transition-all"
           >
             <MessageSquare className="w-3.5 h-3.5" />
             <span>
@@ -385,7 +385,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
       {/* Hover Action Bar: Emoji React & Reply in Thread */}
       <div
-        className={`absolute -top-3 md:top-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200 px-1 py-0.5 flex items-center gap-0.5 z-10 ${
+        className={`absolute -top-3 md:top-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-white rounded-lg shadow-elevated border border-slate-200 px-1 py-0.5 flex items-center gap-0.5 z-10 ${
           isCurrentUser ? 'left-4' : 'right-4'
         }`}
       >

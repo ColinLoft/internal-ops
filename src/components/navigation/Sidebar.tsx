@@ -103,28 +103,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
   };
   const isActive = (id: Tab) => activeTab === id;
 
-  const statusColor = currentUser.status === 'busy' ? 'bg-rose-400' : currentUser.status === 'offline' ? 'bg-slate-300' : 'bg-emerald-400';
-  const row = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-[13px] font-medium transition-colors duration-150 ${collapsed ? 'justify-center px-0' : ''} ${active ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`;
+  const statusColor = currentUser.status === 'busy' ? 'bg-rose-400' : currentUser.status === 'offline' ? 'bg-slate-500' : 'bg-emerald-400';
+  const row = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-lg px-2.5 py-1.5 text-left text-[13px] font-medium transition-all duration-150 ${collapsed ? 'justify-center px-0' : ''} ${active ? 'bg-white/[0.08] text-white shadow-xs' : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'}`;
 
   return (
     <aside
       aria-label="Primary navigation"
-      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-gradient-to-b from-[#1a2850] via-[#233a6d] to-[#34508c] text-white transition-all duration-200 md:static md:z-30 md:translate-x-0 ${collapsed ? 'md:w-16 md:[&>*:not(:first-child)]:hidden' : 'md:w-64'} w-72 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-[#0e121b] text-slate-200 border-r border-slate-800/60 transition-all duration-200 md:static md:z-30 md:translate-x-0 ${collapsed ? 'md:w-16 md:[&>*:not(:first-child)]:hidden' : 'md:w-64'} w-72 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
     >
-      <div className="flex items-center gap-2.5 p-3">
+      <div className="flex items-center gap-2 p-3 pb-2.5">
         <button
           type="button"
           onClick={() => { setActiveTab('home'); goTo('/home'); }}
           title="Flown home"
-          className={`h-12 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-xl bg-white/10 hover:bg-white/15 ${collapsed ? 'flex md:hidden' : 'flex'}`}
+          className={`h-10 min-w-0 flex-1 items-center justify-start px-2 rounded-lg hover:bg-white/[0.06] transition-colors ${collapsed ? 'flex md:hidden' : 'flex'}`}
         >
-          <img src="/flown-logo.png" alt="Flown" className="h-auto w-[88%] max-w-none shrink-0 brightness-0 invert" />
+          <img src="/flown-logo.png" alt="Flown" className="h-6 w-auto max-w-none shrink-0 brightness-0 invert opacity-95" />
         </button>
         <button
           type="button"
           onClick={() => setCollapsed((value) => !value)}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 text-slate-200 hover:bg-white/15 md:flex"
+          className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-white/[0.06] hover:text-slate-200 md:flex transition-colors"
         >
           {collapsed ? <ChevronsRight className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
         </button>
@@ -132,19 +132,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
 
       {!collapsed && <div className="px-3 pb-2"><GlobalSearch /></div>}
 
-      <nav className="flex-1 overflow-y-auto px-3 py-1">
+      <nav className="flex-1 overflow-y-auto px-2.5 py-1 [scrollbar-width:none]">
         {(() => {
-          const rowClass = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] transition-colors duration-150 ${active ? 'bg-white/10 font-semibold text-white ' : 'font-medium text-slate-300 hover:bg-white/5 hover:text-white'}`;
-          const bar = <span className="absolute left-1 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-brand-400" />;
+          const rowClass = (active: boolean) => `group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-all duration-150 ${active ? 'bg-white/[0.09] font-medium text-white shadow-xs' : 'font-normal text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'}`;
+          const bar = <span className="absolute left-0 top-1/2 h-3.5 w-[3px] -translate-y-1/2 rounded-full bg-brand-400" />;
           const section = (id: string, title: string, forceOpen: boolean, children: React.ReactNode) => {
             const open = forceOpen || openGroups[id] === true || (openGroups[id] === undefined && id === 'overview');
             return (
               <div key={id} className="pb-1">
-                <button type="button" aria-expanded={open} onClick={() => setOpenGroups((current) => ({ ...current, [id]: !open }))} className="flex w-full items-center justify-between px-3 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400/80 hover:text-slate-200">
+                <button type="button" aria-expanded={open} onClick={() => setOpenGroups((current) => ({ ...current, [id]: !open }))} className="flex w-full items-center justify-between px-2.5 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-300 transition-colors">
                   {title}
-                  <ChevronsUpDown className="h-3 w-3 opacity-70" />
+                  <ChevronsUpDown className="h-3 w-3 opacity-60" />
                 </button>
-                {open && <ul className="space-y-0.5">{children}</ul>}
+                {open && <ul className="space-y-0.5 mt-0.5">{children}</ul>}
               </div>
             );
           };
@@ -156,7 +156,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
               <li key={item.id}>
                 <button type="button" aria-current={active ? 'page' : undefined} onClick={() => setActiveTab(item.id)} className={rowClass(active)}>
                   {active && bar}
-                  <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`} />
+                  <Icon className={`h-[17px] w-[17px] shrink-0 ${active ? 'text-brand-300' : 'text-slate-400 group-hover:text-slate-300'} transition-colors`} />
                   <span className="flex-1 truncate">{item.label}</span>
                   {badge > 0 && <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold leading-none text-white"><span className="sr-only">{badge} unread, </span>{badge > 99 ? '99+' : badge}</span>}
                 </button>
@@ -177,7 +177,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
                     <li key={child.path}>
                       <button type="button" aria-current={selected ? 'page' : undefined} onClick={() => goTo(child.path)} className={rowClass(selected)}>
                         {selected && bar}
-                        <ChildIcon className={`h-[18px] w-[18px] shrink-0 ${selected ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`} />
+                        <ChildIcon className={`h-[17px] w-[17px] shrink-0 ${selected ? 'text-brand-300' : 'text-slate-400 group-hover:text-slate-300'} transition-colors`} />
                         <span className="flex-1 truncate">{child.label}</span>
                         {child.path === '/customers/support' && unread('customers') > 0 && <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold leading-none text-white">{unread('customers')}</span>}
                       </button>
@@ -190,25 +190,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
         })()}
       </nav>
 
-      <div className="space-y-0.5 border-t border-white/10 p-3">
+      <div className="space-y-0.5 border-t border-slate-800/60 p-2.5">
         <button type="button" title="Help Center" onClick={() => setActiveTab('helpcenter')} className={row(activeTab === 'helpcenter')}>
-          <CircleHelp className="h-[18px] w-[18px] shrink-0 text-slate-400" />
+          <CircleHelp className="h-[17px] w-[17px] shrink-0 text-slate-400" />
           Help &amp; Support
         </button>
         <button type="button" title="Settings" onClick={() => setActiveTab('settings')} className={row(activeTab === 'settings')}>
-          <Settings className="h-[18px] w-[18px] shrink-0 text-slate-400" />
+          <Settings className="h-[17px] w-[17px] shrink-0 text-slate-400" />
           Settings
         </button>
-        <div className="relative" ref={profileRef}>
-          <div className={`flex items-center gap-2.5 rounded-xl bg-black/20 p-2 ${collapsed ? 'justify-center' : ''}`}>
+        <div className="relative pt-1" ref={profileRef}>
+          <div className={`flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05] p-2 transition-colors ${collapsed ? 'justify-center' : ''}`}>
             <button type="button" data-onboarding-target="profile-button" onClick={() => setProfileOpen((open) => !open)} aria-label="Profile and status" title={`${currentUser.name} (${currentUser.role})`} className="relative shrink-0 rounded-full">
-              <img src={currentUser.avatar} alt={currentUser.name} className="h-9 w-9 rounded-full border border-white/40 object-cover" />
-              <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#2a4379] ${statusColor}`} />
+              <img src={currentUser.avatar} alt={currentUser.name} className="h-8 w-8 rounded-full border border-white/20 object-cover" />
+              <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0e121b] ${statusColor}`} />
             </button>
             {!collapsed && (
               <>
-                <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold">{currentUser.name}</span><span className="block truncate text-[11px] text-slate-400">{currentUser.role}</span></span>
-                <button type="button" onClick={() => void logout()} aria-label="Sign out" title="Sign out" className="rounded-lg p-1.5 text-white/80 hover:bg-white/15 hover:text-white"><LogOut className="h-4 w-4" /></button>
+                <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-200">{currentUser.name}</span><span className="block truncate text-[11px] text-slate-500">{currentUser.role}</span></span>
+                <button type="button" onClick={() => void logout()} aria-label="Sign out" title="Sign out" className="rounded-lg p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"><LogOut className="h-4 w-4" /></button>
               </>
             )}
           </div>

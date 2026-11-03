@@ -100,14 +100,14 @@ export const TopBar: React.FC = () => {
   ];
 
   const unreadMessages = conversations.reduce((sum, item) => sum + (item.unreadCount || 0), 0);
-  const pill = 'flex h-9 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 text-xs font-semibold text-slate-100 transition-colors hover:bg-white/10';
-  const iconBtn = 'relative flex h-9 w-9 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/10 hover:text-white';
+  const pill = 'flex h-8 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.06] hover:bg-white/10 px-2.5 text-xs font-medium text-slate-200 transition-colors shadow-2xs';
+  const iconBtn = 'relative flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors';
 
   return (
-    <header className="flex-shrink-0 bg-chrome-800 text-slate-200">
+    <header className="flex-shrink-0 bg-[#0e121b] text-slate-200 border-b border-slate-800/60">
       <div className="flex h-11 items-center justify-between gap-3 px-3 md:px-5">
         <span />
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <div className="relative" ref={quickRef}>
             <button
               type="button"
@@ -115,17 +115,17 @@ export const TopBar: React.FC = () => {
               aria-label="Quick add"
               aria-haspopup="menu"
               aria-expanded={isQuickOpen}
-              className={`${pill} pl-1.5`}
+              className="flex h-8 items-center gap-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 px-3 text-xs font-medium text-white shadow-xs transition-colors"
             >
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-white"><Plus className="h-3.5 w-3.5" /></span>
+              <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Quick Add</span>
             </button>
             {isQuickOpen && (
-              <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-60 rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl">
+              <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-60 rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl text-slate-800">
                 {quickItems.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <button key={item.label} type="button" role="menuitem" onClick={() => { item.run(); setIsQuickOpen(false); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-brand-50">
+                    <button key={item.label} type="button" role="menuitem" onClick={() => { item.run(); setIsQuickOpen(false); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-slate-50 transition-colors">
                       <Icon className="h-4 w-4 text-brand-600" />
                       <span><span className="block text-xs font-semibold text-slate-800">{item.label}</span><span className="block text-xs text-slate-500">{item.hint}</span></span>
                     </button>
@@ -136,12 +136,12 @@ export const TopBar: React.FC = () => {
           </div>
           <button type="button" onClick={() => setActiveTab('messages')} title={callSession.active ? `In a call · ${Math.floor(callSession.durationSeconds / 60)}:${(callSession.durationSeconds % 60).toString().padStart(2, '0')}` : 'Calls'} aria-label="Calls" className={iconBtn}>
             <Phone className="h-4 w-4" />
-            <span className={`absolute bottom-1.5 right-1.5 h-2 w-2 rounded-full ring-2 ring-chrome-800 ${callSession.active ? 'animate-pulse bg-emerald-400' : 'bg-slate-500'}`} />
+            <span className={`absolute bottom-1 right-1 h-2 w-2 rounded-full ring-2 ring-[#0e121b] ${callSession.active ? 'animate-pulse bg-emerald-400' : 'bg-slate-500'}`} />
           </button>
           <button type="button" onClick={() => setActiveTab('messages')} className={`${pill} hidden sm:flex`}>
             <Inbox className="h-4 w-4 text-brand-300" />
             Inbox
-            <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white">{unreadMessages}</span>
+            <span className="rounded-full bg-brand-600 px-1.5 py-0.2 text-[11px] font-bold leading-none text-white">{unreadMessages}</span>
           </button>
           <div className="relative" ref={notificationsRef}>
             <button
@@ -155,7 +155,7 @@ export const TopBar: React.FC = () => {
             >
               <Bell className="h-4 w-4" />
               {unreadNotificationCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white ring-2 ring-chrome-800">
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white ring-2 ring-[#0e121b]">
                   {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
                 </span>
               )}
@@ -169,24 +169,24 @@ export const TopBar: React.FC = () => {
         </div>
       </div>
 
-      <div role="tablist" aria-label="Open pages" className="mr-2 flex items-center gap-1 overflow-x-auto rounded-t-2xl bg-white px-3 py-1.5 md:ml-0 [scrollbar-width:none]">
+      <div role="tablist" aria-label="Open pages" className="flex items-center gap-1.5 overflow-x-auto border-t border-slate-800/40 bg-[#121824] px-3 py-1.5 [scrollbar-width:none]">
         {tabs.map((tab) => {
           const active = tab.path === path;
           const Icon = tabIcons[tab.app] || FileText;
           return (
-            <div key={tab.path} className={`group flex shrink-0 items-center rounded-lg pr-1 transition-colors ${active ? 'bg-brand-50 ring-1 ring-brand-100' : 'hover:bg-slate-50'}`}>
+            <div key={tab.path} className={`group flex shrink-0 items-center rounded-lg pr-1 transition-all ${active ? 'bg-white/10 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'}`}>
               <button
                 type="button"
                 role="tab"
                 aria-selected={active}
                 onClick={() => openTab(tab)}
-                className={`flex max-w-[12rem] items-center gap-2 truncate px-3 py-1.5 text-xs ${active ? 'font-semibold text-slate-900' : 'font-medium text-slate-500 hover:text-slate-800'}`}
+                className={`flex max-w-[12rem] items-center gap-2 truncate px-2.5 py-1 text-xs ${active ? 'font-medium text-white' : 'font-normal text-slate-400 group-hover:text-slate-200'}`}
               >
-                <Icon className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-brand-600' : 'text-slate-400'}`} />
+                <Icon className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-brand-300' : 'text-slate-400'}`} />
                 <span className="truncate">{tab.label}</span>
               </button>
               {tabs.length > 1 && (
-                <button type="button" aria-label={`Close ${tab.label}`} onClick={() => closeTab(tab)} className="rounded p-0.5 text-slate-300 opacity-0 hover:bg-slate-200 hover:text-slate-600 group-hover:opacity-100">
+                <button type="button" aria-label={`Close ${tab.label}`} onClick={() => closeTab(tab)} className="rounded p-0.5 text-slate-400 opacity-0 hover:bg-white/15 hover:text-white group-hover:opacity-100 transition-opacity">
                   <X className="h-3 w-3" />
                 </button>
               )}

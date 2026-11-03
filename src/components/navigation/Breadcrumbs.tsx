@@ -27,13 +27,13 @@ export const Breadcrumbs: React.FC = () => {
   ];
 
   return (
-    <nav aria-label="Breadcrumb" className="flex h-7 shrink-0 items-center gap-1 border-b border-slate-200/70 bg-white/60 px-4 text-[11px] text-slate-500">
+    <nav aria-label="Breadcrumb" className="flex h-8 shrink-0 items-center gap-1.5 border-b border-slate-200/60 bg-white/70 px-4 text-[11px] text-slate-500 backdrop-blur-xs">
       {crumbs.map((crumb, index) => (
         <React.Fragment key={`${crumb.label}-${index}`}>
           {index > 0 && <ChevronRight className="h-3 w-3 text-slate-300" aria-hidden />}
           {index === crumbs.length - 1 || !crumb.go
-            ? <span aria-current="page" className="font-semibold text-slate-700">{crumb.label}</span>
-            : <button type="button" onClick={crumb.go} className="hover:text-brand-700 hover:underline">{crumb.label}</button>}
+            ? <span aria-current="page" className="font-medium text-slate-700">{crumb.label}</span>
+            : <button type="button" onClick={crumb.go} className="text-slate-500 hover:text-slate-900 transition-colors">{crumb.label}</button>}
         </React.Fragment>
       ))}
     </nav>

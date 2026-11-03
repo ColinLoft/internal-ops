@@ -204,7 +204,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   }
 
   return (
-    <div className="relative bg-white/90 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-lg p-2.5 transition-all focus-within:border-brand-500/60 focus-within:ring-4 focus-within:ring-brand-500/10">
+    <div className="relative bg-white border border-slate-200/90 rounded-xl shadow-subtle p-2 transition-all focus-within:border-brand-500/80 focus-within:ring-2 focus-within:ring-brand-500/15">
       {sendError && (
         <p role="alert" className="mb-2 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">
           Message was not saved: {sendError}
@@ -212,11 +212,11 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
       )}
       {/* Attachment Preview Chips */}
       {attachments.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-2 p-2 bg-slate-50 rounded-xl border border-slate-200/60">
+        <div className="flex flex-wrap gap-1.5 mb-2 p-1.5 bg-slate-50 rounded-lg border border-slate-200/60">
           {attachments.map((att) => (
             <div
               key={att.id}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 shadow-2xs"
+              className="flex items-center gap-1.5 px-2 py-0.5 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-800 shadow-2xs"
             >
               {att.type === 'location' ? (
                 <MapPin className="w-3.5 h-3.5 text-rose-500" />
@@ -237,22 +237,22 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
 
       {/* Autocomplete mention dropdown */}
       {showMentionMenu && (
-        <div className="absolute bottom-full left-4 mb-2 w-64 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-slate-200 p-1.5 z-40 animate-in fade-in zoom-in-95 duration-150">
-          <div className="px-2 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider">
+        <div className="absolute bottom-full left-4 mb-2 w-64 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-elevated border border-slate-200 p-1.5 z-40 animate-in fade-in zoom-in-95 duration-150">
+          <div className="px-2 py-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
             Mention Member or Channel
           </div>
           <button
             onClick={() => handleSelectMention('everyone')}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold text-brand-600 hover:bg-brand-50 rounded-xl text-left"
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-50 rounded-lg text-left"
           >
-            <span className="w-6 h-6 rounded-lg bg-brand-100 flex items-center justify-center font-bold">@</span>
+            <span className="w-5 h-5 rounded-md bg-brand-100 flex items-center justify-center font-bold text-xs">@</span>
             <span>everyone (Notify entire channel)</span>
           </button>
           <button
             onClick={() => handleSelectMention('channel')}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold text-brand-600 hover:bg-brand-50 rounded-xl text-left"
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-50 rounded-lg text-left"
           >
-            <span className="w-6 h-6 rounded-lg bg-brand-100 flex items-center justify-center font-bold">#</span>
+            <span className="w-5 h-5 rounded-md bg-brand-100 flex items-center justify-center font-bold text-xs">#</span>
             <span>channel (Notify active members)</span>
           </button>
           {users
@@ -262,12 +262,12 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
               <button
                 key={u.id}
                 onClick={() => handleSelectMention(u.name)}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-800 hover:bg-slate-100 rounded-xl text-left"
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-800 hover:bg-slate-100 rounded-lg text-left"
               >
-                <img src={u.avatar} alt={u.name} className="w-6 h-6 rounded-full object-cover" />
+                <img src={u.avatar} alt={u.name} className="w-5 h-5 rounded-full object-cover" />
                 <div className="truncate">
-                  <div className="font-bold truncate">{u.name}</div>
-                  <div className="text-xs text-slate-400 truncate">{u.role}</div>
+                  <div className="font-medium truncate">{u.name}</div>
+                  <div className="text-[11px] text-slate-400 truncate">{u.role}</div>
                 </div>
               </button>
             ))}
@@ -282,19 +282,19 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         onKeyDown={handleKeyDown}
         rows={1}
         placeholder={placeholder}
-        className="w-full px-2 py-1 text-base md:text-sm text-slate-900 placeholder:text-slate-400 bg-transparent resize-none outline-none leading-relaxed min-h-[36px] max-h-32"
+        className="w-full px-2 py-1 text-sm text-slate-900 placeholder:text-slate-400 bg-transparent resize-none outline-none leading-relaxed min-h-[36px] max-h-32"
       />
 
       {/* Bottom Tool bar buttons */}
       <div className="flex items-center justify-between pt-1 border-t border-slate-100 mt-1">
-        <div className="flex items-center gap-1 text-slate-500">
+        <div className="flex items-center gap-0.5 text-slate-400">
           {/* Voice dictation mic button */}
           <button
             onClick={handleToggleVoiceDictation}
-            className={`p-1.5 rounded-xl transition-all ${
+            className={`p-1.5 rounded-lg transition-all ${
               isRecording
                 ? 'bg-rose-500 text-white animate-pulse'
-                : 'hover:text-brand-600 hover:bg-slate-100'
+                : 'hover:text-slate-700 hover:bg-slate-100'
             }`}
             title="Speech-to-Text / Voice Dictation"
           >
@@ -313,7 +313,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           {/* File attachment */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-1.5 hover:text-brand-600 hover:bg-slate-100 rounded-xl transition-colors"
+            className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
             title="Attach Files or Images"
           >
             <Paperclip className="w-4 h-4" />
@@ -323,14 +323,14 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           <div className="relative" ref={emojiRef}>
             <button
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className="p-1.5 hover:text-brand-600 hover:bg-slate-100 rounded-xl transition-colors"
+              className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
               title="Insert Emoji"
             >
               <Smile className="w-4 h-4" />
             </button>
 
             {showEmojiPicker && (
-              <div className="absolute bottom-full left-0 mb-2 p-2 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 grid grid-cols-4 gap-1 w-48 max-w-[calc(100vw-2rem)] animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute bottom-full left-0 mb-2 p-2 bg-white rounded-xl shadow-elevated border border-slate-200 z-50 grid grid-cols-4 gap-1 w-48 max-w-[calc(100vw-2rem)] animate-in fade-in zoom-in-95 duration-150">
                 {emojiCategories.map((em) => (
                   <button
                     key={em}
@@ -339,7 +339,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
                       setShowEmojiPicker(false);
                       textareaRef.current?.focus();
                     }}
-                    className="p-1.5 hover:bg-slate-100 rounded-lg text-base text-center transition-transform hover:scale-125"
+                    className="p-1.5 hover:bg-slate-100 rounded-lg text-base text-center transition-transform hover:scale-110"
                   >
                     {em}
                   </button>
@@ -351,7 +351,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           {/* Share location */}
           <button
             onClick={handleShareLocation}
-            className="p-1.5 hover:text-brand-600 hover:bg-slate-100 rounded-xl transition-colors"
+            className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
             title="Share Organization Site / Location"
           >
             <MapPin className="w-4 h-4" />
@@ -360,7 +360,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           {/* Create Poll */}
           <button
             onClick={() => setIsCreatePollOpen(true)}
-            className="p-1.5 hover:text-brand-600 hover:bg-slate-100 rounded-xl transition-colors"
+            className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
             title="Create Custom Poll"
           >
             <Vote className="w-4 h-4" />
@@ -371,7 +371,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         <button
           onClick={handleSend}
           disabled={isSending || (!text.trim() && attachments.length === 0)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:hover:bg-brand-600 text-white rounded-xl text-xs font-bold shadow-md shadow-brand-500/20 transition-all active:scale-95"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:hover:bg-brand-600 text-white rounded-lg text-xs font-medium shadow-xs transition-all active:scale-98"
         >
           <span>{isSending ? 'Saving…' : 'Send'}</span>
           <Send className="w-3.5 h-3.5" />
