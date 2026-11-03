@@ -15,7 +15,7 @@ const apps = [
   { id: 'programs', label: 'Projects' },
   { id: 'engineering', label: 'Engineering' },
   { id: 'operations', label: 'Operations' },
-  { id: 'customers', label: 'Relationships' },
+  { id: 'customers', label: 'Customers' },
   { id: 'gtm', label: 'Marketing' },
   { id: 'support', label: 'Support' },
   { id: 'finance', label: 'Finance' },

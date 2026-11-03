@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --brand-50: 239 245 255;
+  --brand-100: 220 233 255;
+  --brand-200: 184 210 255;
+  --brand-300: 142 184 255;
+  --brand-400: 86 149 250;
+  --brand-500: 86 149 250;
+  --brand-600: 37 105 245;
+  --brand-700: 31 89 209;
+  --brand-800: 25 72 173;
+  --brand-900: 21 59 141;
+  --brand-950: 16 43 102;
+}
+
 @layer base {
   html,
   body,
@@ -270,28 +284,34 @@ html[data-theme='dark'] #root [class*='hover:bg-red-50']:hover {
   background-color: var(--danger-surface);
 }
 
-html[data-theme='dark'] #root [class~='bg-brand-600'] {
-  background-color: var(--brand-accent, #2569F5);
-}
-
 html[data-theme='dark'] #root [class~='text-brand-600'] {
-  color: var(--brand-accent, #5695FA);
+  color: rgb(var(--brand-400));
 }
 
-html[data-theme='dark'] #root [class~='border-brand-500'],
-html[data-theme='dark'] #root [class~='border-brand-600'] {
-  border-color: var(--brand-accent, #2569F5);
+/* Light page gradients would otherwise stay bright in dark mode */
+html[data-theme='dark'] #root [class*='from-slate-'],
+html[data-theme='dark'] #root [class*='from-brand-50'],
+html[data-theme='dark'] #root [class*='from-brand-100'],
+html[data-theme='dark'] #root [class*='via-brand-50'] {
+  background-image: none;
+  background-color: var(--surface-canvas);
 }
 
-html[data-theme='light'] #root [class~='bg-brand-600'] {
-  background-color: var(--brand-accent, #2569F5);
+html[data-theme='dark'] #root [class*='bg-slate-200'],
+html[data-theme='dark'] #root [class*='bg-slate-300'] {
+  background-color: var(--surface-hover);
 }
 
-html[data-theme='light'] #root [class~='text-brand-600'] {
-  color: var(--brand-accent, #2569F5);
+html[data-theme='dark'] #root [class*='divide-slate-'] > * {
+  border-color: var(--line);
 }
 
-html[data-theme='light'] #root [class~='border-brand-500'],
-html[data-theme='light'] #root [class~='border-brand-600'] {
-  border-color: var(--brand-accent, #2569F5);
+html[data-theme='dark'] #root [class~='text-slate-300'],
+html[data-theme='dark'] #root [class~='text-slate-400'] {
+  color: var(--text-muted);
+}
+
+html[data-theme='dark'] #root [class*='hover:bg-slate-200']:hover,
+html[data-theme='dark'] #root [class*='hover:bg-brand-50']:hover {
+  background-color: var(--surface-hover);
 }

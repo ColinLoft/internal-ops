@@ -161,10 +161,10 @@ export const guideSections: GuideSection[] = [
       },
       {
         id: 'relationships',
-        title: 'Relationships (CRM)',
+        title: 'Customers (CRM & support)',
         summary: 'Contacts, organizations and every interaction with them.',
         steps: [
-          'Open Relationships and use Contacts or Organizations to add people and groups.',
+          'Open Customers and use Contacts or Organizations to add people and groups.',
           'Log calls, emails and meetings under Interactions.',
           'Funders added through Grants appear here automatically.',
         ],
@@ -204,7 +204,7 @@ export const guideSections: GuideSection[] = [
         steps: [
           'Open Grants and choose Add grant, or import grants you have already won from a CSV exported from Google Sheets.',
           'Move a grant through Prospect, Applied, Awarded, Reporting and Closed as it progresses.',
-          'Open a grant to see its overview, activity and files & reports. Add a funder name and it is created in Relationships for you.',
+          'Open a grant to see its overview, activity and files & reports. Add a funder name and it is created in Customers for you.',
           'Upcoming deadlines show at the top of the Grants page.',
         ],
       },

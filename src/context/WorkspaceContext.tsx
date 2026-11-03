@@ -196,7 +196,7 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
   if (segment === 'operations') return 'organization';
   if (segment === 'legal') return 'legal';
   if (segment === 'engineering') return 'engineering';
-  if (segment === 'help') return 'help';
+  if (segment === 'help') return 'customers';
   if (segment === 'help-center') return 'helpcenter';
   if (segment === 'insights') return 'insights';
   if (segment === 'organization') return 'organization';
@@ -233,6 +233,31 @@ const pathForTab = (tab: WorkspaceTab) => ({
   admin: '/systems',
   drive: '/drive',
 }[tab]);
+
+const BRAND_STEPS: [string, string, number][] = [
+  ['50', '#ffffff', 0.93], ['100', '#ffffff', 0.86], ['200', '#ffffff', 0.72], ['300', '#ffffff', 0.55],
+  ['400', '#ffffff', 0.3], ['500', '#ffffff', 0.3], ['700', '#000000', 0.15], ['800', '#000000', 0.3],
+  ['900', '#000000', 0.45], ['950', '#000000', 0.6],
+];
+
+const hexToRgb = (hex: string) => [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16));
+
+// Derives the whole brand scale from the accent so every brand utility follows it.
+const applyAccentPalette = (accent: string) => {
+  const root = document.documentElement.style;
+  const isDefault = accent.toLowerCase() === DEFAULT_WORKSPACE_SETTINGS.accentColor.toLowerCase();
+  const names = ['600', ...BRAND_STEPS.map(([name]) => name)];
+  if (isDefault || !/^#[0-9a-f]{6}$/i.test(accent)) {
+    names.forEach((name) => root.removeProperty(`--brand-${name}`));
+    return;
+  }
+  const base = hexToRgb(accent);
+  root.setProperty('--brand-600', base.join(' '));
+  BRAND_STEPS.forEach(([name, mixHex, amount]) => {
+    const mix = hexToRgb(mixHex);
+    root.setProperty(`--brand-${name}`, base.map((value, index) => Math.round(value + (mix[index] - value) * amount)).join(' '));
+  });
+};
 
 const getFunctionError = async (error: unknown): Promise<Error> => {
   if (error instanceof Error && 'context' in error && error.context instanceof Response) {
@@ -1107,7 +1132,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   useEffect(() => {
     document.documentElement.dataset.theme = workspaceSettings.theme;
-    document.documentElement.style.setProperty('--brand-accent', workspaceSettings.accentColor);
+    applyAccentPalette(workspaceSettings.accentColor);
     sounds.setRingtone(workspaceSettings.ringtone);
   }, [workspaceSettings.theme, workspaceSettings.accentColor, workspaceSettings.ringtone]);
 

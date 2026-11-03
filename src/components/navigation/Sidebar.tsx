@@ -27,13 +27,10 @@ const appDropdowns: NavItem[] = [
   { id: 'programs', label: 'Projects', icon: FolderKanban },
   { id: 'engineering', label: 'Engineering', icon: Code2 },
   { id: 'organization', label: 'Organization', icon: Network },
-  { id: 'customers', label: 'Relationships', icon: UsersRound },
+  { id: 'customers', label: 'Customers', icon: UsersRound },
   { id: 'gtm', label: 'Marketing', icon: Megaphone },
   { id: 'finance', label: 'Grants', icon: Landmark },
   { id: 'legal', label: 'Legal', icon: Scale },
-];
-const adminItems: NavItem[] = [
-  { id: 'help', label: 'Support', icon: Headset },
 ];
 
 const accessKey: Partial<Record<Tab, string>> = { customers: 'customers', finance: 'finance', legal: 'legal', admin: 'systems' };
@@ -99,7 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
     const key = accessKey[id];
     return !key || !access || (access[key] ?? 0) >= 1 || (id === 'admin' && currentUser.systemRole === 'admin');
   };
-  const unread = (id: Tab) => id === 'messages' ? conversations.reduce((sum, item) => sum + (item.unreadCount || 0), 0) : id === 'help' ? supportUnread : 0;
+  const unread = (id: Tab) => id === 'messages' ? conversations.reduce((sum, item) => sum + (item.unreadCount || 0), 0) : id === 'customers' ? supportUnread : 0;
   const goTo = (path: string) => {
     if (window.location.pathname !== path) window.history.pushState({}, '', path);
     window.dispatchEvent(new PopStateEvent('popstate'));
@@ -107,27 +104,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
   const isActive = (id: Tab) => activeTab === id;
 
   const statusColor = currentUser.status === 'busy' ? 'bg-rose-400' : currentUser.status === 'offline' ? 'bg-slate-300' : 'bg-emerald-400';
-  const row = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-medium transition-colors ${collapsed ? 'justify-center px-0' : ''} ${active ? 'bg-white text-brand-700 shadow-sm' : 'text-white/90 hover:bg-white/15'}`;
+  const row = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-medium transition-colors ${collapsed ? 'justify-center px-0' : ''} ${active ? 'bg-white/10 text-white ring-1 ring-white/10' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`;
 
   return (
     <aside
       aria-label="Primary navigation"
-      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-brand-600 text-white transition-all duration-200 md:static md:z-30 md:translate-x-0 ${collapsed ? 'md:w-16 md:[&>*:not(:first-child)]:hidden' : 'md:w-64'} w-72 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-gradient-to-b from-chrome-700 to-chrome-900 text-white transition-all duration-200 md:static md:z-30 md:translate-x-0 ${collapsed ? 'md:w-16 md:[&>*:not(:first-child)]:hidden' : 'md:w-64'} w-72 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
     >
       <div className="flex items-center gap-2.5 p-3">
         <button
           type="button"
           onClick={() => { setActiveTab('home'); goTo('/home'); }}
           title="Flown home"
-          className={`h-12 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-xl bg-white/15 hover:bg-white/20 ${collapsed ? 'flex md:hidden' : 'flex'}`}
+          className={`h-12 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-xl bg-white/10 hover:bg-white/15 ${collapsed ? 'flex md:hidden' : 'flex'}`}
         >
-          <img src="/flown-logo.png" alt="Flown" className="h-auto w-[118%] max-w-none shrink-0 brightness-0 invert" />
+          <img src="/flown-logo.png" alt="Flown" className="h-auto w-[88%] max-w-none shrink-0 brightness-0 invert" />
         </button>
         <button
           type="button"
           onClick={() => setCollapsed((value) => !value)}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 hover:bg-white/20 md:flex"
+          className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 text-slate-200 hover:bg-white/15 md:flex"
         >
           {collapsed ? <ChevronsRight className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
         </button>
@@ -161,12 +158,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
             return (
               <div key={id} className="pb-1">
                 {!collapsed && (
-                  <button type="button" onClick={() => setOpenGroups((current) => ({ ...current, [id]: !open }))} aria-expanded={open} className="flex w-full items-center justify-between px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-white/60 hover:text-white/90">
+                  <button type="button" onClick={() => setOpenGroups((current) => ({ ...current, [id]: !open }))} aria-expanded={open} className="flex w-full items-center justify-between px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-300">
                     {title}
                     <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
                   </button>
                 )}
-                {collapsed && <div className="mx-3 mb-1 mt-2 border-t border-white/15" />}
+                {collapsed && <div className="mx-3 mb-1 mt-2 border-t border-white/10" />}
                 {open && <ul className="space-y-0.5">{visible.map(renderLeaf)}</ul>}
               </div>
             );
@@ -177,7 +174,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
               {leafGroup('overview', 'Overview', overviewItems)}
               {dropdowns.length > 0 && (
                 <div className="pb-1">
-                  {collapsed ? <div className="mx-3 mb-1 mt-2 border-t border-white/15" /> : <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-white/60">Apps</p>}
+                  {collapsed ? <div className="mx-3 mb-1 mt-2 border-t border-white/10" /> : <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Apps</p>}
                   <ul className="space-y-0.5">
                     {dropdowns.map((item) => {
                       const Icon = item.icon;
@@ -197,7 +194,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
                               if (!active) setActiveTab(item.id);
                               else setOpenGroups((current) => ({ ...current, [item.id]: !open }));
                             }}
-                            className={row(false) + (active ? ' bg-white/15' : '')}
+                            className={row(false) + (active ? ' bg-white/5 text-white' : '')}
                           >
                             <Icon className="h-[18px] w-[18px] shrink-0" />
                             <span className="flex-1 truncate">{item.label}</span>
@@ -214,7 +211,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
                                       type="button"
                                       onClick={() => goTo(child.path)}
                                       aria-current={selected ? 'page' : undefined}
-                                      className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-xs font-medium transition-colors ${selected ? 'bg-white text-brand-700 shadow-sm' : 'text-white/80 hover:bg-white/15 hover:text-white'}`}
+                                      className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-xs font-medium transition-colors ${selected ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
                                     >
                                       <ChildIcon className="h-3.5 w-3.5 shrink-0" />
                                       <span className="truncate">{child.label}</span>
@@ -230,13 +227,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
                   </ul>
                 </div>
               )}
-              {leafGroup('admin', 'Admin', adminItems)}
             </>
           );
         })()}
       </nav>
 
-      <div className="space-y-1 border-t border-white/15 p-3">
+      <div className="space-y-1 border-t border-white/10 p-3">
         <button type="button" title="Help Center" onClick={() => setActiveTab('helpcenter')} className={row(activeTab === 'helpcenter')}>
           <CircleHelp className="h-[18px] w-[18px] shrink-0" />
           {!collapsed && 'Help Center'}

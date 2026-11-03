@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, CirclePlus, MessageSquarePlus, MailPlus, Hash, CalendarPlus, House, X } from 'lucide-react';
+import { Bell, Phone, Inbox, LayoutGrid, Plus, MessageSquarePlus, MailPlus, Hash, CalendarPlus, House, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 import { getSectionTabs, isSectionSelected } from './sectionTabs';
@@ -8,7 +8,7 @@ type OpenTab = { path: string; app: string; label: string };
 
 const appLabels: Record<string, string> = {
   home: 'Home', messages: 'Messages', channels: 'Channels', calendar: 'Calendar', inbox: 'Email', drive: 'Drive',
-  engineering: 'Engineering', gtm: 'Marketing', legal: 'Legal', finance: 'Grants', customers: 'Relationships',
+  engineering: 'Engineering', gtm: 'Marketing', legal: 'Legal', finance: 'Grants', customers: 'Customers',
   programs: 'Projects', admin: 'Settings', settings: 'Settings', help: 'Support', helpcenter: 'Help Center', insights: 'Insights', organization: 'Organization',
 };
 const storageKey = 'flown-open-tabs';
@@ -24,18 +24,21 @@ const loadTabs = (): OpenTab[] => {
 };
 
 export const TopBar: React.FC = () => {
-  const { activeTab, setActiveTab, unreadNotificationCount, callSession, setIsNewMessageOpen, setIsCreateChannelOpen, setIsAddEventOpen, requestEmailCompose } = useWorkspace();
+  const { activeTab, setActiveTab, unreadNotificationCount, callSession, conversations, setIsNewMessageOpen, setIsCreateChannelOpen, setIsAddEventOpen, requestEmailCompose } = useWorkspace();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isQuickOpen, setIsQuickOpen] = useState(false);
+  const [isAppsOpen, setIsAppsOpen] = useState(false);
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
   const [tabs, setTabs] = useState<OpenTab[]>(loadTabs);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const quickRef = useRef<HTMLDivElement>(null);
+  const appsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onDown = (event: MouseEvent) => {
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) setIsNotificationsOpen(false);
       if (quickRef.current && !quickRef.current.contains(event.target as Node)) setIsQuickOpen(false);
+      if (appsRef.current && !appsRef.current.contains(event.target as Node)) setIsAppsOpen(false);
     };
     const onRoute = () => setRoutePath(window.location.pathname);
     document.addEventListener('mousedown', onDown);
@@ -94,32 +97,31 @@ export const TopBar: React.FC = () => {
     { label: 'New event', hint: 'Add to the calendar', icon: CalendarPlus, run: () => { setActiveTab('calendar'); setIsAddEventOpen(true); } },
   ];
 
+  const unreadMessages = conversations.reduce((sum, item) => sum + (item.unreadCount || 0), 0);
+  const launcherApps = Object.entries(appLabels).filter(([id]) => !['help'].includes(id));
+  const pill = 'flex h-9 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 text-xs font-semibold text-slate-100 transition-colors hover:bg-white/10';
+  const iconBtn = 'relative flex h-9 w-9 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/10 hover:text-white';
+
   return (
-    <header className="flex-shrink-0 border-b border-slate-200/80 bg-white/70">
-      <div className="flex h-12 items-center justify-between gap-3 px-3 md:px-5">
+    <header className="flex-shrink-0 bg-chrome-800 text-slate-200">
+      <div className="flex h-14 items-center justify-between gap-3 px-3 md:px-5">
         <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2 text-xs">
-          <House className="h-4 w-4 text-slate-400" />
-          <span className="text-slate-300">/</span>
-          <span className="truncate font-semibold text-slate-700">{labelFor(activeTab, path)}</span>
+          <House className="h-4 w-4 text-slate-500" />
+          <span className="text-slate-600">/</span>
+          <span className="truncate font-semibold text-slate-100">{labelFor(activeTab, path)}</span>
         </nav>
-        <div className="flex items-center gap-2">
-          {callSession.active && (
-            <div className="flex animate-pulse items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              {Math.floor(callSession.durationSeconds / 60)}:{(callSession.durationSeconds % 60).toString().padStart(2, '0')}
-            </div>
-          )}
+        <div className="flex items-center gap-1.5">
           <div className="relative" ref={quickRef}>
             <button
               type="button"
-              onClick={() => { setIsQuickOpen((open) => !open); setIsNotificationsOpen(false); }}
+              onClick={() => { setIsQuickOpen((open) => !open); setIsNotificationsOpen(false); setIsAppsOpen(false); }}
               aria-label="Quick add"
               aria-haspopup="menu"
               aria-expanded={isQuickOpen}
-              className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
+              className={`${pill} pl-1.5`}
             >
-              <CirclePlus className="h-4 w-4" />
-              <span className="hidden sm:inline">Quick add</span>
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-white"><Plus className="h-3.5 w-3.5" /></span>
+              <span className="hidden sm:inline">Quick Add</span>
             </button>
             {isQuickOpen && (
               <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-60 rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl">
@@ -135,19 +137,40 @@ export const TopBar: React.FC = () => {
               </div>
             )}
           </div>
+          <button type="button" onClick={() => setActiveTab('messages')} title={callSession.active ? `In a call · ${Math.floor(callSession.durationSeconds / 60)}:${(callSession.durationSeconds % 60).toString().padStart(2, '0')}` : 'Calls'} aria-label="Calls" className={iconBtn}>
+            <Phone className="h-4 w-4" />
+            <span className={`absolute bottom-1.5 right-1.5 h-2 w-2 rounded-full ring-2 ring-chrome-800 ${callSession.active ? 'animate-pulse bg-emerald-400' : 'bg-slate-500'}`} />
+          </button>
+          <button type="button" onClick={() => setActiveTab('messages')} className={`${pill} hidden sm:flex`}>
+            <Inbox className="h-4 w-4 text-brand-300" />
+            Inbox
+            <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white">{unreadMessages}</span>
+          </button>
+          <div className="relative" ref={appsRef}>
+            <button type="button" onClick={() => { setIsAppsOpen((open) => !open); setIsQuickOpen(false); setIsNotificationsOpen(false); }} aria-label="All apps" aria-haspopup="menu" aria-expanded={isAppsOpen} title="All apps" className={iconBtn}>
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            {isAppsOpen && (
+              <div role="menu" className="absolute right-0 top-full z-50 mt-2 grid w-64 grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl">
+                {launcherApps.map(([id, label]) => (
+                  <button key={id} type="button" role="menuitem" onClick={() => { setActiveTab(id as typeof activeTab); setIsAppsOpen(false); }} className={`rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-brand-50 ${activeTab === id ? 'bg-brand-50 text-brand-700' : 'text-slate-700'}`}>{label}</button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="relative" ref={notificationsRef}>
             <button
               type="button"
-              onClick={() => { setIsNotificationsOpen((open) => !open); setIsQuickOpen(false); }}
+              onClick={() => { setIsNotificationsOpen((open) => !open); setIsQuickOpen(false); setIsAppsOpen(false); }}
               aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ''}`}
               aria-haspopup="dialog"
               aria-expanded={isNotificationsOpen}
               title="Notifications"
-              className={`relative rounded-lg border p-2 transition-colors ${isNotificationsOpen ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
+              className={`${iconBtn} ${isNotificationsOpen ? 'bg-white/10 text-white' : ''}`}
             >
               <Bell className="h-4 w-4" />
               {unreadNotificationCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white ring-2 ring-white">
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white ring-2 ring-chrome-800">
                   {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
                 </span>
               )}
@@ -161,22 +184,22 @@ export const TopBar: React.FC = () => {
         </div>
       </div>
 
-      <div role="tablist" aria-label="Open pages" className="flex items-end gap-1 overflow-x-auto px-3 md:px-5 [scrollbar-width:none]">
+      <div role="tablist" aria-label="Open pages" className="flex items-center gap-1 overflow-x-auto px-3 pb-2 md:px-5 [scrollbar-width:none]">
         {tabs.map((tab) => {
           const active = tab.path === path;
           return (
-            <div key={tab.path} className={`group flex shrink-0 items-center gap-1 border-b-2 pr-1 ${active ? 'border-brand-600' : 'border-transparent'}`}>
+            <div key={tab.path} className={`group flex shrink-0 items-center rounded-lg pr-1 transition-colors ${active ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
               <button
                 type="button"
                 role="tab"
                 aria-selected={active}
                 onClick={() => openTab(tab)}
-                className={`max-w-[11rem] truncate px-2.5 py-2 text-xs ${active ? 'font-semibold text-slate-900' : 'font-medium text-slate-500 hover:text-slate-800'}`}
+                className={`max-w-[11rem] truncate px-3 py-1.5 text-xs ${active ? 'font-semibold text-white' : 'font-medium text-slate-400 hover:text-slate-100'}`}
               >
                 {tab.label}
               </button>
               {tabs.length > 1 && (
-                <button type="button" aria-label={`Close ${tab.label}`} onClick={() => closeTab(tab)} className="rounded p-0.5 text-slate-400 opacity-60 hover:bg-slate-200 hover:text-slate-700 group-hover:opacity-100">
+                <button type="button" aria-label={`Close ${tab.label}`} onClick={() => closeTab(tab)} className="rounded p-0.5 text-slate-500 opacity-60 hover:bg-white/10 hover:text-white group-hover:opacity-100">
                   <X className="h-3 w-3" />
                 </button>
               )}

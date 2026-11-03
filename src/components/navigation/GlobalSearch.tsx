@@ -94,7 +94,7 @@ export const GlobalSearch: React.FC<{ className?: string }> = ({ className = '' 
 
   return (
     <div className={`relative ${className}`}>
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/70" />
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
       <input
         type="text"
         value={searchQuery}
@@ -108,7 +108,7 @@ export const GlobalSearch: React.FC<{ className?: string }> = ({ className = '' 
         }}
         placeholder="Search everything..."
         aria-label="Search everything"
-        className="w-full rounded-xl border border-white/15 bg-white/10 py-2 pl-9 pr-3 text-xs font-medium text-white outline-none transition-colors placeholder:text-white/60 focus:border-white/40 focus:bg-white/15"
+        className="w-full rounded-xl border border-white/10 bg-black/20 py-2 pl-9 pr-3 text-xs font-medium text-white outline-none transition-colors placeholder:text-slate-500 focus:border-white/25 focus:bg-black/30"
       />
       {query && (
         <div className="absolute left-0 top-full z-[80] mt-2 max-h-80 w-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-xl">

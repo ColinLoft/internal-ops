@@ -1,5 +1,5 @@
 import {
-  CheckSquare, House, ContactRound, Building2, ListChecks, BookOpen, BarChart3, Users, ShieldCheck, CheckCircle2,
+  CheckSquare, Headset, House, ContactRound, Building2, ListChecks, BookOpen, BarChart3, Users, ShieldCheck, CheckCircle2,
   Landmark, Target, WalletCards, Receipt, CreditCard, BriefcaseBusiness, FolderKanban, Network, Code2,
   Megaphone, Gauge, AlertTriangle, Layers3, FileCheck2, GitBranch, ClipboardList, FileText,
   CalendarRange, Calendar as CalendarIcon, type LucideIcon,
@@ -55,6 +55,7 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
         tab('Contacts', 'Contacts', ContactRound, '/customers/contacts'),
         tab('Organizations', 'Orgs', Building2, '/customers/organizations'),
         tab('Interactions', 'Activity', ListChecks, '/customers/activity'),
+        tab('Support', 'Support', Headset, '/customers/support', ['/help']),
       ];
     case 'finance':
       return [

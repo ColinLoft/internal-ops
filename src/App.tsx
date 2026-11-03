@@ -32,7 +32,6 @@ import { FinancePage } from './components/finance/FinancePage';
 import { LegalPage } from './components/legal/LegalPage';
 import { HomePage } from './components/home/HomePage';
 import { NotFoundPage } from './components/NotFoundPage';
-import { SupportPage } from './components/support/SupportPage';
 import { HelpCenterPage } from './components/help/HelpCenterPage';
 import { InsightsPage } from './components/insights/InsightsPage';
 import { OrganizationPage } from './components/organization/OrganizationPage';
@@ -110,7 +109,7 @@ const WorkspaceShell: React.FC = () => {
   }
 
   return (
-    <div className="flex h-dvh min-h-dvh w-screen overflow-hidden bg-brand-600">
+    <div className="flex h-dvh min-h-dvh w-screen overflow-hidden bg-chrome-900">
       <Sidebar isMobileOpen={isNavOpen} />
       {isNavOpen && (
         <button
@@ -122,15 +121,14 @@ const WorkspaceShell: React.FC = () => {
       )}
 
       {/* 2. Main Workspace Layout */}
-      <div className="mb-14 flex min-w-0 flex-1 flex-col overflow-hidden bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90 md:m-2 md:mb-2 md:ml-0 md:rounded-2xl md:shadow-xl">
+      <div className="mb-14 flex min-w-0 flex-1 flex-col overflow-hidden md:mb-0">
         <TopBar />
         {/* Workspace Body */}
-        <div className="flex-1 flex min-w-0 h-full overflow-hidden">
+        <div className="flex h-full min-w-0 flex-1 overflow-hidden bg-gradient-to-br from-slate-200/80 via-slate-100 to-brand-50 md:mb-2 md:mr-2 md:rounded-2xl md:shadow-xl">
           {activeTab === 'home' && <HomePage />}
-          {activeTab === 'customers' && <AccessGate app="customers" name="Relationships"><CustomerPage /></AccessGate>}
+          {activeTab === 'customers' && <AccessGate app="customers" name="Customers"><CustomerPage /></AccessGate>}
           {activeTab === 'finance' && <AccessGate app="finance" name="Finance"><FinancePage /></AccessGate>}
           {activeTab === 'legal' && <AccessGate app="legal" name="Legal"><LegalPage /></AccessGate>}
-          {activeTab === 'help' && <SupportPage />}
           {activeTab === 'helpcenter' && <HelpCenterPage />}
           {activeTab === 'insights' && <InsightsPage />}
           {activeTab === 'organization' && <OrganizationPage />}

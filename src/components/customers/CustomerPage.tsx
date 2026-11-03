@@ -3,8 +3,9 @@ import { Building2, CheckCircle2, ContactRound, Plus, Search, Trash2, X, Clock3,
 import { supabase } from '../../lib/supabase';
 import { useAppAccess } from '../../lib/useAppAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { SupportPage } from '../support/SupportPage';
 
-type View = 'overview' | 'contacts' | 'organizations' | 'activity';
+type View = 'overview' | 'contacts' | 'organizations' | 'activity' | 'support';
 type Org = { id: string; name: string; category: string; website: string | null; notes: string | null; owner_id: string | null; created_at: string };
 type Contact = { id: string; organization_id: string | null; name: string; role_title: string | null; email: string | null; phone: string | null; notes: string | null; owner_id: string | null };
 type Interaction = { id: string; organization_id: string | null; contact_id: string | null; kind: string; subject: string; body: string | null; occurred_at: string; follow_up_at: string | null; follow_up_done: boolean; owner_id: string | null };
@@ -13,8 +14,9 @@ const categories = ['customer', 'prospect', 'partner', 'funder', 'vendor', 'gove
 const kinds = ['note', 'call', 'email', 'meeting', 'follow_up'];
 const label = (v: string) => v.replace('_', ' ').replace(/^\w/, (c) => c.toUpperCase());
 const viewFromPath = (path: string): View => {
+  if (path.split('/')[1] === 'help') return 'support';
   const seg = path.split('/')[2];
-  return seg === 'contacts' || seg === 'organizations' || seg === 'activity' ? seg : 'overview';
+  return seg === 'contacts' || seg === 'organizations' || seg === 'activity' || seg === 'support' ? seg : 'overview';
 };
 const fmt = (d: string) => new Date(d).toLocaleDateString();
 const input = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400';
@@ -72,7 +74,7 @@ export const CustomerPage: React.FC = () => {
   const followUps = useMemo(() => items.filter((i) => i.follow_up_at && !i.follow_up_done).sort((a, b) => a.follow_up_at!.localeCompare(b.follow_up_at!)), [items]);
   const overdue = followUps.filter((i) => new Date(i.follow_up_at!) < today);
 
-  const tabs: [View, string][] = [['overview', 'Overview'], ['organizations', 'Organizations'], ['contacts', 'Contacts'], ['activity', 'Interactions']];
+  const tabs: [View, string][] = [['overview', 'Overview'], ['organizations', 'Organizations'], ['contacts', 'Contacts'], ['activity', 'Interactions'], ['support', 'Support']];
   const go = (v: View) => { window.history.pushState({}, '', v === 'overview' ? '/customers' : `/customers/${v}`); setView(v); };
 
   const filteredOrgs = orgs.filter((o) => (category === 'all' || o.category === category) && (!q || `${o.name} ${o.notes || ''} ${o.website || ''}`.toLowerCase().includes(q)));
@@ -105,6 +107,17 @@ export const CustomerPage: React.FC = () => {
 
   const addLabel = view === 'contacts' ? 'contact' : view === 'activity' ? 'interaction' : 'organization';
 
+  if (view === 'support') {
+    return (
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[#f7f9fc]">
+        <nav className="flex gap-1 border-b border-slate-200 bg-white px-5 sm:px-8">
+          {tabs.map(([id, name]) => <button key={id} type="button" onClick={() => go(id)} className={`border-b-2 px-3 py-2 text-xs font-semibold ${view === id ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{name}</button>)}
+        </nav>
+        <SupportPage />
+      </main>
+    );
+  }
+
   return (
     <main className="flex min-w-0 flex-1 overflow-hidden bg-[#f7f9fc]">
       <section className="min-w-0 flex-1 overflow-y-auto">
@@ -122,7 +135,7 @@ export const CustomerPage: React.FC = () => {
         </nav>
         <div className="mx-auto max-w-7xl space-y-5 p-5 sm:p-8">
           {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</p>}
-          {loading ? <p className="text-xs text-slate-400">Loading…</p> : !canView && orgs.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-6 text-xs text-slate-500">You don't have access to Relationships. Ask an admin to assign the Relationships team role.</p> : <>
+          {loading ? <p className="text-xs text-slate-400">Loading…</p> : !canView && orgs.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-6 text-xs text-slate-500">You don't have access to Customers. Ask an admin to assign the Customers team role.</p> : <>
             {view === 'overview' && <>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {[['Organizations', orgs.length], ['Contacts', contacts.length], ['Follow-ups due', followUps.length], ['Overdue', overdue.length]].map(([l, v]) => <div key={l} className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">{l}</p><p className={`mt-2 text-2xl font-bold ${l === 'Overdue' && Number(v) > 0 ? 'text-rose-600' : 'text-brand-600'}`}>{v}</p></div>)}
