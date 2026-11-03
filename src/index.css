@@ -325,3 +325,8 @@ html:not([data-theme='dark']) #root .text-slate-400 { color: #64748b; }
 html:not([data-theme='dark']) #root [class~='text-xs'].text-slate-300 { color: #94a3b8; }
 #root table { font-variant-numeric: tabular-nums; }
 #root [role='separator'][aria-orientation='vertical']:focus-visible { outline: none; }
+
+/* Immediate UI refinements: subtle blue-gray borders, consistent interaction transitions. */
+html:not([data-theme='dark']) #root .border-slate-200 { border-color: rgb(226 232 240 / 0.8); }
+#root button, #root a, #root input, #root select, #root textarea { transition-property: color, background-color, border-color, box-shadow, opacity; transition-duration: 150ms; }
+#root button:active:not(:disabled) { opacity: 0.9; }

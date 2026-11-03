@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, Clock3, Eye, EyeOff, FileText, FolderOpen, GripVertical, Headset, History, MessageSquare, Settings2, Sparkles, Target, Users, Flag } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, Clock3, Eye, EyeOff, FileText, FolderOpen, GripVertical, Headset, History, MessageSquare, Settings2, Sparkles, Target, Users, Flag, Mail, AlertTriangle, ListChecks } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { EmptyState, ProvenanceBadge, Skeleton } from '../common/Feedback';
@@ -19,7 +19,12 @@ const WIDE: WidgetId[] = ['mentions'];
 const STORAGE = 'flown-home-widgets';
 
 const statusPill: Record<string, string> = { not_started: 'bg-slate-100 text-slate-600', in_progress: 'bg-brand-50 text-brand-700', blocked: 'bg-rose-50 text-rose-700', completed: 'bg-emerald-50 text-emerald-700', planned: 'bg-slate-100 text-slate-600', in_review: 'bg-amber-50 text-amber-700' };
-const priorityDot: Record<string, string> = { high: 'bg-rose-500', medium: 'bg-amber-400', low: 'bg-slate-300', urgent: 'bg-rose-600' };
+const priorityBar: Record<string, string> = { high: 'bg-rose-400', medium: 'bg-amber-300', low: 'bg-slate-200', urgent: 'bg-rose-500' };
+const severity: Record<string, { rank: number; dot: string; label: string }> = {
+  call: { rank: 0, dot: 'bg-rose-500', label: 'Urgent' }, mention: { rank: 0, dot: 'bg-rose-500', label: 'Urgent' },
+  announcement: { rank: 1, dot: 'bg-amber-400', label: 'Important' }, calendar: { rank: 1, dot: 'bg-amber-400', label: 'Important' },
+  message: { rank: 2, dot: 'bg-brand-400', label: 'New' }, organization: { rank: 2, dot: 'bg-brand-400', label: 'New' },
+};
 
 const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const formatTime = (time: string) => {
@@ -43,7 +48,7 @@ const loadConfig = (): { order: WidgetId[]; hidden: WidgetId[] } => {
 };
 
 export const HomePage: React.FC = () => {
-  const { currentUser, users, calendarEvents, conversations, channels, messages, notifications, setActiveTab, setActiveConversationId, setActiveChannelId } = useWorkspace();
+  const { currentUser, users, calendarEvents, conversations, channels, messages, notifications, setActiveTab, setActiveConversationId, setActiveChannelId, setIsAddEventOpen } = useWorkspace();
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [myTasks, setMyTasks] = useState<MyTask[]>([]);
   const [activity, setActivity] = useState<Activity[]>([]);
@@ -74,7 +79,7 @@ export const HomePage: React.FC = () => {
         ...((operations.data || []) as Omit<MyTask, 'source'>[]).map((task) => ({ ...task, source: 'operations' as const })),
       ].sort((a, b) => (a.due_date || '9999').localeCompare(b.due_date || '9999')));
       setActivity((feed.data || []) as Activity[]);
-      setDeadlines(((reports.data || []) as { id: string; title: string; due_date: string }[]).map((report) => ({ id: report.id, title: report.title, date: report.due_date, kind: 'Grant report', tab: 'finance' as const })));
+      setDeadlines(((reports.data || []) as { id: string; title: string; due_date: string }[]).map((report) => ({ id: report.id, title: report.title, date: report.due_date, kind: 'Grants · Report', tab: 'finance' as const })));
       setOpenSupport(support.error ? null : support.count ?? 0);
       setLoading(false);
     };
@@ -90,7 +95,7 @@ export const HomePage: React.FC = () => {
     return calendarEvents.filter((event) => event.date > today || (event.date === today && (event.endTime || event.startTime) >= nowTime)).sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
   }, [calendarEvents, today]);
   const allDeadlines = useMemo(() => [
-    ...myTasks.filter((task) => task.due_date).map((task) => ({ id: `t-${task.id}`, title: task.title, date: task.due_date as string, kind: 'Task', tab: (task.source === 'program' ? 'programs' : 'programs') as Deadline['tab'] })),
+    ...myTasks.filter((task) => task.due_date).map((task) => ({ id: `t-${task.id}`, title: task.title, date: task.due_date as string, kind: task.source === 'program' ? 'Program task' : 'Operations task', tab: 'programs' as Deadline['tab'] })),
     ...deadlines,
   ].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6), [myTasks, deadlines]);
 
@@ -104,7 +109,7 @@ export const HomePage: React.FC = () => {
         return text.includes('@everyone') || text.includes('@channel') || text.includes(handle) || text.includes(firstHandle);
       }).slice(0, 6);
   }, [messages, currentUser.id, currentUser.name]);
-  const attention = notifications.filter((notification) => !notification.isRead).slice(0, 5);
+  const attention = notifications.filter((notification) => !notification.isRead).sort((a, b) => (severity[a.type]?.rank ?? 3) - (severity[b.type]?.rank ?? 3)).slice(0, 5);
   const latestConversation = conversations.filter((conversation) => conversation.lastMessage).slice(0, 4);
   const firstName = currentUser.name?.split(' ')[0] || 'there';
   const hour = new Date().getHours();
@@ -121,23 +126,24 @@ export const HomePage: React.FC = () => {
     return list;
   }, [overdueTasks.length, openSupport, notifications, upcoming, today, setActiveTab]);
 
-  const kpis: [string, number | string, string, string][] = [
-    ['Open tasks', myTasks.length, 'Assigned to you', 'text-brand-600'],
-    ['Overdue', overdueTasks.length, 'Past due date', overdueTasks.length ? 'text-rose-600' : 'text-slate-700'],
-    ['This week', upcoming.filter((event) => event.date <= weekEnd).length, 'Meetings and events', 'text-brand-600'],
-    ['Unread', notifications.filter((notification) => !notification.isRead).length, 'Notifications', 'text-brand-600'],
-    ['Open support', openSupport ?? '—', 'Customer conversations', 'text-brand-600'],
+  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
+  const kpis: { name: string; value: number | string; hint: string; icon: React.ElementType; text: string; tint: string; go: () => void }[] = [
+    { name: 'Open tasks', value: myTasks.length, hint: 'Assigned to you', icon: ListChecks, text: 'text-brand-600', tint: 'bg-brand-50 text-brand-600', go: () => setActiveTab('programs') },
+    { name: 'Overdue', value: overdueTasks.length, hint: 'Past due date', icon: AlertTriangle, text: overdueTasks.length ? 'text-rose-600' : 'text-slate-700', tint: overdueTasks.length ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-500', go: () => setActiveTab('programs') },
+    { name: 'This week', value: upcoming.filter((event) => event.date <= weekEnd).length, hint: 'Meetings and events', icon: CalendarDays, text: 'text-brand-600', tint: 'bg-brand-50 text-brand-600', go: () => setActiveTab('calendar') },
+    { name: 'Unread', value: unreadCount, hint: 'Notifications', icon: Mail, text: unreadCount ? 'text-brand-600' : 'text-slate-700', tint: unreadCount ? 'bg-brand-50 text-brand-600' : 'bg-slate-100 text-slate-500', go: () => setActiveTab('messages') },
+    { name: 'Open support', value: openSupport ?? '—', hint: 'Customer conversations', icon: Headset, text: 'text-teal-600', tint: 'bg-teal-50 text-teal-600', go: () => setActiveTab('customers') },
   ];
 
-  const row = 'flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left hover:bg-brand-50';
+  const row = 'flex w-full items-center gap-2.5 rounded-lg px-2 py-1 text-left transition-colors duration-150 hover:bg-slate-50';
   const body = (id: WidgetId): React.ReactNode => {
     switch (id) {
-      case 'tasks': return myTasks.length ? myTasks.slice(0, 8).map((task) => (
+      case 'tasks': return myTasks.length ? myTasks.slice(0, 7).map((task) => (
         <button key={`${task.source}-${task.id}`} type="button" onClick={() => setActiveTab(task.source === 'program' ? 'programs' : 'organization')} className={row}>
-          <span className={`h-2 w-2 shrink-0 rounded-full ${priorityDot[task.priority] || 'bg-slate-300'}`} title={`${task.priority} priority`} />
+          <span className={`h-4 w-[3px] shrink-0 rounded-full ${priorityBar[task.priority] || 'bg-slate-200'}`} title={`${task.priority} priority`} />
           <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">{task.title}</span>
-          <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${statusPill[task.status] || statusPill.not_started}`}>{task.status.replace('_', ' ')}</span>
-          <span className={`w-14 shrink-0 text-right text-[11px] ${task.due_date && task.due_date < today ? 'font-semibold text-rose-600' : 'text-slate-400'}`}>{task.due_date ? new Date(`${task.due_date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}</span>
+          <span className={`shrink-0 rounded px-1.5 py-px text-[10px] font-semibold capitalize ${statusPill[task.status] || statusPill.not_started}`}>{task.status.replace(/_/g, ' ')}</span>
+          <span className={`w-12 shrink-0 text-right text-[11px] tabular-nums ${task.due_date && task.due_date < today ? 'font-semibold text-rose-600' : 'text-slate-500'}`}>{task.due_date ? new Date(`${task.due_date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}</span>
         </button>
       )) : <EmptyState icon={Target} text="No tasks are assigned to you." action="Open tasks" onClick={() => setActiveTab('programs')} />;
       case 'events': return upcoming.length ? upcoming.slice(0, 5).map((event) => (
@@ -145,21 +151,25 @@ export const HomePage: React.FC = () => {
           <span className="w-10 shrink-0 rounded-md bg-brand-100 py-0.5 text-center text-[10px] font-bold uppercase leading-tight text-brand-700"><span className="block text-sm">{new Date(`${event.date}T12:00:00`).getDate()}</span>{new Date(`${event.date}T12:00:00`).toLocaleDateString(undefined, { month: 'short' })}</span>
           <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-800">{event.title}</span><span className="block truncate text-[11px] text-slate-500"><Clock3 className="mr-1 inline h-3 w-3" />{formatTime(event.startTime)} · {event.location || 'Calendar meeting'}</span></span>
         </button>
-      )) : <EmptyState icon={CalendarDays} text="No upcoming meetings scheduled." action="Open calendar" onClick={() => setActiveTab('calendar')} />;
-      case 'deadlines': return allDeadlines.length ? allDeadlines.map((item) => (
-        <button key={item.id} type="button" onClick={() => setActiveTab(item.tab)} className={row}>
-          <Flag className={`h-3.5 w-3.5 shrink-0 ${item.date < today ? 'text-rose-500' : 'text-amber-500'}`} />
-          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">{item.title}</span>
-          <span className="shrink-0 text-[11px] text-slate-400">{item.kind}</span>
-          <span className={`w-14 shrink-0 text-right text-[11px] ${item.date < today ? 'font-semibold text-rose-600' : 'text-slate-500'}`}>{new Date(`${item.date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-        </button>
-      )) : <EmptyState icon={Flag} text="No deadlines coming up." />;
+      )) : <EmptyState compact icon={CalendarDays} text="No upcoming meetings." action="Open calendar" onClick={() => setActiveTab('calendar')} />;
+      case 'deadlines': return allDeadlines.length ? allDeadlines.map((item) => {
+        const late = item.date < today;
+        const soon = !late && item.date <= weekEnd;
+        const date = new Date(`${item.date}T12:00:00`);
+        return (
+          <button key={item.id} type="button" onClick={() => setActiveTab(item.tab)} className={row}>
+            <span className={`flex w-10 shrink-0 flex-col items-center rounded-md py-0.5 text-[9px] font-bold uppercase leading-tight ${late ? 'bg-rose-50 text-rose-600' : soon ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'}`}><span className="text-sm leading-none">{date.getDate()}</span>{date.toLocaleDateString(undefined, { month: 'short' })}</span>
+            <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-800">{item.title}</span><span className="block truncate text-[11px] text-slate-500">{item.kind}</span></span>
+            {late && <span className="shrink-0 rounded bg-rose-50 px-1.5 py-px text-[10px] font-semibold text-rose-600">Overdue</span>}
+          </button>
+        );
+      }) : <EmptyState compact icon={Flag} text="No deadlines coming up." />;
       case 'attention': return attention.length ? attention.map((notification) => (
         <button key={notification.id} type="button" onClick={() => { if (notification.linkTab === 'messages' && notification.targetId) setActiveConversationId(notification.targetId); if (notification.linkTab === 'channels' && notification.targetId) setActiveChannelId(notification.targetId); setActiveTab(notification.linkTab); }} className={`${row} items-start`}>
-          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-500" />
+          <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${severity[notification.type]?.dot || 'bg-brand-400'}`} title={severity[notification.type]?.label} />
           <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-800">{notification.title}</span><span className="block truncate text-[11px] text-slate-500">{notification.description}</span></span>
         </button>
-      )) : <EmptyState icon={CheckCircle2} text="You are all caught up." />;
+      )) : <EmptyState compact icon={CheckCircle2} text="All caught up." />;
       case 'activity': return activity.length ? activity.map((item) => (
         <div key={item.id} className="flex items-start gap-2.5 px-1.5 py-1.5">
           <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{userName(item.created_by).slice(0, 1)}</span>
@@ -198,6 +208,11 @@ export const HomePage: React.FC = () => {
     }
   };
 
+  const viewAll: Partial<Record<WidgetId, { label: string; go: () => void }>> = {
+    tasks: { label: 'View all', go: () => setActiveTab('programs') },
+    events: { label: 'Add event', go: () => { setActiveTab('calendar'); setIsAddEventOpen(true); } },
+    deadlines: { label: 'View all', go: () => setActiveTab('programs') },
+  };
   const icons: Record<WidgetId, React.ElementType> = { tasks: Target, events: CalendarDays, deadlines: Flag, attention: CheckCircle2, activity: History, next: Sparkles, files: FolderOpen, mentions: MessageSquare };
   const visible = config.order.filter((id) => !config.hidden.includes(id));
   const move = (id: WidgetId, delta: number) => {
@@ -218,10 +233,10 @@ export const HomePage: React.FC = () => {
   const toggleHidden = (id: WidgetId) => save({ ...config, hidden: config.hidden.includes(id) ? config.hidden.filter((item) => item !== id) : [...config.hidden, id] });
 
   return (
-    <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
-      <div className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6">
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-brand-700 to-brand-500 px-5 py-4 text-white">
-          <div><h1 className="text-lg font-bold tracking-tight">{greeting}, {firstName}.</h1><p className="text-xs text-white/80">{overdueTasks.length ? `${overdueTasks.length} overdue task${overdueTasks.length === 1 ? '' : 's'} need attention.` : 'Here is what is on your plate today.'}</p></div>
+    <main className="min-w-0 flex-1 overflow-y-auto bg-[#f4f7fb]">
+      <div className="mx-auto max-w-7xl space-y-3 px-4 py-3 sm:px-6">
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-brand-700 via-brand-600 to-brand-500/90 px-5 py-3 text-white">
+          <div><h1 className="text-lg font-bold tracking-tight">{greeting}, {firstName}. <span className="ml-1 text-xs font-medium text-white/70">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</span></h1><p className="text-xs text-white/80">{overdueTasks.length ? `${overdueTasks.length} overdue task${overdueTasks.length === 1 ? '' : 's'} need attention.` : 'Here is what is on your plate today.'}</p></div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setActiveTab('calendar')} className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-brand-700 hover:bg-brand-50"><CalendarDays className="h-3.5 w-3.5" />Calendar</button>
             <button type="button" onClick={() => setActiveTab('drive')} className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-1.5 text-xs font-bold text-white ring-1 ring-white/30 hover:bg-white/20"><FolderOpen className="h-3.5 w-3.5" />Drive</button>
@@ -230,13 +245,18 @@ export const HomePage: React.FC = () => {
         </section>
 
         <section aria-label="Key metrics" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-          {kpis.map(([name, value, hint, tone]) => (
-            <div key={name} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{name}</p>
-              {loading ? <Skeleton className="mt-1.5 h-6 w-10" /> : <p className={`text-xl font-bold ${tone}`}>{value}</p>}
-              <p className="truncate text-[11px] text-slate-400">{hint}</p>
-            </div>
-          ))}
+          {kpis.map((kpi) => {
+            const Icon = kpi.icon;
+            return (
+              <button key={kpi.name} type="button" onClick={kpi.go} className="flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-white px-3.5 py-3 text-left transition-all duration-150 hover:-translate-y-px hover:border-brand-200 hover:shadow-sm">
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${kpi.tint}`}><Icon className="h-[18px] w-[18px]" /></span>
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-medium text-slate-500">{kpi.name}</span>
+                  {loading ? <Skeleton className="mt-1 h-7 w-10" /> : <span className={`block text-2xl font-bold leading-tight tabular-nums ${kpi.text}`}>{kpi.value}</span>}
+                </span>
+              </button>
+            );
+          })}
         </section>
 
         {editing && config.hidden.length > 0 && (
@@ -251,12 +271,13 @@ export const HomePage: React.FC = () => {
             const Icon = icons[id];
             const title = WIDGETS.find((item) => item[0] === id)?.[1];
             return (
-              <article key={id} draggable={editing} onDragStart={() => setDragId(id)} onDragOver={(event) => { if (editing) event.preventDefault(); }} onDrop={() => dropOn(id)} className={`rounded-xl border bg-white p-3 ${WIDE.includes(id) ? 'lg:col-span-2' : ''} ${editing ? 'border-dashed border-brand-300' : 'border-slate-200'}`}>
-                <header className="mb-1.5 flex items-center gap-2">
+              <article key={id} draggable={editing} onDragStart={() => setDragId(id)} onDragOver={(event) => { if (editing) event.preventDefault(); }} onDrop={() => dropOn(id)} className={`rounded-2xl border bg-white p-4 ${WIDE.includes(id) ? 'lg:col-span-2' : ''} ${editing ? 'border-dashed border-brand-300' : 'border-slate-200/70'}`}>
+                <header className="mb-2 flex items-center gap-2">
                   {editing && <GripVertical className="h-4 w-4 cursor-grab text-slate-300" aria-hidden />}
                   <Icon className="h-4 w-4 text-brand-600" />
                   <h2 className="flex-1 text-xs font-bold text-slate-900">{title}</h2>
                   {id === 'next' && <ProvenanceBadge kind="automated" />}
+                  {!editing && viewAll[id] && <button type="button" onClick={viewAll[id]?.go} className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-brand-600 transition-colors hover:bg-brand-50">{viewAll[id]?.label}</button>}
                   {editing && <>
                     <button type="button" onClick={() => move(id, -1)} aria-label={`Move ${title} earlier`} className="rounded p-1 text-slate-400 hover:bg-slate-100"><ArrowUp className="h-3.5 w-3.5" /></button>
                     <button type="button" onClick={() => move(id, 1)} aria-label={`Move ${title} later`} className="rounded p-1 text-slate-400 hover:bg-slate-100"><ArrowDown className="h-3.5 w-3.5" /></button>

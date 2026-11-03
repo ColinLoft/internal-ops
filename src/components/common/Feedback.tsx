@@ -18,12 +18,12 @@ export const CardSkeleton: React.FC<{ lines?: number }> = ({ lines = 3 }) => (
   </div>
 );
 
-export const EmptyState: React.FC<{ icon?: React.ElementType; title?: string; text: string; action?: string; onClick?: () => void }> = ({ icon: Icon, title, text, action, onClick }) => (
-  <div className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-slate-200 p-6 text-center">
-    {Icon && <Icon className="h-6 w-6 text-slate-300" />}
+export const EmptyState: React.FC<{ icon?: React.ElementType; title?: string; text: string; action?: string; onClick?: () => void; compact?: boolean }> = ({ icon: Icon, title, text, action, onClick, compact }) => (
+  <div className={`flex flex-col items-center rounded-xl border border-dashed border-slate-200 text-center ${compact ? 'gap-1 p-3' : 'gap-1.5 p-6'}`}>
+    {Icon && <Icon className={compact ? 'h-4 w-4 text-slate-300' : 'h-6 w-6 text-slate-300'} />}
     {title && <p className="text-xs font-bold text-slate-700">{title}</p>}
     <p className="text-xs text-slate-500">{text}</p>
-    {action && onClick && <button type="button" onClick={onClick} className="mt-1 inline-flex items-center gap-1 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 hover:bg-brand-100">{action}<ArrowUpRight className="h-3 w-3" /></button>}
+    {action && onClick && <button type="button" onClick={onClick} className="mt-0.5 inline-flex h-7 items-center gap-1 rounded-lg bg-brand-50 px-2.5 text-xs font-bold text-brand-700 hover:bg-brand-100">{action}<ArrowUpRight className="h-3 w-3" /></button>}
   </div>
 );
 

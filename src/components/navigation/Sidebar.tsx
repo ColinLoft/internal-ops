@@ -104,7 +104,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
   const isActive = (id: Tab) => activeTab === id;
 
   const statusColor = currentUser.status === 'busy' ? 'bg-rose-400' : currentUser.status === 'offline' ? 'bg-slate-300' : 'bg-emerald-400';
-  const row = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-medium transition-colors ${collapsed ? 'justify-center px-0' : ''} ${active ? 'bg-white/10 text-white ring-1 ring-white/10' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`;
+  const row = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-[13px] font-medium transition-colors duration-150 ${collapsed ? 'justify-center px-0' : ''} ${active ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`;
 
   return (
     <aside
@@ -134,7 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
 
       <nav className="flex-1 overflow-y-auto px-3 py-1">
         {(() => {
-          const rowClass = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors ${active ? 'bg-white/10 font-semibold text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]' : 'font-medium text-slate-300 hover:bg-white/5 hover:text-white'}`;
+          const rowClass = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] transition-colors duration-150 ${active ? 'bg-white/10 font-semibold text-white ' : 'font-medium text-slate-300 hover:bg-white/5 hover:text-white'}`;
           const bar = <span className="absolute left-1 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-brand-400" />;
           const section = (id: string, title: string, forceOpen: boolean, children: React.ReactNode) => {
             const open = forceOpen || openGroups[id] === true || (openGroups[id] === undefined && id === 'overview');
