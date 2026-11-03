@@ -3,6 +3,7 @@ import { Clock3, LifeBuoy, Lock, Plus, Search, Send, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAppAccess } from '../../lib/useAppAccess';
+import { SupportInbox } from './SupportInbox';
 
 type Status = 'new' | 'open' | 'in_progress' | 'waiting' | 'resolved' | 'closed';
 type Priority = 'low' | 'normal' | 'high' | 'urgent';
@@ -59,7 +60,7 @@ const categoryLabel = (category: string) => categories.find((item) => item.id ==
 const formatDate = (value: string | null) => (value ? new Date(value).toLocaleDateString() : '—');
 const ticketColumns = 'id,ticket_number,subject,description,category,priority,status,requester_id,assignee_id,organization_name,due_at,resolution,created_at,updated_at';
 
-export const SupportPage: React.FC = () => {
+export const TicketsView: React.FC = () => {
   const { currentUser, users } = useWorkspace();
   const { canEdit: isAgent } = useAppAccess('support');
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -344,3 +345,17 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
     <dd className="text-slate-700">{children}</dd>
   </div>
 );
+
+export const SupportPage: React.FC = () => {
+  const [view, setView] = useState<'messages' | 'tickets'>('messages');
+  return (
+    <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex gap-1 border-b border-slate-200 bg-white/60 px-4 pt-2" role="tablist">
+        {([['messages', 'Customer messages'], ['tickets', 'Tickets']] as const).map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)} className={`rounded-t-lg px-3 py-2 text-xs font-semibold ${view === id ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500 hover:text-slate-800'}`}>{label}</button>
+        ))}
+      </div>
+      {view === 'messages' ? <SupportInbox /> : <TicketsView />}
+    </div>
+  );
+};

@@ -1,7 +1,7 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { useOverlayA11y } from './hooks/useOverlayA11y';
 import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext';
-import { Rail } from './components/navigation/Rail';
+import { Sidebar } from './components/navigation/Sidebar';
 import { TopBar } from './components/navigation/TopBar';
 import { MobileTabBar } from './components/navigation/MobileTabBar';
 import { ConversationList } from './components/chat/ConversationList';
@@ -41,11 +41,14 @@ import { GTMPage } from './components/gtm/GTMPage';
 import { EngineeringPage } from './components/engineering/EngineeringPage';
 import { PendingDocumentPrompt } from './components/organization/PolicySigning';
 
+const PublicChatPage = lazy(async () => ({
+  default: (await import('./components/support/PublicChatPage')).PublicChatPage,
+}));
 const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
 }));
 
-const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|finance(?:\/[^/]+)*|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|help|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)*|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|systems(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
+const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|finance(?:\/[^/]+)*|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|help|contact|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)*|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|systems(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
 
 const WorkspaceShell: React.FC = () => {
   const {
@@ -85,6 +88,10 @@ const WorkspaceShell: React.FC = () => {
     };
   }, []);
 
+  if (/^\/contact\/?$/.test(window.location.pathname)) {
+    return <Suspense fallback={null}><PublicChatPage /></Suspense>;
+  }
+
   // If not authenticated, render the Auth Portal
   if (isAuthLoading) {
     return <div className="min-h-screen bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90" aria-label="Loading session" />;
@@ -102,9 +109,10 @@ const WorkspaceShell: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-dvh h-dvh w-screen overflow-hidden bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90">
-      {/* 1. Left Icon Rail */}
-      <Rail isMobileOpen={isNavOpen} />
+    <div className="flex h-dvh min-h-dvh w-screen flex-col overflow-hidden bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90">
+      <TopBar />
+      <div className="flex min-h-0 flex-1">
+      <Sidebar isMobileOpen={isNavOpen} />
       {isNavOpen && (
         <button
           type="button"
@@ -116,9 +124,6 @@ const WorkspaceShell: React.FC = () => {
 
       {/* 2. Main Workspace Layout */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden pb-14 md:pb-0">
-        {/* Top Bar with Search and Shortcuts */}
-        <TopBar />
-
         {/* Workspace Body */}
         <div className="flex-1 flex min-w-0 h-full overflow-hidden">
           {activeTab === 'home' && <HomePage />}
@@ -168,6 +173,7 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'inbox' && <EmailInboxPage />}
           {activeTab === 'drive' && <DrivePage />}
         </div>
+      </div>
       </div>
 
       <MobileTabBar isMenuOpen={isNavOpen} onToggleMenu={() => setIsNavOpen((open) => !open)} />

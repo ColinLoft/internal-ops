@@ -1,30 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  Search,
-  Bell,
-  UsersRound,
-  Landmark,
-  BriefcaseBusiness,
-  Scale,
-  Megaphone,
-  FolderKanban,
-  Network,
-  Code2,
-  Lightbulb,
-  CircleHelp,
-  House,
-  Settings,
-} from 'lucide-react';
+import { House, Search, Bell, CirclePlus, MessageSquarePlus, MailPlus, Hash, CalendarPlus } from 'lucide-react';
+import { ProfilePopover } from '../profile/ProfilePopover';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useRecordSearch } from '../../lib/useRecordSearch';
-import { useAllAppAccess } from '../../lib/useAppAccess';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 
 export const TopBar: React.FC = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isAppsOpen, setIsAppsOpen] = useState(false);
+  const [isQuickOpen, setIsQuickOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
-  const appsRef = useRef<HTMLDivElement>(null);
+  const quickRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
   const {
     activeTab,
     activeConversationId,
@@ -44,6 +31,10 @@ export const TopBar: React.FC = () => {
     callSession,
     startCall,
     currentUser,
+    setIsNewMessageOpen,
+    setIsCreateChannelOpen,
+    setIsAddEventOpen,
+    requestEmailCompose,
   } = useWorkspace();
 
   useEffect(() => {
@@ -51,9 +42,8 @@ export const TopBar: React.FC = () => {
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setIsNotificationsOpen(false);
       }
-      if (appsRef.current && !appsRef.current.contains(event.target as Node)) {
-        setIsAppsOpen(false);
-      }
+      if (quickRef.current && !quickRef.current.contains(event.target as Node)) setIsQuickOpen(false);
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) setIsProfileOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -61,27 +51,6 @@ export const TopBar: React.FC = () => {
 
   const currentConv = conversations.find((conversation) => conversation.id === activeConversationId);
   const currentChan = channels.find((channel) => channel.id === activeChannelId);
-  const appGroups = [
-    { title: 'General', apps: [
-      { id: 'home', name: 'Home', icon: House },
-      { id: 'insights', name: 'Insights', icon: Lightbulb },
-      { id: 'organization', name: 'Organization', icon: Network },
-    ] },
-    { title: 'Work & Development', apps: [
-      { id: 'programs', name: 'Projects', icon: FolderKanban },
-      { id: 'engineering', name: 'Engineering', icon: Code2 },
-    ] },
-    { title: 'External Relations', apps: [
-      { id: 'customers', name: 'Relationships', icon: UsersRound },
-      { id: 'gtm', name: 'Marketing', icon: Megaphone },
-      { id: 'help', name: 'Support', icon: CircleHelp },
-    ] },
-    { title: 'Systems', apps: [
-      { id: 'finance', name: 'Grants', icon: Landmark },
-      { id: 'legal', name: 'Legal', icon: Scale },
-      { id: 'admin', name: 'Systems', icon: Settings },
-    ] },
-  ];
   const pathSection = window.location.pathname.split('/')[2];
   const badgeLabel =
     activeTab === 'messages' ? currentConv?.name || 'Direct messages'
@@ -91,17 +60,6 @@ export const TopBar: React.FC = () => {
     : activeTab === 'drive' ? 'My Drive'
     : activeTab === 'organization' ? 'Directory'
     : 'Overview';
-  const access = useAllAppAccess();
-  const accessKey: Record<string, string> = { customers: 'customers', finance: 'finance', legal: 'legal', admin: 'systems' };
-  // Apps whose data is restricted are hidden until a role grants access.
-  const hasAccess = (id: string) => !accessKey[id] || !access || (access[accessKey[id]] ?? 0) >= 1 || (id === 'admin' && currentUser.systemRole === 'admin');
-  const visibleGroups = appGroups
-    .map((group) => ({ ...group, apps: group.apps.filter((app) => hasAccess(app.id)) }))
-    .filter((group) => group.apps.length > 0);
-  const openApp = (id: string) => {
-    setActiveTab(id as Parameters<typeof setActiveTab>[0]);
-    setIsAppsOpen(false);
-  };
   const query = searchQuery.trim().toLowerCase();
   const recordHits = useRecordSearch(searchQuery);
   const searchResults = query
@@ -186,157 +144,161 @@ export const TopBar: React.FC = () => {
       ].slice(0, 12)
     : [];
 
+  const appLabels: Record<string, string> = {
+    home: 'Home', messages: 'Messages', channels: 'Channels', calendar: 'Calendar', inbox: 'Email', drive: 'Drive',
+    engineering: 'Engineering', gtm: 'Marketing', legal: 'Legal', finance: 'Grants', customers: 'Relationships',
+    programs: 'Projects', admin: 'Systems', help: 'Support', insights: 'Insights', organization: 'Organization',
+  };
+  const subLabel = activeTab === 'insights' && pathSection ? pathSection.charAt(0).toUpperCase() + pathSection.slice(1) : badgeLabel;
+  const quickItems = [
+    { label: 'New chat', icon: MessageSquarePlus, run: () => { setActiveTab('messages'); setIsNewMessageOpen(true); } },
+    { label: 'New email', icon: MailPlus, run: () => requestEmailCompose() },
+    { label: 'New channel', icon: Hash, run: () => { setActiveTab('channels'); setIsCreateChannelOpen(true); } },
+    { label: 'New event', icon: CalendarPlus, run: () => { setActiveTab('calendar'); setIsAddEventOpen(true); } },
+  ];
+  const statusColor = currentUser.status === 'busy' ? 'bg-rose-500' : currentUser.status === 'online' || currentUser.status === 'away' ? 'bg-emerald-400' : 'bg-slate-400';
+  const goHome = () => {
+    setActiveTab('home');
+    if (window.location.pathname !== '/home') window.history.pushState({}, '', '/home');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+
   return (
-    <header className="h-16 px-3 md:px-6 gap-3 bg-white/70 backdrop-blur-xl border-b border-slate-200/80 flex items-center justify-between z-20 flex-shrink-0 shadow-xs">
-      {/* Breadcrumb / Title */}
-      <div className="hidden md:flex items-center gap-3">
-        <div className="flex items-center text-sm font-semibold text-slate-800 tracking-tight">
-          <span className="text-brand-600 font-bold">Flown</span>
-          <span className="mx-2 text-slate-400">/</span>
-          <span className="text-slate-600 font-medium">{activeTab === 'engineering' ? 'Engineering' : activeTab === 'gtm' ? 'Marketing' : activeTab === 'legal' ? 'Legal' : activeTab === 'finance' ? 'Grants' : activeTab === 'customers' ? 'Relationships' : activeTab === 'programs' ? 'Projects' : activeTab === 'home' ? 'Home' : activeTab === 'admin' ? 'Systems' : activeTab === 'help' ? 'Support' : activeTab === 'insights' ? `Insights${window.location.pathname.split('/')[2] ? ` / ${window.location.pathname.split('/')[2]}` : ''}` : activeTab === 'organization' ? 'Organization' : activeTab === 'inbox' ? 'Email inbox' : activeTab === 'drive' ? 'Drive' : activeTab === 'messages' ? 'Direct messages' : activeTab === 'channels' ? 'Channels' : 'Workspace'}</span>
-          <span className="mx-2 text-slate-400">/</span>
-          <span className="text-slate-900 bg-brand-50 px-2 py-0.5 rounded-md text-xs font-semibold text-brand-700 border border-brand-100/80">
-            {badgeLabel}
-          </span>
-        </div>
-      </div>
+    <>
+      <header className="z-[60] flex h-12 flex-shrink-0 items-center gap-3 bg-[#0f2347] px-3 text-white md:px-4">
+        <button type="button" onClick={goHome} className="flex items-center gap-2 rounded-lg pr-2 hover:opacity-90" title="Flown home">
+          <img src="/brand-icon.png" alt="" className="h-6 w-6 object-contain" />
+          <span className="hidden text-sm font-semibold tracking-tight sm:inline">Flown</span>
+        </button>
 
-      {/* Global Quick Search (matching Screenshot 1 Sage) */}
-      <div className="relative min-w-0 flex-1 md:flex-none md:w-96 max-w-md">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-          <Search className="w-4 h-4" />
-        </div>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') setSearchQuery('');
-            if (event.key === 'Enter' && searchResults[0]) {
-              searchResults[0].onSelect();
-              setSearchQuery('');
-            }
-          }}
-          placeholder="Search everything..."
-          className="w-full pl-9 pr-3 md:pr-14 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white text-xs font-medium text-slate-900 placeholder:text-slate-400 rounded-xl border border-transparent focus:border-brand-500/50 focus:ring-4 focus:ring-brand-500/10 transition-all outline-none"
-        />
-        <div className="absolute inset-y-0 right-0 pr-2.5 hidden md:flex items-center pointer-events-none">
-          <kbd className="px-1.5 py-0.5 text-xs font-semibold text-slate-400 bg-white border border-slate-200 rounded shadow-2xs">
-            ⌘S
-          </kbd>
-        </div>
-        {query && (
-          <div className="absolute top-full left-0 right-0 mt-2 p-1.5 bg-white rounded-xl border border-slate-200 shadow-xl z-50 max-h-80 overflow-y-auto">
-            {searchResults.length > 0 ? searchResults.map((result) => (
-              <button
-                key={result.id}
-                type="button"
-                onClick={() => {
-                  result.onSelect();
-                  setSearchQuery('');
-                }}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-brand-50 transition-colors"
-              >
-                <span className="block text-xs font-semibold uppercase tracking-wide text-brand-600">
-                  {result.type}
-                </span>
-                <span className="block text-xs font-semibold text-slate-800 truncate">{result.title}</span>
-                <span className="block text-xs text-slate-500 truncate">{result.detail}</span>
-              </button>
-            )) : (
-              <p className="px-3 py-4 text-xs text-center text-slate-500">No matching results</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Right controls */}
-      <div className="flex items-center gap-2 md:gap-3">
-        <div className="relative" ref={notificationsRef}>
-          <button
-            type="button"
-            onClick={() => setIsNotificationsOpen((open) => !open)}
-            aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ''}`}
-            aria-haspopup="dialog"
-            aria-expanded={isNotificationsOpen}
-            title="Notifications"
-            className={`relative rounded-xl border p-2 transition-all ${
-              isNotificationsOpen
-                ? 'border-brand-200 bg-brand-50 text-brand-700'
-                : 'border-slate-200 bg-white/70 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-            }`}
-          >
-            <Bell className="h-4 w-4" />
-            {unreadNotificationCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-xs font-bold text-white ring-2 ring-white">
-                {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
-              </span>
-            )}
-          </button>
-          {isNotificationsOpen && (
-            <div className="absolute right-0 top-full z-50 mt-2">
-              <NotificationCenter onClose={() => setIsNotificationsOpen(false)} />
+        <div className="relative mx-auto min-w-0 flex-1 md:max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-200/70" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') setSearchQuery('');
+              if (event.key === 'Enter' && searchResults[0]) {
+                searchResults[0].onSelect();
+                setSearchQuery('');
+              }
+            }}
+            placeholder="Search everything..."
+            aria-label="Search everything"
+            className="w-full rounded-lg border border-white/10 bg-white/10 py-1.5 pl-9 pr-3 text-xs font-medium text-white outline-none transition-colors placeholder:text-blue-200/60 focus:border-white/30 focus:bg-white/15"
+          />
+          {query && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-xl">
+              {searchResults.length > 0 ? searchResults.map((result) => (
+                <button
+                  key={result.id}
+                  type="button"
+                  onClick={() => {
+                    result.onSelect();
+                    setSearchQuery('');
+                  }}
+                  className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-brand-50"
+                >
+                  <span className="block text-xs font-semibold text-brand-600">{result.type}</span>
+                  <span className="block truncate text-xs font-semibold text-slate-800">{result.title}</span>
+                  <span className="block truncate text-xs text-slate-500">{result.detail}</span>
+                </button>
+              )) : (
+                <p className="px-3 py-4 text-center text-xs text-slate-500">No matching results</p>
+              )}
             </div>
           )}
         </div>
-        <div className="relative" ref={appsRef}>
-          <button
-            type="button"
-            onClick={() => {
-              setIsAppsOpen((open) => !open);
-              setIsNotificationsOpen(false);
-                      }}
-            aria-label="More Flown apps"
-            aria-haspopup="dialog"
-            aria-expanded={isAppsOpen}
-            title="More Flown apps"
-            className={`rounded-xl border p-2 transition-all ${
-              isAppsOpen
-                ? 'border-brand-200 bg-brand-50 text-brand-700'
-                : 'border-slate-200 bg-white/70 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-            }`}
-          >
-            <span className="grid h-4 w-4 grid-cols-3 grid-rows-3 gap-[3px]" aria-hidden="true">
-              {Array.from({ length: 9 }, (_, index) => (
-                <span key={index} className="h-1 w-1 rounded-full bg-current" />
-              ))}
-            </span>
-          </button>
-          {isAppsOpen && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-[min(300px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-4 text-slate-800 shadow-2xl">
-              <div className="grid grid-cols-4 gap-3">
-                {visibleGroups.flatMap((group) => group.apps).map((app) => {
-                  const Icon = app.icon;
+
+        <div className="flex items-center gap-1.5 md:gap-2">
+          {callSession.active && (
+            <div className="flex animate-pulse items-center gap-2 rounded-lg bg-white/15 px-2.5 py-1 text-xs font-semibold">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span>{Math.floor(callSession.durationSeconds / 60)}:{(callSession.durationSeconds % 60).toString().padStart(2, '0')}</span>
+            </div>
+          )}
+          <div className="relative" ref={quickRef}>
+            <button
+              type="button"
+              onClick={() => { setIsQuickOpen((open) => !open); setIsNotificationsOpen(false); setIsProfileOpen(false); }}
+              aria-label="Quick add"
+              aria-haspopup="menu"
+              aria-expanded={isQuickOpen}
+              className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-400"
+            >
+              <CirclePlus className="h-4 w-4" />
+              <span className="hidden sm:inline">Quick add</span>
+            </button>
+            {isQuickOpen && (
+              <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-2xl">
+                {quickItems.map((item) => {
+                  const Icon = item.icon;
                   return (
-                    <button
-                      key={app.id}
-                      type="button"
-                      onClick={() => openApp(app.id)}
-                      title={app.name}
-                      aria-label={app.name}
-                      aria-current={activeTab === app.id ? 'page' : undefined}
-                      className="flex h-14 items-center justify-center rounded-xl"
-                    >
-                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-700 text-white shadow-sm transition-colors hover:bg-brand-800">
-                        <Icon className="h-5 w-5" />
-                      </span>
+                    <button key={item.label} type="button" role="menuitem" onClick={() => { item.run(); setIsQuickOpen(false); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-brand-50">
+                      <Icon className="h-4 w-4 text-brand-600" />
+                      {item.label}
                     </button>
                   );
                 })}
               </div>
-              {visibleGroups.length === 0 && <p className="px-2 py-6 text-center text-xs text-slate-400">No apps found</p>}
-            </div>
-          )}
-        </div>
-        {/* Call quick status if active */}
-        {callSession.active && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-200 rounded-xl text-brand-700 text-xs font-semibold animate-pulse">
-            <span className="w-2 h-2 rounded-full bg-brand-500 animate-ping" />
-            <span><span className="hidden sm:inline">Call in progress </span>({Math.floor(callSession.durationSeconds / 60)}:{(callSession.durationSeconds % 60).toString().padStart(2, '0')})</span>
+            )}
           </div>
-        )}
+          <div className="relative" ref={notificationsRef}>
+            <button
+              type="button"
+              onClick={() => { setIsNotificationsOpen((open) => !open); setIsQuickOpen(false); setIsProfileOpen(false); }}
+              aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ''}`}
+              aria-haspopup="dialog"
+              aria-expanded={isNotificationsOpen}
+              title="Notifications"
+              className={`relative rounded-lg p-2 transition-colors ${isNotificationsOpen ? 'bg-white/20' : 'hover:bg-white/10'}`}
+            >
+              <Bell className="h-4 w-4" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white ring-2 ring-[#0f2347]">
+                  {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                </span>
+              )}
+            </button>
+            {isNotificationsOpen && (
+              <div className="absolute right-0 top-full z-50 mt-2 text-slate-800">
+                <NotificationCenter onClose={() => setIsNotificationsOpen(false)} />
+              </div>
+            )}
+          </div>
+          <div className="relative" ref={profileRef}>
+            <button
+              type="button"
+              data-onboarding-target="profile-button"
+              onClick={() => { setIsProfileOpen((open) => !open); setIsQuickOpen(false); setIsNotificationsOpen(false); }}
+              title={`${currentUser.name} (${currentUser.role})`}
+              aria-label="Profile and status"
+              className="relative rounded-full ring-white/0 transition hover:ring-2 hover:ring-white/40"
+            >
+              <img src={currentUser.avatar} alt={currentUser.name} className="h-8 w-8 rounded-full border border-white/30 object-cover" />
+              <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0f2347] ${statusColor}`} />
+            </button>
+            {isProfileOpen && (
+              <div className="absolute right-0 top-full z-50 mt-2 text-slate-800">
+                <ProfilePopover onClose={() => setIsProfileOpen(false)} />
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
 
-      </div>
-    </header>
+      <nav aria-label="Breadcrumb" className="hidden h-10 flex-shrink-0 items-center gap-2 border-b border-slate-200/80 bg-white/60 px-6 text-xs md:flex">
+        <button type="button" onClick={goHome} aria-label="Home" className="text-slate-400 hover:text-brand-600"><House className="h-4 w-4" /></button>
+        <span className="text-slate-300">/</span>
+        <span className="font-medium text-slate-600">{appLabels[activeTab] ?? 'Workspace'}</span>
+        {subLabel && subLabel !== appLabels[activeTab] && (
+          <>
+            <span className="text-slate-300">/</span>
+            <span className="rounded-md bg-brand-50 px-2 py-0.5 font-semibold text-brand-700">{subLabel}</span>
+          </>
+        )}
+      </nav>
+    </>
   );
 };
