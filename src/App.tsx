@@ -109,9 +109,7 @@ const WorkspaceShell: React.FC = () => {
   }
 
   return (
-    <div className="flex h-dvh min-h-dvh w-screen flex-col overflow-hidden bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90">
-      <TopBar />
-      <div className="flex min-h-0 flex-1">
+    <div className="flex h-dvh min-h-dvh w-screen overflow-hidden bg-brand-600">
       <Sidebar isMobileOpen={isNavOpen} />
       {isNavOpen && (
         <button
@@ -123,7 +121,8 @@ const WorkspaceShell: React.FC = () => {
       )}
 
       {/* 2. Main Workspace Layout */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden pb-14 md:pb-0">
+      <div className="mb-14 flex min-w-0 flex-1 flex-col overflow-hidden bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90 md:m-2 md:mb-2 md:ml-0 md:rounded-2xl md:shadow-xl">
+        <TopBar />
         {/* Workspace Body */}
         <div className="flex-1 flex min-w-0 h-full overflow-hidden">
           {activeTab === 'home' && <HomePage />}
@@ -173,7 +172,6 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'inbox' && <EmailInboxPage />}
           {activeTab === 'drive' && <DrivePage />}
         </div>
-      </div>
       </div>
 
       <MobileTabBar isMenuOpen={isNavOpen} onToggleMenu={() => setIsNavOpen((open) => !open)} />
