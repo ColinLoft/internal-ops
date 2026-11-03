@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, CheckCircle2, ContactRound, Plus, Search, Trash2, X, Clock3, MessageSquare } from 'lucide-react';
+import { CheckCircle2, ContactRound, Plus, Search, Trash2, X, Clock3, MessageSquare } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAppAccess } from '../../lib/useAppAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { SupportPage } from '../support/SupportPage';
+import { CustomerPipeline, CustomerWorkspace } from './CustomerWorkspace';
+import { CardSkeleton } from '../common/Feedback';
+import { useConfirm } from '../common/useConfirm';
 
-type View = 'overview' | 'contacts' | 'organizations' | 'activity' | 'support';
-type Org = { id: string; name: string; category: string; website: string | null; notes: string | null; owner_id: string | null; created_at: string };
+type View = 'overview' | 'contacts' | 'organizations' | 'pipeline' | 'activity' | 'support';
+type Org = { id: string; name: string; category: string; website: string | null; notes: string | null; owner_id: string | null; created_at: string; stage?: string };
 type Contact = { id: string; organization_id: string | null; name: string; role_title: string | null; email: string | null; phone: string | null; notes: string | null; owner_id: string | null };
 type Interaction = { id: string; organization_id: string | null; contact_id: string | null; kind: string; subject: string; body: string | null; occurred_at: string; follow_up_at: string | null; follow_up_done: boolean; owner_id: string | null };
 
@@ -16,7 +19,7 @@ const label = (v: string) => v.replace('_', ' ').replace(/^\w/, (c) => c.toUpper
 const viewFromPath = (path: string): View => {
   if (path.split('/')[1] === 'help') return 'support';
   const seg = path.split('/')[2];
-  return seg === 'contacts' || seg === 'organizations' || seg === 'activity' || seg === 'support' ? seg : 'overview';
+  return seg === 'contacts' || seg === 'organizations' || seg === 'pipeline' || seg === 'activity' || seg === 'support' ? seg : 'overview';
 };
 const fmt = (d: string) => new Date(d).toLocaleDateString();
 const input = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400';
@@ -27,12 +30,13 @@ type Dialog = { kind: 'org' | 'contact' | 'interaction'; orgId?: string } | null
 export const CustomerPage: React.FC = () => {
   const { currentUser, users } = useWorkspace();
   const { canView, canEdit, canManage } = useAppAccess('customers');
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [view, setView] = useState<View>(() => viewFromPath(window.location.pathname));
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [items, setItems] = useState<Interaction[]>([]);
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('all');
+  const [contactSort, setContactSort] = useState<{ col: number; dir: 1 | -1 }>({ col: 0, dir: 1 });
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [error, setError] = useState('');
@@ -74,13 +78,12 @@ export const CustomerPage: React.FC = () => {
   const followUps = useMemo(() => items.filter((i) => i.follow_up_at && !i.follow_up_done).sort((a, b) => a.follow_up_at!.localeCompare(b.follow_up_at!)), [items]);
   const overdue = followUps.filter((i) => new Date(i.follow_up_at!) < today);
 
-  const tabs: [View, string][] = [['overview', 'Overview'], ['organizations', 'Organizations'], ['contacts', 'Contacts'], ['activity', 'Interactions'], ['support', 'Support']];
+  const tabs: [View, string][] = [['overview', 'Overview'], ['organizations', 'Customers'], ['pipeline', 'Pipeline'], ['contacts', 'Contacts'], ['activity', 'Interactions'], ['support', 'Support']];
   const go = (v: View) => { window.history.pushState({}, '', v === 'overview' ? '/customers' : `/customers/${v}`); setView(v); };
 
-  const filteredOrgs = orgs.filter((o) => (category === 'all' || o.category === category) && (!q || `${o.name} ${o.notes || ''} ${o.website || ''}`.toLowerCase().includes(q)));
-  const filteredContacts = contacts.filter((c) => !q || `${c.name} ${c.email || ''} ${c.role_title || ''} ${orgName(c.organization_id)}`.toLowerCase().includes(q));
+    const contactKey = (c: Contact) => [c.name, orgName(c.organization_id), c.role_title || '', c.email || '', c.phone || ''][contactSort.col].toLowerCase();
+  const filteredContacts = contacts.filter((c) => !q || `${c.name} ${c.email || ''} ${c.role_title || ''} ${orgName(c.organization_id)}`.toLowerCase().includes(q)).sort((a, b) => contactKey(a).localeCompare(contactKey(b)) * contactSort.dir);
   const filteredItems = items.filter((i) => !q || `${i.subject} ${i.body || ''} ${orgName(i.organization_id)}`.toLowerCase().includes(q));
-  const org = orgs.find((o) => o.id === selectedOrg) || null;
 
   const interactionRow = (i: Interaction) => (
     <div key={i.id} className="flex items-start gap-3 rounded-xl border border-slate-100 p-3">
@@ -92,28 +95,48 @@ export const CustomerPage: React.FC = () => {
         {i.follow_up_at && <p className={`mt-1 text-xs font-semibold ${!i.follow_up_done && new Date(i.follow_up_at) < today ? 'text-rose-600' : 'text-slate-400'}`}>Follow-up {fmt(i.follow_up_at)}{i.follow_up_done ? ' · done' : ''}</p>}
       </div>
       {canEdit && i.follow_up_at && !i.follow_up_done && <button type="button" title="Mark follow-up done" onClick={() => run(supabase.from('crm_interactions').update({ follow_up_done: true }).eq('id', i.id))} className="text-emerald-600"><CheckCircle2 className="h-4 w-4" /></button>}
-      {canManage && <button type="button" title="Delete" onClick={() => window.confirm('Delete this interaction?') && run(supabase.from('crm_interactions').delete().eq('id', i.id))} className="text-slate-300 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>}
+      {canManage && <button type="button" title="Delete" onClick={async () => { if (await confirm({ title: 'Delete this interaction?' })) await run(supabase.from('crm_interactions').delete().eq('id', i.id)); }} className="text-slate-300 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>}
     </div>
   );
 
-  const table = (heads: string[], rows: React.ReactNode[][], empty: string) => (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+  const table = (heads: string[], rows: React.ReactNode[][], empty: string, sort?: { col: number; dir: 1 | -1; set: (col: number) => void }) => (
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
       <table className="w-full min-w-[640px] text-xs">
-        <thead><tr className="border-b border-slate-100 bg-slate-50/70">{heads.map((h) => <th key={h} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">{h}</th>)}</tr></thead>
-        <tbody>{rows.length === 0 ? <tr><td colSpan={heads.length} className="px-4 py-8 text-center text-slate-400">{empty}</td></tr> : rows.map((r, i) => <tr key={i} className="border-b border-slate-100 last:border-0">{r.map((c, j) => <td key={j} className="px-4 py-3 text-slate-600">{c}</td>)}</tr>)}</tbody>
+        <thead><tr className="border-b border-slate-100 bg-slate-50/70">{heads.map((h, index) => <th key={h} className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">{sort ? <button type="button" onClick={() => sort.set(index)} className="hover:text-slate-600">{h}{sort.col === index ? (sort.dir === 1 ? ' ↑' : ' ↓') : ''}</button> : h}</th>)}</tr></thead>
+        <tbody>{rows.length === 0 ? <tr><td colSpan={heads.length} className="px-4 py-8 text-center text-slate-400">{empty}</td></tr> : rows.map((r, i) => <tr key={i} className="border-b border-slate-100 last:border-0">{r.map((c, j) => <td key={j} className="px-3 py-2 text-slate-600">{c}</td>)}</tr>)}</tbody>
       </table>
     </div>
   );
 
   const addLabel = view === 'contacts' ? 'contact' : view === 'activity' ? 'interaction' : 'organization';
 
+  const tabNav = (
+    <nav className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-white px-5 sm:px-8">
+      {tabs.map(([id, name]) => <button key={id} type="button" onClick={() => go(id)} className={`shrink-0 border-b-2 px-3 py-2 text-xs font-semibold ${view === id ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{name}</button>)}
+    </nav>
+  );
+
   if (view === 'support') {
     return (
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[#f7f9fc]">
-        <nav className="flex gap-1 border-b border-slate-200 bg-white px-5 sm:px-8">
-          {tabs.map(([id, name]) => <button key={id} type="button" onClick={() => go(id)} className={`border-b-2 px-3 py-2 text-xs font-semibold ${view === id ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{name}</button>)}
-        </nav>
+        {tabNav}
         <SupportPage />
+      </main>
+    );
+  }
+
+  if (view === 'organizations' || view === 'pipeline') {
+    return (
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[#f7f9fc]">
+        {tabNav}
+        {error && <p role="alert" className="m-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</p>}
+        {loading ? <div className="p-5"><CardSkeleton lines={5} /></div> : view === 'organizations' ? (
+          <CustomerWorkspace orgs={orgs} contacts={contacts} items={items} selectedId={selectedOrg} onSelect={setSelectedOrg} canEdit={canEdit} canManage={canManage} userName={userName} onAdd={(kind, orgId) => setDialog({ kind: kind === 'org' ? 'org' : kind, orgId })} onMutate={run} />
+        ) : (
+          <CustomerPipeline orgs={orgs} canEdit={canEdit} onOpen={(id) => { setSelectedOrg(id); go('organizations'); }} onMove={(id, stage) => void run(supabase.from('crm_organizations').update({ stage }).eq('id', id))} />
+        )}
+        {confirmDialog}
+      {dialog && <RecordDialog dialog={dialog} orgs={orgs} contacts={contacts} userId={currentUser.id} onClose={() => setDialog(null)} onSave={async (table, row) => { const { error: e } = await supabase.from(table).insert(row); if (e) return e.message; setDialog(null); await load(); return ''; }} />}
       </main>
     );
   }
@@ -130,9 +153,7 @@ export const CustomerPage: React.FC = () => {
             {canEdit && view !== 'overview' && <button type="button" className={btn} onClick={() => setDialog({ kind: view === 'contacts' ? 'contact' : view === 'activity' ? 'interaction' : 'org' })}><Plus className="h-3.5 w-3.5" /> Add {addLabel}</button>}
           </div>
         </header>
-        <nav className="flex gap-1 border-b border-slate-200 bg-white px-5 sm:px-8">
-          {tabs.map(([id, name]) => <button key={id} type="button" onClick={() => go(id)} className={`border-b-2 px-3 py-2 text-xs font-semibold ${view === id ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{name}</button>)}
-        </nav>
+        {tabNav}
         <div className="mx-auto max-w-7xl space-y-5 p-5 sm:p-8">
           {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</p>}
           {loading ? <p className="text-xs text-slate-400">Loading…</p> : !canView && orgs.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-6 text-xs text-slate-500">You don't have access to Customers. Ask an admin to assign the Customers team role.</p> : <>
@@ -145,33 +166,15 @@ export const CustomerPage: React.FC = () => {
                 <div className="mt-3 space-y-2">{followUps.length ? followUps.slice(0, 10).map(interactionRow) : <p className="text-xs text-slate-400">Nothing waiting. Log an interaction with a follow-up date to track it here.</p>}</div>
               </section>
             </>}
-            {view === 'organizations' && <>
-              <div className="flex flex-wrap gap-1.5">{['all', ...categories].map((c) => <button key={c} type="button" onClick={() => setCategory(c)} className={`rounded-full px-3 py-1 text-xs font-semibold ${category === c ? 'bg-brand-600 text-white' : 'bg-white text-slate-500 ring-1 ring-slate-200'}`}>{label(c)}</button>)}</div>
-              {table(['Organization', 'Category', 'Contacts', 'Owner', 'Added'], filteredOrgs.map((o) => [
-                <button type="button" onClick={() => setSelectedOrg(o.id)} className="flex items-center gap-2 font-bold text-slate-800"><Building2 className="h-4 w-4 text-brand-600" />{o.name}</button>,
-                label(o.category), contacts.filter((c) => c.organization_id === o.id).length, userName(o.owner_id), fmt(o.created_at),
-              ]), 'No organizations yet.')}
-            </>}
             {view === 'contacts' && table(['Contact', 'Organization', 'Role', 'Email', 'Phone'], filteredContacts.map((c) => [
               <span className="flex items-center gap-2 font-bold text-slate-800"><ContactRound className="h-4 w-4 text-brand-600" />{c.name}</span>, orgName(c.organization_id), c.role_title || '—', c.email || '—', c.phone || '—',
-            ]), 'No contacts yet.')}
+            ]), 'No contacts yet.', { ...contactSort, set: (col) => setContactSort((current) => ({ col, dir: current.col === col && current.dir === 1 ? -1 : 1 })) })}
             {view === 'activity' && <div className="space-y-2">{filteredItems.length ? filteredItems.map(interactionRow) : <p className="text-xs text-slate-400">No interactions logged.</p>}</div>}
           </>}
         </div>
       </section>
 
-      {org && (
-        <aside className="w-full max-w-md shrink-0 overflow-y-auto border-l border-slate-200 bg-white p-5">
-          <div className="flex items-start justify-between"><div><h2 className="text-base font-bold text-slate-900">{org.name}</h2><p className="text-xs text-slate-500">{label(org.category)}{org.website ? ` · ${org.website}` : ''}</p></div><button type="button" aria-label="Close" onClick={() => setSelectedOrg(null)}><X className="h-4 w-4 text-slate-400" /></button></div>
-          {org.notes && <p className="mt-3 whitespace-pre-wrap text-xs text-slate-600">{org.notes}</p>}
-          <h3 className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-400">Contacts</h3>
-          <ul className="mt-2 space-y-1 text-xs text-slate-700">{contacts.filter((c) => c.organization_id === org.id).map((c) => <li key={c.id}>{c.name}{c.role_title ? ` · ${c.role_title}` : ''}{c.email ? ` · ${c.email}` : ''}</li>)}</ul>
-          <div className="mt-3 flex gap-2">{canEdit && <><button type="button" className={btn} onClick={() => setDialog({ kind: 'contact', orgId: org.id })}><Plus className="h-3 w-3" /> Contact</button><button type="button" className={btn} onClick={() => setDialog({ kind: 'interaction', orgId: org.id })}><Plus className="h-3 w-3" /> Interaction</button></>}{canManage && <button type="button" className="rounded-xl border border-rose-200 px-3 py-2 text-xs font-bold text-rose-600" onClick={() => window.confirm(`Delete ${org.name} and its interactions?`) && run(supabase.from('crm_organizations').delete().eq('id', org.id)).then(() => setSelectedOrg(null))}>Delete</button>}</div>
-          <h3 className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-400">History</h3>
-          <div className="mt-2 space-y-2">{items.filter((i) => i.organization_id === org.id).map(interactionRow)}</div>
-        </aside>
-      )}
-
+      {confirmDialog}
       {dialog && <RecordDialog dialog={dialog} orgs={orgs} contacts={contacts} userId={currentUser.id} onClose={() => setDialog(null)} onSave={async (table, row) => { const { error: e } = await supabase.from(table).insert(row); if (e) return e.message; setDialog(null); await load(); return ''; }} />}
     </main>
   );

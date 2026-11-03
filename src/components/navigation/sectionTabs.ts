@@ -53,7 +53,8 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
       return [
         tab('Overview', 'Overview', House, '/customers'),
         tab('Contacts', 'Contacts', ContactRound, '/customers/contacts'),
-        tab('Organizations', 'Orgs', Building2, '/customers/organizations'),
+        tab('Customers', 'Customers', Building2, '/customers/organizations'),
+        tab('Pipeline', 'Pipeline', GitBranch, '/customers/pipeline'),
         tab('Interactions', 'Activity', ListChecks, '/customers/activity'),
         tab('Support', 'Support', Headset, '/customers/support', ['/help']),
       ];

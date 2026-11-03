@@ -16,6 +16,8 @@ import { PasswordSetupModal } from './components/auth/PasswordSetupModal';
 import { FirstLoginOnboarding } from './components/auth/FirstLoginOnboarding';
 import { ProfileModal } from './components/profile/ProfileModal';
 import { EditProfileModal } from './components/profile/EditProfileModal';
+import { ShortcutsHelp } from './components/common/ShortcutsHelp';
+import { Breadcrumbs } from './components/navigation/Breadcrumbs';
 import { SettingsPage } from './components/settings/SettingsPage';
 import { CreateChannelModal } from './components/modals/CreateChannelModal';
 import { CreatePollModal } from './components/modals/CreatePollModal';
@@ -124,7 +126,9 @@ const WorkspaceShell: React.FC = () => {
       <div className="mb-14 flex min-w-0 flex-1 flex-col overflow-hidden md:mb-0">
         <TopBar />
         {/* Workspace Body */}
-        <div className="flex h-full min-w-0 flex-1 overflow-hidden bg-gradient-to-br from-slate-200/80 via-slate-100 to-brand-50 md:mb-2 md:mr-2 md:rounded-b-2xl md:shadow-xl">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gradient-to-br from-slate-200/80 via-slate-100 to-brand-50 md:mb-2 md:mr-2 md:rounded-b-2xl md:shadow-xl">
+          <Breadcrumbs />
+          <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
           {activeTab === 'home' && <HomePage />}
           {activeTab === 'customers' && <AccessGate app="customers" name="Customers"><CustomerPage /></AccessGate>}
           {activeTab === 'finance' && <AccessGate app="finance" name="Finance"><FinancePage /></AccessGate>}
@@ -171,9 +175,11 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'calendar' && <CalendarView />}
           {activeTab === 'inbox' && <EmailInboxPage />}
           {activeTab === 'drive' && <DrivePage />}
+          </div>
         </div>
       </div>
 
+      <ShortcutsHelp />
       <MobileTabBar isMenuOpen={isNavOpen} onToggleMenu={() => setIsNavOpen((open) => !open)} />
 
       {/* Floating In-App Voice & Video Call Overlay */}

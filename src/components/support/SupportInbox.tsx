@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAppAccess } from '../../lib/useAppAccess';
 import { PanelLayout } from '../common/PanelLayout';
+import { ProvenanceBadge, Skeleton } from '../common/Feedback';
 
 const TEMPLATES = [
   ['Thanks for reaching out', 'Hi {name}, thanks for reaching out! Let me look into this and get back to you shortly.'],
@@ -54,7 +55,9 @@ export const SupportInbox: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [emails, setEmails] = useState<EmailRef[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | Status>('open');
+  const [filter, setFilter] = useState<'all' | Status>(() => (localStorage.getItem('flown-support-filter') as 'all' | Status) || 'open');
+  const [aiDraft, setAiDraft] = useState(false);
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -167,6 +170,7 @@ export const SupportInbox: React.FC = () => {
       if (insertError) throw new Error(insertError.message);
       if (mode !== 'note' && selected.status !== 'pending') await patchConversation({ status: 'pending' });
       setDraft('');
+      setAiDraft(false);
       await Promise.all([loadMessages(selected.id), loadConversations()]);
       notifyChanged();
     } catch (sendError) {
@@ -182,7 +186,7 @@ export const SupportInbox: React.FC = () => {
     setError('');
     const { data, error: aiError } = await supabase.functions.invoke('support-ai', { body: { action, conversationId: selected.id } });
     if (aiError || data?.error) setError(String(data?.error || aiError?.message || 'AI request failed.'));
-    else if (action === 'suggest') { setDraft(String(data.text || '')); if (mode === 'note') setMode('chat'); }
+    else if (action === 'suggest') { setDraft(String(data.text || '')); setAiDraft(true); if (mode === 'note') setMode('chat'); }
     else await loadConversations();
     setBusy('');
   };
@@ -245,22 +249,22 @@ export const SupportInbox: React.FC = () => {
           </div>
           <div className="flex gap-1">
             {(['open', 'pending', 'resolved', 'all'] as const).map((value) => (
-              <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-md px-2 py-1 text-xs font-medium capitalize ${filter === value ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>{value}</button>
+              <button key={value} type="button" onClick={() => { setFilter(value); localStorage.setItem('flown-support-filter', value); }} className={`rounded-md px-2 py-1 text-xs font-medium capitalize ${filter === value ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>{value}</button>
             ))}
           </div>
         </div>
         <ul className="flex-1 divide-y divide-slate-100 overflow-y-auto">
-          {loading && <li className="p-4 text-xs text-slate-400">Loading…</li>}
+          {loading && [0, 1, 2, 3].map((index) => <li key={index} className="flex gap-3 p-3"><Skeleton className="h-9 w-9 shrink-0 rounded-full" /><div className="flex-1 space-y-1.5"><Skeleton className="h-3 w-2/3" /><Skeleton className="h-3 w-full" /></div></li>)}
           {!loading && visible.length === 0 && <li className="flex flex-col items-center gap-2 p-8 text-center text-xs text-slate-400"><Headset className="h-6 w-6" />No conversations here yet.</li>}
           {visible.map((item) => {
             const person = customers[item.customer_id];
             return (
               <li key={item.id}>
-                <button type="button" onClick={() => setSelectedId(item.id)} className={`flex w-full gap-3 px-3 py-3 text-left hover:bg-brand-50/60 ${item.id === selectedId ? 'bg-brand-50' : ''}`}>
+                <button type="button" onClick={() => setSelectedId(item.id)} onContextMenu={(event) => { if (!isAgent) return; event.preventDefault(); setMenu({ id: item.id, x: event.clientX, y: event.clientY }); }} className={`flex w-full gap-3 px-3 py-3 text-left hover:bg-brand-50/60 ${item.id === selectedId ? 'bg-brand-50' : ''}`}>
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">{initials(person?.name ?? '?')}</span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2"><span className="truncate text-xs font-semibold text-slate-800">{person?.name ?? 'Customer'}</span><span className="shrink-0 text-[11px] text-slate-400">{relTime(item.last_message_at)}</span></span>
-                    <span className="block truncate text-xs text-slate-500">{item.subject}</span>
+                    <span className="flex items-center gap-1.5 truncate text-xs text-slate-500"><span title={item.status} className={`h-1.5 w-1.5 shrink-0 rounded-full ${item.status === 'open' ? 'bg-emerald-500' : item.status === 'pending' ? 'bg-amber-500' : 'bg-slate-300'}`} /><span className="truncate">{item.subject}</span>{(item.priority === 'high' || item.priority === 'urgent') && <span className="shrink-0 rounded bg-rose-50 px-1 text-[10px] font-bold uppercase text-rose-600">{item.priority}</span>}</span>
                     <span className="flex items-center gap-2">
                       <span className="min-w-0 flex-1 truncate text-xs text-slate-400">{item.last_message_preview}</span>
                       {item.unread_staff > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-600 px-1 text-[11px] font-bold text-white">{item.unread_staff}</span>}
@@ -383,6 +387,7 @@ export const SupportInbox: React.FC = () => {
                   <select aria-label="Insert template" value="" onChange={(e) => { const t = TEMPLATES[Number(e.target.value)]; if (t) setDraft((d) => (d ? d + '\n' : '') + t[1].replace('{name}', customer.name.split(' ')[0])); }} className="ml-auto rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-600"><option value="">Templates…</option>{TEMPLATES.map((t, i) => <option key={t[0]} value={i}>{t[0]}</option>)}</select>
                   {workspaceSettings.aiSuggestedReplies && <button type="button" disabled={busy === 'suggest'} onClick={() => void runAi('suggest')} className="flex items-center gap-1 rounded-md bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-60"><Sparkles className="h-3 w-3" />{busy === 'suggest' ? 'Thinking…' : 'Suggest reply'}</button>}
                 </div>
+                {aiDraft && draft && <p className="mb-1.5 flex items-center gap-2 rounded-lg bg-violet-50 px-2 py-1 text-xs text-violet-800"><ProvenanceBadge kind="ai" />Review and edit before sending. Nothing is sent automatically.<button type="button" onClick={() => { setDraft(''); setAiDraft(false); }} className="ml-auto font-semibold hover:underline">Discard</button></p>}
                 <div className="flex gap-2">
                   <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={2} maxLength={10000} aria-label="Reply"
                     onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void sendReply(); }}
@@ -397,6 +402,16 @@ export const SupportInbox: React.FC = () => {
       </section>
 
       </PanelLayout>
+
+      {menu && (
+        <div className="fixed inset-0 z-[75]" onClick={() => setMenu(null)} onContextMenu={(event) => { event.preventDefault(); setMenu(null); }}>
+          <ul role="menu" style={{ left: menu.x, top: menu.y }} className="fixed w-44 rounded-lg border border-slate-200 bg-white py-1 text-xs shadow-xl">
+            {([['Assign to me', { assignee_id: currentUser.id }], ['Mark pending', { status: 'pending' }], ['Resolve', { status: 'resolved' }], ['Reopen', { status: 'open' }]] as [string, Partial<Conversation>][]).map(([name, patch]) => (
+              <li key={name} role="none"><button role="menuitem" type="button" className="block w-full px-3 py-1.5 text-left text-slate-700 hover:bg-brand-50" onClick={async () => { const id = menu.id; setMenu(null); setConversations((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item)); const { error: updateError } = await supabase.from('support_conversations').update(patch).eq('id', id); if (updateError) setError(updateError.message); }}>{name}</button></li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {showNew && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-label="New conversation">

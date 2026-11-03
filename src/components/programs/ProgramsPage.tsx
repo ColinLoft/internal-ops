@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, FolderKanban, ListChecks, Plus, Search, Trash2, X } from 'lucide-react';
+import { FolderKanban, ListChecks, Plus, Search, Trash2, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { ProjectPage, navigate } from './ProjectPage';
 import { TaskPage } from './TaskPage';
+import { TableSkeleton } from '../common/Feedback';
+import { TasksViews } from './TasksViews';
 
 type View = 'projects' | 'tasks';
 type Project = { id: string; name: string; description: string | null; owner_id: string | null; status: string; priority: string; start_date: string | null; end_date: string | null; progress: number };
@@ -58,7 +60,7 @@ const ProgramsList: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [mineOnly, setMineOnly] = useState(false);
   const [projectModal, setProjectModal] = useState<Project | 'new' | null>(null);
-  const [taskModal, setTaskModal] = useState<{ project_id: string } | null>(null);
+  const [taskModal, setTaskModal] = useState<{ project_id: string; title?: string } | null>(null);
 
   const load = useCallback(async () => {
     const [projectResult, taskResult] = await Promise.all([
@@ -73,7 +75,12 @@ const ProgramsList: React.FC = () => {
 
   useEffect(() => {
     void load();
-    const onRoute = () => { setView(viewFromPath(window.location.pathname)); setStatusFilter('all'); };
+    const consume = () => {
+      const requested = new URLSearchParams(window.location.search).get('newTask');
+      if (requested !== null) { setTaskModal({ project_id: '', title: requested }); window.history.replaceState({}, '', window.location.pathname); }
+    };
+    consume();
+    const onRoute = () => { setView(viewFromPath(window.location.pathname)); setStatusFilter('all'); consume(); };
     window.addEventListener('popstate', onRoute);
     return () => window.removeEventListener('popstate', onRoute);
   }, [load]);
@@ -93,11 +100,6 @@ const ProgramsList: React.FC = () => {
   const shownProjects = projects.filter((project) => (statusFilter === 'all' || project.status === statusFilter) && `${project.name} ${project.description || ''}`.toLowerCase().includes(needle));
   const shownTasks = topTasks.filter((task) => (statusFilter === 'all' || task.status === statusFilter) && (!mineOnly || task.assignee_id === currentUser.id) && task.title.toLowerCase().includes(needle));
   const overdue = (task: Task) => Boolean(task.due_date) && task.status !== 'completed' && (task.due_date as string) < today();
-
-  const updateTaskStatus = async (task: Task, status: string) => {
-    const { error: updateError } = await supabase.from('program_tasks').update({ status, progress: status === 'completed' ? 100 : task.progress }).eq('id', task.id);
-    if (updateError) setError(updateError.message); else await load();
-  };
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
@@ -129,7 +131,7 @@ const ProgramsList: React.FC = () => {
           {view === 'tasks' && <label className="inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-slate-600 md:min-h-0"><input type="checkbox" checked={mineOnly} onChange={(event) => setMineOnly(event.target.checked)} />Assigned to me</label>}
         </div>
 
-        {loading ? <p className="py-10 text-center text-xs text-slate-400">Loading…</p> : view === 'projects' ? (
+        {loading ? <TableSkeleton rows={6} /> : view === 'projects' ? (
           shownProjects.length ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {shownProjects.map((project) => {
@@ -146,26 +148,11 @@ const ProgramsList: React.FC = () => {
               })}
             </div>
           ) : <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-500">{projects.length ? 'No projects match your filters.' : 'No projects yet. Create one to start tracking work.'}</div>
-        ) : (
-          shownTasks.length ? (
-            <div className="space-y-2">
-              {shownTasks.map((task) => (
-                <article key={task.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
-                  <CheckCircle2 className={`h-4 w-4 shrink-0 ${task.status === 'completed' ? 'text-emerald-500' : 'text-slate-300'}`} />
-                  <div className="min-w-0 flex-1">
-                    <button type="button" onClick={() => navigate(`/programs/task/${task.id}`)} className={`text-left text-sm font-semibold hover:text-brand-700 ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{task.title}</button>
-                    <p className="mt-0.5 text-xs text-slate-400">{projects.find((project) => project.id === task.project_id)?.name || 'No project'} · {userName(task.assignee_id)} · <span className={overdue(task) ? 'font-semibold text-rose-600' : ''}>{task.due_date ? `due ${task.due_date}` : 'no due date'}</span> · <span className={`capitalize ${priorityTone[task.priority]}`}>{task.priority}</span></p>
-                  </div>
-                  <select value={task.status} onChange={(event) => void updateTaskStatus(task, event.target.value)} aria-label={`Status for ${task.title}`} className="rounded-lg border border-slate-200 px-2 py-1.5 text-base md:text-xs">{Object.entries(TASK_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-                </article>
-              ))}
-            </div>
-          ) : <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-500">{tasks.length ? 'No tasks match your filters.' : 'No tasks yet. Create one to track delivery work.'}</div>
-        )}
+        ) : <TasksViews tasks={shownTasks} allTasks={tasks} projects={projects} loading={false} onChanged={load} onError={setError} />}
       </div>
 
       {projectModal && <ProjectModal project={projectModal === 'new' ? null : projectModal} tasks={topTasks.filter((task) => projectModal !== 'new' && task.project_id === projectModal.id)} onClose={() => setProjectModal(null)} onSaved={async () => { setProjectModal(null); await load(); }} onAddTask={(projectId) => { setProjectModal(null); setTaskModal({ project_id: projectId }); }} onOpenTask={(task) => { navigate(`/programs/task/${task.id}`); setProjectModal(null); }} />}
-      {taskModal && <TaskModal projects={projects} initialProject={taskModal.project_id} onClose={() => setTaskModal(null)} onSaved={(created) => { setTaskModal(null); setTasks((current) => [created, ...current]); }} />}
+      {taskModal && <TaskModal projects={projects} initialProject={taskModal.project_id} initialTitle={taskModal.title} onClose={() => setTaskModal(null)} onSaved={(created) => { setTaskModal(null); setTasks((current) => [created, ...current]); }} />}
     </main>
   );
 };
@@ -219,9 +206,9 @@ const ProjectModal: React.FC<{ project: Project | null; tasks: Task[]; onClose: 
   );
 };
 
-const TaskModal: React.FC<{ projects: Project[]; initialProject: string; onClose: () => void; onSaved: (task: Task) => void }> = ({ projects, initialProject, onClose, onSaved }) => {
+const TaskModal: React.FC<{ projects: Project[]; initialProject: string; initialTitle?: string; onClose: () => void; onSaved: (task: Task) => void }> = ({ projects, initialProject, initialTitle = '', onClose, onSaved }) => {
   const { users, currentUser } = useWorkspace();
-  const [form, setForm] = useState({ title: '', project_id: initialProject, assignee_id: currentUser.id, priority: 'medium', due_date: '' });
+  const [form, setForm] = useState({ title: initialTitle, project_id: initialProject, assignee_id: currentUser.id, priority: 'medium', due_date: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((value) => ({ ...value, [key]: event.target.value }));

@@ -315,3 +315,13 @@ html[data-theme='dark'] #root [class*='hover:bg-slate-200']:hover,
 html[data-theme='dark'] #root [class*='hover:bg-brand-50']:hover {
   background-color: var(--surface-hover);
 }
+
+/* Density and consistency pass: one card radius, quieter shadows, readable secondary text. */
+#root .rounded-2xl { border-radius: 0.875rem; }
+#root .rounded-3xl { border-radius: 1rem; }
+#root .shadow-md,
+#root .shadow-lg { box-shadow: 0 1px 2px rgb(15 23 42 / 0.06); }
+html:not([data-theme='dark']) #root .text-slate-400 { color: #64748b; }
+html:not([data-theme='dark']) #root [class~='text-xs'].text-slate-300 { color: #94a3b8; }
+#root table { font-variant-numeric: tabular-nums; }
+#root [role='separator'][aria-orientation='vertical']:focus-visible { outline: none; }

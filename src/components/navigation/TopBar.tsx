@@ -6,7 +6,7 @@ import { getSectionTabs, isSectionSelected } from './sectionTabs';
 
 type OpenTab = { path: string; app: string; label: string };
 
-const appLabels: Record<string, string> = {
+export const appLabels: Record<string, string> = {
   home: 'Home', messages: 'Messages', channels: 'Channels', calendar: 'Calendar', inbox: 'Email', drive: 'Drive',
   engineering: 'Engineering', gtm: 'Marketing', legal: 'Legal', finance: 'Grants', customers: 'Customers',
   programs: 'Projects', admin: 'Settings', settings: 'Settings', help: 'Support', helpcenter: 'Help Center', insights: 'Insights', organization: 'Organization',
