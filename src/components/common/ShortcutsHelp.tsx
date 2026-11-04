@@ -6,7 +6,7 @@ type Tab = Parameters<ReturnType<typeof useWorkspace>['setActiveTab']>[0];
 
 const GO: Record<string, [Tab, string]> = {
   h: ['home', 'Home'], m: ['messages', 'Messages'], k: ['calendar', 'Calendar'], e: ['inbox', 'Email'],
-  d: ['drive', 'Drive'], t: ['programs', 'Projects & tasks'], u: ['customers', 'Customers'], g: ['finance', 'Grants'], s: ['settings', 'Settings'],
+  d: ['drive', 'Drive'], t: ['programs', 'Projects & tasks'], u: ['customers', 'Customers'], g: ['company', 'Company'], s: ['settings', 'Settings'],
 };
 
 const typing = (target: EventTarget | null) => {

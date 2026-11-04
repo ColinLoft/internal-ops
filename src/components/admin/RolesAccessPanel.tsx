@@ -15,10 +15,10 @@ const apps = [
   { id: 'engineering', label: 'Engineering' },
   { id: 'operations', label: 'Operations' },
   { id: 'customers', label: 'Customers' },
-  { id: 'gtm', label: 'Marketing' },
+  { id: 'gtm', label: 'Content calendar' },
   { id: 'support', label: 'Support' },
-  { id: 'finance', label: 'Finance' },
-  { id: 'legal', label: 'Legal' },
+  { id: 'finance', label: 'Grants' },
+  { id: 'legal', label: 'Contracts & policies' },
   { id: 'systems', label: 'Systems' },
 ];
 

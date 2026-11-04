@@ -170,28 +170,38 @@ export const guideSections: GuideSection[] = [
           'Use the Tickets tab for formal support requests.',
         ],
       },
-      {
-        id: 'marketing',
-        title: 'Marketing',
-        summary: 'Campaigns, content calendar, communications, brand and partnerships.',
-        steps: [
-          'Open Marketing and pick a page from the sidebar.',
-          'Use the content calendar to plan what is published and when.',
-        ],
-      },
     ],
   },
   {
     id: 'business',
-    title: 'Grants & legal',
-    description: 'Fund the mission and stay compliant.',
+    title: 'Company',
+    description: 'Ideas, grants, content and company documents.',
     guides: [
+      {
+        id: 'ideas',
+        title: 'Ideas',
+        summary: 'A company-wide board for ideas on brand, grants, product, marketing and more.',
+        steps: [
+          'Open Company > Ideas and choose New idea.',
+          'Pick a category, then upvote ideas you want to see happen.',
+          'The idea owner or an admin can update its status as it moves from New to Done.',
+        ],
+      },
+      {
+        id: 'content-calendar',
+        title: 'Content calendar',
+        summary: 'Plan what is published and when.',
+        steps: [
+          'Open Company > Content Calendar and add a post to a day.',
+          'Send it for approval, then schedule or publish it.',
+        ],
+      },
       {
         id: 'grants',
         title: 'Tracking grants',
         summary: 'Money and product grants from first idea through reporting.',
         steps: [
-          'Open Grants and choose Add grant, or import grants you have already won from a CSV exported from Google Sheets.',
+          'Open Company > Grants and choose Add grant, or import grants you have already won from a CSV exported from Google Sheets.',
           'Move a grant through Prospect, Applied, Awarded, Reporting and Closed as it progresses.',
           'Open a grant to see its overview, activity and files & reports. Add a funder name and it is created in Customers for you.',
           'Upcoming deadlines show at the top of the Grants page.',
@@ -202,19 +212,19 @@ export const guideSections: GuideSection[] = [
         title: 'Finding grants with AI',
         summary: 'Let the AI suggest grants that fit your organization.',
         steps: [
-          'Open Grants > Resources and fill in the Organization summary. The AI uses it for research.',
-          'Open Find Grants and run a research request.',
+          'Open Company > Grant Resources and fill in the Organization summary. The AI uses it for research.',
+          'Open Company > Find Grants and run a research request.',
           'Review each suggestion and add the good ones to your list.',
         ],
         tips: ['The better your organization summary, the better the suggestions.'],
       },
       {
-        id: 'legal',
-        title: 'Legal',
-        summary: 'Contracts, compliance, risk, policies and legal records.',
+        id: 'contracts-policies',
+        title: 'Contracts & policies',
+        summary: 'Keep agreements and company policies in one place.',
         steps: [
-          'Open Legal (visible to people with access) and choose a page.',
-          'Store contracts and track compliance items with their due dates.',
+          'Open Company > Contracts or Policies (visible to people with access).',
+          'Add a record with its renewal or review date, then update its status as it progresses.',
         ],
       },
     ],

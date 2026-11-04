@@ -8,7 +8,7 @@ import { getSectionTabs, isSectionSelected } from './sectionTabs';
 
 export const appLabels: Record<string, string> = {
   home: 'Home', messages: 'Messages', channels: 'Channels', calendar: 'Calendar', inbox: 'Email', drive: 'Drive',
-  engineering: 'Engineering', gtm: 'Marketing', legal: 'Legal', finance: 'Grants', customers: 'Customers',
+  engineering: 'Engineering', company: 'Company', customers: 'Customers',
   programs: 'Projects & Tasks', admin: 'Settings', settings: 'Settings', help: 'Support', helpcenter: 'Help Center', insights: 'Insights'
 };
 

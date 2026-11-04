@@ -204,7 +204,7 @@ export const ProjectPage: React.FC<{ projectId: string }> = ({ projectId }) => {
 
         {tab === 'Funding' && (
           <section className={card}>
-            <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-bold text-slate-900">Grants funding this project</h3><button type="button" onClick={() => navigate('/finance/grants')} className="text-xs font-bold text-brand-600">Open Grants</button></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-bold text-slate-900">Grants funding this project</h3><button type="button" onClick={() => navigate('/company/grants')} className="text-xs font-bold text-brand-600">Open Grants</button></div>
             <p className="mt-2 text-xs text-slate-500">Budget {budget ? money(budget) : 'not set'} · Awarded {money(spent)}{budget ? ` · Gap ${money(Math.max(0, budget - spent))}` : ''}</p>
             {budget > 0 && <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full ${'bg-brand-500'}`} style={{ width: `${Math.min(100, (spent / budget) * 100)}%` }} /></div>}
             <ul className="mt-3 divide-y divide-slate-100">

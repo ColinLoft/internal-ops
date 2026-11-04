@@ -7,7 +7,7 @@ import { EmptyState, ProvenanceBadge, Skeleton } from '../common/Feedback';
 type RecentFile = { id: string; name: string; item_type: string; updated_at: string };
 type MyTask = { id: string; title: string; status: string; priority: string; due_date: string | null; source: 'program' | 'operations' };
 type Activity = { id: string; entity_type: string; entity_id: string; action: string; detail: string | null; created_by: string | null; created_at: string };
-type Deadline = { id: string; title: string; date: string; kind: string; tab: 'programs' | 'finance' };
+type Deadline = { id: string; title: string; date: string; kind: string; tab: 'programs' | 'company' };
 
 const WIDGETS = [
   ['tasks', 'My tasks'], ['events', 'Upcoming events'], ['deadlines', 'Deadlines'], ['attention', 'Needs attention'],
@@ -88,7 +88,7 @@ export const HomePage: React.FC = () => {
         ...((operations.data || []) as Omit<MyTask, 'source'>[]).map((task) => ({ ...task, source: 'operations' as const })),
       ].sort((a, b) => (a.due_date || '9999').localeCompare(b.due_date || '9999')));
       setActivity((feed.data || []) as Activity[]);
-      setDeadlines(((reports.data || []) as { id: string; title: string; due_date: string }[]).map((report) => ({ id: report.id, title: report.title, date: report.due_date, kind: 'Grants · Report', tab: 'finance' as const })));
+      setDeadlines(((reports.data || []) as { id: string; title: string; due_date: string }[]).map((report) => ({ id: report.id, title: report.title, date: report.due_date, kind: 'Grants · Report', tab: 'company' as const })));
       setOpenSupport(support.error ? null : support.count ?? 0);
       setLoading(false);
     };

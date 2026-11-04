@@ -58,14 +58,14 @@ export const GrantsPage: React.FC = () => {
         </div>
         {loading ? <p className="py-10 text-center text-xs text-slate-400">Loading…</p> : shown.length ? (
           <div className="space-y-2">{shown.map((grant) => (
-            <button type="button" key={grant.id} onClick={() => goTo(`/finance/grants/${grant.id}`)} className="flex w-full flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-brand-400">
+            <button type="button" key={grant.id} onClick={() => goTo(`/company/grants/${grant.id}`)} className="flex w-full flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-brand-400">
               <div className="min-w-0"><p className="text-sm font-bold text-slate-900">{grant.name}</p><p className="text-xs text-slate-500">{grant.funder_name || 'No funder'} · {userName(grant.owner_id)}{grant.source ? ` · ${grant.source}` : ''}</p></div>
               <div className="flex items-center gap-3 text-xs"><span className="font-semibold text-slate-700">{grant.grant_type === 'product' ? (grant.in_kind_awarded || grant.in_kind_requested || 'Product') : money(grant.amount_awarded ?? grant.amount_requested)}</span><span className={`rounded-full px-2 py-0.5 font-semibold ${typeTone(grant.grant_type)}`}>{typeLabel(grant.grant_type)}</span><span className={`rounded-full px-2 py-0.5 font-semibold ${stageTone(grant.stage)}`}>{stageLabel(grant.stage)}</span></div>
             </button>
           ))}</div>
         ) : <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-500">{grants.length ? 'No grants match your filters.' : 'No grants yet. Add the first funder you are pursuing.'}</div>}
       </div>
-      {creating && <NewGrantModal userId={currentUser.id} onClose={() => setCreating(false)} onCreated={(id) => goTo(`/finance/grants/${id}`)} />}
+      {creating && <NewGrantModal userId={currentUser.id} onClose={() => setCreating(false)} onCreated={(id) => goTo(`/company/grants/${id}`)} />}
       {importing && <GrantImport userId={currentUser.id} existing={grants} onClose={() => setImporting(false)} onDone={() => void load()} />}
       {settings && <TemplatesModal onClose={() => setSettings(false)} />}
     </main>

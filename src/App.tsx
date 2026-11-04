@@ -28,14 +28,12 @@ import { EmailInboxPage } from './components/email/EmailInboxPage';
 import { DrivePage } from './components/drive/DrivePage';
 import { AccessGate } from './components/common/AccessGate';
 import { CustomerPage } from './components/customers/CustomerPage';
-import { FinancePage } from './components/finance/FinancePage';
-import { LegalPage } from './components/legal/LegalPage';
+import { CompanyPage } from './components/company/CompanyPage';
 import { HomePage } from './components/home/HomePage';
 import { NotFoundPage } from './components/NotFoundPage';
 import { HelpCenterPage } from './components/help/HelpCenterPage';
 import { InsightsPage } from './components/insights/InsightsPage';
 import { ProgramsPage } from './components/programs/ProgramsPage';
-import { GTMPage } from './components/gtm/GTMPage';
 import { EngineeringPage } from './components/engineering/EngineeringPage';
 import { PendingDocumentPrompt } from './components/organization/PolicySigning';
 
@@ -46,7 +44,7 @@ const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
 }));
 
-const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|finance(?:\/[^/]+)*|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|help|help-center|settings|contact|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)*|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|systems(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
+const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|company(?:\/[^/]+)*|finance(?:\/[^/]+)*|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|help|help-center|settings|contact|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)*|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|systems(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
 
 const WorkspaceShell: React.FC = () => {
   const {
@@ -127,12 +125,10 @@ const WorkspaceShell: React.FC = () => {
           <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
           {activeTab === 'home' && <HomePage />}
           {activeTab === 'customers' && <AccessGate app="customers" name="Customers"><CustomerPage /></AccessGate>}
-          {activeTab === 'finance' && <AccessGate app="finance" name="Finance"><FinancePage /></AccessGate>}
-          {activeTab === 'legal' && <AccessGate app="legal" name="Legal"><LegalPage /></AccessGate>}
+          {activeTab === 'company' && <CompanyPage />}
           {activeTab === 'helpcenter' && <HelpCenterPage />}
           {activeTab === 'insights' && <InsightsPage />}
           {activeTab === 'programs' && <ProgramsPage />}
-          {activeTab === 'gtm' && <GTMPage />}
           {activeTab === 'settings' && <SettingsPage />}
           {activeTab === 'engineering' && <EngineeringPage />}
           {activeTab === 'messages' && (

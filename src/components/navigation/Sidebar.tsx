@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  House, Lightbulb, MessageSquare, Hash, Calendar as CalendarIcon, Mail, FolderKanban, Code2, HardDrive, Network,
-  UsersRound, Headset, Megaphone, Landmark, Scale, Settings, ChevronsLeft, ChevronsRight, ChevronsUpDown, CircleHelp, LogOut, PanelLeftClose,
+  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, Mail, FolderKanban, Code2, HardDrive, UsersRound, Building2, Settings, ChevronsRight, ChevronsUpDown, CircleHelp, LogOut, PanelLeftClose,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAllAppAccess } from '../../lib/useAppAccess';
@@ -26,12 +25,10 @@ const overviewItems: NavItem[] = [
 const appDropdowns: NavItem[] = [
   { id: 'engineering', label: 'Engineering', icon: Code2 },
   { id: 'customers', label: 'Customers', icon: UsersRound },
-  { id: 'gtm', label: 'Marketing', icon: Megaphone },
-  { id: 'finance', label: 'Grants', icon: Landmark },
-  { id: 'legal', label: 'Legal', icon: Scale },
+  { id: 'company', label: 'Company', icon: Building2 },
 ];
 
-const accessKey: Partial<Record<Tab, string>> = { customers: 'customers', finance: 'finance', legal: 'legal', admin: 'systems' };
+const accessKey: Partial<Record<Tab, string>> = { customers: 'customers', admin: 'systems' };
 
 interface SidebarProps {
   isMobileOpen?: boolean;
@@ -90,7 +87,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
     };
   }, [currentUser.id]);
 
+  const hasAppAccess = (key: string) => !access || (access[key] ?? 0) >= 1;
   const hasAccess = (id: Tab) => {
+    if (id === 'company') return true;
     const key = accessKey[id];
     return !key || !access || (access[key] ?? 0) >= 1 || (id === 'admin' && currentUser.systemRole === 'admin');
   };
@@ -166,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
               {section('overview', 'Overview', false, overviewItems.filter((item) => hasAccess(item.id)).map(leaf))}
               {appDropdowns.filter((item) => hasAccess(item.id)).map((item) => {
                 const active = isActive(item.id);
-                const pages = getSectionTabs(item.id, active ? routePath : '') ?? [];
+                const pages = (getSectionTabs(item.id, active ? routePath : '') ?? []).filter((page) => !page.access || hasAppAccess(page.access));
                 if (pages.length === 0) return section(item.id, item.label, false, leaf(item));
                 return section(item.id, item.label, false, pages.map((child) => {
                   const ChildIcon = child.icon;
