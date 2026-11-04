@@ -29,7 +29,6 @@ export const RightDrawer: React.FC = () => {
     createConversation,
     startCall,
     openUserProfile,
-    setIsAddTeammateOpen,
   } = useWorkspace();
 
   const [activeTabSub, setActiveTabSub] = useState<'media' | 'files'>('media');
@@ -214,12 +213,6 @@ export const RightDrawer: React.FC = () => {
               <Users className="w-3.5 h-3.5 text-slate-500" />
               Members ({channelMembers.length})
             </span>
-            <button
-              onClick={() => setIsAddTeammateOpen(true)}
-              className="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1"
-            >
-              <UserPlus className="w-3 h-3" /> Add Staff
-            </button>
           </div>
 
           <div className="space-y-1.5">

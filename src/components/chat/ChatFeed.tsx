@@ -39,7 +39,6 @@ export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
     startCall,
     openUserProfile,
     setIsNewMessageOpen,
-    setIsAddTeammateOpen,
   } = useWorkspace();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -101,13 +100,6 @@ export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
           >
             <Plus className="w-4 h-4" />
             <span>Start a Conversation</span>
-          </button>
-          <button
-            onClick={() => setIsAddTeammateOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-medium transition-all"
-          >
-            <UserPlus className="w-4 h-4 text-slate-500" />
-            <span>Add Teammate</span>
           </button>
         </div>
       </div>

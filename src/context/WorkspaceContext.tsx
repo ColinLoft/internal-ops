@@ -2021,27 +2021,20 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       unreadCount: 0,
     };
 
-    void supabase
-      .from('conversations')
-      .upsert({ id: newId, type: newConv.type, name: isGroup ? newConv.name : null, created_by: currentUser.id }, { onConflict: 'id' })
-      .then(({ error }) => { if (error) console.warn('Conversation details were not saved:', error.message); });
-    void supabase
-      .from('conversation_participants')
-      .upsert({ conversation_id: newId, user_id: currentUser.id }, { onConflict: 'conversation_id,user_id', ignoreDuplicates: true })
-      .then(async ({ error }) => {
-        if (error) {
-          console.error('Unable to persist conversation owner:', error);
-          return;
-        }
-
-        const { error: participantError } = await supabase
-          .from('conversation_participants')
-          .upsert(
-            participantIds.map((userId) => ({ conversation_id: newId, user_id: userId })),
-            { onConflict: 'conversation_id,user_id', ignoreDuplicates: true },
-          );
-        if (participantError) console.error('Unable to persist conversation participants:', participantError);
-      });
+    void (async () => {
+      const { error: conversationError } = await supabase
+        .from('conversations')
+        .insert({ id: newId, type: newConv.type, name: isGroup ? newConv.name : null, created_by: currentUser.id });
+      if (conversationError) console.error('Unable to save conversation:', conversationError);
+      const { error: ownerError } = await supabase
+        .from('conversation_participants')
+        .insert({ conversation_id: newId, user_id: currentUser.id });
+      if (ownerError) { console.error('Unable to persist conversation owner:', ownerError); return; }
+      const { error: participantError } = await supabase
+        .from('conversation_participants')
+        .insert(participantIds.map((userId) => ({ conversation_id: newId, user_id: userId })));
+      if (participantError) console.error('Unable to persist conversation participants:', participantError);
+    })();
     setConversations((prev) => [newConv, ...prev]);
     setActiveConversationId(newId);
     setActiveTab('messages');

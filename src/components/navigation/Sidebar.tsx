@@ -66,7 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
   useEffect(() => {
     if (firstRoute.current) { firstRoute.current = false; return; }
     setCollapsed(true);
-  }, [routePath]);
+  }, [routePath, activeTab]);
 
   useEffect(() => {
     localStorage.setItem('flown-sidebar-collapsed', collapsed ? '1' : '0');

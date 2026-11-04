@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, Mail, Plus, MessageSquarePlus, MailPlus, CalendarPlus } from 'lucide-react';
+import { Bell, Plus, MessageSquarePlus, MailPlus, CalendarPlus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { WorkspaceAssistant } from '../assistant/WorkspaceAssistant';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -19,20 +19,6 @@ export const TopBar: React.FC = () => {
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const quickRef = useRef<HTMLDivElement>(null);
-  const [unreadEmails, setUnreadEmails] = useState(0);
-
-  useEffect(() => {
-    if (!currentUser.id) return undefined;
-    let active = true;
-    const load = async () => {
-      const { count, error } = await supabase.from('email_messages').select('id', { count: 'exact', head: true }).eq('folder', 'inbox').eq('is_read', false);
-      if (active && !error) setUnreadEmails(count ?? 0);
-    };
-    void load();
-    const timer = window.setInterval(() => void load(), 60000);
-    const channel = supabase.channel('topbar-unread-email').on('postgres_changes', { event: '*', schema: 'public', table: 'email_messages' }, () => void load()).subscribe();
-    return () => { active = false; window.clearInterval(timer); void supabase.removeChannel(channel); };
-  }, [currentUser.id]);
 
   useEffect(() => {
     const onDown = (event: MouseEvent) => {
@@ -99,10 +85,6 @@ export const TopBar: React.FC = () => {
               </div>
             )}
           </div>
-          <button type="button" onClick={() => setActiveTab('inbox')} title={unreadEmails ? `${unreadEmails} unread emails` : 'Email'} aria-label={`Email${unreadEmails ? `, ${unreadEmails} unread` : ''}`} className={iconBtn}>
-            <Mail className="h-4 w-4" />
-            {unreadEmails > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white ring-2 ring-[#2569F5]">{unreadEmails > 99 ? '99+' : unreadEmails}</span>}
-          </button>
           {workspaceSettings.aiAssistantEnabled && <WorkspaceAssistant triggerClassName="relative flex h-8 w-8 items-center justify-center rounded-lg bg-[#1746b8] text-white ring-1 ring-white/20 hover:bg-[#1c52d0] transition-colors" />}
           <div className="relative" ref={notificationsRef}>
             <button
@@ -112,7 +94,7 @@ export const TopBar: React.FC = () => {
               aria-haspopup="dialog"
               aria-expanded={isNotificationsOpen}
               title="Notifications"
-              className={`${iconBtn} ${isNotificationsOpen ? 'bg-white/20 text-white' : ''}`}
+              className={`${iconBtn} bg-[#1746b8] ring-1 ring-white/20 ${isNotificationsOpen ? 'bg-[#1c52d0]' : ''}`}
             >
               <Bell className="h-4 w-4" />
               {unreadNotificationCount > 0 && (
