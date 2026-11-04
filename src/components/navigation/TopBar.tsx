@@ -51,8 +51,6 @@ export const TopBar: React.FC = () => {
 
   const currentLabel = labelFor(activeTab, path);
 
-  const currentLabel = labelFor(activeTab, path);
-
   return (
     <header className="flex-shrink-0 bg-gradient-to-r from-[#2569F5] via-[#377bf7] to-[#5695FA] text-white border-b border-white/15">
       <div className="flex h-11 items-center justify-between gap-3 px-3 md:px-5">
