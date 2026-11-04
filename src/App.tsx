@@ -34,7 +34,6 @@ import { HomePage } from './components/home/HomePage';
 import { NotFoundPage } from './components/NotFoundPage';
 import { HelpCenterPage } from './components/help/HelpCenterPage';
 import { InsightsPage } from './components/insights/InsightsPage';
-import { OrganizationPage } from './components/organization/OrganizationPage';
 import { ProgramsPage } from './components/programs/ProgramsPage';
 import { GTMPage } from './components/gtm/GTMPage';
 import { EngineeringPage } from './components/engineering/EngineeringPage';
@@ -132,7 +131,6 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'legal' && <AccessGate app="legal" name="Legal"><LegalPage /></AccessGate>}
           {activeTab === 'helpcenter' && <HelpCenterPage />}
           {activeTab === 'insights' && <InsightsPage />}
-          {activeTab === 'organization' && <OrganizationPage />}
           {activeTab === 'programs' && <ProgramsPage />}
           {activeTab === 'gtm' && <GTMPage />}
           {activeTab === 'settings' && <SettingsPage />}

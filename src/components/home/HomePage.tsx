@@ -24,7 +24,7 @@ const priorityBar: Record<string, string> = { high: 'bg-rose-400', medium: 'bg-a
 const severity: Record<string, { rank: number; dot: string; label: string }> = {
   call: { rank: 0, dot: 'bg-rose-500', label: 'Urgent' }, mention: { rank: 0, dot: 'bg-rose-500', label: 'Urgent' },
   announcement: { rank: 1, dot: 'bg-amber-400', label: 'Important' }, calendar: { rank: 1, dot: 'bg-amber-400', label: 'Important' },
-  message: { rank: 2, dot: 'bg-brand-400', label: 'New' }, organization: { rank: 2, dot: 'bg-brand-400', label: 'New' },
+  message: { rank: 2, dot: 'bg-brand-400', label: 'New' },
 };
 
 const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;

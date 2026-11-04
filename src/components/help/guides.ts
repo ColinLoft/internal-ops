@@ -76,7 +76,7 @@ export const guideSections: GuideSection[] = [
         title: 'Channels',
         summary: 'Shared spaces for a team, project or topic.',
         steps: [
-          'Open Channels and select a channel from the list, or use Quick add > New channel.',
+          'Open Messages and pick a channel from the Channels list, or use the + next to Channels to create one.',
           'If you do not have permission to post in a channel, a short notice appears where the composer would be.',
           'Mention people with @ so they are notified.',
         ],
@@ -115,7 +115,7 @@ export const guideSections: GuideSection[] = [
         title: 'Projects',
         summary: 'Each project has its own page for notes, files, a time log and activity.',
         steps: [
-          'Open Projects and choose New project.',
+          'Open Projects & Tasks, switch to Projects and choose New project.',
           'Open a project to add tasks, notes, pictures and time entries.',
           'The activity log records what changed and who did it.',
         ],
@@ -125,7 +125,7 @@ export const guideSections: GuideSection[] = [
         title: 'Tasks',
         summary: 'Tasks can belong to a project or stand alone.',
         steps: [
-          'Open Projects > Tasks and add a task. Assign it, set a due date and a priority.',
+          'Open Projects & Tasks, switch to Tasks and add a task. Assign it, set a due date and a priority.',
           'Leave the project empty to keep it as a standalone task.',
           'Open a task to add comments, files and a time log.',
         ],
@@ -145,20 +145,9 @@ export const guideSections: GuideSection[] = [
   },
   {
     id: 'people',
-    title: 'Organization, relationships & support',
-    description: 'People, contacts and customers.',
+    title: 'Customers & support',
+    description: 'Contacts, customers and support.',
     guides: [
-      {
-        id: 'organization',
-        title: 'Organization',
-        summary: 'The directory, org chart, departments, roles, leave, records, policies and approvals.',
-        steps: [
-          'Open Organization and choose a page from the sidebar.',
-          'Use Directory to find colleagues and open their profiles.',
-          'Departments, Positions & Roles and the org chart show how the team is structured.',
-          'Use Workflows & Approvals to submit and review requests.',
-        ],
-      },
       {
         id: 'relationships',
         title: 'Customers (CRM & support)',

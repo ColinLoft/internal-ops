@@ -229,7 +229,7 @@ export interface NotificationItem {
   description: string;
   timestamp: string;
   isRead: boolean;
-  linkTab: 'messages' | 'channels' | 'calendar' | 'organization';
+  linkTab: 'messages' | 'channels' | 'calendar';
   targetId?: string; // conversation or channel id
 }
 

@@ -11,7 +11,6 @@ type Assignment = { user_id: string; role_id: string };
 
 const apps = [
   { id: 'insights', label: 'Insights' },
-  { id: 'organization', label: 'Organization' },
   { id: 'programs', label: 'Projects' },
   { id: 'engineering', label: 'Engineering' },
   { id: 'operations', label: 'Operations' },

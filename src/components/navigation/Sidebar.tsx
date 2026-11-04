@@ -17,15 +17,14 @@ type NavItem = { id: Tab; label: string; icon: React.ComponentType<{ className?:
 const overviewItems: NavItem[] = [
   { id: 'home', label: 'Home', icon: House },
   { id: 'messages', label: 'Messages', icon: MessageSquare },
+  { id: 'programs', label: 'Projects & Tasks', icon: FolderKanban },
   { id: 'inbox', label: 'Email', icon: Mail },
   { id: 'calendar', label: 'Calendar', icon: CalendarIcon },
   { id: 'drive', label: 'Drive', icon: HardDrive },
   { id: 'insights', label: 'Insights', icon: Lightbulb },
 ];
 const appDropdowns: NavItem[] = [
-  { id: 'programs', label: 'Projects', icon: FolderKanban },
   { id: 'engineering', label: 'Engineering', icon: Code2 },
-  { id: 'organization', label: 'Organization', icon: Network },
   { id: 'customers', label: 'Customers', icon: UsersRound },
   { id: 'gtm', label: 'Marketing', icon: Megaphone },
   { id: 'finance', label: 'Grants', icon: Landmark },
@@ -100,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
     if (window.location.pathname !== path) window.history.pushState({}, '', path);
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
-  const isActive = (id: Tab) => activeTab === id;
+  const isActive = (id: Tab) => activeTab === id || (id === 'messages' && activeTab === 'channels');
 
   const statusColor = currentUser.status === 'busy' ? 'bg-rose-400' : currentUser.status === 'offline' ? 'bg-white/50' : 'bg-emerald-400';
   const row = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-lg px-2.5 py-1.5 text-left text-[13px] font-medium transition-all duration-150 ${collapsed ? 'justify-center px-0' : ''} ${active ? 'bg-white/20 text-white shadow-xs font-semibold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`;
@@ -134,7 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
       <nav className="flex-1 overflow-y-auto px-2.5 py-1 [scrollbar-width:none]">
         {(() => {
           const rowClass = (active: boolean) => `group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-all duration-150 ${active ? 'bg-white/20 font-semibold text-white shadow-xs' : 'font-medium text-white/85 hover:bg-white/10 hover:text-white'}`;
-          const bar = <span className="absolute left-0 top-1/2 h-3.5 w-[3px] -translate-y-1/2 rounded-full bg-white" />;
+          const bar = <span className="rail-active-bar absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-white" />;
           const section = (id: string, title: string, forceOpen: boolean, children: React.ReactNode) => {
             const open = forceOpen || openGroups[id] === true || (openGroups[id] === undefined && id === 'overview');
             return (

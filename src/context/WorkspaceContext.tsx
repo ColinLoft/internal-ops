@@ -48,7 +48,7 @@ interface WorkspaceContextType {
   isSupabaseConnected: boolean;
   
   // Navigation & Views
-  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'legal' | 'engineering' | 'help' | 'helpcenter' | 'settings' | 'insights' | 'organization' | 'programs' | 'gtm';
+  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'legal' | 'engineering' | 'help' | 'helpcenter' | 'settings' | 'insights' | 'programs' | 'gtm';
   activeConversationId: string;
   activeChannelId: string;
   activeThreadMessageId: string | null;
@@ -93,7 +93,7 @@ interface WorkspaceContextType {
   completeOnboarding: () => Promise<void>;
   
   // Navigation actions
-  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'legal' | 'engineering' | 'help' | 'helpcenter' | 'settings' | 'insights' | 'organization' | 'programs' | 'gtm') => void;
+  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'legal' | 'engineering' | 'help' | 'helpcenter' | 'settings' | 'insights' | 'programs' | 'gtm') => void;
   setActiveConversationId: (id: string) => void;
   setActiveChannelId: (id: string) => void;
   openThread: (messageId: string) => void;
@@ -186,27 +186,26 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const STORAGE_PREFIX = 'beacon_v3_';
-type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'legal' | 'engineering' | 'help' | 'helpcenter' | 'settings' | 'insights' | 'organization' | 'programs' | 'gtm';
+type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'finance' | 'legal' | 'engineering' | 'help' | 'helpcenter' | 'settings' | 'insights' | 'programs' | 'gtm';
 
 const tabFromPath = (pathname: string): WorkspaceTab | null => {
   const segment = pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
   if (segment === 'home') return 'home';
   if (segment === 'customers') return 'customers';
   if (segment === 'finance') return 'finance';
-  if (segment === 'operations') return 'organization';
+  if (segment === 'operations' || segment === 'organization') return 'home';
   if (segment === 'legal') return 'legal';
   if (segment === 'engineering') return 'engineering';
   if (segment === 'help') return 'customers';
   if (segment === 'help-center') return 'helpcenter';
   if (segment === 'insights') return 'insights';
-  if (segment === 'organization') return 'organization';
   if (segment === 'programs') return 'programs';
   if (segment === 'gtm') return 'gtm';
   if (segment === 'messages') return 'messages';
-  if (segment === 'channels') return 'messages';
+  if (segment === 'channels') return 'channels';
   if (segment === 'calendar') return 'calendar';
   if (segment === 'email' || segment === 'inbox') return 'inbox';
-  if (segment === 'admin') return 'organization';
+  if (segment === 'admin') return 'settings';
   if (segment === 'systems' || segment === 'settings') return 'settings';
   if (segment === 'drive') return 'drive';
   if (segment === 'docs' || segment === 'slides' || segment === 'sheets' || segment === 'forms') return 'drive';
@@ -223,7 +222,6 @@ const pathForTab = (tab: WorkspaceTab) => ({
   helpcenter: '/help-center',
   settings: '/settings',
   insights: '/insights',
-  organization: '/organization',
   programs: '/programs',
   gtm: '/gtm',
   messages: '/messages',
@@ -1581,7 +1579,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
             description: `${currentUser.name} pinged the channel`,
             timestamp: 'Just now',
             isRead: false,
-            linkTab: activeTab === 'channels' ? 'channels' : activeTab === 'organization' ? 'organization' : 'messages',
+            linkTab: activeTab === 'channels' ? 'channels' : 'messages',
             targetId,
           },
           ...prev,

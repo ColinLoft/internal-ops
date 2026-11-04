@@ -30,17 +30,6 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
         tab('Projects', 'Projects', FolderKanban, '/programs', ['/programs/projects']),
         tab('Tasks', 'Tasks', CheckSquare, '/programs/tasks'),
       ];
-    case 'organization':
-      return [
-        tab('Directory', 'Directory', Users, '/organization/people', ['/organization']),
-        tab('Organizational Chart', 'Chart', Network, '/organization/overview'),
-        tab('Departments', 'Depts', Building2, '/organization/departments'),
-        tab('Positions & Roles', 'Roles', BriefcaseBusiness, '/organization/positions'),
-        tab('Leave', 'Leave', ClipboardList, '/organization/onboarding'),
-        tab('Personnel Records', 'Records', FileText, '/organization/records'),
-        tab('Policies & Procedures', 'Policies', BookOpen, '/organization/policies'),
-        tab('Workflows & Approvals', 'Approvals', CheckCircle2, '/organization/approvals'),
-      ];
     case 'insights':
       return [
         tab('Executive Overview', 'Overview', House, '/insights'),

@@ -25,7 +25,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({ isMenuOpen, onToggle
     {
       label: 'Messages',
       icon: MessageSquare,
-      isActive: activeTab === 'messages',
+      isActive: activeTab === 'messages' || activeTab === 'channels',
       badge: unread,
       onSelect: () => setActiveTab('messages'),
     },

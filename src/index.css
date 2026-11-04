@@ -431,3 +431,5 @@ html[data-motion='reduced'] *::after {
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+html[data-theme='dark'] #root .rail-active-bar { background-color: rgb(var(--brand-400)) !important; box-shadow: 0 0 8px rgb(var(--brand-400) / 0.6); }

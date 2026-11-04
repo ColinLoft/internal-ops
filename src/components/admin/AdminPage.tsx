@@ -17,6 +17,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { PROFILE_BANNERS, SystemActivityLog, User, UserRole, UserStatus } from '../../types';
 import { EmailAdminPanel } from './EmailAdminPanel';
 import { RolesAccessPanel } from './RolesAccessPanel';
+import { DepartmentsPositionsPanel } from './DepartmentsPositionsPanel';
 
 const roleLabels: Record<UserRole, string> = {
   admin: 'Admin',
@@ -317,6 +318,8 @@ export const AdminPage: React.FC = () => {
           </section>
 
           <RolesAccessPanel />
+
+          <DepartmentsPositionsPanel />
 
           <EmailAdminPanel />
 

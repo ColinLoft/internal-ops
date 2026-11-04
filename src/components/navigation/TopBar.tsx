@@ -9,7 +9,7 @@ import { getSectionTabs, isSectionSelected } from './sectionTabs';
 export const appLabels: Record<string, string> = {
   home: 'Home', messages: 'Messages', channels: 'Channels', calendar: 'Calendar', inbox: 'Email', drive: 'Drive',
   engineering: 'Engineering', gtm: 'Marketing', legal: 'Legal', finance: 'Grants', customers: 'Customers',
-  programs: 'Projects', admin: 'Settings', settings: 'Settings', help: 'Support', helpcenter: 'Help Center', insights: 'Insights', organization: 'Organization',
+  programs: 'Projects & Tasks', admin: 'Settings', settings: 'Settings', help: 'Support', helpcenter: 'Help Center', insights: 'Insights'
 };
 
 export const TopBar: React.FC = () => {
