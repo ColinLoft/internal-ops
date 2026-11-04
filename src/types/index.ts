@@ -78,7 +78,7 @@ export interface WorkspaceSettings {
 }
 
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
-  theme: 'light',
+  theme: 'dark',
   accentColor: '#2569F5',
   autoBusyInCalls: true,
   autoBusyDuringEvents: true,

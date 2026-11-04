@@ -324,7 +324,7 @@ const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
 
   return {
     ...DEFAULT_WORKSPACE_SETTINGS,
-    theme: preferences.theme === 'dark' ? 'dark' : 'light',
+    theme: preferences.theme === 'light' ? 'light' : 'dark',
     accentColor: typeof preferences.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(preferences.accentColor)
       ? preferences.accentColor
       : DEFAULT_WORKSPACE_SETTINGS.accentColor,

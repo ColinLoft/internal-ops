@@ -178,6 +178,7 @@ html[data-theme='dark'] #root [class~='bg-orange-50'] {
 }
 
 html[data-theme='dark'] #root [class~='bg-[#f7f9fc]'],
+html[data-theme='dark'] #root [class~='bg-[#f4f7fb]'],
 html[data-theme='dark'] #root [class~='bg-[#f8fafc]'],
 html[data-theme='dark'] #root [class~='bg-[#eef2f6]'] {
   background-color: var(--surface-canvas);
@@ -330,3 +331,17 @@ html:not([data-theme='dark']) #root [class~='text-xs'].text-slate-300 { color: #
 html:not([data-theme='dark']) #root .border-slate-200 { border-color: rgb(226 232 240 / 0.8); }
 #root button, #root a, #root input, #root select, #root textarea { transition-property: color, background-color, border-color, box-shadow, opacity; transition-duration: 150ms; }
 #root button:active:not(:disabled) { opacity: 0.9; }
+
+/* Dark chrome: rail and top bar sit on near-black surfaces, with blue reserved for accents. */
+html[data-theme='dark'] #root > div > header,
+html[data-theme='dark'] #root header[class*='from-[#2569F5]'] {
+  background-image: none;
+  background-color: #0d1320;
+  border-bottom-color: var(--line);
+}
+html[data-theme='dark'] #root aside[class*='from-[#1a2850]'] {
+  background-image: none;
+  background-color: #0b101a;
+  border-right: 1px solid var(--line);
+}
+html[data-theme='dark'] #root header [class*='ring-[#2569F5]'] { --tw-ring-color: #0d1320; }
