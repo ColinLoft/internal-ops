@@ -46,16 +46,16 @@ export const TopBar: React.FC = () => {
   ];
 
   const unreadMessages = conversations.reduce((sum, item) => sum + (item.unreadCount || 0), 0);
-  const pill = 'flex h-8 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.06] hover:bg-white/10 px-2.5 text-xs font-medium text-slate-200 transition-colors shadow-2xs';
-  const iconBtn = 'relative flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors';
+  const pill = 'flex h-8 items-center gap-2 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 px-2.5 text-xs font-medium text-white transition-colors shadow-2xs';
+  const iconBtn = 'relative flex h-8 w-8 items-center justify-center rounded-lg text-white/85 hover:text-white hover:bg-white/15 transition-colors';
 
   const currentLabel = labelFor(activeTab, path);
 
   return (
-    <header className="flex-shrink-0 bg-[#0e121b] text-slate-200 border-b border-slate-800/60">
+    <header className="flex-shrink-0 bg-gradient-to-r from-[#2569F5] via-[#377bf7] to-[#5695FA] text-white border-b border-white/15">
       <div className="flex h-11 items-center justify-between gap-3 px-3 md:px-5">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs font-medium text-slate-200 truncate">
+          <span className="text-xs font-semibold text-white tracking-wide truncate">
             {currentLabel}
           </span>
         </div>
@@ -67,7 +67,7 @@ export const TopBar: React.FC = () => {
               aria-label="Quick add"
               aria-haspopup="menu"
               aria-expanded={isQuickOpen}
-              className="flex h-8 items-center gap-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 px-3 text-xs font-medium text-white shadow-xs transition-colors"
+              className="flex h-8 items-center gap-1.5 rounded-lg bg-white hover:bg-white/90 px-3 text-xs font-semibold text-[#2569F5] shadow-xs transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Quick Add</span>
@@ -78,7 +78,7 @@ export const TopBar: React.FC = () => {
                   const Icon = item.icon;
                   return (
                     <button key={item.label} type="button" role="menuitem" onClick={() => { item.run(); setIsQuickOpen(false); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-slate-50 transition-colors">
-                      <Icon className="h-4 w-4 text-brand-600" />
+                      <Icon className="h-4 w-4 text-[#2569F5]" />
                       <span><span className="block text-xs font-semibold text-slate-800">{item.label}</span><span className="block text-xs text-slate-500">{item.hint}</span></span>
                     </button>
                   );
@@ -88,12 +88,12 @@ export const TopBar: React.FC = () => {
           </div>
           <button type="button" onClick={() => setActiveTab('messages')} title={callSession.active ? `In a call · ${Math.floor(callSession.durationSeconds / 60)}:${(callSession.durationSeconds % 60).toString().padStart(2, '0')}` : 'Calls'} aria-label="Calls" className={iconBtn}>
             <Phone className="h-4 w-4" />
-            <span className={`absolute bottom-1 right-1 h-2 w-2 rounded-full ring-2 ring-[#0e121b] ${callSession.active ? 'animate-pulse bg-emerald-400' : 'bg-slate-500'}`} />
+            <span className={`absolute bottom-1 right-1 h-2 w-2 rounded-full ring-2 ring-[#2569F5] ${callSession.active ? 'animate-pulse bg-emerald-400' : 'bg-white/50'}`} />
           </button>
           <button type="button" onClick={() => setActiveTab('messages')} className={`${pill} hidden sm:flex`}>
-            <Inbox className="h-4 w-4 text-brand-300" />
+            <Inbox className="h-4 w-4 text-white" />
             Inbox
-            <span className="rounded-full bg-brand-600 px-1.5 py-0.2 text-[11px] font-bold leading-none text-white">{unreadMessages}</span>
+            <span className="rounded-full bg-white text-[#2569F5] px-1.5 py-0.2 text-[11px] font-bold leading-none">{unreadMessages}</span>
           </button>
           <div className="relative" ref={notificationsRef}>
             <button
@@ -103,17 +103,17 @@ export const TopBar: React.FC = () => {
               aria-haspopup="dialog"
               aria-expanded={isNotificationsOpen}
               title="Notifications"
-              className={`${iconBtn} ${isNotificationsOpen ? 'bg-white/10 text-white' : ''}`}
+              className={`${iconBtn} ${isNotificationsOpen ? 'bg-white/20 text-white' : ''}`}
             >
               <Bell className="h-4 w-4" />
               {unreadNotificationCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white ring-2 ring-[#0e121b]">
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white ring-2 ring-[#2569F5]">
                   {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
                 </span>
               )}
             </button>
             {isNotificationsOpen && (
-              <div className="absolute right-0 top-full z-50 mt-2">
+              <div className="absolute right-0 top-full z-50 mt-2 text-slate-800">
                 <NotificationCenter onClose={() => setIsNotificationsOpen(false)} />
               </div>
             )}
