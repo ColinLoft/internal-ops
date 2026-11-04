@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, Mail, FolderKanban, Code2, HardDrive, UsersRound, Building2, Settings, ChevronsRight, ChevronsUpDown, CircleHelp, LogOut, PanelLeftClose,
+  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, Mail, FolderKanban, Code2, HardDrive, UsersRound, Building2, Settings, ChevronsUpDown, CircleHelp, LogOut, PanelLeftClose,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAllAppAccess } from '../../lib/useAppAccess';
@@ -69,7 +69,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
   }, [routePath, activeTab]);
 
   useEffect(() => {
+    const toggle = () => setCollapsed((value) => !value);
+    window.addEventListener('flown-toggle-sidebar', toggle);
+    return () => window.removeEventListener('flown-toggle-sidebar', toggle);
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem('flown-sidebar-collapsed', collapsed ? '1' : '0');
+    window.dispatchEvent(new CustomEvent('flown-sidebar-state', { detail: collapsed }));
   }, [collapsed]);
 
   useEffect(() => {
@@ -112,7 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
   return (
     <aside
       aria-label="Primary navigation"
-      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-gradient-to-b from-[#2569F5] via-[#2f75f7] to-[#488af9] text-white border-r border-white/15 transition-all duration-200 md:static md:z-30 md:translate-x-0 ${collapsed ? 'md:w-16 md:[&>*:not(:first-child)]:hidden' : 'md:w-64'} w-72 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-gradient-to-b from-[#2569F5] via-[#2f75f7] to-[#488af9] text-white border-r border-white/15 transition-all duration-200 md:static md:z-30 md:translate-x-0 ${collapsed ? 'md:w-0 md:overflow-hidden md:border-r-0 md:invisible' : 'md:w-64'} w-72 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
     >
       <div className="flex items-center gap-2 p-3 pb-2.5">
         <button
@@ -129,7 +136,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/80 hover:bg-white/15 hover:text-white md:flex transition-colors"
         >
-          {collapsed ? <ChevronsRight className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          <PanelLeftClose className="h-4 w-4" />
         </button>
       </div>
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, Plus, MessageSquarePlus, MailPlus, CalendarPlus } from 'lucide-react';
+import { Bell, PanelLeft, Plus, MessageSquarePlus, MailPlus, CalendarPlus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { WorkspaceAssistant } from '../assistant/WorkspaceAssistant';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -54,6 +54,7 @@ export const TopBar: React.FC = () => {
     <header className="flex-shrink-0 bg-gradient-to-r from-[#2569F5] via-[#377bf7] to-[#5695FA] text-white border-b border-white/15">
       <div className="flex h-11 items-center justify-between gap-3 px-3 md:px-5">
         <div className="flex items-center gap-2 min-w-0">
+          <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('flown-toggle-sidebar'))} aria-label="Toggle sidebar" title="Toggle sidebar" className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/85 transition-colors hover:bg-white/15 hover:text-white md:flex"><PanelLeft className="h-4 w-4" /></button>
           <span className="text-xs font-semibold text-white tracking-wide truncate">
             {currentLabel}
           </span>
@@ -66,7 +67,7 @@ export const TopBar: React.FC = () => {
               aria-label="Quick add"
               aria-haspopup="menu"
               aria-expanded={isQuickOpen}
-              className="flex h-8 items-center gap-1.5 rounded-lg bg-white/20 hover:bg-white/30 px-3 text-xs font-semibold text-white ring-1 ring-white/30 transition-colors"
+              className="flex h-8 items-center gap-1.5 rounded-lg bg-[#8fbbff] hover:bg-[#a6caff] px-3 text-xs font-semibold text-[#0f2f73] transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Quick Add</span>
