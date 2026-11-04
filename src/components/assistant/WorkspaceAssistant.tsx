@@ -157,9 +157,9 @@ export const WorkspaceAssistant: React.FC<{ triggerClassName?: string }> = ({ tr
         onClick={() => setOpen(true)}
         aria-label="Open workspace AI assistant"
         title="Workspace AI assistant"
-        className={triggerClassName || 'flex h-8 w-8 items-center justify-center rounded-lg text-white hover:bg-white/15'}
+        className={triggerClassName || 'flex h-8 w-8 items-center justify-center rounded-lg bg-[#1746b8] text-white hover:bg-[#1c52d0]'}
       >
-        <Sparkles className="h-4 w-4" />
+        <Bot className="h-[18px] w-[18px]" />
       </button>
       {open && (
         <div className="fixed right-3 top-12 md:right-4 z-[80] flex h-[min(560px,calc(100dvh-4rem))] w-[calc(100vw-1.5rem)] max-w-[360px] md:w-[min(360px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-xl">

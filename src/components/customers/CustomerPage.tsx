@@ -19,7 +19,7 @@ const label = (v: string) => v.replace('_', ' ').replace(/^\w/, (c) => c.toUpper
 const viewFromPath = (path: string): View => {
   if (path.split('/')[1] === 'help') return 'support';
   const seg = path.split('/')[2];
-  return seg === 'contacts' || seg === 'organizations' || seg === 'pipeline' || seg === 'activity' || seg === 'support' ? seg : 'overview';
+  return seg === 'organizations' || seg === 'companies' ? 'organizations' : seg === 'support' ? 'support' : 'contacts';
 };
 const fmt = (d: string) => new Date(d).toLocaleDateString();
 const input = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400';
@@ -78,7 +78,7 @@ export const CustomerPage: React.FC = () => {
   const followUps = useMemo(() => items.filter((i) => i.follow_up_at && !i.follow_up_done).sort((a, b) => a.follow_up_at!.localeCompare(b.follow_up_at!)), [items]);
   const overdue = followUps.filter((i) => new Date(i.follow_up_at!) < today);
 
-  const tabs: [View, string][] = [['overview', 'Overview'], ['organizations', 'Customers'], ['pipeline', 'Pipeline'], ['contacts', 'Contacts'], ['activity', 'Interactions'], ['support', 'Support']];
+  const tabs: [View, string][] = [['organizations', 'Companies'], ['contacts', 'Contacts'], ['support', 'Support']];
   const go = (v: View) => { window.history.pushState({}, '', v === 'overview' ? '/customers' : `/customers/${v}`); setView(v); };
 
     const contactKey = (c: Contact) => [c.name, orgName(c.organization_id), c.role_title || '', c.email || '', c.phone || ''][contactSort.col].toLowerCase();
@@ -108,13 +108,9 @@ export const CustomerPage: React.FC = () => {
     </div>
   );
 
-  const addLabel = view === 'contacts' ? 'contact' : view === 'activity' ? 'interaction' : 'organization';
+  const addLabel = view === 'contacts' ? 'contact' : view === 'activity' ? 'interaction' : 'company';
 
-  const tabNav = (
-    <nav className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-white px-5 sm:px-8">
-      {tabs.map(([id, name]) => <button key={id} type="button" onClick={() => go(id)} className={`shrink-0 border-b-2 px-3 py-2 text-xs font-semibold ${view === id ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{name}</button>)}
-    </nav>
-  );
+  const tabNav = null;
 
   if (view === 'support') {
     return (

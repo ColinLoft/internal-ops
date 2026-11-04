@@ -23,7 +23,7 @@ const overviewItems: NavItem[] = [
   { id: 'insights', label: 'Insights', icon: Lightbulb },
 ];
 const appDropdowns: NavItem[] = [
-  { id: 'engineering', label: 'Engineering', icon: Code2 },
+  { id: 'engineering', label: 'Products', icon: Code2 },
   { id: 'customers', label: 'Customers', icon: UsersRound },
   { id: 'company', label: 'Company', icon: Building2 },
 ];
@@ -61,6 +61,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
+
+  const firstRoute = useRef(true);
+  useEffect(() => {
+    if (firstRoute.current) { firstRoute.current = false; return; }
+    setCollapsed(true);
+  }, [routePath]);
 
   useEffect(() => {
     localStorage.setItem('flown-sidebar-collapsed', collapsed ? '1' : '0');

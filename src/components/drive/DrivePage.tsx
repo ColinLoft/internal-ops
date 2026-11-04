@@ -396,7 +396,7 @@ export const DrivePage: React.FC = () => {
   return (
     <main className="flex min-w-0 flex-1 overflow-hidden bg-white/40">
       <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(event) => { const files = Array.from(event.target.files || []); void Promise.all(files.map(uploadFile)); event.target.value = ''; }} />
-      <aside className="hidden w-56 shrink-0 border-r border-slate-200/80 bg-white/65 p-4 lg:block">
+      <aside className="hidden w-56 shrink-0 flex-col border-r border-slate-200/80 bg-white/65 p-4 lg:flex">
         <NewMenu onFolder={() => setIsCreateOpen(true)} onUpload={() => fileInputRef.current?.click()} onCreate={(type, name) => void createItem(type, name)} />
         <nav className="mt-5 space-y-1">
           {[
@@ -409,11 +409,11 @@ export const DrivePage: React.FC = () => {
             return <button key={entry.label} type="button" onClick={entry.action} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-xs font-semibold ${entry.active ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100'}`}><Icon className="h-4 w-4" />{entry.label}</button>;
           })}
         </nav>
-        <div className="mt-8 rounded-xl border border-brand-100 bg-brand-50/70 p-3">
+        <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('workspace-assistant-request', { detail: { prompt: '' } }))} className="mt-auto rounded-xl border border-brand-100 bg-brand-50/70 p-3 text-left transition-colors hover:bg-brand-50">
           <Sparkles className="h-4 w-4 text-brand-600" />
           <p className="mt-2 text-xs font-bold text-slate-800">Drive AI</p>
           <p className="mt-1 text-xs leading-4 text-slate-500">Summarize, draft, and organize your workspace files.</p>
-        </div>
+        </button>
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">

@@ -212,9 +212,9 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
 
 const pathForTab = (tab: WorkspaceTab) => ({
   home: '/home',
-  customers: '/customers',
+  customers: '/customers/organizations',
   company: '/company/ideas',
-  engineering: '/engineering',
+  engineering: '/engineering/design',
   help: '/help',
   helpcenter: '/help-center',
   settings: '/settings',
@@ -2027,7 +2027,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       .then(({ error }) => { if (error) console.warn('Conversation details were not saved:', error.message); });
     void supabase
       .from('conversation_participants')
-      .upsert({ conversation_id: newId, user_id: currentUser.id }, { onConflict: 'conversation_id,user_id' })
+      .upsert({ conversation_id: newId, user_id: currentUser.id }, { onConflict: 'conversation_id,user_id', ignoreDuplicates: true })
       .then(async ({ error }) => {
         if (error) {
           console.error('Unable to persist conversation owner:', error);
@@ -2038,7 +2038,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           .from('conversation_participants')
           .upsert(
             participantIds.map((userId) => ({ conversation_id: newId, user_id: userId })),
-            { onConflict: 'conversation_id,user_id' },
+            { onConflict: 'conversation_id,user_id', ignoreDuplicates: true },
           );
         if (participantError) console.error('Unable to persist conversation participants:', participantError);
       });

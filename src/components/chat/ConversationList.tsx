@@ -5,7 +5,6 @@ import {
   Pin,
   CheckCheck,
   Users as UsersIcon,
-  UserPlus,
   Hash,
   Lock,
 } from 'lucide-react';
@@ -30,7 +29,6 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
     currentUser,
     togglePinConversation,
     setIsNewMessageOpen,
-    setIsAddTeammateOpen,
   } = useWorkspace();
 
   const [filterTab, setFilterTab] = useState<'all' | 'unread'>('all');
@@ -57,7 +55,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
   };
 
   const renderConversationItem = (conv: typeof conversations[0]) => {
-    const isActive = conv.id === activeConversationId;
+    const isActive = activeTab === 'messages' && conv.id === activeConversationId;
     const partner = getPartnerUser(conv);
 
     return (
@@ -188,13 +186,6 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
             <p className="text-[11px] text-slate-500 font-normal">Channels and direct messages</p>
           </div>
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => setIsAddTeammateOpen(true)}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-              title="Add Teammate / Invite Colleague"
-            >
-              <UserPlus className="w-4 h-4" />
-            </button>
             <button
               onClick={() => setIsNewMessageOpen(true)}
               className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"

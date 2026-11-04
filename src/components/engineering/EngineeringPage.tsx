@@ -13,7 +13,7 @@ type EngRecord = { id: string; record_type: SectionId; name: string; description
 type FieldDef = { key: string; label: string; options?: string[]; type?: 'url' | 'productRef' | 'text' };
 type SectionDef = { id: SectionId; label: string; icon: React.FC<{ className?: string }>; blurb: string; singular: string; statuses: string[]; doneStatuses: string[]; dateLabel: string; fields: FieldDef[] };
 
-const SECTIONS: SectionDef[] = [
+const ALL_SECTIONS: SectionDef[] = [
   { id: 'products', label: 'Products & Systems', icon: Layers3, singular: 'product', blurb: 'Products, assemblies and systems under development, with lifecycle stage and revision.', statuses: ['draft', 'active', 'on_hold', 'retired'], doneStatuses: ['retired'], dateLabel: 'Target release', fields: [{ key: 'version', label: 'Version / revision' }, { key: 'stage', label: 'Lifecycle stage', options: ['Concept', 'Prototype', 'Development', 'Production', 'End of life'] }] },
   { id: 'requirements', label: 'Requirements', icon: FileCheck2, singular: 'requirement', blurb: 'Traceable requirements with priority and verification method.', statuses: ['draft', 'approved', 'implemented', 'verified', 'rejected'], doneStatuses: ['verified', 'rejected'], dateLabel: 'Needed by', fields: [{ key: 'req_id', label: 'Requirement ID' }, { key: 'category', label: 'Category', options: ['Functional', 'Performance', 'Safety', 'Regulatory', 'Interface'] }, { key: 'priority', label: 'Priority', options: ['Must', 'Should', 'Could'] }, { key: 'verification', label: 'Verification method', options: ['Test', 'Inspection', 'Analysis', 'Demonstration'] }, { key: 'product_id', label: 'Product', type: 'productRef' }] },
   { id: 'design', label: 'Design Documentation', icon: BookOpen, singular: 'document', blurb: 'Specifications, architecture and design notes under revision control.', statuses: ['draft', 'in_review', 'approved', 'superseded'], doneStatuses: ['approved', 'superseded'], dateLabel: 'Review by', fields: [{ key: 'doc_type', label: 'Document type', options: ['Specification', 'Architecture', 'Schematic notes', 'Interface control', 'User manual', 'Datasheet'] }, { key: 'revision', label: 'Revision' }, { key: 'product_id', label: 'Product', type: 'productRef' }, { key: 'link', label: 'Document link', type: 'url' }] },
@@ -23,12 +23,15 @@ const SECTIONS: SectionDef[] = [
   { id: 'reviews', label: 'Technical Reviews', icon: ShieldCheck, singular: 'review', blurb: 'Design and safety reviews with outcomes and follow-up actions.', statuses: ['scheduled', 'completed', 'action_required', 'closed'], doneStatuses: ['completed', 'closed'], dateLabel: 'Review date', fields: [{ key: 'review_type', label: 'Review type', options: ['Peer review', 'Preliminary design', 'Critical design', 'Safety review', 'Release readiness'] }, { key: 'product_id', label: 'Product', type: 'productRef' }, { key: 'outcome', label: 'Outcome', options: ['Pending', 'Approved', 'Approved with actions', 'Rejected'] }, { key: 'attendees', label: 'Attendees' }] },
 ];
 
+const VISIBLE: SectionId[] = ['design', 'cad-pcb', 'testing', 'reviews'];
+const SECTIONS: SectionDef[] = ALL_SECTIONS.filter((section) => VISIBLE.includes(section.id)).map((section) => ({ ...section, fields: section.fields.filter((field) => field.type !== 'productRef') }));
+
 const bySection = (id: SectionId) => SECTIONS.find((section) => section.id === id) as SectionDef;
 const label = (value: string) => value.replace(/_/g, ' ').replace(/^./, (char) => char.toUpperCase());
 const today = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; };
 const tone = (status: string) => (['active', 'approved', 'verified', 'released', 'passed', 'implemented', 'completed', 'closed'].includes(status) ? 'bg-emerald-50 text-emerald-700' : ['failed', 'rejected', 'blocked', 'action_required'].includes(status) ? 'bg-rose-50 text-rose-700' : ['in_review', 'in_progress', 'submitted', 'scheduled', 'on_hold'].includes(status) ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600');
 const inputClass = 'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base outline-none focus:border-brand-400 md:text-xs';
-const viewFromPath = (path: string): EngineeringView => { const segment = path.split('/')[2]; return SECTIONS.some((section) => section.id === segment) ? segment as SectionId : 'overview'; };
+const viewFromPath = (path: string): EngineeringView => { const segment = path.split('/')[2]; return SECTIONS.some((section) => section.id === segment) ? segment as SectionId : 'design'; };
 
 export const EngineeringPage: React.FC = () => {
   const { currentUser, users } = useWorkspace();

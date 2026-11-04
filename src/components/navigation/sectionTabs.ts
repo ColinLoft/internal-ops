@@ -41,11 +41,8 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
       ];
     case 'customers':
       return [
-        tab('Overview', 'Overview', House, '/customers'),
-        tab('Contacts', 'Contacts', ContactRound, '/customers/contacts'),
-        tab('Customers', 'Customers', Building2, '/customers/organizations'),
-        tab('Pipeline', 'Pipeline', GitBranch, '/customers/pipeline'),
-        tab('Interactions', 'Activity', ListChecks, '/customers/activity'),
+        tab('Companies', 'Companies', Building2, '/customers/organizations', ['/customers/companies']),
+        tab('Contacts', 'Contacts', ContactRound, '/customers/contacts', ['/customers']),
         tab('Support', 'Support', Headset, '/customers/support', ['/help']),
       ];
     case 'company':
@@ -60,13 +57,9 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
       ];
     case 'engineering':
       return [
-        tab('Overview', 'Overview', House, '/engineering'),
-        tab('Products & Systems', 'Products', Layers3, '/engineering/products'),
-        tab('Requirements', 'Reqs', FileCheck2, '/engineering/requirements'),
         tab('Design Documentation', 'Design', BookOpen, '/engineering/design'),
         tab('CAD & PCB Records', 'CAD/PCB', Code2, '/engineering/cad-pcb'),
         tab('Testing & Validation', 'Testing', CheckCircle2, '/engineering/testing'),
-        tab('Engineering Changes', 'Changes', GitBranch, '/engineering/changes'),
         tab('Technical Reviews', 'Reviews', ShieldCheck, '/engineering/reviews'),
       ];
     default:

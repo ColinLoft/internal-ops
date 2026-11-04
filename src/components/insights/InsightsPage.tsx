@@ -1,3 +1,4 @@
+import { Dropdown } from '../common/Dropdown';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BarChart3, Download, FolderKanban, House, Landmark, Loader2, RefreshCw, Users } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -163,12 +164,8 @@ export const InsightsPage: React.FC = () => {
           <p className="text-sm text-slate-500">{current.description}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select value={section} onChange={(e) => choose(e.target.value as Section)} className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-base md:min-h-0 md:py-2 md:text-xs">
-            {sections.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-          </select>
-          <select value={range} onChange={(e) => setRange(e.target.value as Range)} aria-label="Period" className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-base md:min-h-0 md:py-2 md:text-xs">
-            {ranges.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-          </select>
+          <Dropdown value={section} options={sections} onChange={(value) => choose(value as Section)} ariaLabel="Section" className="min-w-36" />
+          <Dropdown value={range} options={ranges} onChange={(value) => setRange(value as Range)} ariaLabel="Period" className="min-w-32" />
           <button type="button" onClick={() => void load()} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 md:min-h-0 md:py-2"><RefreshCw size={14} />Refresh</button>
           <button type="button" onClick={exportCsv} disabled={loading} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-600 px-3 text-xs font-semibold text-white disabled:opacity-50 md:min-h-0 md:py-2"><Download size={14} />Export CSV</button>
         </div>

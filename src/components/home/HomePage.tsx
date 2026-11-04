@@ -138,12 +138,13 @@ export const HomePage: React.FC = () => {
   const unreadCount = notifications.filter((notification) => !notification.isRead).length;
   const kpis: { name: string; value: number | string; hint: string; icon: React.ElementType; text: string; tint: string; go: () => void }[] = [
     { name: 'Open tasks', value: myTasks.length, hint: 'Assigned to you', icon: ListChecks, text: 'text-brand-600', tint: 'bg-brand-50 text-brand-600', go: goTasks },
-    { name: 'Overdue', value: overdueTasks.length, hint: 'Past due date', icon: AlertTriangle, text: overdueTasks.length ? 'text-rose-600' : 'text-slate-700', tint: overdueTasks.length ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-500', go: goTasks },
+    { name: 'Overdue', value: overdueTasks.length, hint: 'Past due date', icon: AlertTriangle, text: overdueTasks.length ? 'text-rose-600' : 'text-brand-600', tint: overdueTasks.length ? 'bg-rose-50 text-rose-600' : 'bg-brand-50 text-brand-600', go: goTasks },
     { name: 'This week', value: upcoming.filter((event) => event.date <= weekEnd).length, hint: 'Meetings and events', icon: CalendarDays, text: 'text-brand-600', tint: 'bg-brand-50 text-brand-600', go: () => setActiveTab('calendar') },
-    { name: 'Unread', value: unreadCount, hint: 'Notifications', icon: Mail, text: unreadCount ? 'text-brand-600' : 'text-slate-700', tint: unreadCount ? 'bg-brand-50 text-brand-600' : 'bg-slate-100 text-slate-500', go: () => setActiveTab('messages') },
-    { name: 'Open support', value: openSupport ?? '—', hint: 'Customer conversations', icon: Headset, text: 'text-teal-600', tint: 'bg-teal-50 text-teal-600', go: () => setActiveTab('customers') },
+    { name: 'Unread', value: unreadCount, hint: 'Notifications', icon: Mail, text: 'text-brand-600', tint: 'bg-brand-50 text-brand-600', go: () => setActiveTab('messages') },
+    { name: 'Open tickets', value: openSupport ?? '—', hint: 'Customer conversations', icon: Headset, text: 'text-brand-600', tint: 'bg-brand-50 text-brand-600', go: () => setActiveTab('customers') },
   ];
 
+  const heroBtn = 'inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100';
   const row = 'flex w-full items-center gap-2.5 rounded-lg px-2 py-1 text-left transition-colors duration-150 hover:bg-slate-50';
   const body = (id: WidgetId): React.ReactNode => {
     switch (id) {
@@ -244,12 +245,12 @@ export const HomePage: React.FC = () => {
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f4f7fb]">
       <div className="mx-auto max-w-7xl space-y-3 px-4 py-3 sm:px-6">
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-brand-700 via-brand-600 to-brand-500/90 px-5 py-3 text-white">
-          <div><h1 className="text-lg font-bold tracking-tight">{greeting}, {firstName}. <span className="ml-1 text-xs font-medium text-white/70">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</span></h1><p className="text-xs text-white/80">{overdueTasks.length ? `${overdueTasks.length} overdue task${overdueTasks.length === 1 ? '' : 's'} need attention.` : 'Here is what is on your plate today.'}</p></div>
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-white px-4 py-3">
+          <div className="min-w-0"><h1 className="text-lg font-bold tracking-tight text-slate-900">{greeting}, {firstName}</h1><p className="text-xs text-slate-500">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} · {overdueTasks.length ? `${overdueTasks.length} overdue task${overdueTasks.length === 1 ? '' : 's'} need attention` : 'Nothing overdue'}</p></div>
           <div className="flex gap-2">
-            <button type="button" onClick={() => setActiveTab('calendar')} className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-brand-700 hover:bg-brand-50"><CalendarDays className="h-3.5 w-3.5" />Calendar</button>
-            <button type="button" onClick={() => setActiveTab('drive')} className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-1.5 text-xs font-bold text-white ring-1 ring-white/30 hover:bg-white/20"><FolderOpen className="h-3.5 w-3.5" />Drive</button>
-            <button type="button" onClick={() => setEditing((value) => !value)} aria-pressed={editing} className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-1.5 text-xs font-bold text-white ring-1 ring-white/30 hover:bg-white/20"><Settings2 className="h-3.5 w-3.5" />{editing ? 'Done' : 'Customize'}</button>
+            <button type="button" onClick={() => setActiveTab('calendar')} className={heroBtn}><CalendarDays className="h-3.5 w-3.5" />Calendar</button>
+            <button type="button" onClick={() => setActiveTab('drive')} className={heroBtn}><FolderOpen className="h-3.5 w-3.5" />Drive</button>
+            <button type="button" onClick={() => setEditing((value) => !value)} aria-pressed={editing} className={heroBtn}><Settings2 className="h-3.5 w-3.5" />{editing ? 'Done' : 'Customize'}</button>
           </div>
         </section>
 

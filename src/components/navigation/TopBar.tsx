@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, Phone, Mail, Plus, MessageSquarePlus, MailPlus, CalendarPlus } from 'lucide-react';
+import { Bell, Mail, Plus, MessageSquarePlus, MailPlus, CalendarPlus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { WorkspaceAssistant } from '../assistant/WorkspaceAssistant';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -8,12 +8,12 @@ import { getSectionTabs, isSectionSelected } from './sectionTabs';
 
 export const appLabels: Record<string, string> = {
   home: 'Home', messages: 'Messages', channels: 'Channels', calendar: 'Calendar', inbox: 'Email', drive: 'Drive',
-  engineering: 'Engineering', company: 'Company', customers: 'Customers',
+  engineering: 'Products', company: 'Company', customers: 'Customers',
   programs: 'Projects & Tasks', admin: 'Settings', settings: 'Settings', help: 'Support', helpcenter: 'Help Center', insights: 'Insights'
 };
 
 export const TopBar: React.FC = () => {
-  const { activeTab, setActiveTab, unreadNotificationCount, callSession, setIsNewMessageOpen, setIsAddEventOpen, requestEmailCompose, workspaceSettings, currentUser } = useWorkspace();
+  const { activeTab, setActiveTab, unreadNotificationCount, setIsNewMessageOpen, setIsAddEventOpen, requestEmailCompose, workspaceSettings, currentUser } = useWorkspace();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isQuickOpen, setIsQuickOpen] = useState(false);
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
@@ -80,7 +80,7 @@ export const TopBar: React.FC = () => {
               aria-label="Quick add"
               aria-haspopup="menu"
               aria-expanded={isQuickOpen}
-              className="flex h-8 items-center gap-1.5 rounded-lg bg-white hover:bg-white/90 px-3 text-xs font-semibold text-[#2569F5] shadow-xs transition-colors"
+              className="flex h-8 items-center gap-1.5 rounded-lg bg-white/20 hover:bg-white/30 px-3 text-xs font-semibold text-white ring-1 ring-white/30 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Quick Add</span>
@@ -99,15 +99,11 @@ export const TopBar: React.FC = () => {
               </div>
             )}
           </div>
-          <button type="button" onClick={() => setActiveTab('messages')} title={callSession.active ? `In a call · ${Math.floor(callSession.durationSeconds / 60)}:${(callSession.durationSeconds % 60).toString().padStart(2, '0')}` : 'Calls'} aria-label="Calls" className={iconBtn}>
-            <Phone className="h-4 w-4" />
-            <span className={`absolute bottom-1 right-1 h-2 w-2 rounded-full ring-2 ring-[#2569F5] ${callSession.active ? 'animate-pulse bg-emerald-400' : 'bg-white/50'}`} />
-          </button>
           <button type="button" onClick={() => setActiveTab('inbox')} title={unreadEmails ? `${unreadEmails} unread emails` : 'Email'} aria-label={`Email${unreadEmails ? `, ${unreadEmails} unread` : ''}`} className={iconBtn}>
             <Mail className="h-4 w-4" />
             {unreadEmails > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white ring-2 ring-[#2569F5]">{unreadEmails > 99 ? '99+' : unreadEmails}</span>}
           </button>
-          {workspaceSettings.aiAssistantEnabled && <WorkspaceAssistant triggerClassName={iconBtn} />}
+          {workspaceSettings.aiAssistantEnabled && <WorkspaceAssistant triggerClassName="relative flex h-8 w-8 items-center justify-center rounded-lg bg-[#1746b8] text-white ring-1 ring-white/20 hover:bg-[#1c52d0] transition-colors" />}
           <div className="relative" ref={notificationsRef}>
             <button
               type="button"
