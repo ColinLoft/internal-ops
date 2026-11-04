@@ -6,8 +6,6 @@ import {
   CheckCheck,
   Users as UsersIcon,
   UserPlus,
-  Hash,
-  Lock,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
@@ -18,14 +16,12 @@ interface ConversationListProps {
 export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) => {
   const {
     conversations,
-    channels,
     activeTab,
     activeChannelId,
     activeConversationId,
     setActiveTab,
     setActiveConversationId,
     setActiveChannelId,
-    setIsCreateChannelOpen,
     users,
     currentUser,
     togglePinConversation,
@@ -154,38 +150,14 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
     );
   };
 
-  const renderChannelItem = (channel: typeof channels[0]) => {
-    const isActive = activeTab === 'channels' && channel.id === activeChannelId;
-    return (
-      <button
-        key={channel.id}
-        type="button"
-        onClick={() => {
-          setActiveChannelId(channel.id);
-          setActiveTab('channels');
-          onSelect?.();
-        }}
-        className={`group flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-          isActive ? 'bg-brand-50/90 text-brand-900 font-medium ring-1 ring-brand-200/50' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-        }`}
-      >
-        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${isActive ? 'text-brand-700 bg-brand-100/60' : 'text-slate-400 group-hover:text-slate-600'}`}>
-          {channel.isPrivate ? <Lock className="h-3.5 w-3.5" /> : <Hash className="h-3.5 w-3.5" />}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-xs">{channel.name}</span>
-        {channel.unreadCount > 0 && <span className="rounded-full bg-brand-600 px-1.5 py-0.2 text-[11px] font-bold text-white">{channel.unreadCount}</span>}
-      </button>
-    );
-  };
-
   return (
     <div data-onboarding-target="conversation-list" className="w-full md:w-80 h-full bg-white border-r border-slate-200/70 flex flex-col flex-shrink-0">
       {/* Top Header */}
       <div className="p-3.5 pb-2 border-b border-slate-100">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-base font-semibold text-slate-900 tracking-tight">Communications</h2>
-            <p className="text-[11px] text-slate-500 font-normal">Channels and direct messages</p>
+            <h2 className="text-base font-semibold text-slate-900 tracking-tight">Messages</h2>
+            <p className="text-[11px] text-slate-500 font-normal">Direct and group conversations</p>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -243,15 +215,6 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
       </div>
 
       <div className="flex-1 overflow-y-auto px-2.5 py-2 [scrollbar-width:none]">
-        <div className="mb-3">
-          <div className="mb-1.5 flex items-center justify-between px-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Channels</p>
-            <button type="button" onClick={() => setIsCreateChannelOpen(true)} className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors" title="Create channel">
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          <div className="space-y-0.5">{channels.map(renderChannelItem)}</div>
-        </div>
         <div className="mb-1.5 flex items-center justify-between px-2 pt-2">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Direct messages</p>
           <button type="button" onClick={() => setIsNewMessageOpen(true)} className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors" title="Start direct message">

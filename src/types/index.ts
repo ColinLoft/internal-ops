@@ -75,6 +75,13 @@ export interface WorkspaceSettings {
   noiseSuppression: boolean;
   aiAssistantEnabled: boolean;
   aiSuggestedReplies: boolean;
+  fontSize: 'small' | 'default' | 'large';
+  reduceMotion: boolean;
+  keyboardShortcuts: boolean;
+  notifyMessages: boolean;
+  notifyMentions: boolean;
+  notifyCalendar: boolean;
+  notifyAnnouncements: boolean;
 }
 
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
@@ -89,6 +96,13 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   noiseSuppression: true,
   aiAssistantEnabled: true,
   aiSuggestedReplies: true,
+  fontSize: 'default',
+  reduceMotion: false,
+  keyboardShortcuts: true,
+  notifyMessages: true,
+  notifyMentions: true,
+  notifyCalendar: true,
+  notifyAnnouncements: true,
 };
 
 export interface Attachment {

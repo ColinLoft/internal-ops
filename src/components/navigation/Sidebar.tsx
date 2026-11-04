@@ -17,7 +17,6 @@ type NavItem = { id: Tab; label: string; icon: React.ComponentType<{ className?:
 const overviewItems: NavItem[] = [
   { id: 'home', label: 'Home', icon: House },
   { id: 'messages', label: 'Messages', icon: MessageSquare },
-  { id: 'channels', label: 'Channels', icon: Hash },
   { id: 'inbox', label: 'Email', icon: Mail },
   { id: 'calendar', label: 'Calendar', icon: CalendarIcon },
   { id: 'drive', label: 'Drive', icon: HardDrive },
@@ -118,7 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
           title="Flown home"
           className={`h-10 min-w-0 flex-1 items-center justify-start px-2 rounded-lg hover:bg-white/10 transition-colors ${collapsed ? 'flex md:hidden' : 'flex'}`}
         >
-          <img src="/flown-logo.png" alt="Flown" className="h-6 w-auto max-w-none shrink-0 brightness-0 invert opacity-95" />
+          <img src="/flown-logo.png" alt="Flown" className="h-8 w-auto max-w-none shrink-0 brightness-0 invert opacity-95" />
         </button>
         <button
           type="button"

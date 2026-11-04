@@ -339,9 +339,95 @@ html[data-theme='dark'] #root header[class*='from-[#2569F5]'] {
   background-color: #0d1320;
   border-bottom-color: var(--line);
 }
-html[data-theme='dark'] #root aside[class*='from-[#1a2850]'] {
+html[data-theme='dark'] #root aside[aria-label='Primary navigation'] {
   background-image: none;
   background-color: #0b101a;
   border-right: 1px solid var(--line);
 }
 html[data-theme='dark'] #root header [class*='ring-[#2569F5]'] { --tw-ring-color: #0d1320; }
+
+/* Dark mode catch-all: any opacity variant of a light surface/text/border maps to the same token. */
+html[data-theme='dark'] #root [class^='bg-white/4'],
+html[data-theme='dark'] #root [class*=' bg-white/4'],
+html[data-theme='dark'] #root [class^='bg-white/5'],
+html[data-theme='dark'] #root [class*=' bg-white/5'],
+html[data-theme='dark'] #root [class^='bg-white/6'],
+html[data-theme='dark'] #root [class*=' bg-white/6'],
+html[data-theme='dark'] #root [class^='bg-white/7'],
+html[data-theme='dark'] #root [class*=' bg-white/7'],
+html[data-theme='dark'] #root [class^='bg-white/8'],
+html[data-theme='dark'] #root [class*=' bg-white/8'],
+html[data-theme='dark'] #root [class^='bg-white/9'],
+html[data-theme='dark'] #root [class*=' bg-white/9'],
+html[data-theme='dark'] #root [class^='bg-slate-50/'],
+html[data-theme='dark'] #root [class*=' bg-slate-50/'],
+html[data-theme='dark'] #root [class^='bg-slate-100/'],
+html[data-theme='dark'] #root [class*=' bg-slate-100/'] {
+  background-color: var(--surface-raised);
+}
+html[data-theme='dark'] #root [class^='bg-brand-50/'],
+html[data-theme='dark'] #root [class*=' bg-brand-50/'],
+html[data-theme='dark'] #root [class^='bg-brand-100/'],
+html[data-theme='dark'] #root [class*=' bg-brand-100/'] {
+  background-color: var(--surface-tint);
+}
+html[data-theme='dark'] #root [class*='bg-[#fafbfc]'],
+html[data-theme='dark'] #root [class*='bg-[linear-gradient'] {
+  background-image: none;
+  background-color: var(--surface-canvas);
+}
+html[data-theme='dark'] #root [class*='bg-[radial-gradient'] { background-image: radial-gradient(#263246 1px, transparent 1px); }
+html[data-theme='dark'] #root [class^='border-slate-50/'],
+html[data-theme='dark'] #root [class*=' border-slate-50/'],
+html[data-theme='dark'] #root [class^='border-slate-100/'],
+html[data-theme='dark'] #root [class*=' border-slate-100/'],
+html[data-theme='dark'] #root [class^='border-slate-200/'],
+html[data-theme='dark'] #root [class*=' border-slate-200/'],
+html[data-theme='dark'] #root [class^='border-slate-300/'],
+html[data-theme='dark'] #root [class*=' border-slate-300/'],
+html[data-theme='dark'] #root [class^='border-white'],
+html[data-theme='dark'] #root [class*=' border-white'] {
+  border-color: var(--line);
+}
+html[data-theme='dark'] #root [class^='border-brand-100/'],
+html[data-theme='dark'] #root [class*=' border-brand-100/'],
+html[data-theme='dark'] #root [class^='border-brand-200/'],
+html[data-theme='dark'] #root [class*=' border-brand-200/'] {
+  border-color: var(--line-brand);
+}
+html[data-theme='dark'] #root [class^='ring-slate-'],
+html[data-theme='dark'] #root [class*=' ring-slate-'],
+html[data-theme='dark'] #root [class^='ring-white'],
+html[data-theme='dark'] #root [class*=' ring-white'] {
+  --tw-ring-color: var(--line);
+}
+html[data-theme='dark'] #root [class^='ring-brand-100'],
+html[data-theme='dark'] #root [class*=' ring-brand-100'],
+html[data-theme='dark'] #root [class^='ring-brand-200'],
+html[data-theme='dark'] #root [class*=' ring-brand-200'] {
+  --tw-ring-color: var(--line-brand);
+}
+html[data-theme='dark'] #root [class~='text-slate-200'] { color: var(--text-body); }
+html[data-theme='dark'] #root [class~='text-brand-500'] { color: rgb(var(--brand-400)); }
+html[data-theme='dark'] #root [class~='bg-violet-50'] { background-color: #1e1838; }
+html[data-theme='dark'] #root [class~='bg-blue-50'] { background-color: var(--surface-tint); }
+html[data-theme='dark'] #root [class~='text-violet-700'],
+html[data-theme='dark'] #root [class~='text-violet-800'],
+html[data-theme='dark'] #root [class~='text-blue-700'] { color: #c4b5fd; }
+
+/* Content that mimics paper stays light so authored colors remain legible. */
+html[data-theme='dark'] #root .email-body,
+html[data-theme='dark'] #root .doc-page {
+  background-color: #ffffff;
+  color: #1f2937;
+}
+html[data-theme='dark'] #root .doc-page [class] { color: inherit; }
+
+html[data-motion='reduced'] *,
+html[data-motion='reduced'] *::before,
+html[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

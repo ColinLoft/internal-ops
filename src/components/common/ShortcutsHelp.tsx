@@ -5,7 +5,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 type Tab = Parameters<ReturnType<typeof useWorkspace>['setActiveTab']>[0];
 
 const GO: Record<string, [Tab, string]> = {
-  h: ['home', 'Home'], m: ['messages', 'Messages'], c: ['channels', 'Channels'], k: ['calendar', 'Calendar'], e: ['inbox', 'Email'],
+  h: ['home', 'Home'], m: ['messages', 'Messages'], k: ['calendar', 'Calendar'], e: ['inbox', 'Email'],
   d: ['drive', 'Drive'], t: ['programs', 'Projects & tasks'], u: ['customers', 'Customers'], g: ['finance', 'Grants'], s: ['settings', 'Settings'],
 };
 
@@ -16,11 +16,13 @@ const typing = (target: EventTarget | null) => {
 
 /** Global keyboard shortcuts: "g" then a letter to jump, "n" then "t" for a new task, "?" for help. */
 export const ShortcutsHelp: React.FC = () => {
-  const { setActiveTab } = useWorkspace();
+  const { setActiveTab, workspaceSettings } = useWorkspace();
+  const enabled = workspaceSettings.keyboardShortcuts;
   const [open, setOpen] = useState(false);
   const pending = useRef<{ key: string; at: number } | null>(null);
 
   useEffect(() => {
+    if (!enabled) return undefined;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { setOpen(false); return; }
       if (event.metaKey || event.ctrlKey || event.altKey || typing(event.target)) return;
@@ -39,7 +41,7 @@ export const ShortcutsHelp: React.FC = () => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setActiveTab]);
+  }, [setActiveTab, enabled]);
 
   if (!open) return null;
   const kbd = 'rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] text-slate-600';

@@ -27,7 +27,7 @@ const getAssistantErrorMessage = async (error: Error) => {
   return error.message || 'The assistant could not respond.';
 };
 
-export const WorkspaceAssistant: React.FC = () => {
+export const WorkspaceAssistant: React.FC<{ triggerClassName?: string }> = ({ triggerClassName }) => {
   const {
     activeTab,
     activeChannelId,
@@ -157,12 +157,12 @@ export const WorkspaceAssistant: React.FC = () => {
         onClick={() => setOpen(true)}
         aria-label="Open workspace AI assistant"
         title="Workspace AI assistant"
-        className="fixed bottom-[4.5rem] right-4 md:bottom-4 z-[70] flex h-10 w-10 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg ring-4 ring-white/80 transition hover:bg-brand-700"
+        className={triggerClassName || 'flex h-8 w-8 items-center justify-center rounded-lg text-white hover:bg-white/15'}
       >
         <Sparkles className="h-4 w-4" />
       </button>
       {open && (
-        <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-3 md:right-4 md:bottom-4 z-[80] flex h-[min(500px,calc(100dvh-10rem))] w-[calc(100vw-1.5rem)] max-w-[340px] md:h-[min(500px,calc(100vh-6.5rem))] md:w-[min(340px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+        <div className="fixed right-3 top-12 md:right-4 z-[80] flex h-[min(560px,calc(100dvh-4rem))] w-[calc(100vw-1.5rem)] max-w-[360px] md:w-[min(360px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-xl">
           <header className="flex items-center gap-2.5 border-b border-slate-100 bg-gradient-to-r from-brand-600 to-brand-600 px-3 py-2.5 text-white">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15"><Bot className="h-4 w-4" /></div>
             <div className="min-w-0 flex-1">

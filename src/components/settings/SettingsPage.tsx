@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, Check, KeyRound, Loader2, LogOut, Palette, Phone, Play, Save, ShieldCheck, Sparkles, UserRound, Users } from 'lucide-react';
+import { Bell, Check, Download, KeyRound, Loader2, LogOut, Moon, Palette, Phone, Play, Save, ShieldCheck, SlidersHorizontal, Sparkles, Sun, UserRound, Users } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { RINGTONES, WorkspaceSettings } from '../../types';
 import { sounds } from '../../lib/sound';
 import { AdminPage } from '../admin/AdminPage';
 
-type Section = 'profile' | 'appearance' | 'notifications' | 'calls' | 'ai' | 'security' | 'admin';
+type Section = 'profile' | 'general' | 'appearance' | 'notifications' | 'calls' | 'ai' | 'security' | 'privacy' | 'admin';
+
+const ACCENTS = [['#2569F5', 'Blue'], ['#0EA5E9', 'Sky'], ['#14B8A6', 'Teal'], ['#8B5CF6', 'Violet'], ['#EC4899', 'Pink'], ['#F59E0B', 'Amber']];
 
 const card = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm';
 const input = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-brand-500';
@@ -65,6 +67,14 @@ export const SettingsPage: React.FC = () => {
     else { setPassword(''); setConfirm(''); setSecMsg({ ok: true, text: 'Password updated.' }); }
   };
 
+  const exportData = () => {
+    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), profile: { id: currentUser.id, name: currentUser.name, email: currentUser.email, role: currentUser.role, department: currentUser.department, phone: currentUser.phone, location: currentUser.location, systemRole: currentUser.systemRole }, settings: workspaceSettings }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = 'flown-profile-data.json'; link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const signOutOthers = async () => {
     setSecBusy(true); setSecMsg(null);
     const { error } = await supabase.auth.signOut({ scope: 'others' });
@@ -74,17 +84,19 @@ export const SettingsPage: React.FC = () => {
 
   const nav: { id: Section; label: string; icon: React.ElementType }[] = [
     { id: 'profile', label: 'Profile', icon: UserRound },
+    { id: 'general', label: 'General', icon: SlidersHorizontal },
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'calls', label: 'Calls & devices', icon: Phone },
     { id: 'ai', label: 'AI', icon: Sparkles },
     { id: 'security', label: 'Security', icon: ShieldCheck },
+    { id: 'privacy', label: 'Privacy & data', icon: Download },
     ...(isAdmin ? [{ id: 'admin' as Section, label: 'Administration', icon: Users }] : []),
   ];
 
   const audioInputs = devices.filter((device) => device.kind === 'audioinput');
   const videoInputs = devices.filter((device) => device.kind === 'videoinput');
-  const prefsSection = section !== 'profile' && section !== 'security' && section !== 'admin';
+  const prefsSection = section !== 'profile' && section !== 'security' && section !== 'privacy' && section !== 'admin';
 
   return (
     <main className="flex-1 overflow-y-auto">
@@ -124,21 +136,54 @@ export const SettingsPage: React.FC = () => {
               </section>
             )}
 
+            {section === 'general' && (
+              <section className={`${card} divide-y divide-slate-100`}>
+                <h2 className="pb-1 text-lg font-bold text-slate-900">General</h2>
+                <p className="pb-3 text-sm text-slate-500">How Flown behaves day to day.</p>
+                <Toggle label="Keyboard shortcuts" description="Enable “g” then a letter to jump between apps, “n” then “t” for a new task, and “?” for the full list." checked={draft.keyboardShortcuts} onChange={(value) => update('keyboardShortcuts', value)} />
+                <Toggle label="Notification sounds" description="Play a subtle sound when notifications arrive." checked={soundEnabled} onChange={() => toggleSound()} />
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <span><span className="block text-sm font-semibold text-slate-800">Reset home dashboard</span><span className="mt-0.5 block text-xs text-slate-500">Restore the default widgets and their order.</span></span>
+                  <button type="button" onClick={() => { localStorage.removeItem('flown-home-widgets-v2'); setSecMsg({ ok: true, text: 'Home dashboard reset.' }); }} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Reset</button>
+                </div>
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <span><span className="block text-sm font-semibold text-slate-800">Clear saved view preferences</span><span className="mt-0.5 block text-xs text-slate-500">Forget panel sizes, task views, filters and open tabs on this device.</span></span>
+                  <button type="button" onClick={() => { Object.keys(localStorage).filter((key) => key.startsWith('flown-')).forEach((key) => localStorage.removeItem(key)); setSecMsg({ ok: true, text: 'Saved view preferences cleared. Reload to see defaults.' }); }} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Clear</button>
+                </div>
+                {secMsg && <p role="status" className={`pt-3 text-xs ${secMsg.ok ? 'text-emerald-600' : 'text-rose-600'}`}>{secMsg.text}</p>}
+              </section>
+            )}
+
             {section === 'appearance' && (
               <section className={card}>
                 <h2 className="text-lg font-bold text-slate-900">Appearance</h2>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Theme</span>
-                    <select value={draft.theme} onChange={(event) => update('theme', event.target.value as WorkspaceSettings['theme'])} className={input}>
-                      <option value="light">Light</option><option value="dark">Dark</option>
-                    </select>
-                  </label>
-                  <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Accent color</span>
-                    <div className="flex items-center gap-2">
-                      <input type="color" value={draft.accentColor} onChange={(event) => update('accentColor', event.target.value)} aria-label="Accent color" className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" />
-                      <span className="font-mono text-xs text-slate-500">{draft.accentColor.toUpperCase()}</span>
-                    </div>
-                  </label>
+                <h3 className="mt-5 text-xs font-bold uppercase tracking-wide text-slate-400">Theme</h3>
+                <div className="mt-2 grid grid-cols-2 gap-3 sm:max-w-md">
+                  {([['dark', 'Dark', Moon], ['light', 'Light', Sun]] as const).map(([value, name, Icon]) => (
+                    <button key={value} type="button" aria-pressed={draft.theme === value} onClick={() => update('theme', value)} className={`rounded-xl border p-3 text-left ${draft.theme === value ? 'border-brand-400 ring-1 ring-brand-300' : 'border-slate-200 hover:border-slate-300'}`}>
+                      <span className={`mb-2 flex h-14 items-end gap-1 rounded-lg p-1.5 ${value === 'dark' ? 'bg-[#0a0e15]' : 'bg-slate-100'}`}><span className="h-full w-4 rounded bg-brand-500" /><span className={`h-8 flex-1 rounded ${value === 'dark' ? 'bg-slate-700' : 'bg-slate-300'}`} /></span>
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-800"><Icon className="h-3.5 w-3.5" />{name}</span>
+                    </button>
+                  ))}
+                </div>
+                <h3 className="mt-6 text-xs font-bold uppercase tracking-wide text-slate-400">Accent color</h3>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {ACCENTS.map(([color, name]) => (
+                    <button key={color} type="button" title={name} aria-label={`${name} accent`} aria-pressed={draft.accentColor.toLowerCase() === color.toLowerCase()} onClick={() => update('accentColor', color)} style={{ backgroundColor: color }} className={`flex h-8 w-8 items-center justify-center rounded-full ring-offset-2 ring-offset-transparent ${draft.accentColor.toLowerCase() === color.toLowerCase() ? 'ring-2 ring-slate-400' : ''}`}>
+                      {draft.accentColor.toLowerCase() === color.toLowerCase() && <Check className="h-4 w-4 text-white" />}
+                    </button>
+                  ))}
+                  <input type="color" value={draft.accentColor} onChange={(event) => update('accentColor', event.target.value)} aria-label="Custom accent color" className="h-8 w-10 cursor-pointer rounded-lg border border-slate-200 bg-white p-0.5" />
+                  <span className="font-mono text-xs text-slate-500">{draft.accentColor.toUpperCase()}</span>
+                </div>
+                <h3 className="mt-6 text-xs font-bold uppercase tracking-wide text-slate-400">Text size</h3>
+                <div className="mt-2 inline-flex rounded-xl border border-slate-200 p-0.5">
+                  {(['small', 'default', 'large'] as const).map((size) => (
+                    <button key={size} type="button" aria-pressed={draft.fontSize === size} onClick={() => update('fontSize', size)} className={`rounded-lg px-4 py-1.5 text-xs font-semibold capitalize ${draft.fontSize === size ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>{size}</button>
+                  ))}
+                </div>
+                <div className="mt-4 divide-y divide-slate-100">
+                  <Toggle label="Reduce motion" description="Turn off animations and transitions." checked={draft.reduceMotion} onChange={(value) => update('reduceMotion', value)} />
                 </div>
               </section>
             )}
@@ -147,6 +192,10 @@ export const SettingsPage: React.FC = () => {
               <section className={`${card} divide-y divide-slate-100`}>
                 <h2 className="pb-3 text-lg font-bold text-slate-900">Notifications &amp; availability</h2>
                 <Toggle label="Notification sounds" description="Play a subtle sound when notifications arrive." checked={soundEnabled} onChange={() => toggleSound()} />
+                <Toggle label="Messages" description="Show notifications for new direct and group messages." checked={draft.notifyMessages} onChange={(value) => update('notifyMessages', value)} />
+                <Toggle label="Mentions" description="Show notifications when someone mentions you." checked={draft.notifyMentions} onChange={(value) => update('notifyMentions', value)} />
+                <Toggle label="Calendar" description="Show reminders and invitations from the calendar." checked={draft.notifyCalendar} onChange={(value) => update('notifyCalendar', value)} />
+                <Toggle label="Announcements" description="Show workspace-wide announcements." checked={draft.notifyAnnouncements} onChange={(value) => update('notifyAnnouncements', value)} />
                 <Toggle label="Busy while in a call" description="Switch to Busy during a call, then restore your previous status." checked={draft.autoBusyInCalls} onChange={(value) => update('autoBusyInCalls', value)} />
                 <Toggle label="Busy during calendar events" description="Switch to Busy during today's scheduled events, then restore your status." checked={draft.autoBusyDuringEvents} onChange={(value) => update('autoBusyDuringEvents', value)} />
               </section>
@@ -193,7 +242,7 @@ export const SettingsPage: React.FC = () => {
               <section className={`${card} divide-y divide-slate-100`}>
                 <h2 className="pb-1 text-lg font-bold text-slate-900">AI features</h2>
                 <p className="pb-3 text-sm text-slate-500">AI runs on the organization's Azure OpenAI deployment. Content is only sent when you use an AI feature.</p>
-                <Toggle label="Workspace AI assistant" description="Show the floating AI assistant button." checked={draft.aiAssistantEnabled} onChange={(value) => update('aiAssistantEnabled', value)} />
+                <Toggle label="Workspace AI assistant" description="Show the AI assistant button in the top bar." checked={draft.aiAssistantEnabled} onChange={(value) => update('aiAssistantEnabled', value)} />
                 <Toggle label="Suggested replies" description="Show “Suggest reply” when answering customer messages." checked={draft.aiSuggestedReplies} onChange={(value) => update('aiSuggestedReplies', value)} />
               </section>
             )}
@@ -215,6 +264,17 @@ export const SettingsPage: React.FC = () => {
                 </section>
                 {secMsg && <p role="status" className={`text-sm ${secMsg.ok ? 'text-emerald-600' : 'text-rose-600'}`}>{secMsg.text}</p>}
               </>
+            )}
+
+            {section === 'privacy' && (
+              <section className={card}>
+                <h2 className="text-lg font-bold text-slate-900">Privacy &amp; data</h2>
+                <p className="mt-1 text-sm text-slate-500">Your profile and preferences are stored in your organization's Supabase project. Message and file content is governed by your organization's policies.</p>
+                <div className="mt-5 flex items-center justify-between gap-4 rounded-xl border border-slate-200 p-4">
+                  <span><span className="block text-sm font-semibold text-slate-800">Download my profile data</span><span className="mt-0.5 block text-xs text-slate-500">A JSON file with your profile details and personal settings.</span></span>
+                  <button type="button" onClick={exportData} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"><Download className="h-3.5 w-3.5" />Download</button>
+                </div>
+              </section>
             )}
 
             {section === 'admin' && isAdmin && <div className="-mx-5 -mt-5 sm:-mx-8 lg:-mx-10"><AdminPage /></div>}

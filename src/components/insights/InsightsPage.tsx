@@ -31,7 +31,7 @@ const pct = (part: number, whole: number) => (whole ? Math.round((part / whole) 
 const countBy = (rows: Row[], key: string) => rows.reduce<Record<string, number>>((acc, row) => { const k = String(row[key] ?? 'unknown'); acc[k] = (acc[k] || 0) + 1; return acc; }, {});
 const label = (value: string) => value.replace(/[_-]/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 
-const sources: Record<string, { table: string; columns: string }> = {
+const sources: Record<string, { table: string; columns: string; dateColumn?: string }> = {
   tasks: { table: 'program_tasks', columns: 'id,status,priority,due_date,created_at' },
   projects: { table: 'program_projects', columns: 'id,status,progress,end_date,created_at' },
   grants: { table: 'grants', columns: 'id,stage,amount_requested,amount_awarded,created_at' },
@@ -48,7 +48,7 @@ const sources: Record<string, { table: string; columns: string }> = {
   drive: { table: 'drive_items', columns: 'id,item_type,created_at' },
   messages: { table: 'messages', columns: 'id,created_at' },
   events: { table: 'calendar_events', columns: 'id,created_at' },
-  emails: { table: 'email_messages', columns: 'id,created_at' },
+  emails: { table: 'email_messages', columns: 'id,received_at', dateColumn: 'received_at' },
   audit: { table: 'system_activity_logs', columns: 'id,event_type,created_at' },
   profiles: { table: 'profiles', columns: 'id,department,last_seen_at' },
 };
@@ -69,9 +69,9 @@ export const InsightsPage: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     const start = rangeStart(range)?.toISOString();
-    const entries = await Promise.all(Object.entries(sources).map(async ([key, { table, columns }]) => {
+    const entries = await Promise.all(Object.entries(sources).map(async ([key, { table, columns, dateColumn }]) => {
       let query = supabase.from(table).select(columns).limit(5000);
-      if (start && key !== 'profiles') query = query.gte('created_at', start);
+      if (start && key !== 'profiles') query = query.gte(dateColumn ?? 'created_at', start);
       const { data: rows, error } = await query;
       return [key, error ? null : ((rows ?? []) as unknown as Row[])] as const;
     }));

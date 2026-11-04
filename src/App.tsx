@@ -25,7 +25,6 @@ import { AddEventModal } from './components/modals/AddEventModal';
 import { AddTeammateModal } from './components/modals/AddTeammateModal';
 import { InviteReadyModal } from './components/modals/InviteReadyModal';
 import { EmailInboxPage } from './components/email/EmailInboxPage';
-import { WorkspaceAssistant } from './components/assistant/WorkspaceAssistant';
 import { DrivePage } from './components/drive/DrivePage';
 import { AccessGate } from './components/common/AccessGate';
 import { CustomerPage } from './components/customers/CustomerPage';
@@ -203,7 +202,6 @@ const WorkspaceShell: React.FC = () => {
         onClose={() => setInviteReadyData(null)}
         inviteData={inviteReadyData}
       />
-      {workspaceSettings.aiAssistantEnabled && <WorkspaceAssistant />}
       {requiresPasswordSetup && <PasswordSetupModal />}
       {!requiresPasswordSetup && requiresOnboarding && <FirstLoginOnboarding />}
       {!requiresPasswordSetup && !requiresOnboarding && <PendingDocumentPrompt userId={currentUser.id} />}

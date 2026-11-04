@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, Phone, Inbox, Plus, MessageSquarePlus, MailPlus, Hash, CalendarPlus } from 'lucide-react';
+import { Bell, Phone, Mail, Plus, MessageSquarePlus, MailPlus, CalendarPlus } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { WorkspaceAssistant } from '../assistant/WorkspaceAssistant';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 import { getSectionTabs, isSectionSelected } from './sectionTabs';
@@ -11,12 +13,26 @@ export const appLabels: Record<string, string> = {
 };
 
 export const TopBar: React.FC = () => {
-  const { activeTab, setActiveTab, unreadNotificationCount, callSession, conversations, setIsNewMessageOpen, setIsCreateChannelOpen, setIsAddEventOpen, requestEmailCompose } = useWorkspace();
+  const { activeTab, setActiveTab, unreadNotificationCount, callSession, setIsNewMessageOpen, setIsAddEventOpen, requestEmailCompose, workspaceSettings, currentUser } = useWorkspace();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isQuickOpen, setIsQuickOpen] = useState(false);
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const quickRef = useRef<HTMLDivElement>(null);
+  const [unreadEmails, setUnreadEmails] = useState(0);
+
+  useEffect(() => {
+    if (!currentUser.id) return undefined;
+    let active = true;
+    const load = async () => {
+      const { count, error } = await supabase.from('email_messages').select('id', { count: 'exact', head: true }).eq('folder', 'inbox').eq('is_read', false);
+      if (active && !error) setUnreadEmails(count ?? 0);
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 60000);
+    const channel = supabase.channel('topbar-unread-email').on('postgres_changes', { event: '*', schema: 'public', table: 'email_messages' }, () => void load()).subscribe();
+    return () => { active = false; window.clearInterval(timer); void supabase.removeChannel(channel); };
+  }, [currentUser.id]);
 
   useEffect(() => {
     const onDown = (event: MouseEvent) => {
@@ -41,12 +57,9 @@ export const TopBar: React.FC = () => {
   const quickItems = [
     { label: 'New chat', hint: 'Direct or group message', icon: MessageSquarePlus, run: () => { setActiveTab('messages'); setIsNewMessageOpen(true); } },
     { label: 'New email', hint: 'Open the composer', icon: MailPlus, run: () => requestEmailCompose() },
-    { label: 'New channel', hint: 'Workspace channel', icon: Hash, run: () => { setActiveTab('channels'); setIsCreateChannelOpen(true); } },
     { label: 'New event', hint: 'Add to the calendar', icon: CalendarPlus, run: () => { setActiveTab('calendar'); setIsAddEventOpen(true); } },
   ];
 
-  const unreadMessages = conversations.reduce((sum, item) => sum + (item.unreadCount || 0), 0);
-  const pill = 'flex h-8 items-center gap-2 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 px-2.5 text-xs font-medium text-white transition-colors shadow-2xs';
   const iconBtn = 'relative flex h-8 w-8 items-center justify-center rounded-lg text-white/85 hover:text-white hover:bg-white/15 transition-colors';
 
   const currentLabel = labelFor(activeTab, path);
@@ -90,11 +103,11 @@ export const TopBar: React.FC = () => {
             <Phone className="h-4 w-4" />
             <span className={`absolute bottom-1 right-1 h-2 w-2 rounded-full ring-2 ring-[#2569F5] ${callSession.active ? 'animate-pulse bg-emerald-400' : 'bg-white/50'}`} />
           </button>
-          <button type="button" onClick={() => setActiveTab('messages')} className={`${pill} hidden sm:flex`}>
-            <Inbox className="h-4 w-4 text-white" />
-            Inbox
-            <span className="rounded-full bg-white text-[#2569F5] px-1.5 py-0.2 text-[11px] font-bold leading-none">{unreadMessages}</span>
+          <button type="button" onClick={() => setActiveTab('inbox')} title={unreadEmails ? `${unreadEmails} unread emails` : 'Email'} aria-label={`Email${unreadEmails ? `, ${unreadEmails} unread` : ''}`} className={iconBtn}>
+            <Mail className="h-4 w-4" />
+            {unreadEmails > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white ring-2 ring-[#2569F5]">{unreadEmails > 99 ? '99+' : unreadEmails}</span>}
           </button>
+          {workspaceSettings.aiAssistantEnabled && <WorkspaceAssistant triggerClassName={iconBtn} />}
           <div className="relative" ref={notificationsRef}>
             <button
               type="button"

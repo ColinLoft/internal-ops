@@ -16,7 +16,8 @@ const WIDGETS = [
 type WidgetId = typeof WIDGETS[number][0];
 const DEFAULT_ORDER: WidgetId[] = WIDGETS.map((item) => item[0]);
 const WIDE: WidgetId[] = ['mentions'];
-const STORAGE = 'flown-home-widgets';
+const STORAGE = 'flown-home-widgets-v2';
+const DEFAULT_HIDDEN: WidgetId[] = ['activity', 'files', 'mentions', 'next'];
 
 const statusPill: Record<string, string> = { not_started: 'bg-slate-100 text-slate-600', in_progress: 'bg-brand-50 text-brand-700', blocked: 'bg-rose-50 text-rose-700', completed: 'bg-emerald-50 text-emerald-700', planned: 'bg-slate-100 text-slate-600', in_review: 'bg-amber-50 text-amber-700' };
 const priorityBar: Record<string, string> = { high: 'bg-rose-400', medium: 'bg-amber-300', low: 'bg-slate-200', urgent: 'bg-rose-500' };
@@ -41,10 +42,12 @@ const relative = (value: string) => {
 };
 const loadConfig = (): { order: WidgetId[]; hidden: WidgetId[] } => {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE) || '{}');
+    const stored = localStorage.getItem(STORAGE);
+    if (!stored) return { order: DEFAULT_ORDER, hidden: DEFAULT_HIDDEN };
+    const parsed = JSON.parse(stored);
     const order = [...(parsed.order || []).filter((id: WidgetId) => DEFAULT_ORDER.includes(id)), ...DEFAULT_ORDER.filter((id) => !(parsed.order || []).includes(id))];
     return { order, hidden: (parsed.hidden || []).filter((id: WidgetId) => DEFAULT_ORDER.includes(id)) };
-  } catch { return { order: DEFAULT_ORDER, hidden: [] }; }
+  } catch { return { order: DEFAULT_ORDER, hidden: DEFAULT_HIDDEN }; }
 };
 
 export const HomePage: React.FC = () => {
@@ -58,6 +61,12 @@ export const HomePage: React.FC = () => {
   const [config, setConfig] = useState(loadConfig);
   const [editing, setEditing] = useState(false);
   const [dragId, setDragId] = useState<WidgetId | null>(null);
+
+  const goTasks = useCallback(() => {
+    window.history.pushState({}, '', '/programs/tasks');
+    setActiveTab('programs');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, [setActiveTab]);
 
   const save = useCallback((next: { order: WidgetId[]; hidden: WidgetId[] }) => { setConfig(next); localStorage.setItem(STORAGE, JSON.stringify(next)); }, []);
 
@@ -118,18 +127,18 @@ export const HomePage: React.FC = () => {
 
   const nextActions = useMemo(() => {
     const list: { id: string; text: string; action: string; go: () => void }[] = [];
-    if (overdueTasks.length) list.push({ id: 'overdue', text: `${overdueTasks.length} of your tasks ${overdueTasks.length === 1 ? 'is' : 'are'} overdue.`, action: 'Review tasks', go: () => setActiveTab('programs') });
+    if (overdueTasks.length) list.push({ id: 'overdue', text: `${overdueTasks.length} of your tasks ${overdueTasks.length === 1 ? 'is' : 'are'} overdue.`, action: 'Review tasks', go: goTasks });
     if (openSupport) list.push({ id: 'support', text: `${openSupport} open customer conversation${openSupport === 1 ? '' : 's'}.`, action: 'Open inbox', go: () => setActiveTab('customers') });
     const unread = notifications.filter((notification) => !notification.isRead).length;
     if (unread > 3) list.push({ id: 'unread', text: `${unread} unread notifications.`, action: 'Catch up', go: () => setActiveTab('messages') });
     if (upcoming[0]?.date === today) list.push({ id: 'meeting', text: `Next meeting today: ${upcoming[0].title} at ${formatTime(upcoming[0].startTime)}.`, action: 'View calendar', go: () => setActiveTab('calendar') });
     return list;
-  }, [overdueTasks.length, openSupport, notifications, upcoming, today, setActiveTab]);
+  }, [overdueTasks.length, openSupport, notifications, upcoming, today, setActiveTab, goTasks]);
 
   const unreadCount = notifications.filter((notification) => !notification.isRead).length;
   const kpis: { name: string; value: number | string; hint: string; icon: React.ElementType; text: string; tint: string; go: () => void }[] = [
-    { name: 'Open tasks', value: myTasks.length, hint: 'Assigned to you', icon: ListChecks, text: 'text-brand-600', tint: 'bg-brand-50 text-brand-600', go: () => setActiveTab('programs') },
-    { name: 'Overdue', value: overdueTasks.length, hint: 'Past due date', icon: AlertTriangle, text: overdueTasks.length ? 'text-rose-600' : 'text-slate-700', tint: overdueTasks.length ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-500', go: () => setActiveTab('programs') },
+    { name: 'Open tasks', value: myTasks.length, hint: 'Assigned to you', icon: ListChecks, text: 'text-brand-600', tint: 'bg-brand-50 text-brand-600', go: goTasks },
+    { name: 'Overdue', value: overdueTasks.length, hint: 'Past due date', icon: AlertTriangle, text: overdueTasks.length ? 'text-rose-600' : 'text-slate-700', tint: overdueTasks.length ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-500', go: goTasks },
     { name: 'This week', value: upcoming.filter((event) => event.date <= weekEnd).length, hint: 'Meetings and events', icon: CalendarDays, text: 'text-brand-600', tint: 'bg-brand-50 text-brand-600', go: () => setActiveTab('calendar') },
     { name: 'Unread', value: unreadCount, hint: 'Notifications', icon: Mail, text: unreadCount ? 'text-brand-600' : 'text-slate-700', tint: unreadCount ? 'bg-brand-50 text-brand-600' : 'bg-slate-100 text-slate-500', go: () => setActiveTab('messages') },
     { name: 'Open support', value: openSupport ?? '—', hint: 'Customer conversations', icon: Headset, text: 'text-teal-600', tint: 'bg-teal-50 text-teal-600', go: () => setActiveTab('customers') },
@@ -138,15 +147,15 @@ export const HomePage: React.FC = () => {
   const row = 'flex w-full items-center gap-2.5 rounded-lg px-2 py-1 text-left transition-colors duration-150 hover:bg-slate-50';
   const body = (id: WidgetId): React.ReactNode => {
     switch (id) {
-      case 'tasks': return myTasks.length ? myTasks.slice(0, 7).map((task) => (
-        <button key={`${task.source}-${task.id}`} type="button" onClick={() => setActiveTab(task.source === 'program' ? 'programs' : 'organization')} className={row}>
+      case 'tasks': return myTasks.length ? myTasks.slice(0, 5).map((task) => (
+        <button key={`${task.source}-${task.id}`} type="button" onClick={goTasks} className={row}>
           <span className={`h-4 w-[3px] shrink-0 rounded-full ${priorityBar[task.priority] || 'bg-slate-200'}`} title={`${task.priority} priority`} />
           <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">{task.title}</span>
           <span className={`shrink-0 rounded px-1.5 py-px text-[10px] font-semibold capitalize ${statusPill[task.status] || statusPill.not_started}`}>{task.status.replace(/_/g, ' ')}</span>
           <span className={`w-12 shrink-0 text-right text-[11px] tabular-nums ${task.due_date && task.due_date < today ? 'font-semibold text-rose-600' : 'text-slate-500'}`}>{task.due_date ? new Date(`${task.due_date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}</span>
         </button>
-      )) : <EmptyState icon={Target} text="No tasks are assigned to you." action="Open tasks" onClick={() => setActiveTab('programs')} />;
-      case 'events': return upcoming.length ? upcoming.slice(0, 5).map((event) => (
+      )) : <EmptyState icon={Target} text="No tasks are assigned to you." action="Open tasks" onClick={goTasks} />;
+      case 'events': return upcoming.length ? upcoming.slice(0, 4).map((event) => (
         <button key={event.id} type="button" onClick={() => setActiveTab('calendar')} className={row}>
           <span className="w-10 shrink-0 rounded-md bg-brand-100 py-0.5 text-center text-[10px] font-bold uppercase leading-tight text-brand-700"><span className="block text-sm">{new Date(`${event.date}T12:00:00`).getDate()}</span>{new Date(`${event.date}T12:00:00`).toLocaleDateString(undefined, { month: 'short' })}</span>
           <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-800">{event.title}</span><span className="block truncate text-[11px] text-slate-500"><Clock3 className="mr-1 inline h-3 w-3" />{formatTime(event.startTime)} · {event.location || 'Calendar meeting'}</span></span>
@@ -209,9 +218,9 @@ export const HomePage: React.FC = () => {
   };
 
   const viewAll: Partial<Record<WidgetId, { label: string; go: () => void }>> = {
-    tasks: { label: 'View all', go: () => setActiveTab('programs') },
+    tasks: { label: 'View all', go: goTasks },
     events: { label: 'Add event', go: () => { setActiveTab('calendar'); setIsAddEventOpen(true); } },
-    deadlines: { label: 'View all', go: () => setActiveTab('programs') },
+    deadlines: { label: 'View all', go: goTasks },
   };
   const icons: Record<WidgetId, React.ElementType> = { tasks: Target, events: CalendarDays, deadlines: Flag, attention: CheckCircle2, activity: History, next: Sparkles, files: FolderOpen, mentions: MessageSquare };
   const visible = config.order.filter((id) => !config.hidden.includes(id));

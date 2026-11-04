@@ -203,7 +203,7 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
   if (segment === 'programs') return 'programs';
   if (segment === 'gtm') return 'gtm';
   if (segment === 'messages') return 'messages';
-  if (segment === 'channels') return 'channels';
+  if (segment === 'channels') return 'messages';
   if (segment === 'calendar') return 'calendar';
   if (segment === 'email' || segment === 'inbox') return 'inbox';
   if (segment === 'admin') return 'organization';
@@ -351,6 +351,13 @@ const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
     aiSuggestedReplies: typeof preferences.aiSuggestedReplies === 'boolean'
       ? preferences.aiSuggestedReplies
       : DEFAULT_WORKSPACE_SETTINGS.aiSuggestedReplies,
+    fontSize: ['small', 'default', 'large'].includes(preferences.fontSize) ? preferences.fontSize as WorkspaceSettings['fontSize'] : 'default',
+    reduceMotion: preferences.reduceMotion === true,
+    keyboardShortcuts: preferences.keyboardShortcuts !== false,
+    notifyMessages: preferences.notifyMessages !== false,
+    notifyMentions: preferences.notifyMentions !== false,
+    notifyCalendar: preferences.notifyCalendar !== false,
+    notifyAnnouncements: preferences.notifyAnnouncements !== false,
   };
 };
 
@@ -1132,9 +1139,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   useEffect(() => {
     document.documentElement.dataset.theme = workspaceSettings.theme;
+    document.documentElement.dataset.motion = workspaceSettings.reduceMotion ? 'reduced' : 'full';
+    document.documentElement.style.fontSize = workspaceSettings.fontSize === 'small' ? '93.75%' : workspaceSettings.fontSize === 'large' ? '112.5%' : '';
     applyAccentPalette(workspaceSettings.accentColor);
     sounds.setRingtone(workspaceSettings.ringtone);
-  }, [workspaceSettings.theme, workspaceSettings.accentColor, workspaceSettings.ringtone]);
+  }, [workspaceSettings.theme, workspaceSettings.accentColor, workspaceSettings.ringtone, workspaceSettings.reduceMotion, workspaceSettings.fontSize]);
 
   useEffect(() => {
     if (!currentUser.id) return undefined;
@@ -1418,7 +1427,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     sounds.setSoundEnabled(next);
   };
 
-  const unreadNotificationCount = notifications.filter((n) => !n.isRead).length;
+  const visibleNotifications = notifications.filter((n) => (
+    (n.type !== 'message' || workspaceSettings.notifyMessages)
+    && (n.type !== 'mention' || workspaceSettings.notifyMentions)
+    && (n.type !== 'calendar' || workspaceSettings.notifyCalendar)
+    && (n.type !== 'announcement' || workspaceSettings.notifyAnnouncements)
+  ));
+  const unreadNotificationCount = visibleNotifications.filter((n) => !n.isRead).length;
 
   const markNotificationRead = (id: string) => {
     setNotifications((prev) =>
@@ -2420,7 +2435,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         messages,
         threadReplies,
         calendarEvents,
-        notifications,
+        notifications: visibleNotifications,
         unreadNotificationCount,
         soundEnabled,
         callSession,
