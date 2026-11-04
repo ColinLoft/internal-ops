@@ -17,7 +17,6 @@ import { FirstLoginOnboarding } from './components/auth/FirstLoginOnboarding';
 import { ProfileModal } from './components/profile/ProfileModal';
 import { EditProfileModal } from './components/profile/EditProfileModal';
 import { ShortcutsHelp } from './components/common/ShortcutsHelp';
-import { Breadcrumbs } from './components/navigation/Breadcrumbs';
 import { SettingsPage } from './components/settings/SettingsPage';
 import { CreateChannelModal } from './components/modals/CreateChannelModal';
 import { CreatePollModal } from './components/modals/CreatePollModal';
@@ -127,7 +126,6 @@ const WorkspaceShell: React.FC = () => {
         <TopBar />
         {/* Workspace Body */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#fafbfc]">
-          <Breadcrumbs />
           <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
           {activeTab === 'home' && <HomePage />}
           {activeTab === 'customers' && <AccessGate app="customers" name="Customers"><CustomerPage /></AccessGate>}
