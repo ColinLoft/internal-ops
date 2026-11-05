@@ -8,8 +8,6 @@ import {
   Clock,
   MapPin,
   Trash2,
-  Globe,
-  Lock,
   Video,
   X,
   Users,
@@ -19,21 +17,11 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 
 const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-const TEAM_PALETTE = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#EC4899', '#14B8A6', '#84CC16'];
 const EVERYONE_COLOR = '#2563EB';
 const PERSONAL_COLOR = '#8B5CF6';
-const teamColor = (name: string) => {
-  let hash = 0;
-  for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return TEAM_PALETTE[hash % TEAM_PALETTE.length];
-};
-const eventGroup = (evt: CalendarEvent, myTeam: string) => {
-  if (evt.scope === 'personal') return { key: 'personal', label: 'Personal', color: PERSONAL_COLOR };
-  const teams = evt.teamIds || [];
-  if (!teams.length) return { key: 'everyone', label: 'Everyone', color: EVERYONE_COLOR };
-  const team = teams.includes(myTeam) ? myTeam : teams[0];
-  return { key: `team:${team}`, label: teams.join(', '), color: teamColor(team) };
-};
+const eventGroup = (evt: CalendarEvent) => evt.scope === 'personal'
+  ? { key: 'personal', label: 'Only me', color: PERSONAL_COLOR }
+  : { key: 'everyone', label: 'Everyone', color: EVERYONE_COLOR };
 
 export const CalendarView: React.FC = () => {
   const {
@@ -47,10 +35,8 @@ export const CalendarView: React.FC = () => {
 
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
-  const [scopeFilter, setScopeFilter] = useState('all');
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const myTeam = currentUser.department || '';
-  const [search, setSearch] = useState('');
+  const [search] = useState('');
 
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(':').map(Number);
@@ -69,26 +55,13 @@ export const CalendarView: React.FC = () => {
       evt.title.toLowerCase().includes(search.toLowerCase()) ||
       (evt.description && evt.description.toLowerCase().includes(search.toLowerCase()));
 
-    if (scopeFilter === 'all') return matchesSearch;
-    const group = eventGroup(evt, myTeam);
-    if (scopeFilter.startsWith('team:')) return matchesSearch && (evt.teamIds || []).includes(scopeFilter.slice(5));
-    return matchesSearch && group.key === scopeFilter;
+    return matchesSearch;
   });
   const nowDate = new Date();
   const nowTimeStr = `${String(nowDate.getHours()).padStart(2, '0')}:${String(nowDate.getMinutes()).padStart(2, '0')}`;
   const upcomingEvents = filteredEvents
     .filter((evt) => evt.date > todayStr || (evt.date === todayStr && (evt.endTime || evt.startTime) >= nowTimeStr))
     .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
-  const filterOptions = [
-    { key: 'all', label: 'All Events', color: '#64748B', icon: CalendarIcon },
-    { key: 'everyone', label: 'Everyone', color: EVERYONE_COLOR, icon: Globe },
-    ...(myTeam ? [{ key: `team:${myTeam}`, label: myTeam, color: teamColor(myTeam), icon: Users }] : []),
-    { key: 'personal', label: 'Personal', color: PERSONAL_COLOR, icon: Lock },
-  ];
-  const countFor = (key: string) => key === 'all'
-    ? calendarEvents.length
-    : calendarEvents.filter((evt) => key.startsWith('team:') ? (evt.teamIds || []).includes(key.slice(5)) : eventGroup(evt, myTeam).key === key).length;
-
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
@@ -185,7 +158,7 @@ export const CalendarView: React.FC = () => {
               {/* Event chips */}
               <div className="space-y-1 overflow-hidden">
                 {dayEvents.slice(0, 2).map((evt) => {
-                  const group = eventGroup(evt, myTeam);
+                  const group = eventGroup(evt);
                   return (
                     <button
                       type="button"
@@ -257,7 +230,7 @@ export const CalendarView: React.FC = () => {
                 return (
                   <div key={dIdx} className="p-1 border-r border-slate-100 relative hover:bg-slate-50/50">
                     {hourEvents.map((evt) => {
-                      const group = eventGroup(evt, myTeam);
+                      const group = eventGroup(evt);
                       return (
                         <button
                           type="button"
@@ -320,7 +293,7 @@ export const CalendarView: React.FC = () => {
         ) : (
           <div className="space-y-3">
             {todayEvents.map((evt) => {
-              const group = eventGroup(evt, myTeam);
+              const group = eventGroup(evt);
               return (
                 <div
                   key={evt.id}
@@ -356,79 +329,6 @@ export const CalendarView: React.FC = () => {
     <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden bg-slate-50/50">
       {/* Left Mini Sidebar */}
       <div className="order-2 md:order-1 w-full md:w-72 border-t md:border-t-0 md:border-r border-slate-200/80 bg-white/80 backdrop-blur-xl p-4 flex flex-col gap-5 flex-shrink-0 md:overflow-y-auto">
-        {/* Scope Filters */}
-        <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2 px-1">
-            Event View Filter
-          </label>
-          <div className="flex flex-col gap-1">
-            {filterOptions.map(({ key, label, color, icon: Icon }) => (
-              <button
-                key={key}
-                onClick={() => setScopeFilter(key)}
-                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                  scopeFilter === key ? 'bg-brand-50 text-brand-700 border border-brand-200' : 'text-slate-600 hover:bg-slate-100 border border-transparent'
-                }`}
-              >
-                <span className="flex items-center gap-2 min-w-0">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
-                  <Icon className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="truncate">{label}</span>
-                </span>
-                <span className="text-xs bg-white px-1.5 py-0.5 rounded-full border border-slate-200 font-bold">{countFor(key)}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Mini Calendar Widget */}
-        <div className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200/70 shadow-2xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-800">
-              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-            </span>
-            <div className="flex items-center gap-1">
-              <button onClick={prevPeriod} className="p-1 hover:bg-white rounded-md text-slate-500">
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
-              <button onClick={nextPeriod} className="p-1 hover:bg-white rounded-md text-slate-500">
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-400 mb-1">
-            <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
-          </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-xs">
-            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
-              const thisDateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-              const hasEvents = calendarEvents.some((e) => e.date === thisDateStr);
-              const isSelected = currentDate.getDate() === day;
-
-              return (
-                <div
-                  key={day}
-                  onClick={() => {
-                    const next = new Date(currentDate);
-                    next.setDate(day);
-                    setCurrentDate(next);
-                  }}
-                  className={`relative py-1 rounded-lg cursor-pointer transition-colors text-xs font-medium ${
-                    isSelected
-                      ? 'bg-brand-600 text-white font-bold'
-                      : 'hover:bg-slate-200/70 text-slate-700'
-                  }`}
-                >
-                  <span>{day}</span>
-                  {hasEvents && !isSelected && (
-                    <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-500" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Upcoming List */}
         <div className="flex-1">
           <div className="flex items-center justify-between mb-2 px-1">
@@ -449,7 +349,7 @@ export const CalendarView: React.FC = () => {
           ) : (
             <div className="space-y-2">
               {upcomingEvents.slice(0, 5).map((evt) => {
-                const group = eventGroup(evt, myTeam);
+                const group = eventGroup(evt);
                 return (
                   <button
                     type="button"
@@ -569,7 +469,7 @@ export const CalendarView: React.FC = () => {
 
       {selectedEvent && (() => {
         const evt = selectedEvent;
-        const group = eventGroup(evt, myTeam);
+        const group = eventGroup(evt);
         const creator = users.find((user) => user.id === evt.createdBy);
         const attendees = (evt.attendees || []).map((id) => users.find((user) => user.id === id)).filter(Boolean);
         const canDelete = evt.createdBy === currentUser.id || currentUser.systemRole === 'admin' || currentUser.systemRole === 'coordinator';
@@ -590,7 +490,7 @@ export const CalendarView: React.FC = () => {
                   {evt.location && <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-brand-600" />{evt.location}</div>}
                   {evt.isCall && <div className="flex items-center gap-2"><Video className="h-4 w-4 text-brand-600" />Scheduled as a call</div>}
                   {evt.recurrenceId && <div className="flex items-center gap-2"><Repeat className="h-4 w-4 text-brand-600" />Part of a recurring series</div>}
-                  <div className="flex items-center gap-2"><Users className="h-4 w-4 text-brand-600" />{evt.scope === 'personal' ? 'Only you' : evt.teamIds?.length ? `Shared with ${evt.teamIds.join(', ')}` : 'Shared with everyone'}</div>
+                  <div className="flex items-center gap-2"><Users className="h-4 w-4 text-brand-600" />{evt.scope === 'personal' ? 'Only you' : 'Shared with everyone'}</div>
                   {creator && <div className="text-slate-500">Created by {creator.name}</div>}
                 </dl>
                 {evt.description && <p className="whitespace-pre-wrap rounded-2xl bg-slate-50 p-3 text-xs text-slate-700">{evt.description}</p>}

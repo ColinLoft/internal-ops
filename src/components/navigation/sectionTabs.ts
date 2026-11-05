@@ -1,7 +1,7 @@
 import {
-  CheckSquare, Headset, House, ContactRound, Building2, ListChecks, BookOpen, BarChart3, Users, ShieldCheck, CheckCircle2,
-  Landmark, Target, FolderKanban, Code2,
-  Layers3, FileCheck2, GitBranch, FileText,
+  CheckSquare, Headset, House, ContactRound, Building2, BookOpen, BarChart3, Users, ShieldCheck, CheckCircle2,
+  Landmark, Target, FolderKanban, Code2, Cog, Cable, Network,
+  FileText,
   Calendar as CalendarIcon, Lightbulb, type LucideIcon,
 } from 'lucide-react';
 
@@ -57,10 +57,11 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
       ];
     case 'engineering':
       return [
-        tab('Design Documentation', 'Design', BookOpen, '/engineering/design'),
-        tab('CAD & PCB Records', 'CAD/PCB', Code2, '/engineering/cad-pcb'),
-        tab('Testing & Validation', 'Testing', CheckCircle2, '/engineering/testing'),
-        tab('Technical Reviews', 'Reviews', ShieldCheck, '/engineering/reviews'),
+        tab('Software', 'Software', Code2, '/engineering/software'),
+        tab('Mechanical', 'Mechanical', Cog, '/engineering/mechanical'),
+        tab('Electrical', 'Electrical', Cable, '/engineering/electrical'),
+        tab('Systems', 'Systems', Network, '/engineering/systems'),
+        tab('Review', 'Review', ShieldCheck, '/engineering/review'),
       ];
     default:
       return null;

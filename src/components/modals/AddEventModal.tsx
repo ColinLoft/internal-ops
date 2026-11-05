@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, Calendar as CalendarIcon, Plus, Video, Repeat } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { supabase } from '../../lib/supabase';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const input = 'w-full px-2.5 py-1.5 text-base md:text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none';
@@ -12,7 +11,7 @@ const todayString = () => {
 };
 
 export const AddEventModal: React.FC = () => {
-  const { isAddEventOpen, setIsAddEventOpen, createCalendarEvent, users } = useWorkspace();
+  const { isAddEventOpen, setIsAddEventOpen, createCalendarEvent } = useWorkspace();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -20,9 +19,7 @@ export const AddEventModal: React.FC = () => {
   const [startTime, setStartTime] = useState('10:00');
   const [endTime, setEndTime] = useState('11:00');
   const [location, setLocation] = useState('');
-  const [departments, setDepartments] = useState<string[]>([]);
-  const [teamIds, setTeamIds] = useState<string[]>([]);
-  const [everyone, setEveryone] = useState(false);
+  const [everyone, setEveryone] = useState(true);
   const [isCall, setIsCall] = useState(false);
   const [repeats, setRepeats] = useState(false);
   const [days, setDays] = useState<number[]>([]);
@@ -33,16 +30,10 @@ export const AddEventModal: React.FC = () => {
   useEffect(() => {
     if (!isAddEventOpen) return;
     setDate(todayString());
-    void supabase.from('organization_departments').select('name').order('name').then(({ data }) => {
-      const names = (data || []).map((row) => row.name as string);
-      const fromUsers = users.map((user) => user.department).filter(Boolean);
-      setDepartments([...new Set([...names, ...fromUsers])].sort());
-    });
-  }, [isAddEventOpen, users]);
+  }, [isAddEventOpen]);
 
   if (!isAddEventOpen) return null;
 
-  const toggleTeam = (name: string) => { setEveryone(false); setTeamIds((prev) => (prev.includes(name) ? prev.filter((item) => item !== name) : [...prev, name])); };
   const toggleDay = (day: number) => setDays((prev) => (prev.includes(day) ? prev.filter((item) => item !== day) : [...prev, day]));
 
   const close = () => {
@@ -58,7 +49,7 @@ export const AddEventModal: React.FC = () => {
     setSaving(true);
     setError('');
     try {
-      const shared = everyone || teamIds.length > 0;
+      const shared = everyone;
       await createCalendarEvent({
         title: title.trim(),
         description: description.trim(),
@@ -66,7 +57,7 @@ export const AddEventModal: React.FC = () => {
         startTime,
         endTime,
         scope: shared ? 'team' : 'personal',
-        teamIds: everyone ? [] : teamIds,
+        teamIds: [],
         isCall,
         category: shared ? 'community' : 'personal',
         location: location.trim() || undefined,
@@ -75,8 +66,7 @@ export const AddEventModal: React.FC = () => {
       setTitle('');
       setDescription('');
       setLocation('');
-      setTeamIds([]);
-      setEveryone(false);
+      setEveryone(true);
       setIsCall(false);
       setRepeats(false);
       setDays([]);
@@ -119,14 +109,13 @@ export const AddEventModal: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Share with teams</label>
-            <div className="flex flex-wrap gap-1.5">
-              <button type="button" onClick={() => { setEveryone((v) => !v); setTeamIds([]); }} aria-pressed={everyone} className={`min-h-11 md:min-h-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${everyone ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>Everyone</button>
-              {departments.map((name) => (
-                <button key={name} type="button" onClick={() => toggleTeam(name)} aria-pressed={teamIds.includes(name)} className={`min-h-11 md:min-h-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${teamIds.includes(name) ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>{name}</button>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Visibility</label>
+            <div className="grid grid-cols-2 gap-2">
+              {([[true, 'Everyone'], [false, 'Only me']] as const).map(([value, name]) => (
+                <button key={name} type="button" onClick={() => setEveryone(value)} aria-pressed={everyone === value} className={`min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors md:min-h-0 ${everyone === value ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>{name}</button>
               ))}
             </div>
-            <p className="mt-1.5 text-xs text-slate-500">{everyone ? 'Visible to everyone in the organization.' : teamIds.length ? `Visible to ${teamIds.join(', ')}.` : 'Only you will see this event.'}</p>
+            <p className="mt-1.5 text-xs text-slate-500">{everyone ? 'Visible to everyone in the organization.' : 'Only you will see this event.'}</p>
           </div>
 
           <div>

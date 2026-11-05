@@ -3,6 +3,7 @@ import { BookOpen, Bug, ChevronDown, CircleCheck, Lightbulb, LifeBuoy, KeyRound,
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { guideSections } from './guides';
+import { DocsAssistant } from './DocsAssistant';
 
 type View = 'guides' | 'new' | 'mine';
 type RequestType = 'bug' | 'help' | 'feature_request' | 'access';
@@ -15,7 +16,7 @@ const requestTypes: { id: RequestType; label: string; hint: string; icon: React.
   { id: 'feature_request', label: 'Request a feature', hint: 'An idea that would make Flown better.', icon: Lightbulb },
   { id: 'access', label: 'Request access', hint: 'You need permission to an app or data.', icon: KeyRound },
 ];
-const areas = ['Not sure', 'Home', 'Messages & Channels', 'Email', 'Calendar', 'Drive', 'Projects & Tasks', 'Customers', 'Support', 'Company (ideas, grants, content, contracts)', 'Engineering', 'Insights', 'Systems', 'Sign-in / account'];
+const areas = ['Not sure', 'Home', 'Messages & Channels', 'Email', 'Calendar', 'Drive', 'Projects & Tasks', 'Customers', 'Support', 'Company (ideas, grants, content, contracts)', 'Products (engineering)', 'Insights', 'Systems', 'Sign-in / account'];
 const statusLabel: Record<string, string> = { new: 'Received', open: 'Open', in_progress: 'In progress', waiting: 'Waiting on you', resolved: 'Resolved', closed: 'Closed' };
 const statusStyle: Record<string, string> = {
   new: 'bg-blue-50 text-blue-700', open: 'bg-emerald-50 text-emerald-700', in_progress: 'bg-brand-50 text-brand-700',
@@ -102,7 +103,7 @@ export const HelpCenterPage: React.FC = () => {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-4xl space-y-5 p-4 md:p-8">
+      <div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 md:p-8">
         <header>
           <h1 className="text-xl font-semibold text-slate-900">Help Center</h1>
           <p className="mt-1 text-sm text-slate-600">Learn how to use Flown, or send the support team a request.</p>
@@ -117,6 +118,13 @@ export const HelpCenterPage: React.FC = () => {
 
         {view === 'guides' && (
           <div className="space-y-5">
+            <DocsAssistant
+              onOpenGuide={(id) => { setQuery(''); setOpenGuide(id); window.setTimeout(() => document.getElementById(`guide-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }}
+              onOpenTicket={(subject) => { setType('help'); setForm((value) => ({ ...value, subject: subject.slice(0, 120), description: subject })); setView('new'); }}
+            />
+            <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+            <nav aria-label="Guide sections" className="hidden lg:block"><ul className="sticky top-2 space-y-1 text-sm">{guideSections.map((section) => <li key={section.id}><button type="button" onClick={() => document.getElementById(`section-${section.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="w-full rounded-lg px-3 py-1.5 text-left text-slate-500 hover:bg-slate-100 hover:text-slate-900">{section.title}</button></li>)}</ul></nav>
+            <div className="space-y-5">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search the guides…" aria-label="Search guides" className={`${inputClass} pl-9`} />
@@ -128,7 +136,7 @@ export const HelpCenterPage: React.FC = () => {
               </div>
             )}
             {sections.map((section) => (
-              <section key={section.id} className="rounded-2xl border border-slate-200 bg-white/80">
+              <section key={section.id} id={`section-${section.id}`} className="scroll-mt-4 rounded-2xl border border-slate-200 bg-white/80">
                 <div className="flex items-start gap-3 border-b border-slate-100 px-4 py-3">
                   <BookOpen className="mt-0.5 h-4 w-4 text-brand-600" />
                   <div><h2 className="text-sm font-semibold text-slate-800">{section.title}</h2><p className="text-xs text-slate-500">{section.description}</p></div>
@@ -137,7 +145,7 @@ export const HelpCenterPage: React.FC = () => {
                   {section.guides.map((guide) => {
                     const open = !!needle || openGuide === guide.id;
                     return (
-                      <li key={guide.id}>
+                      <li key={guide.id} id={`guide-${guide.id}`} className="scroll-mt-4">
                         <button type="button" aria-expanded={open} onClick={() => setOpenGuide(open && !needle ? null : guide.id)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-brand-50/50">
                           <span><span className="block text-sm font-medium text-slate-800">{guide.title}</span><span className="block text-xs text-slate-500">{guide.summary}</span></span>
                           <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -146,6 +154,7 @@ export const HelpCenterPage: React.FC = () => {
                           <div className="space-y-3 px-4 pb-4">
                             <ol className="list-decimal space-y-1.5 pl-5 text-sm text-slate-700">{guide.steps.map((step, index) => <li key={index}>{step}</li>)}</ol>
                             {guide.tips?.map((tip) => <p key={tip} className="rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-800">Tip: {tip}</p>)}
+                            {guide.faqs?.map((faq) => <div key={faq.q} className="rounded-lg border border-slate-200 px-3 py-2 text-xs"><p className="font-semibold text-slate-800">{faq.q}</p><p className="mt-0.5 text-slate-600">{faq.a}</p></div>)}
                           </div>
                         )}
                       </li>
@@ -155,6 +164,8 @@ export const HelpCenterPage: React.FC = () => {
               </section>
             ))}
             <p className="text-center text-xs text-slate-500">Can’t find what you need? <button type="button" onClick={() => setView('new')} className="font-semibold text-brand-700 hover:underline">Submit a request</button></p>
+            </div>
+            </div>
           </div>
         )}
 

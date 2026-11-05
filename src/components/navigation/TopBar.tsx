@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Bell, PanelLeft, Plus, MessageSquarePlus, MailPlus, CalendarPlus } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { WorkspaceAssistant } from '../assistant/WorkspaceAssistant';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { NotificationCenter } from '../notifications/NotificationCenter';
-import { getSectionTabs, isSectionSelected } from './sectionTabs';
 
 export const appLabels: Record<string, string> = {
   home: 'Home', messages: 'Messages', channels: 'Channels', calendar: 'Calendar', inbox: 'Email', drive: 'Drive',
@@ -13,32 +11,29 @@ export const appLabels: Record<string, string> = {
 };
 
 export const TopBar: React.FC = () => {
-  const { activeTab, setActiveTab, unreadNotificationCount, setIsNewMessageOpen, setIsAddEventOpen, requestEmailCompose, workspaceSettings, currentUser } = useWorkspace();
+  const { setActiveTab, unreadNotificationCount, setIsNewMessageOpen, setIsAddEventOpen, requestEmailCompose, workspaceSettings } = useWorkspace();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isQuickOpen, setIsQuickOpen] = useState(false);
-  const [routePath, setRoutePath] = useState(() => window.location.pathname);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const quickRef = useRef<HTMLDivElement>(null);
+  const [sidebarHidden, setSidebarHidden] = useState(() => localStorage.getItem('flown-sidebar-collapsed') === '1');
+
+  useEffect(() => {
+    const onState = (event: Event) => setSidebarHidden(Boolean((event as CustomEvent<boolean>).detail));
+    window.addEventListener('flown-sidebar-state', onState);
+    return () => window.removeEventListener('flown-sidebar-state', onState);
+  }, []);
 
   useEffect(() => {
     const onDown = (event: MouseEvent) => {
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) setIsNotificationsOpen(false);
       if (quickRef.current && !quickRef.current.contains(event.target as Node)) setIsQuickOpen(false);
     };
-    const onRoute = () => setRoutePath(window.location.pathname);
     document.addEventListener('mousedown', onDown);
-    window.addEventListener('popstate', onRoute);
     return () => {
       document.removeEventListener('mousedown', onDown);
-      window.removeEventListener('popstate', onRoute);
     };
   }, []);
-
-  const path = routePath.length > 1 ? routePath.replace(/\/$/, '') : routePath;
-  const labelFor = (app: string, currentPath: string) => {
-    const section = getSectionTabs(app, currentPath)?.find((item) => isSectionSelected(item, currentPath));
-    return section && section.label !== appLabels[app] ? `${appLabels[app]} · ${section.label}` : appLabels[app];
-  };
 
   const quickItems = [
     { label: 'New chat', hint: 'Direct or group message', icon: MessageSquarePlus, run: () => { setActiveTab('messages'); setIsNewMessageOpen(true); } },
@@ -48,16 +43,13 @@ export const TopBar: React.FC = () => {
 
   const iconBtn = 'relative flex h-8 w-8 items-center justify-center rounded-lg text-white/85 hover:text-white hover:bg-white/15 transition-colors';
 
-  const currentLabel = labelFor(activeTab, path);
-
   return (
     <header className="flex-shrink-0 bg-gradient-to-r from-[#2569F5] via-[#377bf7] to-[#5695FA] text-white border-b border-white/15">
       <div className="flex h-11 items-center justify-between gap-3 px-3 md:px-5">
-        <div className="flex items-center gap-2 min-w-0">
-          <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('flown-toggle-sidebar'))} aria-label="Toggle sidebar" title="Toggle sidebar" className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/85 transition-colors hover:bg-white/15 hover:text-white md:flex"><PanelLeft className="h-4 w-4" /></button>
-          <span className="text-xs font-semibold text-white tracking-wide truncate">
-            {currentLabel}
-          </span>
+        <div className="flex min-w-0 items-center gap-2">
+          {sidebarHidden && (
+            <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('flown-toggle-sidebar'))} aria-label="Show sidebar" title="Show sidebar" className="hidden h-8 items-center gap-2 rounded-lg bg-white/15 px-2.5 text-white ring-1 ring-white/20 transition-colors hover:bg-white/25 md:flex"><PanelLeft className="h-4 w-4" /><span className="text-xs font-semibold">Menu</span></button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <div className="relative" ref={quickRef}>
@@ -67,7 +59,7 @@ export const TopBar: React.FC = () => {
               aria-label="Quick add"
               aria-haspopup="menu"
               aria-expanded={isQuickOpen}
-              className="flex h-8 items-center gap-1.5 rounded-lg bg-[#8fbbff] hover:bg-[#a6caff] px-3 text-xs font-semibold text-[#0f2f73] transition-colors"
+              className="flex h-8 items-center gap-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 px-3 text-xs font-semibold text-white ring-1 ring-white/20 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Quick Add</span>

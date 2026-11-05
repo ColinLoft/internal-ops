@@ -214,7 +214,7 @@ const pathForTab = (tab: WorkspaceTab) => ({
   home: '/home',
   customers: '/customers/organizations',
   company: '/company/ideas',
-  engineering: '/engineering/design',
+  engineering: '/engineering/software',
   help: '/help',
   helpcenter: '/help-center',
   settings: '/settings',
@@ -318,7 +318,7 @@ const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
 
   return {
     ...DEFAULT_WORKSPACE_SETTINGS,
-    theme: preferences.theme === 'light' ? 'light' : 'dark',
+    theme: 'dark',
     accentColor: typeof preferences.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(preferences.accentColor)
       ? preferences.accentColor
       : DEFAULT_WORKSPACE_SETTINGS.accentColor,
@@ -1132,7 +1132,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   useEffect(() => {
-    document.documentElement.dataset.theme = workspaceSettings.theme;
+    document.documentElement.dataset.theme = 'dark';
     document.documentElement.dataset.motion = workspaceSettings.reduceMotion ? 'reduced' : 'full';
     document.documentElement.style.fontSize = workspaceSettings.fontSize === 'small' ? '93.75%' : workspaceSettings.fontSize === 'large' ? '112.5%' : '';
     applyAccentPalette(workspaceSettings.accentColor);

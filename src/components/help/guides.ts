@@ -4,6 +4,7 @@ export type Guide = {
   summary: string;
   steps: string[];
   tips?: string[];
+  faqs?: { q: string; a: string }[];
 };
 
 export type GuideSection = {
@@ -24,11 +25,15 @@ export const guideSections: GuideSection[] = [
         title: 'Navigating the workspace',
         summary: 'The sidebar on the left holds every app. The top bar shows where you are and keeps your open pages as tabs.',
         steps: [
-          'Use the sidebar groups (Overview, Communicate, Work, People & customers, Business) to open an app. Click a group heading to collapse it.',
-          'When an app is open, its pages appear indented underneath it. Click one to jump straight there.',
-          'Every page you visit stays open as a tab under the breadcrumb. Click a tab to return to it and the x to close it.',
-          'Use the search bar at the top of the sidebar to find channels, messages, people, events and records.',
-          'Use the arrow button at the top of the sidebar to shrink it to icons.',
+          'Flown is dark-mode only. The sidebar collapses automatically when you open a page; use the Menu button at the top left of the top bar to bring it back. It hides itself again on the next page.',
+          'Use the sidebar groups (Overview, Communicate, Work, Customers, Products, Company) to open an app. Click a group heading to collapse it.',
+          'Every page you visit stays open as a tab in the top bar. Click a tab to return to it and the x to close it.',
+          'Use the search bar to find channels, messages, people, events and records.',
+          'Quick Add in the top bar starts a new message, email, channel or event. The AI button opens the workspace assistant; the bell shows notifications.',
+        ],
+        faqs: [
+          { q: 'Where did the sidebar go?', a: 'It auto-hides to give pages more room. Click Menu at the top left of the top bar to show it.' },
+          { q: 'Can I switch to light mode?', a: 'No. Flown is dark-mode only. You can change the accent color in Settings > Appearance.' },
         ],
         tips: ['Quick add (top right) starts a new chat, email, channel or event from anywhere.'],
       },
@@ -150,12 +155,12 @@ export const guideSections: GuideSection[] = [
     guides: [
       {
         id: 'relationships',
-        title: 'Customers (CRM & support)',
-        summary: 'Contacts, organizations and every interaction with them.',
+        title: 'Customers: companies, contacts & support',
+        summary: 'Companies (funders and partners), contacts, and customer support.',
         steps: [
-          'Open Customers and use Contacts or Organizations to add people and groups.',
-          'Log calls, emails and meetings under Interactions.',
-          'Funders added through Grants appear here automatically.',
+          'Open Customers > Companies to add the organizations you work with, such as funders and partners.',
+          'Use Contacts to keep people and their details. Customers are reserved for the people you actually serve.',
+          'Use Support for customer conversations and tickets.',
         ],
       },
       {
@@ -249,6 +254,74 @@ export const guideSections: GuideSection[] = [
         steps: [
           'Open Systems, available to administrators.',
           'Invite teammates and set which apps each role can use.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'engineering',
+    title: 'Products (engineering)',
+    description: 'Software, mechanical, electrical, systems and review work in one place.',
+    guides: [
+      {
+        id: 'eng-overview',
+        title: 'How the Products pages work',
+        summary: 'Every discipline has a list and a timeline, with statuses, owners, dates and update notes.',
+        steps: [
+          'Open Products and choose Software, Mechanical, Electrical, Systems or Review.',
+          'Select New to add an item. Set status, owner, start date and target date, then write a short Latest update.',
+          'Switch between List and Timeline. The timeline draws a bar from start date to target date with a marker for today.',
+          'Use Export to download the current list as a CSV.',
+        ],
+        faqs: [{ q: 'How do I see what is late?', a: 'Overdue and blocked counts show at the top of each page; overdue dates are red in the list.' }],
+      },
+      {
+        id: 'eng-mechanical',
+        title: 'Mechanical: CAD review to 3D print or machining',
+        summary: 'Track parts from design through CAD review to production.',
+        steps: [
+          'Create a part and record part number, revision, material, quantity and the CAD file link.',
+          'Pick the manufacturing process: 3D print, CNC machining, sheet metal, laser cut and more.',
+          'Move status through In design, CAD review, Ready to make, In production and Complete.',
+          'Create a matching item under Review (type CAD review) so reviewers can approve before parts are made.',
+        ],
+      },
+      {
+        id: 'eng-others',
+        title: 'Software, Electrical, Systems and Review',
+        summary: 'What each page is for.',
+        steps: [
+          'Software: components, versions and release status with repository links.',
+          'Electrical: boards, revisions, design tool, fab house, with schematic, layout, review, fabrication and assembly stages.',
+          'Systems: integration, requirement IDs and verification across disciplines.',
+          'Review: CAD, PCB, code, design, safety and release reviews with outcomes (approved, approved with actions, rejected).',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'account',
+    title: 'Settings & mobile',
+    description: 'Personalize Flown and use it on your phone.',
+    guides: [
+      {
+        id: 'settings',
+        title: 'Settings',
+        summary: 'Profile, accent color, notifications, security and, for admins, workspace administration.',
+        steps: [
+          'Open your profile menu at the bottom of the sidebar, then Settings.',
+          'Change your accent color under Appearance.',
+          'Admins see extra sections for users, roles, departments and positions, and access control.',
+        ],
+      },
+      {
+        id: 'mobile',
+        title: 'Using Flown on mobile',
+        summary: 'The interface adapts to phones with a bottom tab bar and a slide-in menu.',
+        steps: [
+          'Use the bottom tab bar to switch between pages of the current app.',
+          'Tap the menu button in the top bar to open the full navigation drawer.',
+          'Tables turn into cards and dialogs fill the screen so everything stays tappable.',
         ],
       },
     ],

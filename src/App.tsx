@@ -118,7 +118,7 @@ const WorkspaceShell: React.FC = () => {
       )}
 
       {/* 2. Main Workspace Layout */}
-      <div className="mb-14 flex min-w-0 flex-1 flex-col overflow-hidden md:mb-0">
+      <div className="mb-[calc(3.5rem+env(safe-area-inset-bottom))] flex min-w-0 flex-1 flex-col overflow-hidden md:mb-0">
         <TopBar />
         {/* Workspace Body */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#fafbfc]">

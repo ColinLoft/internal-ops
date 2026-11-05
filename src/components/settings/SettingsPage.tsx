@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, Check, Download, KeyRound, Loader2, LogOut, Moon, Palette, Phone, Play, Save, ShieldCheck, SlidersHorizontal, Sparkles, Sun, UserRound, Users } from 'lucide-react';
+import { Bell, Check, Download, KeyRound, Loader2, LogOut, Palette, Phone, Play, Save, ShieldCheck, SlidersHorizontal, Sparkles, UserRound, Users } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { RINGTONES, WorkspaceSettings } from '../../types';
@@ -157,16 +157,7 @@ export const SettingsPage: React.FC = () => {
             {section === 'appearance' && (
               <section className={card}>
                 <h2 className="text-lg font-bold text-slate-900">Appearance</h2>
-                <h3 className="mt-5 text-xs font-bold uppercase tracking-wide text-slate-400">Theme</h3>
-                <div className="mt-2 grid grid-cols-2 gap-3 sm:max-w-md">
-                  {([['dark', 'Dark', Moon], ['light', 'Light', Sun]] as const).map(([value, name, Icon]) => (
-                    <button key={value} type="button" aria-pressed={draft.theme === value} onClick={() => update('theme', value)} className={`rounded-xl border p-3 text-left ${draft.theme === value ? 'border-brand-400 ring-1 ring-brand-300' : 'border-slate-200 hover:border-slate-300'}`}>
-                      <span className={`mb-2 flex h-14 items-end gap-1 rounded-lg p-1.5 ${value === 'dark' ? 'bg-[#0a0e15]' : 'bg-slate-100'}`}><span className="h-full w-4 rounded bg-brand-500" /><span className={`h-8 flex-1 rounded ${value === 'dark' ? 'bg-slate-700' : 'bg-slate-300'}`} /></span>
-                      <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-800"><Icon className="h-3.5 w-3.5" />{name}</span>
-                    </button>
-                  ))}
-                </div>
-                <h3 className="mt-6 text-xs font-bold uppercase tracking-wide text-slate-400">Accent color</h3>
+                <h3 className="mt-5 text-xs font-bold uppercase tracking-wide text-slate-400">Accent color</h3>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {ACCENTS.map(([color, name]) => (
                     <button key={color} type="button" title={name} aria-label={`${name} accent`} aria-pressed={draft.accentColor.toLowerCase() === color.toLowerCase()} onClick={() => update('accentColor', color)} style={{ backgroundColor: color }} className={`flex h-8 w-8 items-center justify-center rounded-full ring-offset-2 ring-offset-transparent ${draft.accentColor.toLowerCase() === color.toLowerCase() ? 'ring-2 ring-slate-400' : ''}`}>
