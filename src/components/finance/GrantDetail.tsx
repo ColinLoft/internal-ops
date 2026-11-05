@@ -47,7 +47,7 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
       supabase.from('grant_payments').select('*').eq('grant_id', grantId).order('expected_date', { ascending: true }),
       supabase.from('grant_reports').select('*').eq('grant_id', grantId).order('due_date', { ascending: true }),
       supabase.from('program_tasks').select('id,title,status,due_date,assignee_id').eq('grant_id', grantId).order('due_date', { ascending: true, nullsFirst: false }),
-      supabase.from('program_projects').select('id,name').order('name'),
+      supabase.from('eng_projects').select('id,name').order('name'),
     ]);
     if (g.error) { setError(g.error.message); return; }
     if (!g.data) { setMissing(true); return; }
@@ -138,7 +138,7 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
                 <label className={label}>Grant owner<select value={grant.owner_id || ''} onChange={(event) => void patch({ owner_id: event.target.value || null })} className={field}><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></label>
               </div>
               <label className={label}>Linked project<select value={grant.project_id || ''} onChange={(event) => void patch({ project_id: event.target.value || null }, 'linked a project')} className={field}><option value="">None</option>{projects.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
-              {grant.project_id && <button type="button" onClick={() => goTo(`/programs/project/${grant.project_id}`)} className="text-xs font-bold text-brand-600">Open project</button>}
+              {grant.project_id && <button type="button" onClick={() => goTo(`/engineering/software`)} className="text-xs font-bold text-brand-600">Open project</button>}
             </div></Fold>
             <section className={`${card} space-y-3`}>
               <h3 className="text-sm font-bold text-slate-900">Ask & award</h3>

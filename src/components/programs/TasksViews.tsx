@@ -6,9 +6,9 @@ import { ActivityPanel, CommentsPanel, logActivity } from '../work/EntityPanels'
 import { PanelLayout } from '../common/PanelLayout';
 import { TableSkeleton } from '../common/Feedback';
 import { useConfirm } from '../common/useConfirm';
-import { navigate } from './ProjectPage';
+import { navigate } from '../../lib/navigate';
 
-export type TaskRow = { id: string; project_id: string | null; assignee_id: string | null; title: string; status: string; priority: string; due_date: string | null; progress: number; parent_task_id?: string | null };
+export type TaskRow = { id: string; project_id: string | null; eng_project_id?: string | null; assignee_id: string | null; title: string; status: string; priority: string; due_date: string | null; progress: number; parent_task_id?: string | null };
 type Mode = 'list' | 'board' | 'calendar' | 'timeline';
 type SortKey = 'title' | 'status' | 'priority' | 'due_date' | 'assignee';
 
@@ -100,7 +100,7 @@ export const TasksViews: React.FC<Props> = ({ tasks, allTasks, projects, loading
             return (
               <tr key={task.id} className={`cursor-pointer border-b border-slate-100 last:border-0 hover:bg-brand-50/40 ${openId === task.id ? 'bg-brand-50/60' : ''}`} onClick={() => setOpenId(task.id)}>
                 <td className="px-3 py-1.5" onClick={(event) => event.stopPropagation()}><input type="checkbox" aria-label={`Select ${task.title}`} checked={picked.has(task.id)} onChange={() => toggle(task.id)} /></td>
-                <td className="max-w-[320px] px-3 py-1.5"><span className={`block truncate font-semibold ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{task.title}</span><span className="block truncate text-[11px] text-slate-400">{projectName(task.project_id)}{subs.length ? ` · ${subs.filter((item) => item.status === 'completed').length}/${subs.length} subtasks` : ''}</span></td>
+                <td className="max-w-[320px] px-3 py-1.5"><span className={`block truncate font-semibold ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{task.title}</span><span className="block truncate text-[11px] text-slate-400">{projectName(task.eng_project_id ?? null)}{subs.length ? ` · ${subs.filter((item) => item.status === 'completed').length}/${subs.length} subtasks` : ''}</span></td>
                 <td className="px-3 py-1.5">{pill(task)}</td>
                 <td className={`px-3 py-1.5 font-semibold capitalize ${priorityTone[task.priority]}`}>{task.priority}</td>
                 <td className="px-3 py-1.5 text-slate-600">{userName(task.assignee_id)}</td>

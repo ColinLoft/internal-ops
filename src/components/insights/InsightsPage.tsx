@@ -34,7 +34,7 @@ const label = (value: string) => value.replace(/[_-]/g, ' ').replace(/^\w/, (c) 
 
 const sources: Record<string, { table: string; columns: string; dateColumn?: string }> = {
   tasks: { table: 'program_tasks', columns: 'id,status,priority,due_date,created_at' },
-  projects: { table: 'program_projects', columns: 'id,status,progress,end_date,created_at' },
+  projects: { table: 'eng_projects', columns: 'id,status,target_date,created_at' },
   grants: { table: 'grants', columns: 'id,stage,amount_requested,amount_awarded,created_at' },
   prospects: { table: 'grant_prospects', columns: 'id,status,created_at' },
   legal: { table: 'legal_records', columns: 'id,record_type,status,created_at' },
@@ -94,8 +94,8 @@ export const InsightsPage: React.FC = () => {
     const online = d('profiles').filter((p) => p.last_seen_at && Date.now() - new Date(p.last_seen_at).getTime() < 4 * 60000).length;
     const taskTotal = d('tasks').length;
     return [
-      { area: 'Work', label: 'Projects', value: d('projects').length, detail: `${d('projects').filter((p) => p.status === 'active').length} active` },
-      { area: 'Work', label: 'Average project progress', value: `${Math.round(d('projects').reduce((t, p) => t + Number(p.progress || 0), 0) / (d('projects').length || 1))}%` },
+      { area: 'Work', label: 'Engineering projects', value: d('projects').length, detail: `${d('projects').filter((p) => p.status === 'active').length} active` },
+      { area: 'Work', label: 'Projects past target date', value: d('projects').filter((p) => p.target_date && String(p.target_date) < new Date().toISOString().slice(0, 10) && !['completed', 'archived'].includes(String(p.status))).length },
       { area: 'Work', label: 'Tasks', value: taskTotal, detail: `${doneTasks} completed` },
       { area: 'Work', label: 'Task completion rate', value: `${pct(doneTasks, taskTotal)}%` },
       { area: 'Work', label: 'Overdue tasks', value: overdue(d('tasks')).length },

@@ -16,7 +16,7 @@ type NavItem = { id: Tab; label: string; icon: React.ComponentType<{ className?:
 const overviewItems: NavItem[] = [
   { id: 'home', label: 'Home', icon: House },
   { id: 'messages', label: 'Messages', icon: MessageSquare },
-  { id: 'programs', label: 'Projects & Tasks', icon: FolderKanban },
+  { id: 'programs', label: 'Tasks', icon: FolderKanban },
   { id: 'inbox', label: 'Email', icon: Mail },
   { id: 'calendar', label: 'Calendar', icon: CalendarIcon },
   { id: 'drive', label: 'Drive', icon: HardDrive },

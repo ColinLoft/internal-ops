@@ -219,7 +219,7 @@ const pathForTab = (tab: WorkspaceTab) => ({
   helpcenter: '/help-center',
   settings: '/settings',
   insights: '/insights',
-  programs: '/programs',
+  programs: '/programs/tasks',
   messages: '/messages',
   channels: '/channels',
   calendar: '/calendar',

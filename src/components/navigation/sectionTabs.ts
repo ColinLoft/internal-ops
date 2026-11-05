@@ -20,7 +20,7 @@ const trim = (path: string) => (path.length > 1 ? path.replace(/\/$/, '') : path
 
 export const isSectionSelected = (item: SectionTab, routePath: string) => {
   const current = trim(routePath);
-  return current === item.path || !!item.matches?.includes(current);
+  return current === item.path || !!item.matches?.includes(current) || (item.path.startsWith('/engineering/') && current.startsWith(`${item.path}/`)) || (item.path === '/programs/tasks' && current.startsWith('/programs/task/'));
 };
 
 // Section navigation for each app, mirrored by the desktop Rail. Returns null for the workspace tabs.
@@ -28,8 +28,7 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
   switch (activeTab) {
     case 'programs':
       return [
-        tab('Projects', 'Projects', FolderKanban, '/programs', ['/programs/projects']),
-        tab('Tasks', 'Tasks', CheckSquare, '/programs/tasks'),
+        tab('Tasks', 'Tasks', CheckSquare, '/programs/tasks', ['/programs']),
       ];
     case 'insights':
       return [

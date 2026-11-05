@@ -4,10 +4,10 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { ActivityPanel, AttachmentsPanel, ChecklistPanel, CommentsPanel, LinksPanel, TimePanel, card, field, formatMinutes, logActivity } from '../work/EntityPanels';
 import { RichNotes } from '../work/RichNotes';
-import { navigate } from './ProjectPage';
+import { navigate } from '../../lib/navigate';
 
 type Task = {
-  id: string; project_id: string | null; assignee_id: string | null; parent_task_id: string | null; title: string; description: string | null; notes: string | null;
+  id: string; project_id: string | null; eng_project_id: string | null; assignee_id: string | null; parent_task_id: string | null; title: string; description: string | null; notes: string | null;
   status: string; priority: string; due_date: string | null; start_date: string | null; progress: number; estimate_hours: number | null; grant_id: string | null;
 };
 type Lite = { id: string; title: string; status: string; assignee_id: string | null; due_date: string | null };
@@ -17,7 +17,7 @@ const STATUS: Record<string, string> = { not_started: 'Not started', in_progress
 export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
   const { users } = useWorkspace();
   const [task, setTask] = useState<Task | null>(null);
-  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string; discipline: string }[]>([]);
   const [subtasks, setSubtasks] = useState<Lite[]>([]);
   const [siblings, setSiblings] = useState<Lite[]>([]);
   const [deps, setDeps] = useState<string[]>([]);
@@ -30,7 +30,7 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
   const load = useCallback(async () => {
     const [t, p, s, d, time] = await Promise.all([
       supabase.from('program_tasks').select('*').eq('id', taskId).maybeSingle(),
-      supabase.from('program_projects').select('id,name').order('name'),
+      supabase.from('eng_projects').select('id,name,discipline').order('name'),
       supabase.from('program_tasks').select('id,title,status,assignee_id,due_date').eq('parent_task_id', taskId).order('created_at'),
       supabase.from('program_task_dependencies').select('depends_on_task_id').eq('task_id', taskId),
       supabase.from('entity_time_entries').select('minutes').eq('entity_type', 'task').eq('entity_id', taskId),
@@ -39,7 +39,7 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
     if (!t.data) { setMissing(true); return; }
     const row = t.data as Task;
     setTask(row);
-    setProjects((p.data || []) as { id: string; name: string }[]);
+    setProjects((p.data || []) as { id: string; name: string; discipline: string }[]);
     setSubtasks((s.data || []) as Lite[]);
     setDeps(((d.data || []) as { depends_on_task_id: string }[]).map((r) => r.depends_on_task_id));
     setMinutes(((time.data || []) as { minutes: number }[]).reduce((sum, r) => sum + r.minutes, 0));
@@ -61,7 +61,7 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
     if (!subTitle.trim() || !task) return;
     const title = subTitle.trim();
     setSubTitle('');
-    const { data, error: insertError } = await supabase.from('program_tasks').insert({ title, parent_task_id: taskId, project_id: task.project_id, assignee_id: task.assignee_id, status: 'not_started', priority: task.priority, progress: 0 }).select('id,title,status,assignee_id,due_date').single();
+    const { data, error: insertError } = await supabase.from('program_tasks').insert({ title, parent_task_id: taskId, project_id: task.project_id, eng_project_id: task.eng_project_id, assignee_id: task.assignee_id, status: 'not_started', priority: task.priority, progress: 0 }).select('id,title,status,assignee_id,due_date').single();
     if (insertError) { setError(insertError.message); return; }
     setSubtasks((current) => [...current, data as Lite]);
     void logActivity('task', taskId, 'added subtask', title);
@@ -80,7 +80,7 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
   const remove = async () => {
     if (!window.confirm('Delete this task? This cannot be undone.')) return;
     const { error: deleteError } = await supabase.from('program_tasks').delete().eq('id', taskId);
-    if (deleteError) setError(deleteError.message); else navigate(task?.project_id ? `/programs/project/${task.project_id}` : '/programs/tasks');
+    if (deleteError) setError(deleteError.message); else navigate(backPath);
   };
 
   if (missing) return <main className="flex-1 p-8 text-sm text-slate-500">This task could not be found. <button type="button" onClick={() => navigate('/programs/tasks')} className="font-bold text-brand-600">Back to tasks</button></main>;
@@ -90,12 +90,13 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
   const overdue = task.due_date && task.status !== 'completed' && task.due_date < today;
   const subDone = subtasks.filter((row) => row.status === 'completed').length;
   const estimate = Number(task.estimate_hours || 0);
-  const project = projects.find((row) => row.id === task.project_id);
+  const project = projects.find((row) => row.id === task.eng_project_id);
+  const backPath = project ? `/engineering/${project.discipline}/${project.id}` : '/programs/tasks';
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
       <header className="border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
-        <button type="button" onClick={() => navigate(task.project_id ? `/programs/project/${task.project_id}` : '/programs/tasks')} className="mb-2 inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-brand-600"><ArrowLeft className="h-3.5 w-3.5" />{project ? project.name : 'Tasks'}</button>
+        <button type="button" onClick={() => navigate(backPath)} className="mb-2 inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-brand-600"><ArrowLeft className="h-3.5 w-3.5" />{project ? project.name : 'Tasks'}</button>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <input value={task.title} onChange={(event) => setTask({ ...task, title: event.target.value })} onBlur={(event) => event.target.value.trim() && void patch({ title: event.target.value.trim() }, 'renamed the task')} aria-label="Task title" className="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-1 text-xl font-bold text-slate-900 outline-none hover:border-slate-200 focus:border-brand-400" />
           <button type="button" onClick={() => void remove()} className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600"><Trash2 className="h-3.5 w-3.5" />Delete</button>
@@ -105,7 +106,7 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
           <label className="text-xs font-semibold text-slate-500">Status<select value={task.status} onChange={(event) => void patch({ status: event.target.value, progress: event.target.value === 'completed' ? 100 : task.progress, completed_at: event.target.value === 'completed' ? new Date().toISOString() : null }, `set status to ${STATUS[event.target.value]}`)} className={field}>{Object.entries(STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="text-xs font-semibold text-slate-500">Priority<select value={task.priority} onChange={(event) => void patch({ priority: event.target.value }, `set priority to ${event.target.value}`)} className={field}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
           <label className="text-xs font-semibold text-slate-500">Assignee<select value={task.assignee_id || ''} onChange={(event) => void patch({ assignee_id: event.target.value || null }, `assigned to ${userName(event.target.value || null)}`)} className={field}><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></label>
-          <label className="text-xs font-semibold text-slate-500">Project<select value={task.project_id || ''} onChange={(event) => void patch({ project_id: event.target.value || null }, 'moved the task')} className={field}><option value="">No project</option>{projects.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+          <label className="text-xs font-semibold text-slate-500">Project<select value={task.eng_project_id || ''} onChange={(event) => void patch({ eng_project_id: event.target.value || null }, 'moved the task')} className={field}><option value="">No project</option>{projects.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
           <label className={`text-xs font-semibold ${overdue ? 'text-rose-600' : 'text-slate-500'}`}>Due{overdue ? ' (overdue)' : ''}<input type="date" value={task.due_date || ''} onChange={(event) => void patch({ due_date: event.target.value || null })} className={field} /></label>
           <label className="text-xs font-semibold text-slate-500">Estimate (hours)<input type="number" min="0" step="0.5" value={task.estimate_hours ?? ''} onChange={(event) => setTask({ ...task, estimate_hours: event.target.value === '' ? null : Number(event.target.value) })} onBlur={(event) => void patch({ estimate_hours: event.target.value === '' ? null : Number(event.target.value) })} className={field} /></label>
         </div>

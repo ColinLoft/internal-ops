@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 export type RecordHit = { id: string; type: string; title: string; detail: string; path: string };
 
 const sources: { type: string; table: string; column: string; detail: string; path: string; live?: boolean }[] = [
-  { type: 'Project', table: 'program_projects', column: 'name', detail: 'status', path: '/programs/projects' },
+  { type: 'Project', table: 'eng_projects', column: 'name', detail: 'status', path: '/engineering' },
   { type: 'Task', table: 'program_tasks', column: 'title', detail: 'status', path: '/programs/tasks' },
   { type: 'Grant', table: 'grants', column: 'name', detail: 'stage', path: '/company/grants' },
   { type: 'Support ticket', table: 'support_tickets', column: 'subject', detail: 'status', path: '/help' },

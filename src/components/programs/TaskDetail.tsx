@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
 export type TaskRow = {
-  id: string; project_id: string | null; assignee_id: string | null; title: string; status: string; priority: string;
+  id: string; project_id: string | null; eng_project_id?: string | null; assignee_id: string | null; title: string; status: string; priority: string;
   due_date: string | null; progress: number;
 };
 type Full = TaskRow & { description: string | null; start_date: string | null; parent_task_id: string | null };
@@ -52,7 +52,7 @@ export const TaskDetail: React.FC<{ task: TaskRow; allTasks: TaskRow[]; onClose:
   if (!full) return null;
   const blockers = deps.map((id) => allTasks.find((t) => t.id === id)).filter((t): t is TaskRow => !!t);
   const blocked = blockers.some((t) => t.status !== 'completed');
-  const candidates = allTasks.filter((t) => t.id !== task.id && !deps.includes(t.id) && t.project_id === full.project_id);
+  const candidates = allTasks.filter((t) => t.id !== task.id && !deps.includes(t.id) && (t.eng_project_id ?? null) === (full.eng_project_id ?? null));
   const done = subtasks.filter((s) => s.status === 'completed').length;
 
   return (
@@ -86,7 +86,7 @@ export const TaskDetail: React.FC<{ task: TaskRow; allTasks: TaskRow[]; onClose:
               <button type="button" aria-label="Delete subtask" onClick={() => run(supabase.from('program_tasks').delete().eq('id', s.id))}><Trash2 className="h-3.5 w-3.5 text-slate-300 hover:text-rose-600" /></button>
             </li>
           ))}</ul>
-          <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (!subTitle.trim()) return; void run(supabase.from('program_tasks').insert({ title: subTitle.trim(), project_id: full.project_id, parent_task_id: full.id, assignee_id: full.assignee_id, status: 'not_started', progress: 0 })); setSubTitle(''); }}>
+          <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (!subTitle.trim()) return; void run(supabase.from('program_tasks').insert({ title: subTitle.trim(), project_id: full.project_id, eng_project_id: full.eng_project_id, parent_task_id: full.id, assignee_id: full.assignee_id, status: 'not_started', progress: 0 })); setSubTitle(''); }}>
             <input value={subTitle} onChange={(e) => setSubTitle(e.target.value)} placeholder="Add subtask" maxLength={200} className={field} />
             <button type="submit" className="rounded-lg bg-brand-600 px-3 text-white" aria-label="Add subtask"><Plus className="h-3.5 w-3.5" /></button>
           </form>

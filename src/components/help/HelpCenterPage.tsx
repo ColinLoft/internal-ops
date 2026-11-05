@@ -16,7 +16,7 @@ const requestTypes: { id: RequestType; label: string; hint: string; icon: React.
   { id: 'feature_request', label: 'Request a feature', hint: 'An idea that would make Flown better.', icon: Lightbulb },
   { id: 'access', label: 'Request access', hint: 'You need permission to an app or data.', icon: KeyRound },
 ];
-const areas = ['Not sure', 'Home', 'Messages & Channels', 'Email', 'Calendar', 'Drive', 'Projects & Tasks', 'Customers', 'Support', 'Company (ideas, grants, content, contracts)', 'Products (engineering)', 'Insights', 'Systems', 'Sign-in / account'];
+const areas = ['Not sure', 'Home', 'Messages & Channels', 'Email', 'Calendar', 'Drive', 'Tasks', 'Customers', 'Support', 'Company (ideas, grants, content, contracts)', 'Products (engineering)', 'Insights', 'Systems', 'Sign-in / account'];
 const statusLabel: Record<string, string> = { new: 'Received', open: 'Open', in_progress: 'In progress', waiting: 'Waiting on you', resolved: 'Resolved', closed: 'Closed' };
 const statusStyle: Record<string, string> = {
   new: 'bg-blue-50 text-blue-700', open: 'bg-emerald-50 text-emerald-700', in_progress: 'bg-brand-50 text-brand-700',
