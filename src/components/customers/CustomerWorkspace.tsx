@@ -44,6 +44,7 @@ export const CustomerWorkspace: React.FC<Props> = ({ orgs, contacts, items, sele
   const { confirm, dialog } = useConfirm();
   const [query, setQuery] = useState('');
   const [stage, setStage] = useState('all');
+  const [relationshipType, setRelationshipType] = useState<'all' | 'customer' | 'funder'>('all');
   const [note, setNote] = useState('');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -74,7 +75,9 @@ export const CustomerWorkspace: React.FC<Props> = ({ orgs, contacts, items, sele
   }, [org, orgContacts]);
 
   const needle = query.trim().toLowerCase();
-  const visible = orgs.filter((item) => (stage === 'all' || (item.stage ?? 'lead') === stage) && (!needle || `${item.name} ${item.website || ''}`.toLowerCase().includes(needle)));
+  const visible = orgs.filter((item) => (stage === 'all' || (item.stage ?? 'lead') === stage)
+    && (relationshipType === 'all' || item.category === relationshipType)
+    && (!needle || `${item.name} ${item.website || ''}`.toLowerCase().includes(needle)));
 
   const timeline = useMemo(() => [
     ...orgItems.map((item) => ({ key: item.id, at: item.occurred_at, kind: item.kind, title: item.subject, body: item.body, interaction: item })),
@@ -111,6 +114,9 @@ export const CustomerWorkspace: React.FC<Props> = ({ orgs, contacts, items, sele
       <div className="space-y-2 border-b border-slate-200 p-3">
         <div className="flex items-center justify-between"><h2 className="text-sm font-semibold text-slate-800">Companies <span className="text-slate-400">{visible.length}</span></h2>{canEdit && <button type="button" onClick={() => onAdd('org')} className="flex items-center gap-1 rounded-lg bg-brand-600 px-2 py-1 text-xs font-semibold text-white hover:bg-brand-700"><Plus className="h-3.5 w-3.5" />New</button>}</div>
         <div className="relative"><Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search customers…" aria-label="Search customers" className="w-full rounded-lg border border-slate-200 py-1.5 pl-8 pr-2 text-xs outline-none focus:border-brand-400" /></div>
+        <div className="flex gap-1" aria-label="Company type">
+          {([['all', 'All types'], ['customer', 'Customers'], ['funder', 'Funders']] as const).map(([id, name]) => <button key={id} type="button" onClick={() => setRelationshipType(id)} aria-pressed={relationshipType === id} className={`rounded-md px-2 py-1 text-xs font-medium ${relationshipType === id ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>{name}</button>)}
+        </div>
         <div className="flex flex-wrap gap-1">{[['all', 'All'], ...STAGES.map((item) => [item[0], item[1]])].map(([id, name]) => <button key={id} type="button" onClick={() => setStage(id)} className={`rounded-md px-2 py-0.5 text-xs font-medium ${stage === id ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>{name}</button>)}</div>
       </div>
       <ul className="flex-1 divide-y divide-slate-100 overflow-y-auto">
@@ -147,6 +153,7 @@ export const CustomerWorkspace: React.FC<Props> = ({ orgs, contacts, items, sele
         ))}
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
+        <label className="col-span-2">Company type<select disabled={!canEdit} value={org.category} onChange={(event) => void onMutate(supabase.from('crm_organizations').update({ category: event.target.value }).eq('id', org.id))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs"><option value="customer">Customer</option><option value="funder">Funder</option></select></label>
         <label>Stage<select disabled={!canEdit} value={org.stage ?? 'lead'} onChange={(event) => void onMutate(supabase.from('crm_organizations').update({ stage: event.target.value }).eq('id', org.id))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs">{STAGES.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
         <div>Relationship<p className="mt-1 rounded-lg bg-slate-50 px-2 py-1.5 font-semibold text-slate-700">{lastTouch ? (daysSince(lastTouch) <= 14 ? 'Warm' : daysSince(lastTouch) <= 45 ? 'Cooling' : 'Cold') : 'New'} <span className="font-normal text-slate-400">· {lastTouch ? `${daysSince(lastTouch)}d ago` : 'no touch'}</span></p></div>
       </div>

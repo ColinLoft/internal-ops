@@ -36,7 +36,38 @@ Deno.serve(async (request: Request) => {
     const payload = await request.json().catch(() => ({})) as Json;
     const action = String(payload.action || '');
     const conversationId = String(payload.conversationId || '');
-    if (!conversationId) return jsonResponse({ error: 'conversationId is required.' }, 400);
+    const ticketId = String(payload.ticketId || '');
+
+    if (ticketId) {
+      const { data: ticket } = await callerClient.from('support_tickets')
+        .select('id,subject,description,category,priority,status,requester_id,organization_name')
+        .eq('id', ticketId).maybeSingle();
+      if (!ticket) return jsonResponse({ error: 'Ticket not found or you do not have access.' }, 404);
+      const [{ data: comments }, { data: requester }, { data: settings }] = await Promise.all([
+        callerClient.from('support_ticket_comments').select('author_id,body,is_internal,created_at')
+          .eq('ticket_id', ticketId).order('created_at', { ascending: false }).limit(30),
+        callerClient.from('profiles').select('name').eq('id', ticket.requester_id).maybeSingle(),
+        callerClient.from('grant_settings').select('org_summary').limit(1).maybeSingle(),
+      ]);
+      const transcript = (comments || []).reverse().map((row: Json) => `${row.is_internal ? 'Internal note' : 'Message'}: ${String(row.body).slice(0, 1200)}`).join('\n');
+      const org = String((settings as Json | null)?.org_summary || '').slice(0, 3000);
+      const context = `ORGANIZATION: ${org || 'not provided'}\nREQUESTER: ${requester?.name || 'Unknown'}\nCOMPANY: ${ticket.organization_name || 'not provided'}\nCATEGORY: ${ticket.category}\nPRIORITY: ${ticket.priority}\nSTATUS: ${ticket.status}\nSUBJECT: ${ticket.subject}\nDESCRIPTION: ${String(ticket.description || '').slice(0, 4000)}\n\nTICKET MESSAGES AND INTERNAL NOTES:\n${transcript || 'No replies yet.'}`;
+
+      if (action === 'suggest') {
+        const tone = String(payload.tone || '').slice(0, 100);
+        const text = await complete(SYSTEM, `Write the agent's next reply to this ticket requester.${tone ? ` Tone: ${tone}.` : ''} Output only the message text, no subject line.\n\n${context}`);
+        return jsonResponse({ text });
+      }
+      if (action === 'summarize') {
+        const content = await complete(SYSTEM, `Summarize this support ticket. Respond with JSON: {"bullets":[3-5 short strings: what the requester needs, what was answered, what remains, any promised follow-up]}\n\n${context}`, true);
+        const parsed = JSON.parse(content) as Json;
+        const bullets = Array.isArray(parsed.bullets) ? parsed.bullets.map((item) => String(item).slice(0, 220)).slice(0, 5) : [];
+        return jsonResponse({ bullets });
+      }
+      return jsonResponse({ error: 'Unknown action.' }, 400);
+    }
+
+    if (!conversationId) return jsonResponse({ error: 'conversationId or ticketId is required.' }, 400);
 
     // Reads go through the caller's session so only support agents get data.
     const { data: conversation } = await callerClient.from('support_conversations').select('id,subject,customer_id').eq('id', conversationId).maybeSingle();

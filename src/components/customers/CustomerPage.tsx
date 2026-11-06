@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ContactRound, Plus, Search, Trash2, X, Clock3, MessageSquare } from 'lucide-react';
+import { CheckCircle2, Plus, Search, Trash2, X, Clock3, MessageSquare } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAppAccess } from '../../lib/useAppAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -14,7 +14,7 @@ type Org = { id: string; name: string; category: string; website: string | null;
 type Contact = { id: string; organization_id: string | null; name: string; role_title: string | null; email: string | null; phone: string | null; notes: string | null; owner_id: string | null };
 type Interaction = { id: string; organization_id: string | null; contact_id: string | null; kind: string; subject: string; body: string | null; occurred_at: string; follow_up_at: string | null; follow_up_done: boolean; owner_id: string | null };
 
-const categories = ['customer', 'prospect', 'partner', 'funder', 'vendor', 'government', 'media', 'community', 'other'];
+const categories = ['customer', 'funder'];
 const kinds = ['note', 'call', 'email', 'meeting', 'follow_up'];
 const label = (v: string) => v.replace('_', ' ').replace(/^\w/, (c) => c.toUpperCase());
 const viewFromPath = (path: string): View => {
@@ -37,8 +37,12 @@ export const CustomerPage: React.FC = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [items, setItems] = useState<Interaction[]>([]);
   const [search, setSearch] = useState('');
-  const [contactSort, setContactSort] = useState<{ col: number; dir: 1 | -1 }>({ col: 0, dir: 1 });
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [contactHistory, setContactHistory] = useState<Interaction[]>([]);
+  const [contactHistoryError, setContactHistoryError] = useState('');
+  const [contactHistoryLoading, setContactHistoryLoading] = useState(false);
+  const [contactConversations, setContactConversations] = useState<{ id: string; subject: string; status: string; last_message_at: string; last_message_preview: string | null }[]>([]);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -48,6 +52,42 @@ export const CustomerPage: React.FC = () => {
     window.addEventListener('popstate', onRoute);
     return () => window.removeEventListener('popstate', onRoute);
   }, []);
+
+  useEffect(() => {
+    setContactHistory([]);
+    setContactConversations([]);
+    setContactHistoryError('');
+    if (view !== 'contacts' || !selectedContactId) return;
+    const contact = contacts.find((item) => item.id === selectedContactId);
+    if (!contact) return;
+    let active = true;
+    setContactHistoryLoading(true);
+    void (async () => {
+      const { data: history, error: historyError } = await supabase.from('crm_interactions')
+        .select('*').eq('contact_id', contact.id).order('occurred_at', { ascending: false });
+      if (!active) return;
+      if (historyError) setContactHistoryError(historyError.message);
+      else setContactHistory((history || []) as Interaction[]);
+
+      if (['admin', 'coordinator'].includes(currentUser.systemRole)) {
+        const customerResult = await supabase.from('support_customers').select('id').eq('crm_contact_id', contact.id);
+        if (customerResult.error) {
+          if (active) setContactHistoryError((current) => current || customerResult.error.message);
+        } else if (customerResult.data?.length) {
+          const { data: conversations, error: conversationsError } = await supabase.from('support_conversations')
+            .select('id,subject,status,last_message_at,last_message_preview')
+            .in('customer_id', customerResult.data.map((item) => item.id))
+            .order('last_message_at', { ascending: false });
+          if (active) {
+            if (conversationsError) setContactHistoryError((current) => current || conversationsError.message);
+            else setContactConversations(conversations || []);
+          }
+        }
+      }
+      if (active) setContactHistoryLoading(false);
+    })();
+    return () => { active = false; };
+  }, [contacts, currentUser.systemRole, selectedContactId, view]);
 
   const load = useCallback(async () => {
     const [o, c, i] = await Promise.all([
@@ -82,8 +122,7 @@ export const CustomerPage: React.FC = () => {
   const tabs: [View, string][] = [['organizations', 'Companies'], ['contacts', 'Contacts'], ['contracts', 'Contracts'], ['support', 'Support']];
   const go = (v: View) => { window.history.pushState({}, '', v === 'overview' ? '/customers' : `/customers/${v}`); setView(v); };
 
-    const contactKey = (c: Contact) => [c.name, orgName(c.organization_id), c.role_title || '', c.email || '', c.phone || ''][contactSort.col].toLowerCase();
-  const filteredContacts = contacts.filter((c) => !q || `${c.name} ${c.email || ''} ${c.role_title || ''} ${orgName(c.organization_id)}`.toLowerCase().includes(q)).sort((a, b) => contactKey(a).localeCompare(contactKey(b)) * contactSort.dir);
+  const filteredContacts = contacts.filter((c) => !q || `${c.name} ${c.email || ''} ${c.role_title || ''} ${orgName(c.organization_id)}`.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name));
   const filteredItems = items.filter((i) => !q || `${i.subject} ${i.body || ''} ${orgName(i.organization_id)}`.toLowerCase().includes(q));
 
   const interactionRow = (i: Interaction) => (
@@ -97,15 +136,6 @@ export const CustomerPage: React.FC = () => {
       </div>
       {canEdit && i.follow_up_at && !i.follow_up_done && <button type="button" title="Mark follow-up done" onClick={() => run(supabase.from('crm_interactions').update({ follow_up_done: true }).eq('id', i.id))} className="text-emerald-600"><CheckCircle2 className="h-4 w-4" /></button>}
       {canManage && <button type="button" title="Delete" onClick={async () => { if (await confirm({ title: 'Delete this interaction?' })) await run(supabase.from('crm_interactions').delete().eq('id', i.id)); }} className="text-slate-300 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>}
-    </div>
-  );
-
-  const table = (heads: string[], rows: React.ReactNode[][], empty: string, sort?: { col: number; dir: 1 | -1; set: (col: number) => void }) => (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-      <table className="w-full min-w-[640px] text-xs">
-        <thead><tr className="border-b border-slate-100 bg-slate-50/70">{heads.map((h, index) => <th key={h} className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">{sort ? <button type="button" onClick={() => sort.set(index)} className="hover:text-slate-600">{h}{sort.col === index ? (sort.dir === 1 ? ' ↑' : ' ↓') : ''}</button> : h}</th>)}</tr></thead>
-        <tbody>{rows.length === 0 ? <tr><td colSpan={heads.length} className="px-4 py-8 text-center text-slate-400">{empty}</td></tr> : rows.map((r, i) => <tr key={i} className="border-b border-slate-100 last:border-0">{r.map((c, j) => <td key={j} className="px-3 py-2 text-slate-600">{c}</td>)}</tr>)}</tbody>
-      </table>
     </div>
   );
 
@@ -165,9 +195,61 @@ export const CustomerPage: React.FC = () => {
                 <div className="mt-3 space-y-2">{followUps.length ? followUps.slice(0, 10).map(interactionRow) : <p className="text-xs text-slate-400">Nothing waiting. Log an interaction with a follow-up date to track it here.</p>}</div>
               </section>
             </>}
-            {view === 'contacts' && table(['Contact', 'Organization', 'Role', 'Email', 'Phone'], filteredContacts.map((c) => [
-              <span className="flex items-center gap-2 font-bold text-slate-800"><ContactRound className="h-4 w-4 text-brand-600" />{c.name}</span>, orgName(c.organization_id), c.role_title || '—', c.email || '—', c.phone || '—',
-            ]), 'No contacts yet.', { ...contactSort, set: (col) => setContactSort((current) => ({ col, dir: current.col === col && current.dir === 1 ? -1 : 1 })) })}
+            {view === 'contacts' && (
+              <div className="grid min-h-[65vh] gap-4 lg:grid-cols-[minmax(280px,0.8fr)_minmax(0,1.8fr)]">
+                <section className={`${selectedContactId ? 'hidden lg:block' : ''} overflow-hidden rounded-xl border border-slate-200 bg-white`}>
+                  <div className="border-b border-slate-100 px-4 py-3">
+                    <h2 className="text-sm font-semibold text-slate-800">Contacts <span className="text-slate-400">{filteredContacts.length}</span></h2>
+                  </div>
+                  <ul className="divide-y divide-slate-100">
+                    {filteredContacts.map((contact) => (
+                      <li key={contact.id}>
+                        <button type="button" onClick={() => setSelectedContactId(contact.id)} className={`w-full px-4 py-3 text-left hover:bg-slate-50 ${selectedContactId === contact.id ? 'bg-brand-50' : ''}`}>
+                          <span className="block truncate text-sm font-semibold text-slate-800">{contact.name}</span>
+                          <span className="mt-0.5 block truncate text-xs text-slate-500">{contact.role_title || 'Contact'}{contact.organization_id ? ` · ${orgName(contact.organization_id)}` : ''}</span>
+                          <span className="mt-0.5 block truncate text-xs text-slate-400">{contact.email || contact.phone || 'No contact details'}</span>
+                        </button>
+                      </li>
+                    ))}
+                    {!filteredContacts.length && <li className="p-5 text-xs text-slate-400">No contacts match your search.</li>}
+                  </ul>
+                </section>
+                <section className={`${selectedContactId ? '' : 'hidden lg:flex'} min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-5`}>
+                  {(() => {
+                    const contact = contacts.find((item) => item.id === selectedContactId);
+                    if (!contact) return <p className="m-auto text-sm text-slate-400">Select a contact to see their profile and history.</p>;
+                    const organization = orgs.find((item) => item.id === contact.organization_id);
+                    const history = contactHistory.map((item) => ({ id: item.id, date: item.occurred_at, title: item.subject, detail: `${label(item.kind)}${item.body ? ` · ${item.body}` : ''}`, status: item.follow_up_at ? `Follow-up ${fmt(item.follow_up_at)}${item.follow_up_done ? ' · done' : ''}` : '' }));
+                    const conversationHistory = contactConversations.map((item) => ({ id: item.id, date: item.last_message_at, title: item.subject, detail: item.last_message_preview || 'Support conversation', status: label(item.status) }));
+                    const timeline = [...history, ...conversationHistory].sort((a, b) => b.date.localeCompare(a.date));
+                    return (
+                      <>
+                        <div className="flex items-start gap-3">
+                          <button type="button" onClick={() => setSelectedContactId(null)} className="mr-1 rounded px-2 py-1 text-xs text-slate-500 hover:bg-slate-100 lg:hidden">Back</button>
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">{contact.name.split(/\\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()}</span>
+                          <div className="min-w-0 flex-1">
+                            <h2 className="truncate text-lg font-bold text-slate-900">{contact.name}</h2>
+                            <p className="text-sm text-slate-500">{contact.role_title || 'Contact'}{organization ? ` · ${organization.name}` : ''}</p>
+                          </div>
+                        </div>
+                        <dl className="mt-5 grid gap-3 sm:grid-cols-2">
+                          <div><dt className="text-xs text-slate-500">Email</dt><dd className="mt-1 break-all text-sm text-slate-800">{contact.email || '—'}</dd></div>
+                          <div><dt className="text-xs text-slate-500">Phone</dt><dd className="mt-1 text-sm text-slate-800">{contact.phone || '—'}</dd></div>
+                          <div><dt className="text-xs text-slate-500">Company</dt><dd className="mt-1 text-sm text-slate-800">{organization?.name || '—'}</dd></div>
+                          <div><dt className="text-xs text-slate-500">Relationship</dt><dd className="mt-1 text-sm text-slate-800">{organization ? label(organization.category) : 'Not linked'}</dd></div>
+                        </dl>
+                        {contact.notes && <section className="mt-5"><h3 className="text-xs font-semibold text-slate-500">Internal notes</h3><p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{contact.notes}</p></section>}
+                        <section className="mt-6 min-h-0 flex-1">
+                          <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-slate-900">History</h3><span className="text-xs text-slate-400">{timeline.length} records</span></div>
+                          {contactHistoryError && <p role="alert" className="mt-2 text-xs text-rose-600">{contactHistoryError}</p>}
+                          {contactHistoryLoading ? <p className="mt-4 text-sm text-slate-400">Loading history…</p> : timeline.length ? <ol className="mt-3 space-y-3">{timeline.map((item) => <li key={item.id} className="border-l-2 border-slate-200 pl-3"><p className="text-sm font-medium text-slate-800">{item.title}</p><p className="mt-0.5 whitespace-pre-wrap text-xs text-slate-600">{item.detail}</p><p className="mt-1 text-xs text-slate-400">{fmt(item.date)}{item.status ? ` · ${item.status}` : ''}</p></li>)}</ol> : <p className="mt-3 text-sm text-slate-400">No history has been recorded for this contact.</p>}
+                        </section>
+                      </>
+                    );
+                  })()}
+                </section>
+              </div>
+            )}
             {view === 'activity' && <div className="space-y-2">{filteredItems.length ? filteredItems.map(interactionRow) : <p className="text-xs text-slate-400">No interactions logged.</p>}</div>}
           </>}
         </div>
@@ -183,7 +265,7 @@ const RecordDialog: React.FC<{
   dialog: NonNullable<Dialog>; orgs: Org[]; contacts: Contact[]; userId: string; onClose: () => void;
   onSave: (table: string, row: Record<string, unknown>) => Promise<string>;
 }> = ({ dialog, orgs, contacts, userId, onClose, onSave }) => {
-  const [f, setF] = useState<Record<string, string>>({ organization_id: dialog.orgId || '', category: 'other', kind: 'note' });
+  const [f, setF] = useState<Record<string, string>>({ organization_id: dialog.orgId || '', category: 'customer', kind: 'note' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF((s) => ({ ...s, [k]: e.target.value }));
