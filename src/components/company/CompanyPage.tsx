@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AccessGate } from '../common/AccessGate';
 import { FinancePage } from '../finance/FinancePage';
 import { ContentCalendar } from './ContentCalendar';
-import { ContractsPoliciesPage } from './ContractsPoliciesPage';
+import { WebsitePage } from './WebsitePage';
 import { IdeasPage } from './IdeasPage';
 
 const segmentOf = (pathname: string) => pathname.split('/')[2] || 'ideas';
@@ -14,10 +14,15 @@ export const CompanyPage: React.FC = () => {
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
   }, []);
+  useEffect(() => {
+    if (segment !== 'contracts') return;
+    window.history.replaceState({}, '', '/customers/contracts');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, [segment]);
 
   switch (segment) {
-    case 'contracts': return <AccessGate app="legal" name="Legal"><ContractsPoliciesPage kind="contracts" /></AccessGate>;
-    case 'policies': return <AccessGate app="legal" name="Legal"><ContractsPoliciesPage kind="policies" /></AccessGate>;
+    case 'website':
+    case 'policies': return <AccessGate app="legal" name="Website"><WebsitePage /></AccessGate>;
     case 'calendar': return (
       <AccessGate app="gtm" name="Marketing">
         <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">

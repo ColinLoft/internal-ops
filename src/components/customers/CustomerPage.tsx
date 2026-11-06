@@ -5,10 +5,11 @@ import { useAppAccess } from '../../lib/useAppAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { SupportPage } from '../support/SupportPage';
 import { CustomerPipeline, CustomerWorkspace } from './CustomerWorkspace';
+import { ContractSuite } from './ContractSuite';
 import { CardSkeleton } from '../common/Feedback';
 import { useConfirm } from '../common/useConfirm';
 
-type View = 'overview' | 'contacts' | 'organizations' | 'pipeline' | 'activity' | 'support';
+type View = 'overview' | 'contacts' | 'organizations' | 'pipeline' | 'activity' | 'support' | 'contracts';
 type Org = { id: string; name: string; category: string; website: string | null; notes: string | null; owner_id: string | null; created_at: string; stage?: string };
 type Contact = { id: string; organization_id: string | null; name: string; role_title: string | null; email: string | null; phone: string | null; notes: string | null; owner_id: string | null };
 type Interaction = { id: string; organization_id: string | null; contact_id: string | null; kind: string; subject: string; body: string | null; occurred_at: string; follow_up_at: string | null; follow_up_done: boolean; owner_id: string | null };
@@ -19,7 +20,7 @@ const label = (v: string) => v.replace('_', ' ').replace(/^\w/, (c) => c.toUpper
 const viewFromPath = (path: string): View => {
   if (path.split('/')[1] === 'help') return 'support';
   const seg = path.split('/')[2];
-  return seg === 'organizations' || seg === 'companies' ? 'organizations' : seg === 'support' ? 'support' : 'contacts';
+  return seg === 'organizations' || seg === 'companies' ? 'organizations' : seg === 'support' ? 'support' : seg === 'contracts' ? 'contracts' : 'contacts';
 };
 const fmt = (d: string) => new Date(d).toLocaleDateString();
 const input = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-400';
@@ -78,7 +79,7 @@ export const CustomerPage: React.FC = () => {
   const followUps = useMemo(() => items.filter((i) => i.follow_up_at && !i.follow_up_done).sort((a, b) => a.follow_up_at!.localeCompare(b.follow_up_at!)), [items]);
   const overdue = followUps.filter((i) => new Date(i.follow_up_at!) < today);
 
-  const tabs: [View, string][] = [['organizations', 'Companies'], ['contacts', 'Contacts'], ['support', 'Support']];
+  const tabs: [View, string][] = [['organizations', 'Companies'], ['contacts', 'Contacts'], ['contracts', 'Contracts'], ['support', 'Support']];
   const go = (v: View) => { window.history.pushState({}, '', v === 'overview' ? '/customers' : `/customers/${v}`); setView(v); };
 
     const contactKey = (c: Contact) => [c.name, orgName(c.organization_id), c.role_title || '', c.email || '', c.phone || ''][contactSort.col].toLowerCase();
@@ -111,6 +112,8 @@ export const CustomerPage: React.FC = () => {
   const addLabel = view === 'contacts' ? 'contact' : view === 'activity' ? 'interaction' : 'company';
 
   const tabNav = null;
+
+  if (view === 'contracts') return <ContractSuite />;
 
   if (view === 'support') {
     return (

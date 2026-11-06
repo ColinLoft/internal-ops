@@ -1,5 +1,5 @@
 import {
-  CheckSquare, Headset, House, ContactRound, Building2, BookOpen, BarChart3, Users, ShieldCheck, CheckCircle2,
+  CheckSquare, Headset, House, ContactRound, Building2, BookOpen, BarChart3, Users, ShieldCheck,
   Landmark, Target, FolderKanban, Code2, Cog, Cable, Network,
   FileText,
   Calendar as CalendarIcon, Lightbulb, type LucideIcon,
@@ -24,7 +24,7 @@ export const isSectionSelected = (item: SectionTab, routePath: string) => {
 };
 
 // Section navigation for each app, mirrored by the desktop Rail. Returns null for the workspace tabs.
-export const getSectionTabs = (activeTab: string, routePath: string): SectionTab[] | null => {
+export const getSectionTabs = (activeTab: string, _routePath: string): SectionTab[] | null => {
   switch (activeTab) {
     case 'programs':
       return [
@@ -42,6 +42,7 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
       return [
         tab('Companies', 'Companies', Building2, '/customers/organizations', ['/customers/companies']),
         tab('Contacts', 'Contacts', ContactRound, '/customers/contacts', ['/customers']),
+        tab('Contracts', 'Contracts', FileText, '/customers/contracts'),
         tab('Support', 'Support', Headset, '/customers/support', ['/help']),
       ];
     case 'company':
@@ -51,8 +52,7 @@ export const getSectionTabs = (activeTab: string, routePath: string): SectionTab
         tab('Find Grants', 'Find', Target, '/company/prospects', undefined, 'finance'),
         tab('Grant Resources', 'Library', BookOpen, '/company/resources', undefined, 'finance'),
         tab('Content Calendar', 'Calendar', CalendarIcon, '/company/calendar', undefined, 'gtm'),
-        tab('Contracts', 'Contracts', FileText, '/company/contracts', undefined, 'legal'),
-        tab('Policies', 'Policies', ShieldCheck, '/company/policies', undefined, 'legal'),
+        tab('Website', 'Website', ShieldCheck, '/company/website', ['/company/policies'], 'legal'),
       ];
     case 'engineering':
       return [
