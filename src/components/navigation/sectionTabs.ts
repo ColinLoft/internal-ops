@@ -51,7 +51,7 @@ export const getSectionTabs = (activeTab: string, _routePath: string): SectionTa
         tab('Grants', 'Grants', Landmark, '/company/grants', undefined, 'finance'),
         tab('Find Grants', 'Find', Target, '/company/prospects', undefined, 'finance'),
         tab('Grant Resources', 'Library', BookOpen, '/company/resources', undefined, 'finance'),
-        tab('Content Calendar', 'Calendar', CalendarIcon, '/company/calendar', undefined, 'gtm'),
+        tab('Marketing', 'Marketing', CalendarIcon, '/company/calendar', undefined, 'gtm'),
         tab('Website', 'Website', ShieldCheck, '/company/website', ['/company/policies'], 'legal'),
       ];
     case 'engineering':

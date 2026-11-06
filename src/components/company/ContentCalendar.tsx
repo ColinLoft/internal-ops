@@ -7,8 +7,10 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 type Post = {
   id: string; title: string; body: string | null; channel: string; campaign_id: string | null; scheduled_for: string | null;
   status: string; review_note: string | null; reviewed_by: string | null; created_by: string;
+  objective?: string | null; audience?: string | null; hashtags?: string[] | null; call_to_action?: string | null;
+  media_url?: string | null; published_url?: string | null; reach?: number | null; engagements?: number | null; link_clicks?: number | null;
 };
-type Campaign = { id: string; name: string };
+type Campaign = { id: string; name: string; description?: string | null; status?: string; due_date?: string | null; objective?: string | null; audience?: string | null; channels?: string[] | null; budget?: number | null };
 
 const channels = ['instagram', 'facebook', 'linkedin', 'x', 'tiktok', 'youtube', 'newsletter', 'website', 'other'];
 const statusStyle: Record<string, string> = {
@@ -36,14 +38,16 @@ export const ContentCalendar: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [month, setMonth] = useState(() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1); });
   const [editing, setEditing] = useState<Post | 'new' | null>(null);
+  const [campaignEditing, setCampaignEditing] = useState<Campaign | 'new' | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     const [p, c] = await Promise.all([
       supabase.from('gtm_content_posts').select('*').order('scheduled_for', { ascending: true, nullsFirst: false }),
-      supabase.from('gtm_records').select('id,name').eq('area', 'marketing').order('name'),
+      supabase.from('gtm_records').select('*').eq('area', 'marketing').order('name'),
     ]);
-    if (p.error) setError(p.error.message); else setError('');
+    if (p.error || c.error) setError([p.error && `Posts: ${p.error.message}`, c.error && `Campaigns: ${c.error.message}`].filter(Boolean).join(' · '));
+    else setError('');
     setPosts((p.data as Post[]) || []);
     setCampaigns((c.data as Campaign[]) || []);
   }, []);
@@ -51,6 +55,7 @@ export const ContentCalendar: React.FC = () => {
 
   const userName = (id: string | null) => users.find((u) => u.id === id)?.name || '—';
   const pending = posts.filter((p) => p.status === 'pending_approval');
+  const published = posts.filter((p) => p.status === 'published').sort((a, b) => new Date(b.scheduled_for || 0).getTime() - new Date(a.scheduled_for || 0).getTime());
   const byDay = useMemo(() => {
     const map = new Map<string, Post[]>();
     posts.forEach((p) => { if (p.scheduled_for) { const k = dayKey(new Date(p.scheduled_for)); map.set(k, [...(map.get(k) || []), p]); } });
@@ -102,7 +107,33 @@ export const ContentCalendar: React.FC = () => {
         </section>
       </div>
 
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><h3 className="text-sm font-bold text-slate-900">Campaigns</h3><p className="mt-1 text-xs text-slate-500">Connect posts to a goal, audience and channel plan.</p></div>
+          {canEdit && <button type="button" onClick={() => setCampaignEditing('new')} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:border-brand-400"><Plus className="h-3.5 w-3.5" />New campaign</button>}
+        </div>
+        {campaigns.length ? <div className="mt-3 divide-y divide-slate-100">{campaigns.map((campaign) => (
+          <button type="button" key={campaign.id} onClick={() => setCampaignEditing(campaign)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 py-3 text-left hover:text-brand-700">
+            <span className="min-w-[10rem] flex-1 text-xs font-semibold text-slate-800">{campaign.name}<span className="ml-2 font-normal text-slate-400">{campaign.status || 'planned'}</span>{campaign.objective && <span className="mt-1 block font-normal text-slate-500">{campaign.objective}</span>}</span>
+            <span className="text-xs text-slate-500">{campaign.channels?.map(label).join(', ') || 'No channels selected'}</span>
+            {campaign.due_date && <span className="text-xs tabular-nums text-slate-500">Through {campaign.due_date}</span>}
+          </button>
+        ))}</div> : <p className="mt-3 text-xs text-slate-400">No campaigns yet. Create one to organize posts around a shared goal.</p>}
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="text-sm font-bold text-slate-900">Published content</h3><span className="text-xs text-slate-500">{published.length} posts</span></div>
+        {published.length ? <div className="mt-2 divide-y divide-slate-100">{published.slice(0, 6).map((post) => (
+          <div key={post.id} className="flex flex-wrap items-center gap-x-5 gap-y-2 py-3">
+            <button type="button" onClick={() => setEditing(post)} className="min-w-[9rem] flex-1 text-left text-xs font-semibold text-slate-800 hover:text-brand-700">{post.title}<span className="mt-1 block font-normal text-slate-500">{label(post.channel)} · {post.scheduled_for ? new Date(post.scheduled_for).toLocaleDateString() : 'Date not recorded'}</span></button>
+            <dl className="flex gap-4 text-xs tabular-nums text-slate-600"><div><dt className="text-slate-400">Reach</dt><dd>{post.reach ?? '—'}</dd></div><div><dt className="text-slate-400">Engagements</dt><dd>{post.engagements ?? '—'}</dd></div><div><dt className="text-slate-400">Clicks</dt><dd>{post.link_clicks ?? '—'}</dd></div></dl>
+            {post.published_url && <a href={post.published_url} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-brand-700">Open post</a>}
+          </div>
+        ))}</div> : <p className="mt-3 text-xs text-slate-400">Posts marked published will appear here. Record verified reach, engagement and link clicks on a post.</p>}
+      </section>
+
       {editing && <PostDialog post={editing === 'new' ? null : editing} campaigns={campaigns} canManage={canManage} canEdit={canEdit} currentUserId={currentUser.id} authorName={editing === 'new' ? currentUser.name : userName(editing.created_by)} reviewerName={editing === 'new' ? '' : userName(editing.reviewed_by)} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void load(); }} />}
+      {campaignEditing && <CampaignDialog campaign={campaignEditing === 'new' ? null : campaignEditing} userId={currentUser.id} onClose={() => setCampaignEditing(null)} onSaved={() => { setCampaignEditing(null); void load(); }} />}
     </div>
   );
 };
@@ -111,7 +142,13 @@ const PostDialog: React.FC<{
   post: Post | null; campaigns: Campaign[]; canManage: boolean; canEdit: boolean; currentUserId: string; authorName: string; reviewerName: string;
   onClose: () => void; onSaved: () => void;
 }> = ({ post, campaigns, canManage, canEdit, currentUserId, authorName, reviewerName, onClose, onSaved }) => {
-  const [f, setF] = useState({ title: post?.title || '', body: post?.body || '', channel: post?.channel || 'instagram', campaign_id: post?.campaign_id || '', scheduled_for: toLocalInput(post?.scheduled_for || null) });
+  const [f, setF] = useState({
+    title: post?.title || '', body: post?.body || '', channel: post?.channel || 'instagram', campaign_id: post?.campaign_id || '',
+    scheduled_for: toLocalInput(post?.scheduled_for || null), objective: post?.objective || '', audience: post?.audience || '',
+    hashtags: post?.hashtags?.join(', ') || '', call_to_action: post?.call_to_action || '', media_url: post?.media_url || '',
+    published_url: post?.published_url || '', reach: post?.reach == null ? '' : String(post.reach),
+    engagements: post?.engagements == null ? '' : String(post.engagements), link_clicks: post?.link_clicks == null ? '' : String(post.link_clicks),
+  });
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -124,6 +161,12 @@ const PostDialog: React.FC<{
   const values = () => ({
     title: f.title.trim(), body: f.body.trim() || null, channel: f.channel, campaign_id: f.campaign_id || null,
     scheduled_for: f.scheduled_for ? new Date(f.scheduled_for).toISOString() : null,
+    objective: f.objective.trim() || null, audience: f.audience.trim() || null,
+    hashtags: f.hashtags.split(/[\s,]+/).map((tag) => tag.replace(/^#/, '').trim()).filter(Boolean),
+    call_to_action: f.call_to_action.trim() || null, media_url: f.media_url.trim() || null,
+    published_url: f.published_url.trim() || null,
+    reach: f.reach === '' ? null : Number(f.reach), engagements: f.engagements === '' ? null : Number(f.engagements),
+    link_clicks: f.link_clicks === '' ? null : Number(f.link_clicks),
   });
   const save = async (status?: string, extra: Record<string, unknown> = {}) => {
     if (!f.title.trim()) { setError('A title is required.'); return; }
@@ -150,13 +193,22 @@ const PostDialog: React.FC<{
         </div>
         {post && <p className="text-xs text-slate-400">By {authorName}{post.reviewed_by ? ` · reviewed by ${reviewerName}` : ''}</p>}
         {post?.review_note && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700"><MessageSquareWarning className="mr-1 inline h-3.5 w-3.5" />{post.review_note}</p>}
-        <input disabled={!editable} maxLength={200} placeholder="Title" value={f.title} onChange={set('title')} className={field} />
-        <textarea disabled={!editable} rows={5} placeholder="Copy / caption" value={f.body} onChange={set('body')} className={field} />
+        <input disabled={!editable} maxLength={200} placeholder="Post title" value={f.title} onChange={set('title')} className={field} />
+        <textarea disabled={!editable} rows={5} placeholder="Post copy / caption" value={f.body} onChange={set('body')} className={field} />
         <div className="grid grid-cols-2 gap-3">
           <select disabled={!editable} value={f.channel} onChange={set('channel')} className={field}>{channels.map((c) => <option key={c} value={c}>{label(c)}</option>)}</select>
           <select disabled={!editable} value={f.campaign_id} onChange={set('campaign_id')} className={field}><option value="">No campaign</option>{campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
         </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <input disabled={!editable} placeholder="Campaign objective" value={f.objective} onChange={set('objective')} className={field} />
+          <input disabled={!editable} placeholder="Target audience" value={f.audience} onChange={set('audience')} className={field} />
+          <input disabled={!editable} placeholder="Hashtags, comma separated" value={f.hashtags} onChange={set('hashtags')} className={field} />
+          <input disabled={!editable} placeholder="Call to action" value={f.call_to_action} onChange={set('call_to_action')} className={field} />
+          <input disabled={!editable} type="url" placeholder="Media / asset URL" value={f.media_url} onChange={set('media_url')} className={field} />
+          <input disabled={!editable} type="url" placeholder="Published post URL" value={f.published_url} onChange={set('published_url')} className={field} />
+        </div>
         <label className="block text-xs text-slate-500">Publish date<input disabled={!editable} type="datetime-local" value={f.scheduled_for} onChange={set('scheduled_for')} className={`${field} mt-1`} /></label>
+        {post?.status === 'published' && <fieldset className="grid grid-cols-3 gap-2"><legend className="mb-1 text-xs font-semibold text-slate-500">Performance (enter verified platform metrics)</legend>{(['reach', 'engagements', 'link_clicks'] as const).map((key) => <label key={key} className="text-xs capitalize text-slate-500">{key.replace('_', ' ')}<input disabled={!editable} type="number" min="0" value={f[key]} onChange={set(key)} className={`${field} mt-1`} /></label>)}</fieldset>}
         {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
 
         {isReviewable && (
@@ -176,6 +228,55 @@ const PostDialog: React.FC<{
           {canManage && post && ['approved', 'scheduled'].includes(post.status) && <button type="button" disabled={busy || !f.scheduled_for} onClick={() => save('published')} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-50">Mark published</button>}
           {post && (canManage || (own && post.status === 'draft')) && <button type="button" onClick={remove} className="ml-auto inline-flex items-center gap-1 text-xs text-rose-600"><Trash2 className="h-3.5 w-3.5" /> Delete</button>}
         </div>
+      </div>
+    </div>
+  );
+};
+
+const CampaignDialog: React.FC<{ campaign: Campaign | null; userId: string; onClose: () => void; onSaved: () => void }> = ({ campaign, userId, onClose, onSaved }) => {
+  const [form, setForm] = useState({
+    name: campaign?.name || '', description: campaign?.description || '', status: campaign?.status || 'planned',
+    due_date: campaign?.due_date || '', objective: campaign?.objective || '', audience: campaign?.audience || '',
+    channels: campaign?.channels || [], budget: campaign?.budget == null ? '' : String(campaign.budget),
+  });
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (!form.name.trim()) { setError('A campaign name is required.'); return; }
+    setBusy(true);
+    const values = {
+      name: form.name.trim(), description: form.description.trim() || null, status: form.status,
+      due_date: form.due_date || null, objective: form.objective.trim() || null, audience: form.audience.trim() || null,
+      channels: form.channels, budget: form.budget === '' ? null : Number(form.budget), updated_at: new Date().toISOString(),
+    };
+    const { error: saveError } = campaign
+      ? await supabase.from('gtm_records').update(values).eq('id', campaign.id)
+      : await supabase.from('gtm_records').insert({ ...values, area: 'marketing', created_by: userId, owner_id: userId });
+    setBusy(false);
+    if (saveError) setError(saveError.message); else onSaved();
+  };
+  const remove = async () => {
+    if (!campaign || !window.confirm(`Delete "${campaign.name}"? Posts in this campaign will remain.`)) return;
+    const { error: deleteError } = await supabase.from('gtm_records').delete().eq('id', campaign.id);
+    if (deleteError) setError(deleteError.message); else onSaved();
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-label="Marketing campaign">
+      <div className="max-h-[90vh] w-full max-w-xl space-y-3 overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
+        <div className="flex items-center justify-between"><h2 className="text-base font-bold text-slate-900">{campaign ? 'Edit campaign' : 'New campaign'}</h2><button type="button" aria-label="Close" onClick={onClose}><X className="h-4 w-4" /></button></div>
+        {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+        <input autoFocus maxLength={200} value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Campaign name" className={field} />
+        <textarea rows={3} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="Campaign overview" className={field} />
+        <textarea rows={2} value={form.objective} onChange={(event) => setForm((current) => ({ ...current, objective: event.target.value }))} placeholder="Objective and success measure" className={field} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <input value={form.audience} onChange={(event) => setForm((current) => ({ ...current, audience: event.target.value }))} placeholder="Target audience" className={field} />
+          <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} className={field}><option value="planned">Planned</option><option value="active">Active</option><option value="completed">Completed</option><option value="paused">Paused</option></select>
+          <label className="text-xs text-slate-500">Campaign through<input type="date" value={form.due_date} onChange={(event) => setForm((current) => ({ ...current, due_date: event.target.value }))} className={`${field} mt-1`} /></label>
+          <label className="text-xs text-slate-500">Budget<input type="number" min="0" step="0.01" value={form.budget} onChange={(event) => setForm((current) => ({ ...current, budget: event.target.value }))} className={`${field} mt-1`} /></label>
+        </div>
+        <fieldset><legend className="mb-2 text-xs font-semibold text-slate-500">Channels</legend><div className="flex flex-wrap gap-x-4 gap-y-2">{channels.filter((channel) => channel !== 'other').map((channel) => <label key={channel} className="flex items-center gap-1.5 text-xs capitalize text-slate-600"><input type="checkbox" checked={form.channels.includes(channel)} onChange={(event) => setForm((current) => ({ ...current, channels: event.target.checked ? [...current.channels, channel] : current.channels.filter((item) => item !== channel) }))} />{channel}</label>)}</div></fieldset>
+        <p className="text-xs text-slate-400">Posts can be planned, approved and marked published here. Connecting social accounts is not configured, so publishing and metrics must be recorded manually.</p>
+        <div className="flex items-center justify-between pt-1">{campaign ? <button type="button" onClick={() => void remove()} className="text-xs font-semibold text-rose-600">Delete campaign</button> : <span />}<div className="flex gap-2"><button type="button" onClick={onClose} className="px-3 py-2 text-xs font-semibold text-slate-500">Cancel</button><button type="button" disabled={busy} onClick={() => void save()} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{busy ? 'Saving…' : 'Save campaign'}</button></div></div>
       </div>
     </div>
   );

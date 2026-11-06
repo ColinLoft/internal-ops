@@ -12,7 +12,7 @@ const sources: { type: string; table: string; column: string; detail: string; pa
   { type: 'Contact', table: 'crm_contacts', column: 'name', detail: 'email', path: '/customers/contacts' },
   { type: 'Document', table: 'drive_items', column: 'name', detail: 'item_type', path: '/drive', live: true },
   { type: 'Conversation', table: 'support_conversations', column: 'subject', detail: 'status', path: '/customers/support' },
-  { type: 'Content post', table: 'gtm_content_posts', column: 'title', detail: 'status', path: '/company/calendar' },
+  { type: 'Marketing post', table: 'gtm_content_posts', column: 'title', detail: 'status', path: '/company/calendar' },
 ];
 
 // Row-level security limits each table to what the signed-in user may read.
