@@ -182,14 +182,12 @@ export const SettingsPage: React.FC = () => {
 
             {section === 'notifications' && (
               <section className={`${card} divide-y divide-slate-100`}>
-                <h2 className="pb-3 text-lg font-bold text-slate-900">Notifications &amp; availability</h2>
+                <h2 className="pb-3 text-lg font-bold text-slate-900">Notifications</h2>
                 <Toggle label="Notification sounds" description="Play a subtle sound when notifications arrive." checked={soundEnabled} onChange={() => toggleSound()} />
                 <Toggle label="Messages" description="Show notifications for new direct and group messages." checked={draft.notifyMessages} onChange={(value) => update('notifyMessages', value)} />
                 <Toggle label="Mentions" description="Show notifications when someone mentions you." checked={draft.notifyMentions} onChange={(value) => update('notifyMentions', value)} />
                 <Toggle label="Calendar" description="Show reminders and invitations from the calendar." checked={draft.notifyCalendar} onChange={(value) => update('notifyCalendar', value)} />
                 <Toggle label="Announcements" description="Show workspace-wide announcements." checked={draft.notifyAnnouncements} onChange={(value) => update('notifyAnnouncements', value)} />
-                <Toggle label="Busy while in a call" description="Switch to Busy during a call, then restore your previous status." checked={draft.autoBusyInCalls} onChange={(value) => update('autoBusyInCalls', value)} />
-                <Toggle label="Busy during calendar events" description="Switch to Busy during today's scheduled events, then restore your status." checked={draft.autoBusyDuringEvents} onChange={(value) => update('autoBusyDuringEvents', value)} />
               </section>
             )}
 

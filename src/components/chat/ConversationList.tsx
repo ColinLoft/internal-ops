@@ -99,10 +99,6 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
               className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
                 partner?.status === 'online'
                   ? 'bg-emerald-500'
-                  : partner?.status === 'busy'
-                  ? 'bg-rose-500'
-                  : partner?.status === 'away'
-                  ? 'bg-amber-400'
                   : 'bg-slate-400'
               }`}
             />

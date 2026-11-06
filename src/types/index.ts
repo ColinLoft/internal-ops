@@ -1,4 +1,4 @@
-export type UserStatus = 'online' | 'busy' | 'away' | 'offline';
+export type UserStatus = 'online' | 'offline';
 export type UserRole = 'admin' | 'coordinator' | 'member';
 export type AccountStatus = 'active' | 'suspended' | 'pending' | 'removed';
 
@@ -31,7 +31,6 @@ export interface User {
   status: UserStatus;
   accountStatus?: AccountStatus;
   suspendedUntil?: string | null;
-  statusMessage?: string;
   bio?: string;
   location?: string;
   banner?: ProfileBanner;
@@ -66,8 +65,6 @@ export interface SystemActivityInput {
 export interface WorkspaceSettings {
   theme: 'light' | 'dark';
   accentColor: string;
-  autoBusyInCalls: boolean;
-  autoBusyDuringEvents: boolean;
   microphoneDeviceId: string;
   cameraDeviceId: string;
   ringtone: Ringtone;
@@ -87,8 +84,6 @@ export interface WorkspaceSettings {
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   theme: 'dark',
   accentColor: '#2569F5',
-  autoBusyInCalls: true,
-  autoBusyDuringEvents: true,
   microphoneDeviceId: '',
   cameraDeviceId: '',
   ringtone: 'classic',

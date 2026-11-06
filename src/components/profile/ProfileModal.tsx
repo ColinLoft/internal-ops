@@ -65,13 +65,7 @@ export const ProfileModal: React.FC = () => {
               />
               <span
                 className={`absolute bottom-1 right-1 w-5 h-5 rounded-full border-2 border-white ${
-                  activeProfileModalUser.status === 'online'
-                    ? 'bg-brand-500'
-                    : activeProfileModalUser.status === 'busy'
-                    ? 'bg-rose-500'
-                    : activeProfileModalUser.status === 'away'
-                    ? 'bg-brand-500'
-                    : 'bg-slate-400'
+                  activeProfileModalUser.status === 'online' ? 'bg-emerald-500' : 'bg-slate-400'
                 }`}
                 title={`Status: ${activeProfileModalUser.status}`}
               />
@@ -126,13 +120,13 @@ export const ProfileModal: React.FC = () => {
             )}
           </div>
 
-          {/* Status Message or Last Seen */}
+          {/* Automatic presence and last seen */}
           <div className="p-3 bg-slate-50/80 rounded-2xl border border-slate-100 mb-5">
             <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
               <span
                 className={`w-2 h-2 rounded-full ${
                   activeProfileModalUser.status === 'online'
-                    ? 'bg-brand-500'
+                    ? 'bg-emerald-500'
                     : 'bg-slate-400'
                 }`}
               />
@@ -143,11 +137,6 @@ export const ProfileModal: React.FC = () => {
                 </span>
               )}
             </div>
-            {activeProfileModalUser.statusMessage && (
-              <p className="mt-1.5 text-xs text-slate-700 italic">
-                "{activeProfileModalUser.statusMessage}"
-              </p>
-            )}
           </div>
 
           {/* Contact Details List */}

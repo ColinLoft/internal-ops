@@ -18,7 +18,6 @@ export const EditProfileModal: React.FC = () => {
   const [phone, setPhone] = useState(currentUser.phone);
   const [email, setEmail] = useState(currentUser.email);
   const [avatar, setAvatar] = useState(currentUser.avatar);
-  const [statusMessage, setStatusMessage] = useState(currentUser.statusMessage || '');
   const [bio, setBio] = useState(currentUser.bio || '');
   const [location, setLocation] = useState(currentUser.location || '');
   const [banner, setBanner] = useState<ProfileBanner>(currentUser.banner || 'ocean');
@@ -37,7 +36,6 @@ export const EditProfileModal: React.FC = () => {
     setPhone(currentUser.phone);
     setEmail(currentUser.email);
     setAvatar(currentUser.avatar);
-    setStatusMessage(currentUser.statusMessage || '');
     setBio(currentUser.bio || '');
     setLocation(currentUser.location || '');
     setBanner(currentUser.banner || 'ocean');
@@ -77,7 +75,6 @@ export const EditProfileModal: React.FC = () => {
         phone: phone.trim() || currentUser.phone,
         email: email.trim() || currentUser.email,
         avatar,
-        statusMessage: statusMessage.trim(),
         bio: bio.trim(),
         location: location.trim(),
         banner,
@@ -221,17 +218,6 @@ export const EditProfileModal: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Status Message</label>
-            <input
-              type="text"
-              value={statusMessage}
-              maxLength={80}
-              onChange={(e) => setStatusMessage(e.target.value)}
-              placeholder="A short note teammates will see on your profile"
-              className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
-            />
-          </div>
-          <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">About me</label>
             <textarea
               value={bio}
@@ -268,13 +254,7 @@ export const EditProfileModal: React.FC = () => {
                       className="w-16 h-16 rounded-2xl object-cover border-4 border-white shadow-sm"
                     />
                     <span className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
-                      currentUser.status === 'online'
-                        ? 'bg-brand-500'
-                        : currentUser.status === 'busy'
-                        ? 'bg-rose-500'
-                        : currentUser.status === 'away'
-                        ? 'bg-brand-500'
-                        : 'bg-slate-400'
+                      currentUser.status === 'online' ? 'bg-emerald-500' : 'bg-slate-400'
                     }`} />
                   </div>
                   <h4 className="text-sm font-bold text-slate-900 break-words">{name || 'Your name'}</h4>
@@ -282,11 +262,6 @@ export const EditProfileModal: React.FC = () => {
                   <p className="text-xs text-slate-400 mt-0.5">{department || 'Your department'}</p>
                   {location.trim() && <p className="mt-2 text-xs text-slate-500">{location}</p>}
                   {bio.trim() && <p className="mt-2 text-xs text-slate-600 break-words">{bio}</p>}
-                  {statusMessage.trim() && (
-                    <p className="mt-3 px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-600 break-words">
-                      {statusMessage}
-                    </p>
-                  )}
                   <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-500 break-all">
                     {email && <p>{email}</p>}
                     {phone && <p>{phone}</p>}

@@ -113,7 +113,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
   };
   const isActive = (id: Tab) => activeTab === id || (id === 'messages' && activeTab === 'channels');
 
-  const statusColor = currentUser.status === 'busy' ? 'bg-rose-400' : currentUser.status === 'offline' ? 'bg-white/50' : 'bg-emerald-400';
+  const statusColor = currentUser.status === 'online' ? 'bg-emerald-400' : 'bg-slate-400';
   const row = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-lg px-2.5 py-1.5 text-left text-[13px] font-medium transition-all duration-150 ${collapsed ? 'justify-center px-0' : ''} ${active ? 'bg-white/20 text-white shadow-xs font-semibold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`;
 
   return (

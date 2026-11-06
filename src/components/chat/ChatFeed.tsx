@@ -151,10 +151,6 @@ export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
                   className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
                     partnerUser.status === 'online'
                       ? 'bg-emerald-500'
-                      : partnerUser.status === 'busy'
-                      ? 'bg-rose-500'
-                      : partnerUser.status === 'away'
-                      ? 'bg-amber-400'
                       : 'bg-slate-400'
                   }`}
                 />
@@ -191,7 +187,7 @@ export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
                   ) : (
                     <span className="text-slate-400 flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      {partnerUser.lastSeen ? `Last seen ${partnerUser.lastSeen}` : 'Offline'}
+                      {partnerUser.lastSeen ? `Offline · Last seen ${partnerUser.lastSeen}` : 'Offline'}
                     </span>
                   )}
                 </>

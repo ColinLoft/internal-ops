@@ -232,11 +232,7 @@ export const RightDrawer: React.FC = () => {
                     <span
                       className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
                         member.status === 'online'
-                          ? 'bg-brand-500'
-                          : member.status === 'busy'
-                          ? 'bg-rose-500'
-                          : member.status === 'away'
-                          ? 'bg-brand-500'
+                          ? 'bg-emerald-500'
                           : 'bg-slate-400'
                       }`}
                     />

@@ -11,12 +11,12 @@ import {
   IncomingCall,
   Attachment,
   Poll,
-  UserStatus,
   UserRole,
   WorkspaceSettings,
   DEFAULT_WORKSPACE_SETTINGS,
   Ringtone,
   AccountStatus,
+  UserStatus,
   SystemActivityInput,
   SystemActivityLog,
 } from '../types';
@@ -155,7 +155,6 @@ interface WorkspaceContextType {
   toggleCallMinimize: () => void;
   
   // Profile & Management
-  updateCurrentUser: (updates: Partial<User>) => void;
   saveCurrentProfile: (updates: Partial<User>) => Promise<void>;
   saveWorkspaceSettings: (settings: WorkspaceSettings) => Promise<void>;
   addTeammate: (user: Pick<User, 'name' | 'email'>) => Promise<void>;
@@ -281,8 +280,11 @@ const formatLastSeen = (iso: string) => {
 // Presence is automatic: a recent heartbeat means online; otherwise offline with a last-seen time.
 const derivePresence = (row: Record<string, any>): { status: UserStatus; lastSeen?: string } => {
   const seenAt = typeof row.last_seen_at === 'string' ? row.last_seen_at : null;
-  if (!seenAt) return { status: row.status === 'busy' ? 'busy' : (row.status || 'offline') };
-  if (Date.now() - Date.parse(seenAt) <= PRESENCE_TIMEOUT_MS) return { status: row.status === 'busy' ? 'busy' : 'online' };
+  if (!seenAt) return { status: 'offline' };
+  const timestamp = Date.parse(seenAt);
+  if (!Number.isFinite(timestamp)) return { status: 'offline' };
+  const age = Date.now() - timestamp;
+  if (age >= 0 && age <= PRESENCE_TIMEOUT_MS) return { status: 'online' };
   return { status: 'offline', lastSeen: formatLastSeen(seenAt) };
 };
 
@@ -302,7 +304,6 @@ const mapSupabaseProfile = (row: Record<string, any>, currentUserId: string): Us
     accountStatus: suspensionExpired ? 'active' : (row.account_status as AccountStatus) || 'active',
     suspendedUntil,
     systemRole: row.system_role || 'member',
-    statusMessage: row.status_message || undefined,
     bio: row.bio || '',
     location: row.location || '',
     banner: row.banner || 'ocean',
@@ -322,12 +323,6 @@ const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
     accentColor: typeof preferences.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(preferences.accentColor)
       ? preferences.accentColor
       : DEFAULT_WORKSPACE_SETTINGS.accentColor,
-    autoBusyInCalls: typeof preferences.autoBusyInCalls === 'boolean'
-      ? preferences.autoBusyInCalls
-      : DEFAULT_WORKSPACE_SETTINGS.autoBusyInCalls,
-    autoBusyDuringEvents: typeof preferences.autoBusyDuringEvents === 'boolean'
-      ? preferences.autoBusyDuringEvents
-      : DEFAULT_WORKSPACE_SETTINGS.autoBusyDuringEvents,
     microphoneDeviceId: typeof preferences.microphoneDeviceId === 'string' ? preferences.microphoneDeviceId : '',
     cameraDeviceId: typeof preferences.cameraDeviceId === 'string' ? preferences.cameraDeviceId : '',
     ringtone: ['classic', 'chime', 'pulse', 'soft'].includes(preferences.ringtone)
@@ -910,7 +905,16 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       targetType: 'user',
       targetId: currentUser.id,
       targetName: currentUser.name,
-    }).finally(() => supabase.auth.signOut());
+    }).finally(async () => {
+      if (currentUser.id) {
+        const { error } = await supabase.from('profiles').update({
+          last_seen_at: new Date().toISOString(),
+          status: 'offline',
+        }).eq('id', currentUser.id);
+        if (error) console.error('Unable to record sign-out presence:', error);
+      }
+      await supabase.auth.signOut();
+    });
     setMessages({});
     setThreadReplies({});
     setIsAuthenticated(false);
@@ -1031,50 +1035,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     setActiveProfileModalUser(null);
   };
 
-  const updateCurrentUser = async (updates: Partial<User>) => {
-    const { id: _ignoredId, ...safeUpdates } = updates;
-    const updated = { ...currentUser, ...safeUpdates, id: currentUser.id };
-    setCurrentUser(updated);
-    setUsers((prevUsers) =>
-      prevUsers.map((u) => (u.id === currentUser.id ? updated : u))
-    );
-    if (updates.preferences) setWorkspaceSettings(updates.preferences);
-
-    const { error } = await supabase.from('profiles').upsert({
-      id: updated.id,
-      email: updated.email,
-      name: updated.name,
-      role: updated.role,
-      department: updated.department,
-      phone: updated.phone,
-      avatar_url: updated.avatar,
-      system_role: updated.systemRole,
-      status: updated.status,
-      status_message: updated.statusMessage,
-      bio: updated.bio,
-      location: updated.location,
-      banner: updated.banner,
-      preferences: updated.preferences,
-    });
-    if (error) {
-      console.error('Unable to persist profile changes:', error);
-      return;
-    }
-    if (updated.id === currentUser.id) {
-      const changedFields = Object.keys(safeUpdates).filter((field) => field === 'status' || field === 'statusMessage');
-      if (changedFields.length) {
-        await recordSystemActivity({
-          eventType: 'availability_updated',
-          summary: 'Updated their availability or status message.',
-          targetType: 'user',
-          targetId: currentUser.id,
-          targetName: updated.name,
-          metadata: { fields: changedFields },
-        });
-      }
-    }
-  };
-
   const saveCurrentProfile = async (updates: Partial<User>) => {
     const updated = { ...currentUser, ...updates };
     const { error } = await supabase
@@ -1086,7 +1046,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         phone: updated.phone,
         email: updated.email,
         avatar_url: updated.avatar,
-        status_message: updated.statusMessage,
         bio: updated.bio,
         location: updated.location,
         banner: updated.banner,
@@ -1143,8 +1102,19 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (!currentUser.id) return undefined;
     let cancelled = false;
     const beat = async () => {
-      await supabase.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', currentUser.id);
-      const { data } = await supabase.from('profiles').select('id,status,last_seen_at');
+      const { error: heartbeatError } = await supabase.from('profiles').update({
+        last_seen_at: new Date().toISOString(),
+        status: 'online',
+      }).eq('id', currentUser.id);
+      if (heartbeatError) {
+        console.error('Unable to update online presence:', heartbeatError);
+        return;
+      }
+      const { data, error: presenceError } = await supabase.from('profiles').select('id,status,last_seen_at');
+      if (presenceError) {
+        console.error('Unable to refresh workspace presence:', presenceError);
+        return;
+      }
       if (cancelled || !data) return;
       const presence = new Map(data.map((row) => [row.id as string, derivePresence(row)]));
       const apply = (user: User): User => {
@@ -1167,51 +1137,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       window.removeEventListener('focus', wake);
     };
   }, [currentUser.id]);
-
-  const automaticStatusRef = React.useRef<{ userId: string; previousStatus: UserStatus } | null>(null);
-  useEffect(() => {
-    const evaluateAutomaticStatus = () => {
-      if (!currentUser.id) return;
-      if (automaticStatusRef.current && automaticStatusRef.current.userId !== currentUser.id) {
-        automaticStatusRef.current = null;
-      }
-
-      const storageKey = `${STORAGE_PREFIX}auto_status_previous_${currentUser.id}`;
-      const storedStatus = localStorage.getItem(storageKey) as UserStatus | null;
-      const now = new Date();
-      const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      const hasActiveEvent = workspaceSettings.autoBusyDuringEvents && calendarEvents.some((event) =>
-        event.date === date && (event.isAllDay || (time >= event.startTime && time <= event.endTime))
-      );
-      const shouldBeBusy =
-        (workspaceSettings.autoBusyInCalls && callSession.active)
-        || hasActiveEvent;
-
-      if (shouldBeBusy && !automaticStatusRef.current) {
-        const previousStatus = storedStatus || currentUser.status;
-        automaticStatusRef.current = { userId: currentUser.id, previousStatus };
-        if (!storedStatus) localStorage.setItem(storageKey, previousStatus);
-        if (currentUser.status !== 'busy') void updateCurrentUser({ status: 'busy' });
-      } else if (!shouldBeBusy && (automaticStatusRef.current || storedStatus)) {
-        const previousStatus = automaticStatusRef.current?.previousStatus || storedStatus || currentUser.status;
-        automaticStatusRef.current = null;
-        localStorage.removeItem(storageKey);
-        if (currentUser.status === 'busy') void updateCurrentUser({ status: previousStatus });
-      }
-    };
-
-    evaluateAutomaticStatus();
-    const timer = window.setInterval(evaluateAutomaticStatus, 30_000);
-    return () => window.clearInterval(timer);
-  }, [
-    calendarEvents,
-    callSession.active,
-    currentUser.id,
-    currentUser.status,
-    workspaceSettings.autoBusyDuringEvents,
-    workspaceSettings.autoBusyInCalls,
-  ]);
 
   // Add teammate / Register staff
   const addTeammate = async (user: Pick<User, 'name' | 'email'>) => {
@@ -1289,7 +1214,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       department: updates.department,
       phone: updates.phone,
       avatar_url: updates.avatar,
-      status_message: updates.statusMessage,
       bio: updates.bio,
       location: updates.location,
       banner: updates.banner,
@@ -2480,7 +2404,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         toggleCallCamera,
         toggleCallScreenShare,
         toggleCallMinimize,
-        updateCurrentUser,
         saveCurrentProfile,
         saveWorkspaceSettings,
         addTeammate,

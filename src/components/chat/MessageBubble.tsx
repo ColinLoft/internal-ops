@@ -78,10 +78,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
             sender.status === 'online'
               ? 'bg-emerald-500'
-              : sender.status === 'busy'
-              ? 'bg-rose-500'
-              : sender.status === 'away'
-              ? 'bg-amber-400'
               : 'bg-slate-400'
           }`}
           title={`Status: ${sender.status}`}

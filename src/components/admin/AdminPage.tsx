@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { PROFILE_BANNERS, SystemActivityLog, User, UserRole, UserStatus } from '../../types';
+import { PROFILE_BANNERS, SystemActivityLog, User, UserRole } from '../../types';
 import { EmailAdminPanel } from './EmailAdminPanel';
 import { RolesAccessPanel } from './RolesAccessPanel';
 import { DepartmentsPositionsPanel } from './DepartmentsPositionsPanel';
@@ -145,8 +145,6 @@ export const AdminPage: React.FC = () => {
         department: String(formData.get('department')).trim(),
         phone: String(formData.get('phone')).trim(),
         avatar: String(formData.get('avatar')).trim(),
-        status: String(formData.get('status')) as UserStatus,
-        statusMessage: String(formData.get('statusMessage')).trim(),
         bio: String(formData.get('bio')).trim(),
         location: String(formData.get('location')).trim(),
         banner: String(formData.get('banner')) as User['banner'],
@@ -418,13 +416,6 @@ export const AdminPage: React.FC = () => {
                 ['coordinator', 'Coordinator'],
                 ['admin', 'Admin'],
               ]} />
-              <SelectField label="Availability" name="status" defaultValue={editingUser.status} options={[
-                ['online', 'Online'],
-                ['busy', 'Busy'],
-                ['away', 'Away'],
-                ['offline', 'Offline'],
-              ]} />
-              <Field label="Status message" name="statusMessage" defaultValue={editingUser.statusMessage || ''} />
               <Field label="Location" name="location" defaultValue={editingUser.location || ''} />
               <SelectField label="Profile banner" name="banner" defaultValue={editingUser.banner || 'ocean'} options={
                 PROFILE_BANNERS.map((banner) => [banner.value, banner.label])

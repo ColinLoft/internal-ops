@@ -1,38 +1,19 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  Check,
+  Clock3,
   LogOut,
   Settings,
   UserRound,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { UserStatus } from '../../types';
 
 export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const {
     currentUser,
-    updateCurrentUser,
     setIsProfileSettingsOpen,
     setActiveTab,
     logout,
   } = useWorkspace();
-
-  const [statusMsgText, setStatusMsgText] = useState(currentUser.statusMessage || '');
-  const [isStatusSaved, setIsStatusSaved] = useState(false);
-
-  const statuses: { label: string; value: UserStatus; color: string }[] = [
-    { label: 'Online', value: 'online', color: 'bg-brand-500' },
-    { label: 'Busy', value: 'busy', color: 'bg-rose-500' },
-    { label: 'Away', value: 'away', color: 'bg-brand-500' },
-    { label: 'Offline', value: 'offline', color: 'bg-slate-400' },
-  ];
-  const currentStatus = statuses.find((status) => status.value === currentUser.status) || statuses[3];
-
-  const saveStatusMessage = () => {
-    updateCurrentUser({ statusMessage: statusMsgText.trim() });
-    setIsStatusSaved(true);
-    window.setTimeout(() => setIsStatusSaved(false), 1500);
-  };
 
   const openProfile = () => {
     setIsProfileSettingsOpen(true);
@@ -51,39 +32,14 @@ export const ProfilePopover: React.FC<{ onClose: () => void }> = ({ onClose }) =
           <div className="min-w-0">
             <h4 className="font-bold text-sm text-slate-900 truncate">{currentUser.name}</h4>
             <div className="flex items-center gap-1.5 mt-1">
-              <span className={`w-2 h-2 rounded-full ${currentStatus.color}`} />
-              <span className="text-xs text-slate-500">{currentStatus.label}</span>
+              <span className={`w-2 h-2 rounded-full ${currentUser.status === 'online' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+              <span className="text-xs text-slate-500 capitalize">{currentUser.status}</span>
+              {currentUser.status === 'offline' && currentUser.lastSeen && (
+                <span className="ml-1 inline-flex items-center gap-1 text-[11px] text-slate-400">
+                  <Clock3 className="h-3 w-3" />{currentUser.lastSeen}
+                </span>
+              )}
             </div>
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <label htmlFor="profile-status-message" className="sr-only">Update your status message</label>
-          <div className="flex items-center gap-2">
-            <input
-              id="profile-status-message"
-              type="text"
-              value={statusMsgText}
-              maxLength={80}
-              onChange={(event) => setStatusMsgText(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  saveStatusMessage();
-                }
-              }}
-              placeholder="Set a status message"
-              className="min-w-0 flex-1 px-3 py-2 text-base md:text-xs bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-brand-400 focus:bg-white"
-            />
-            <button
-              type="button"
-              onClick={saveStatusMessage}
-              className="p-2 text-brand-600 hover:bg-brand-50 rounded-xl transition-colors"
-              aria-label="Save status message"
-              title={isStatusSaved ? 'Status saved' : 'Save status'}
-            >
-              <Check className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </div>

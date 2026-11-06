@@ -143,7 +143,7 @@ export const NewMessageModal: React.FC = () => {
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="relative shrink-0">
                         <img src={u.avatar} alt={u.name} className="h-9 w-9 rounded-xl object-cover" />
-                        <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${u.status === 'online' ? 'bg-brand-500' : 'bg-slate-400'}`} />
+                        <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${u.status === 'online' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                       </div>
                       <div className="min-w-0">
                         <h5 className="truncate text-xs font-bold text-slate-800">{u.name}</h5>
