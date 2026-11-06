@@ -1,3 +1,4 @@
+import { CustomSelect } from "../../common/CustomSelect";
 import React, { useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
@@ -37,9 +38,9 @@ const QuestionField: React.FC<{ q: Question; value: unknown; onValue: (value: un
   if (q.type === 'paragraph') return <textarea aria-label={q.label} rows={3} className={input} value={String(value ?? '')} onChange={(e) => onValue(e.target.value)} />;
   if (q.type === 'date') return <input aria-label={q.label} type="date" className={input} value={String(value ?? '')} onChange={(e) => onValue(e.target.value)} />;
   if (q.type === 'dropdown') return (
-    <select aria-label={q.label} className={input} value={String(value ?? '')} onChange={(e) => onValue(e.target.value)}>
+    <CustomSelect aria-label={q.label} className={input} value={String(value ?? '')} onChange={(e) => onValue(e.target.value)}>
       <option value="">Choose</option>{q.options.map((o, i) => <option key={i} value={o}>{o}</option>)}
-    </select>
+    </CustomSelect>
   );
   if (q.type === 'multiple_choice') return (
     <div className="space-y-1">{q.options.map((o, i) => (
@@ -138,9 +139,9 @@ export const FormsEditor: React.FC<Props> = ({ itemId, name, content, onChange }
               <div key={q.id} className="rounded-xl bg-white p-4 shadow-sm">
                 <div className="flex flex-wrap items-start gap-2">
                   <input aria-label={q.type === 'section' ? 'Section title' : 'Question text'} value={q.label} onChange={(e) => patchQ(q.id, { label: e.target.value })} className={`min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-base outline-none focus:border-brand-400 md:text-xs ${q.type === 'section' ? 'font-bold' : ''}`} />
-                  <select aria-label="Question type" value={q.type} onChange={(e) => { const type = e.target.value as QType; patchQ(q.id, { type, options: hasOptions(type) && !q.options.length ? ['Option 1'] : q.options, scaleMax: type === 'scale' ? q.scaleMax ?? 5 : q.scaleMax }); }} className="min-h-11 rounded-lg border border-slate-200 bg-white px-2 text-base md:min-h-0 md:py-2 md:text-xs">
+                  <CustomSelect aria-label="Question type" value={q.type} onChange={(e) => { const type = e.target.value as QType; patchQ(q.id, { type, options: hasOptions(type) && !q.options.length ? ['Option 1'] : q.options, scaleMax: type === 'scale' ? q.scaleMax ?? 5 : q.scaleMax }); }} className="min-h-11 rounded-lg border border-slate-200 bg-white px-2 text-base md:min-h-0 md:py-2 md:text-xs">
                     {TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-                  </select>
+                  </CustomSelect>
                 </div>
                 {q.type === 'section' && <textarea aria-label="Section description" rows={2} value={q.description ?? ''} placeholder="Description (optional)" onChange={(e) => patchQ(q.id, { description: e.target.value })} className={`${input} mt-2`} />}
                 {hasOptions(q.type) && (
@@ -156,7 +157,7 @@ export const FormsEditor: React.FC<Props> = ({ itemId, name, content, onChange }
                 )}
                 {q.type === 'scale' && (
                   <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600">Scale 1 to
-                    <select value={q.scaleMax ?? 5} onChange={(e) => patchQ(q.id, { scaleMax: Number(e.target.value) })} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5">{[3, 4, 5, 6, 7, 8, 9, 10].map((n) => <option key={n} value={n}>{n}</option>)}</select>
+                    <CustomSelect value={q.scaleMax ?? 5} onChange={(e) => patchQ(q.id, { scaleMax: Number(e.target.value) })} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5">{[3, 4, 5, 6, 7, 8, 9, 10].map((n) => <option key={n} value={n}>{n}</option>)}</CustomSelect>
                   </label>
                 )}
                 <div className="mt-3 flex items-center gap-1 border-t border-slate-100 pt-2">

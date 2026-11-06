@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Clock, ExternalLink, FileText, Link2, Loader2, Paperclip, Play, Plus, Square, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -267,9 +268,9 @@ export const LinksPanel: React.FC<Props> = ({ entityType, entityId }) => {
       <Title icon={Link2}>Linked items</Title>
       {(error || message) && <p role="alert" className="mb-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error || message}</p>}
       <div className="flex flex-wrap gap-2">
-        <select value={kind} onChange={(event) => setKind(event.target.value as typeof kind)} className={`${field} w-36`} aria-label="Link type"><option value="drive">Drive file</option><option value="calendar">Calendar event</option><option value="url">Web link</option></select>
+        <CustomSelect value={kind} onChange={(event) => setKind(event.target.value as typeof kind)} className={`${field} w-36`} aria-label="Link type"><option value="drive">Drive file</option><option value="calendar">Calendar event</option><option value="url">Web link</option></CustomSelect>
         {kind === 'url' ? (<><input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://…" className={`${field} min-w-0 flex-1`} /><input value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Label (optional)" className={`${field} w-40`} /></>) : (
-          <select value={selected} onChange={(event) => setSelected(event.target.value)} className={`${field} min-w-0 flex-1`} aria-label="Item"><option value="">Choose…</option>{options.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select>
+          <CustomSelect value={selected} onChange={(event) => setSelected(event.target.value)} className={`${field} min-w-0 flex-1`} aria-label="Item"><option value="">Choose…</option>{options.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</CustomSelect>
         )}
         <button type="button" onClick={() => void add()} className={button}><Plus className="h-3.5 w-3.5" />Link</button>
       </div>

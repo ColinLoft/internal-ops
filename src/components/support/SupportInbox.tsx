@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Headset, Mail, MessageSquare, Plus, Search, Send, Sparkles, StickyNote, X, Wand2, Clock3, Copy } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -288,15 +289,15 @@ export const SupportInbox: React.FC = () => {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <label className="text-xs text-slate-500">Priority
-              <select disabled={!isAgent} value={selected.priority} onChange={(e) => void patchConversation({ priority: e.target.value as Priority })} className={`${inputClass} mt-1 ${priorityStyle[selected.priority]}`}>
+              <CustomSelect disabled={!isAgent} value={selected.priority} onChange={(e) => void patchConversation({ priority: e.target.value as Priority })} className={`${inputClass} mt-1 ${priorityStyle[selected.priority]}`}>
                 {(['low', 'normal', 'high', 'urgent'] as Priority[]).map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
+              </CustomSelect>
             </label>
             <label className="text-xs text-slate-500">Assigned to
-              <select disabled={!isAgent} value={selected.assignee_id ?? ''} onChange={(e) => void patchConversation({ assignee_id: e.target.value || null })} className={`${inputClass} mt-1`}>
+              <CustomSelect disabled={!isAgent} value={selected.assignee_id ?? ''} onChange={(e) => void patchConversation({ assignee_id: e.target.value || null })} className={`${inputClass} mt-1`}>
                 <option value="">Unassigned</option>
                 {agents.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
-              </select>
+              </CustomSelect>
             </label>
           </div>
           <div className="space-y-2">
@@ -348,9 +349,9 @@ export const SupportInbox: React.FC = () => {
                 <h3 className="truncate text-sm font-semibold text-slate-800">{customer.name}</h3>
                 <p className="truncate text-xs text-slate-500">{selected.subject}</p>
               </div>
-              <select disabled={!isAgent} value={selected.status} onChange={(e) => void patchConversation({ status: e.target.value as Status })} aria-label="Status" className={`rounded-lg border-0 px-2 py-1 text-xs font-semibold ${statusStyle[selected.status]}`}>
+              <CustomSelect disabled={!isAgent} value={selected.status} onChange={(e) => void patchConversation({ status: e.target.value as Status })} aria-label="Status" className={`rounded-lg border-0 px-2 py-1 text-xs font-semibold ${statusStyle[selected.status]}`}>
                 <option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option>
-              </select>
+              </CustomSelect>
             </header>
 
             <div className="flex-1 space-y-3 overflow-y-auto p-4">
@@ -384,7 +385,7 @@ export const SupportInbox: React.FC = () => {
                   {([['chat', 'Chat reply', MessageSquare], ['email', 'Email', Mail], ['note', 'Internal note', StickyNote]] as const).map(([id, label, Icon]) => (
                     <button key={id} type="button" onClick={() => setMode(id)} className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${mode === id ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}><Icon className="h-3 w-3" />{label}</button>
                   ))}
-                  <select aria-label="Insert template" value="" onChange={(e) => { const t = TEMPLATES[Number(e.target.value)]; if (t) setDraft((d) => (d ? d + '\n' : '') + t[1].replace('{name}', customer.name.split(' ')[0])); }} className="ml-auto rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-600"><option value="">Templates…</option>{TEMPLATES.map((t, i) => <option key={t[0]} value={i}>{t[0]}</option>)}</select>
+                  <CustomSelect aria-label="Insert template" value="" onChange={(e) => { const t = TEMPLATES[Number(e.target.value)]; if (t) setDraft((d) => (d ? d + '\n' : '') + t[1].replace('{name}', customer.name.split(' ')[0])); }} className="ml-auto rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-600"><option value="">Templates…</option>{TEMPLATES.map((t, i) => <option key={t[0]} value={i}>{t[0]}</option>)}</CustomSelect>
                   {workspaceSettings.aiSuggestedReplies && <button type="button" disabled={busy === 'suggest'} onClick={() => void runAi('suggest')} className="flex items-center gap-1 rounded-md bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-60"><Sparkles className="h-3 w-3" />{busy === 'suggest' ? 'Thinking…' : 'Suggest reply'}</button>}
                 </div>
                 {aiDraft && draft && <p className="mb-1.5 flex items-center gap-2 rounded-lg bg-violet-50 px-2 py-1 text-xs text-violet-800"><ProvenanceBadge kind="ai" />Review and edit before sending. Nothing is sent automatically.<button type="button" onClick={() => { setDraft(''); setAiDraft(false); }} className="ml-auto font-semibold hover:underline">Discard</button></p>}

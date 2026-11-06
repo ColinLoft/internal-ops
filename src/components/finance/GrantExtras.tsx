@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useState } from 'react';
 import { Check, Copy, Plus, Sparkles, Star, Trash2 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -98,9 +99,9 @@ export const RequirementsTab: React.FC<{ grantId: string; userName: (id: string 
         <li key={row.id} className="rounded-xl border border-slate-100 p-3">
           <div className="flex items-center gap-2"><input type="checkbox" aria-label="Done" checked={row.status === 'done'} onChange={(event) => void update(row.id, { status: event.target.checked ? 'done' : 'todo' })} className="h-4 w-4" /><span className={`flex-1 text-xs font-semibold ${row.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{row.title}</span><button type="button" aria-label="Delete requirement" onClick={() => void supabase.from('grant_requirements').delete().eq('id', row.id).then(() => load())} className="text-slate-300 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button></div>
           <div className="mt-2 grid grid-cols-3 gap-2">
-            <select aria-label="Status" value={row.status} onChange={(event) => void update(row.id, { status: event.target.value })} className={field}><option value="todo">To do</option><option value="in_progress">In progress</option><option value="done">Done</option><option value="na">Not needed</option></select>
+            <CustomSelect aria-label="Status" value={row.status} onChange={(event) => void update(row.id, { status: event.target.value })} className={field}><option value="todo">To do</option><option value="in_progress">In progress</option><option value="done">Done</option><option value="na">Not needed</option></CustomSelect>
             <input type="date" aria-label="Due" value={row.due_date || ''} onChange={(event) => void update(row.id, { due_date: event.target.value || null })} className={field} />
-            <select aria-label="Assignee" value={row.assignee_id || ''} onChange={(event) => void update(row.id, { assignee_id: event.target.value || null })} className={field}><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select>
+            <CustomSelect aria-label="Assignee" value={row.assignee_id || ''} onChange={(event) => void update(row.id, { assignee_id: event.target.value || null })} className={field}><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect>
           </div>
         </li>
       ))}{!rows.length && <li className="text-xs text-slate-400">Add the narrative, budget, attachments, letters and forms the funder asks for.</li>}</ul>
@@ -128,7 +129,7 @@ export const AiTab: React.FC<{ grantId: string; onSaveDraft: (title: string, bod
       <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-brand-600" /><h3 className="text-sm font-bold text-slate-900">AI assistant</h3></div>
       <p className="text-xs text-slate-500">Uses this grant's details, timeline and your saved boilerplate. Always review before sending.</p>
       <div className="grid gap-2 sm:grid-cols-2">
-        <label className={label}>Draft type<select value={kind} onChange={(event) => setKind(event.target.value)} className={field}>{DRAFTS.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
+        <label className={label}>Draft type<CustomSelect value={kind} onChange={(event) => setKind(event.target.value)} className={field}>{DRAFTS.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect></label>
         <label className={label}>Instructions (optional)<input value={instructions} onChange={(event) => setInstructions(event.target.value)} placeholder="Tone, points to mention…" className={field} /></label>
       </div>
       <div className="flex flex-wrap gap-2"><button type="button" disabled={Boolean(busy)} onClick={() => void run('draft')} className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-60">{busy === 'draft' ? 'Drafting…' : 'Draft'}</button><button type="button" disabled={Boolean(busy)} onClick={() => void run('summarize')} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-60">{busy === 'summarize' ? 'Summarizing…' : 'Summarize this grant'}</button></div>
@@ -150,7 +151,7 @@ export const FunderPicker: React.FC<{ grant: Grant; onLink: (values: Partial<Gra
     onLink({ funder_org_id: data.id });
   };
   return (
-    <div className="space-y-1"><label className={label}>CRM funder organization<select value={grant.funder_org_id || ''} onChange={(event) => onLink({ funder_org_id: event.target.value || null })} className={field}><option value="">Not linked</option>{orgs.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></label>
+    <div className="space-y-1"><label className={label}>CRM funder organization<CustomSelect value={grant.funder_org_id || ''} onChange={(event) => onLink({ funder_org_id: event.target.value || null })} className={field}><option value="">Not linked</option>{orgs.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</CustomSelect></label>
       {!grant.funder_org_id && <button type="button" onClick={() => void createFromName()} className="text-xs font-bold text-brand-600">Create a CRM funder from this name</button>}</div>
   );
 };

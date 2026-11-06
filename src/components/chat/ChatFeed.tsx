@@ -177,7 +177,7 @@ export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
             <div className="flex items-center gap-2 text-xs text-slate-500 font-normal">
               {isChannel ? (
                 <span>
-                  {currentChan?.members.length || 1} member{(currentChan?.members.length || 1) === 1 ? '' : 's'} • {currentChan?.description}
+                  {currentChan?.members.length ?? 0} member{(currentChan?.members.length ?? 0) === 1 ? '' : 's'} • {currentChan?.description}
                 </span>
               ) : partnerUser ? (
                 <>

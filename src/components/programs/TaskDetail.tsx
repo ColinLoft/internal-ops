@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useState } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -66,11 +67,11 @@ export const TaskDetail: React.FC<{ task: TaskRow; allTasks: TaskRow[]; onClose:
         {blocked && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">Waiting on {blockers.filter((t) => t.status !== 'completed').length} unfinished dependenc{blockers.filter((t) => t.status !== 'completed').length === 1 ? 'y' : 'ies'}.</p>}
 
         <div className="grid grid-cols-2 gap-3 text-xs text-slate-500">
-          <label>Status<select value={full.status} onChange={(e) => patch({ status: e.target.value, ...(e.target.value === 'completed' ? { progress: 100 } : {}) })} className={field}><option value="not_started">Not started</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="completed">Completed</option></select></label>
-          <label>Priority<select value={full.priority} onChange={(e) => patch({ priority: e.target.value })} className={field}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+          <label>Status<CustomSelect value={full.status} onChange={(e) => patch({ status: e.target.value, ...(e.target.value === 'completed' ? { progress: 100 } : {}) })} className={field}><option value="not_started">Not started</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="completed">Completed</option></CustomSelect></label>
+          <label>Priority<CustomSelect value={full.priority} onChange={(e) => patch({ priority: e.target.value })} className={field}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></CustomSelect></label>
           <label>Start<input type="date" value={full.start_date || ''} onChange={(e) => patch({ start_date: e.target.value || null })} className={field} /></label>
           <label>Due<input type="date" value={full.due_date || ''} onChange={(e) => patch({ due_date: e.target.value || null })} className={field} /></label>
-          <label className="col-span-2">Assignee<select value={full.assignee_id || ''} onChange={(e) => patch({ assignee_id: e.target.value || null })} className={field}><option value="">Unassigned</option>{users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></label>
+          <label className="col-span-2">Assignee<CustomSelect value={full.assignee_id || ''} onChange={(e) => patch({ assignee_id: e.target.value || null })} className={field}><option value="">Unassigned</option>{users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</CustomSelect></label>
         </div>
 
         <label className="block text-xs text-slate-500">Description
@@ -99,7 +100,7 @@ export const TaskDetail: React.FC<{ task: TaskRow; allTasks: TaskRow[]; onClose:
               <button type="button" aria-label="Remove dependency" onClick={() => run(supabase.from('program_task_dependencies').delete().eq('task_id', task.id).eq('depends_on_task_id', b.id))}><X className="h-3.5 w-3.5 text-slate-300 hover:text-rose-600" /></button></li>
           ))}</ul>
           <div className="mt-2 flex gap-2">
-            <select value={dep} onChange={(e) => setDep(e.target.value)} className={field}><option value="">Select a task…</option>{candidates.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}</select>
+            <CustomSelect value={dep} onChange={(e) => setDep(e.target.value)} className={field}><option value="">Select a task…</option>{candidates.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}</CustomSelect>
             <button type="button" disabled={!dep} onClick={() => { void run(supabase.from('program_task_dependencies').insert({ task_id: task.id, depends_on_task_id: dep })); setDep(''); }} className="rounded-lg bg-brand-600 px-3 text-xs font-bold text-white disabled:opacity-50">Add</button>
           </div>
         </section>

@@ -24,23 +24,38 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
     setActiveTab,
     setActiveConversationId,
     setActiveChannelId,
-    setIsCreateChannelOpen,
     users,
     currentUser,
+    messages,
     togglePinConversation,
     setIsNewMessageOpen,
   } = useWorkspace();
 
-  const [filterTab, setFilterTab] = useState<'all' | 'unread'>('all');
   const [search, setSearch] = useState('');
+  const normalizedSearch = search.trim().toLowerCase();
 
-  // Filter conversations
   const filtered = conversations.filter((c) => {
-    const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase());
-    if (filterTab === 'unread') {
-      return matchesSearch && (c.unreadCount || 0) > 0;
-    }
-    return matchesSearch;
+    if (!normalizedSearch) return true;
+    const matchesName = c.name.toLowerCase().includes(normalizedSearch);
+    const matchesParticipant = c.participants.some((id) =>
+      users.find((user) => user.id === id)?.name.toLowerCase().includes(normalizedSearch)
+    );
+    const matchesMessage = (messages[c.id] || []).some((message) =>
+      message.text.toLowerCase().includes(normalizedSearch)
+    );
+    return matchesName || matchesParticipant || matchesMessage;
+  });
+  const visibleChannels = channels.filter((channel) => (
+    !channel.isPrivate
+    || channel.members.includes(currentUser.id)
+    || channel.createdBy === currentUser.id
+    || currentUser.systemRole === 'admin'
+    || currentUser.systemRole === 'coordinator'
+  )).filter((channel) => {
+    if (!normalizedSearch) return true;
+    return channel.name.toLowerCase().includes(normalizedSearch)
+      || channel.description.toLowerCase().includes(normalizedSearch)
+      || (messages[channel.id] || []).some((message) => message.text.toLowerCase().includes(normalizedSearch));
   });
 
   const pinnedConversations = filtered.filter((c) => c.isPinned);
@@ -185,15 +200,15 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
             <h2 className="text-base font-semibold text-slate-900 tracking-tight">Messages</h2>
             <p className="text-[11px] text-slate-500 font-normal">Channels and direct messages</p>
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setIsNewMessageOpen(true)}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-              title="Start New Chat"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setIsNewMessageOpen(true)}
+            className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+            title="Start a message or choose a channel"
+            aria-label="Start a message or choose a channel"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Search Input */}
@@ -203,45 +218,17 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search chat or person..."
+            placeholder="Search people, channels, or messages..."
             className="w-full pl-8 pr-3 py-1.5 bg-slate-100/70 focus:bg-white text-xs text-slate-800 placeholder:text-slate-400 rounded-lg border border-transparent focus:border-slate-300 focus:ring-2 focus:ring-slate-100 outline-none transition-all"
           />
         </div>
 
-        {/* All vs Unread Tabs */}
-        <div className="flex items-center gap-1 p-0.5 bg-slate-100/80 rounded-lg">
-          <button
-            onClick={() => setFilterTab('all')}
-            className={`flex-1 py-1 text-xs font-medium rounded-md transition-all ${
-              filterTab === 'all'
-                ? 'bg-white text-slate-900 shadow-2xs font-semibold'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            All ({conversations.length})
-          </button>
-          <button
-            onClick={() => setFilterTab('unread')}
-            className={`flex-1 py-1 text-xs font-medium rounded-md transition-all ${
-              filterTab === 'unread'
-                ? 'bg-white text-slate-900 shadow-2xs font-semibold'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Unread ({conversations.filter((c) => (c.unreadCount || 0) > 0).length})
-          </button>
-        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-2.5 py-2 [scrollbar-width:none]">
         <div className="mb-3">
-          <div className="mb-1.5 flex items-center justify-between px-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Channels</p>
-            <button type="button" onClick={() => setIsCreateChannelOpen(true)} className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors" title="Create channel">
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          <div className="space-y-0.5">{channels.map(renderChannelItem)}</div>
+          <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Channels</p>
+          <div className="space-y-0.5">{visibleChannels.map(renderChannelItem)}</div>
         </div>
         <div className="mb-1.5 flex items-center justify-between px-2 pt-2">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Direct messages</p>

@@ -1,38 +1,16 @@
-import { Dropdown } from '../common/Dropdown';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart3, Download, FolderKanban, House, Landmark, Loader2, RefreshCw, Users } from 'lucide-react';
+import { Download, Loader2, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
-type Section = 'executive' | 'programs' | 'financial' | 'projects' | 'custom';
-type Range = 'week' | 'month' | 'quarter' | 'year' | 'all';
 type Row = Record<string, any>;
 type Metric = { area: string; label: string; value: number | string; detail?: string };
 
-const sections: { id: Section; label: string; icon: React.ElementType; description: string }[] = [
-  { id: 'executive', label: 'Executive Overview', icon: House, description: 'Organization-wide health across every app.' },
-  { id: 'programs', label: 'Projects & Tasks', icon: FolderKanban, description: 'Delivery progress, workload and overdue work.' },
-  { id: 'financial', label: 'Financial Reports', icon: Landmark, description: 'Budgets, grants, funding and expenses.' },
-  { id: 'projects', label: 'Departments', icon: Users, description: 'Customers, go-to-market, legal, engineering and operations.' },
-  { id: 'custom', label: 'Activity & Usage', icon: BarChart3, description: 'Communication, files, calendar and audit activity.' },
-];
-const ranges: { id: Range; label: string }[] = [
-  { id: 'week', label: 'This week' }, { id: 'month', label: 'This month' }, { id: 'quarter', label: 'This quarter' }, { id: 'year', label: 'This year' }, { id: 'all', label: 'All time' },
-];
-
-const rangeStart = (range: Range) => {
-  const now = new Date();
-  if (range === 'all') return null;
-  if (range === 'week') { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()); return d; }
-  if (range === 'month') return new Date(now.getFullYear(), now.getMonth(), 1);
-  if (range === 'quarter') return new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
-  return new Date(now.getFullYear(), 0, 1);
-};
 const money = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
 const pct = (part: number, whole: number) => (whole ? Math.round((part / whole) * 100) : 0);
 const countBy = (rows: Row[], key: string) => rows.reduce<Record<string, number>>((acc, row) => { const k = String(row[key] ?? 'unknown'); acc[k] = (acc[k] || 0) + 1; return acc; }, {});
 const label = (value: string) => value.replace(/[_-]/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 
-const sources: Record<string, { table: string; columns: string; dateColumn?: string }> = {
+const sources: Record<string, { table: string; columns: string }> = {
   tasks: { table: 'program_tasks', columns: 'id,status,priority,due_date,created_at' },
   projects: { table: 'eng_projects', columns: 'id,status,target_date,created_at' },
   grants: { table: 'grants', columns: 'id,stage,amount_requested,amount_awarded,created_at' },
@@ -49,37 +27,29 @@ const sources: Record<string, { table: string; columns: string; dateColumn?: str
   drive: { table: 'drive_items', columns: 'id,item_type,created_at' },
   messages: { table: 'messages', columns: 'id,created_at' },
   events: { table: 'calendar_events', columns: 'id,created_at' },
-  emails: { table: 'email_messages', columns: 'id,received_at', dateColumn: 'received_at' },
+  emails: { table: 'email_messages', columns: 'id,received_at' },
   audit: { table: 'system_activity_logs', columns: 'id,event_type,created_at' },
   profiles: { table: 'profiles', columns: 'id,department,last_seen_at' },
 };
 
 export const InsightsPage: React.FC = () => {
-  const [section, setSection] = useState<Section>(() => (sections.find((s) => s.id === window.location.pathname.split('/')[2])?.id ?? 'executive'));
-  const [range, setRange] = useState<Range>('quarter');
   const [data, setData] = useState<Record<string, Row[]>>({});
   const [failed, setFailed] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const sync = () => setSection(sections.find((s) => s.id === window.location.pathname.split('/')[2])?.id ?? 'executive');
-    window.addEventListener('popstate', sync);
-    return () => window.removeEventListener('popstate', sync);
-  }, []);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportSelection, setExportSelection] = useState<string[] | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const start = rangeStart(range)?.toISOString();
-    const entries = await Promise.all(Object.entries(sources).map(async ([key, { table, columns, dateColumn }]) => {
-      let query = supabase.from(table).select(columns).limit(5000);
-      if (start && key !== 'profiles') query = query.gte(dateColumn ?? 'created_at', start);
+    const entries = await Promise.all(Object.entries(sources).map(async ([key, { table, columns }]) => {
+      const query = supabase.from(table).select(columns).limit(5000);
       const { data: rows, error } = await query;
       return [key, error ? null : ((rows ?? []) as unknown as Row[])] as const;
     }));
     setData(Object.fromEntries(entries.map(([k, rows]) => [k, rows ?? []])));
     setFailed(entries.filter(([, rows]) => rows === null).map(([k]) => sources[k].table));
     setLoading(false);
-  }, [range]);
+  }, []);
   useEffect(() => { void load(); }, [load]);
 
   const metrics = useMemo<Metric[]>(() => {
@@ -122,56 +92,81 @@ export const InsightsPage: React.FC = () => {
     ];
   }, [data]);
 
+  const metricId = (metric: Metric) => `${metric.area}::${metric.label}`;
+  const selectedIds = exportSelection ?? metrics.map(metricId);
   const exportCsv = () => {
-    const rangeLabel = ranges.find((r) => r.id === range)?.label ?? range;
-    const rows = [['Area', 'Metric', 'Value', 'Detail', 'Period'], ...metrics.map((m) => [m.area, m.label, String(m.value), m.detail ?? '', rangeLabel])];
+    const selected = metrics.filter((metric) => selectedIds.includes(metricId(metric)));
+    const rows = [['Area', 'Metric', 'Value', 'Detail'], ...selected.map((m) => [m.area, m.label, String(m.value), m.detail ?? ''])];
     const csv = rows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = `insights-${section}-${range}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `flown-insights-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
   };
 
-  const areasFor: Record<Section, string[] | null> = {
-    executive: null,
-    programs: ['Work'],
-    financial: ['Grants'],
-    projects: ['Customers', 'Go-to-market', 'Legal', 'Engineering', 'Operations'],
-    custom: ['Activity', 'People'],
-  };
-  const visible = metrics.filter((m) => !areasFor[section] || areasFor[section]!.includes(m.area));
-  const headline = ['Projects', 'Task completion rate', 'Overdue tasks', 'Total tracked amount', 'Contacts added', 'Pending approvals', 'Support tickets', 'Staff'];
-  const cards = section === 'executive' ? visible.filter((m) => headline.includes(m.label)) : visible;
-  const grouped = visible.reduce<Record<string, Metric[]>>((acc, m) => { (acc[m.area] ||= []).push(m); return acc; }, {});
+  const headline = ['Engineering projects', 'Task completion rate', 'Overdue tasks', 'Grants tracked', 'Awarded', 'Contacts added', 'Support tickets', 'Staff'];
+  const cards = metrics.filter((metric) => headline.includes(metric.label));
   const taskStatus = countBy(data.tasks ?? [], 'status');
   const projectStatus = countBy(data.projects ?? [], 'status');
-  const current = sections.find((s) => s.id === section)!;
-  const choose = (id: Section) => {
-    const path = id === 'executive' ? '/insights' : `/insights/${id}`;
-    if (window.location.pathname !== path) window.history.pushState({}, '', path);
-    setSection(id);
+  const grouped = metrics.reduce<Record<string, Metric[]>>((acc, metric) => { (acc[metric.area] ||= []).push(metric); return acc; }, {});
+  const toggleExportMetric = (id: string) => {
+    const selected = new Set(exportSelection ?? metrics.map(metricId));
+    if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+    setExportSelection([...selected]);
   };
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">{current.label}</h1>
-          <p className="text-sm text-slate-500">{current.description}</p>
+          <h1 className="text-xl font-bold text-slate-900">Insights</h1>
+          <p className="text-sm text-slate-500">Organization-wide activity, delivery, funding, and operations.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Dropdown value={section} options={sections} onChange={(value) => choose(value as Section)} ariaLabel="Section" className="min-w-36" />
-          <Dropdown value={range} options={ranges} onChange={(value) => setRange(value as Range)} ariaLabel="Period" className="min-w-32" />
           <button type="button" onClick={() => void load()} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 md:min-h-0 md:py-2"><RefreshCw size={14} />Refresh</button>
-          <button type="button" onClick={exportCsv} disabled={loading} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-600 px-3 text-xs font-semibold text-white disabled:opacity-50 md:min-h-0 md:py-2"><Download size={14} />Export CSV</button>
+          <button type="button" onClick={() => setExportOpen((open) => !open)} disabled={loading} aria-expanded={exportOpen} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-600 px-3 text-xs font-semibold text-white disabled:opacity-50 md:min-h-0 md:py-2"><Download size={14} />Choose export</button>
         </div>
       </header>
       <div className="space-y-6 p-5 sm:p-8">
-        {failed.length > 0 && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Some data could not be loaded and is shown as 0: {failed.join(', ')}.</p>}
+        {failed.length > 0 && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Some data sources could not be loaded, so related metrics may be incomplete: {failed.join(', ')}.</p>}
+        {exportOpen && !loading && (
+          <section aria-label="Choose export metrics" className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">Choose metrics to export</h2>
+                <p className="mt-1 text-xs text-slate-500">{selectedIds.length} of {metrics.length} selected</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setExportSelection(null)} className="rounded-md px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100">Select all</button>
+                <button type="button" onClick={() => setExportSelection([])} className="rounded-md px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100">Clear</button>
+                <button type="button" disabled={selectedIds.length === 0} onClick={exportCsv} className="rounded-md bg-brand-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Download CSV</button>
+              </div>
+            </div>
+            <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Object.entries(grouped).map(([area, areaMetrics]) => (
+                <fieldset key={area} className="min-w-0">
+                  <legend className="mb-2 text-xs font-semibold text-slate-700">{area}</legend>
+                  <div className="space-y-2">
+                    {areaMetrics.map((metric) => {
+                      const id = metricId(metric);
+                      return (
+                        <label key={id} className="flex cursor-pointer items-start gap-2 text-xs text-slate-600">
+                          <input type="checkbox" checked={selectedIds.includes(id)} onChange={() => toggleExportMetric(id)} className="mt-0.5 accent-brand-600" />
+                          <span>{metric.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              ))}
+            </div>
+          </section>
+        )}
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" />Loading insights…</div>
         ) : (
@@ -179,21 +174,20 @@ export const InsightsPage: React.FC = () => {
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {cards.map((m) => (
                 <div key={`${m.area}-${m.label}`} className="rounded-xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{m.area} · {m.label}</p>
+                  <p className="text-xs font-semibold text-slate-600">{m.area} · {m.label}</p>
                   <p className="mt-2 text-2xl font-bold text-slate-900">{m.value}</p>
                   {m.detail && <p className="mt-1 text-xs text-slate-500">{m.detail}</p>}
                 </div>
               ))}
             </section>
-            {(section === 'executive' || section === 'programs') && (
-              <section className="grid gap-4 lg:grid-cols-2">
+            <section className="grid gap-4 lg:grid-cols-2">
                 {[{ title: 'Tasks by status', counts: taskStatus }, { title: 'Projects by status', counts: projectStatus }].map(({ title, counts }) => {
                   const total = Object.values(counts).reduce((a, b) => a + b, 0);
                   return (
                     <div key={title} className="rounded-xl border border-slate-200 bg-white p-4">
                       <h2 className="text-sm font-bold text-slate-900">{title}</h2>
                       <div className="mt-3 space-y-2">
-                        {total === 0 && <p className="text-xs text-slate-500">No records in this period.</p>}
+                        {total === 0 && <p className="text-xs text-slate-500">No records available.</p>}
                         {Object.entries(counts).map(([status, n]) => (
                           <div key={status}>
                             <div className="flex justify-between text-xs text-slate-600"><span>{label(status)}</span><span>{n} ({pct(n, total)}%)</span></div>
@@ -204,16 +198,19 @@ export const InsightsPage: React.FC = () => {
                     </div>
                   );
                 })}
-              </section>
-            )}
-            {section !== 'executive' && Object.keys(grouped).length > 1 && (
-              <section className="rounded-xl border border-slate-200 bg-white">
-                <table className="w-full text-left text-xs">
-                  <thead className="border-b border-slate-200 text-slate-500"><tr><th className="px-4 py-2">Area</th><th className="px-4 py-2">Metric</th><th className="px-4 py-2">Value</th><th className="px-4 py-2">Detail</th></tr></thead>
-                  <tbody>{visible.map((m) => <tr key={`${m.area}-${m.label}`} className="border-b border-slate-100 last:border-0"><td className="px-4 py-2">{m.area}</td><td className="px-4 py-2">{m.label}</td><td className="px-4 py-2 font-semibold">{m.value}</td><td className="px-4 py-2 text-slate-500">{m.detail}</td></tr>)}</tbody>
-                </table>
-              </section>
-            )}
+            </section>
+            <section className="rounded-xl border border-slate-200 bg-white">
+              <div className="border-b border-slate-200 px-4 py-3">
+                <h2 className="text-sm font-bold text-slate-900">All metrics</h2>
+                <p className="mt-1 text-xs text-slate-500">Every available workspace measure, grouped by area.</p>
+              </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px] text-left text-xs">
+                    <thead className="border-b border-slate-200 text-slate-500"><tr><th className="px-4 py-2">Area</th><th className="px-4 py-2">Metric</th><th className="px-4 py-2 text-right">Value</th><th className="px-4 py-2">Detail</th></tr></thead>
+                    <tbody>{metrics.map((m) => <tr key={`${m.area}-${m.label}`} className="border-b border-slate-100 last:border-0"><td className="px-4 py-2">{m.area}</td><td className="px-4 py-2">{m.label}</td><td className="px-4 py-2 text-right font-semibold tabular-nums">{m.value}</td><td className="px-4 py-2 text-slate-500">{m.detail}</td></tr>)}</tbody>
+                  </table>
+                </div>
+            </section>
           </>
         )}
       </div>

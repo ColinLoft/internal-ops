@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useEffect, useState } from 'react';
 import { Bell, Check, Download, KeyRound, Loader2, LogOut, Palette, Phone, Play, Save, ShieldCheck, SlidersHorizontal, Sparkles, UserRound, Users } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -209,16 +210,16 @@ export const SettingsPage: React.FC = () => {
                 </div>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Microphone</span>
-                    <select value={draft.microphoneDeviceId} onChange={(event) => update('microphoneDeviceId', event.target.value)} className={input}>
+                    <CustomSelect value={draft.microphoneDeviceId} onChange={(event) => update('microphoneDeviceId', event.target.value)} className={input}>
                       <option value="">System default</option>
                       {audioInputs.map((device, index) => <option key={device.deviceId || index} value={device.deviceId}>{device.label || `Microphone ${index + 1}`}</option>)}
-                    </select>
+                    </CustomSelect>
                   </label>
                   <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">Camera</span>
-                    <select value={draft.cameraDeviceId} onChange={(event) => update('cameraDeviceId', event.target.value)} className={input}>
+                    <CustomSelect value={draft.cameraDeviceId} onChange={(event) => update('cameraDeviceId', event.target.value)} className={input}>
                       <option value="">System default</option>
                       {videoInputs.map((device, index) => <option key={device.deviceId || index} value={device.deviceId}>{device.label || `Camera ${index + 1}`}</option>)}
-                    </select>
+                    </CustomSelect>
                   </label>
                 </div>
                 {deviceError && <p role="alert" className="mt-3 text-xs text-brand-700">{deviceError}</p>}

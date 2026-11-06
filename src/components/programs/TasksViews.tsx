@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, ExternalLink, GanttChart, KanbanSquare, ListChecks, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -205,9 +206,9 @@ export const TasksViews: React.FC<Props> = ({ tasks, allTasks, projects, loading
         <button type="button" onClick={() => setOpenId(null)} aria-label="Close panel" className="rounded p-1 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
       </div>
       <div className="grid grid-cols-2 gap-2 p-4 text-xs text-slate-500">
-        <label>Status<select value={open.status} onChange={(event) => void patch([open.id], { status: event.target.value }, `Status set to ${TASK_STATUS[event.target.value]}`)} className={`${sel} mt-1 w-full`}>{Object.entries(TASK_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label>Priority<select value={open.priority} onChange={(event) => void patch([open.id], { priority: event.target.value }, `Priority set to ${event.target.value}`)} className={`${sel} mt-1 w-full`}>{['low', 'medium', 'high'].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-        <label>Assignee<select value={open.assignee_id || ''} onChange={(event) => void patch([open.id], { assignee_id: event.target.value || null }, 'Assignee changed')} className={`${sel} mt-1 w-full`}><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></label>
+        <label>Status<CustomSelect value={open.status} onChange={(event) => void patch([open.id], { status: event.target.value }, `Status set to ${TASK_STATUS[event.target.value]}`)} className={`${sel} mt-1 w-full`}>{Object.entries(TASK_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</CustomSelect></label>
+        <label>Priority<CustomSelect value={open.priority} onChange={(event) => void patch([open.id], { priority: event.target.value }, `Priority set to ${event.target.value}`)} className={`${sel} mt-1 w-full`}>{['low', 'medium', 'high'].map((value) => <option key={value} value={value}>{value}</option>)}</CustomSelect></label>
+        <label>Assignee<CustomSelect value={open.assignee_id || ''} onChange={(event) => void patch([open.id], { assignee_id: event.target.value || null }, 'Assignee changed')} className={`${sel} mt-1 w-full`}><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect></label>
         <label>Due<input type="date" value={open.due_date || ''} onChange={(event) => void patch([open.id], { due_date: event.target.value || null }, 'Due date changed')} className={`${sel} mt-1 w-full`} /></label>
       </div>
       {subtasks.length > 0 && (
@@ -227,8 +228,8 @@ export const TasksViews: React.FC<Props> = ({ tasks, allTasks, projects, loading
         {picked.size > 0 && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg bg-brand-50 px-2 py-1 text-xs">
             <span className="font-semibold text-brand-700">{picked.size} selected</span>
-            <select aria-label="Set status for selected" value="" onChange={(event) => { if (event.target.value) { void patch([...picked], { status: event.target.value }, `Bulk status: ${TASK_STATUS[event.target.value]}`); setPicked(new Set()); } }} className={sel}><option value="">Set status…</option>{Object.entries(TASK_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-            <select aria-label="Assign selected" value="" onChange={(event) => { if (event.target.value) { void patch([...picked], { assignee_id: event.target.value === 'none' ? null : event.target.value }, 'Bulk assigned'); setPicked(new Set()); } }} className={sel}><option value="">Assign…</option><option value="none">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select>
+            <CustomSelect aria-label="Set status for selected" value="" onChange={(event) => { if (event.target.value) { void patch([...picked], { status: event.target.value }, `Bulk status: ${TASK_STATUS[event.target.value]}`); setPicked(new Set()); } }} className={sel}><option value="">Set status…</option>{Object.entries(TASK_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</CustomSelect>
+            <CustomSelect aria-label="Assign selected" value="" onChange={(event) => { if (event.target.value) { void patch([...picked], { assignee_id: event.target.value === 'none' ? null : event.target.value }, 'Bulk assigned'); setPicked(new Set()); } }} className={sel}><option value="">Assign…</option><option value="none">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect>
             <button type="button" onClick={() => void bulkDelete()} className="rounded-md px-2 py-1 font-semibold text-rose-600 hover:bg-rose-50">Delete</button>
             <button type="button" onClick={() => setPicked(new Set())} className="text-slate-500 hover:underline">Clear</button>
           </div>

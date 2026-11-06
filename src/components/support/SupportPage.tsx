@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Bot, Building2, Lock, Mail, Plus, Search, Send, UserRound, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -310,10 +311,10 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
               </section>
               <section className="space-y-3 border-t border-slate-100 pt-4">
                 <h3 className="text-sm font-semibold text-slate-900">Ticket details</h3>
-                <Field label="Status"><select disabled={!canManage} value={selected.status} onChange={(event) => void updateTicket({ status: event.target.value as Status })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm disabled:bg-slate-50">{statuses.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></Field>
-                <Field label="Severity"><select disabled={!canManage} value={selected.priority} onChange={(event) => void updateTicket({ priority: event.target.value as Priority })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm capitalize disabled:bg-slate-50">{priorities.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
-                <Field label="Category"><select disabled={!canManage} value={selected.category} onChange={(event) => void updateTicket({ category: event.target.value })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm disabled:bg-slate-50">{categories.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></Field>
-                <Field label="Assigned to"><select disabled={!isAgent} value={selected.assignee_id ?? ''} onChange={(event) => void updateTicket({ assignee_id: event.target.value || null })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm disabled:bg-slate-50"><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></Field>
+                <Field label="Status"><CustomSelect disabled={!canManage} value={selected.status} onChange={(event) => void updateTicket({ status: event.target.value as Status })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm disabled:bg-slate-50">{statuses.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</CustomSelect></Field>
+                <Field label="Severity"><CustomSelect disabled={!canManage} value={selected.priority} onChange={(event) => void updateTicket({ priority: event.target.value as Priority })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm capitalize disabled:bg-slate-50">{priorities.map((item) => <option key={item} value={item}>{item}</option>)}</CustomSelect></Field>
+                <Field label="Category"><CustomSelect disabled={!canManage} value={selected.category} onChange={(event) => void updateTicket({ category: event.target.value })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm disabled:bg-slate-50">{categories.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</CustomSelect></Field>
+                <Field label="Assigned to"><CustomSelect disabled={!isAgent} value={selected.assignee_id ?? ''} onChange={(event) => void updateTicket({ assignee_id: event.target.value || null })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm disabled:bg-slate-50"><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect></Field>
                 <Field label="Response deadline"><input disabled={!canManage} type="date" value={selected.due_at ? selected.due_at.slice(0, 10) : ''} onChange={(event) => void updateTicket({ due_at: event.target.value ? new Date(`${event.target.value}T23:59:59`).toISOString() : null })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm disabled:bg-slate-50" /></Field>
                 <p className="text-xs text-slate-500">Opened {formatDate(selected.created_at)}</p>
               </section>
@@ -338,12 +339,12 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
               <input value={form.subject} maxLength={200} onChange={(event) => setForm({ ...form, subject: event.target.value })} placeholder="Subject" className="w-full rounded-lg border border-slate-200 px-3 py-2" />
               <textarea value={form.description} maxLength={10000} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={5} placeholder="Describe the request" className="w-full rounded-lg border border-slate-200 p-3" />
               <div className="grid grid-cols-2 gap-3">
-                <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="rounded-lg border border-slate-200 px-2 py-2">
+                <CustomSelect value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="rounded-lg border border-slate-200 px-2 py-2">
                   {categories.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                </select>
-                <select value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value as Priority })} className="rounded-lg border border-slate-200 px-2 py-2 capitalize">
+                </CustomSelect>
+                <CustomSelect value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value as Priority })} className="rounded-lg border border-slate-200 px-2 py-2 capitalize">
                   {priorities.map((item) => <option key={item} value={item}>{item}</option>)}
-                </select>
+                </CustomSelect>
               </div>
               <input value={form.organization_name} maxLength={200} onChange={(event) => setForm({ ...form, organization_name: event.target.value })} placeholder="Organization (optional)" className="w-full rounded-lg border border-slate-200 px-3 py-2" />
             </div>

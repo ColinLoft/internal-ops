@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Archive,
@@ -1560,10 +1561,10 @@ export const EmailInboxPage: React.FC = () => {
             </div>
             <label className="mt-5 block">
               <span className="mb-1.5 block text-xs font-semibold text-slate-600">Channel</span>
-              <select value={forwardChannelId} onChange={(event) => setForwardChannelId(event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500">
+              <CustomSelect value={forwardChannelId} onChange={(event) => setForwardChannelId(event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500">
                 <option value="">Choose a channel</option>
                 {forwardableChannels.map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}
-              </select>
+              </CustomSelect>
             </label>
             <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs leading-5 text-brand-800">
               Channel members may see this email and any attached files. Check the channel before sharing confidential content.
@@ -1621,10 +1622,10 @@ export const EmailInboxPage: React.FC = () => {
                 ))}
                 <button type="button" onClick={insertComposeLink} title="Insert link" aria-label="Insert link" className="rounded-md p-2 text-slate-600 hover:bg-white hover:text-brand-700"><Link2 className="h-4 w-4" /></button>
                 <span className="mx-1 h-5 border-l border-slate-200" />
-                <select value={selectedTemplateId} onChange={(event) => applyTemplate(event.target.value)} aria-label="Use an email template" className="max-w-48 rounded-md border-0 bg-transparent px-2 py-1.5 text-xs text-slate-600 outline-none focus:bg-white">
+                <CustomSelect value={selectedTemplateId} onChange={(event) => applyTemplate(event.target.value)} aria-label="Use an email template" className="max-w-48 rounded-md border-0 bg-transparent px-2 py-1.5 text-xs text-slate-600 outline-none focus:bg-white">
                   <option value="">Use a template…</option>
                   {templates.map((template) => <option key={template.id} value={template.id}>{template.is_shared ? 'Shared · ' : ''}{template.name}</option>)}
-                </select>
+                </CustomSelect>
               </div>
               <div
                 ref={editorRef}

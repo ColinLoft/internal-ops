@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, ArrowUpRight, BookOpen, Check, Clock3, FileText, Globe2, History, Plus, Search, Settings2, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -190,10 +191,10 @@ export const WebsitePage: React.FC = () => {
                   <input value={settings.public_site_url} onChange={(event) => setSettings({ ...settings, public_site_url: event.target.value })} placeholder="https://example.org" className={`${input} mt-1.5`} disabled={!canEdit} />
                 </label>
                 <label className="block text-sm font-medium text-slate-300">Analytics provider
-                  <select value={settings.analytics_provider} onChange={(event) => setSettings({ ...settings, analytics_provider: event.target.value })} className={`${input} mt-1.5`} disabled={!canEdit}>
+                  <CustomSelect value={settings.analytics_provider} onChange={(event) => setSettings({ ...settings, analytics_provider: event.target.value })} className={`${input} mt-1.5`} disabled={!canEdit}>
                     <option value="not_connected">Not connected</option><option value="vercel">Vercel Analytics</option>
                     <option value="google_analytics">Google Analytics</option><option value="plausible">Plausible</option><option value="other">Other</option>
-                  </select>
+                  </CustomSelect>
                 </label>
                 <label className="block text-sm font-medium text-slate-300">Analytics dashboard URL
                   <input value={settings.analytics_dashboard_url} onChange={(event) => setSettings({ ...settings, analytics_dashboard_url: event.target.value })} placeholder="https://…" className={`${input} mt-1.5`} disabled={!canEdit} />
@@ -315,7 +316,7 @@ const ContentEditor: React.FC<{
           <label className="text-sm font-medium text-slate-300">URL slug<input required maxLength={100} value={slug} onChange={(event) => { setSlugTouched(true); setSlug(makeSlug(event.target.value)); }} className={`${input} mt-1.5`} /></label>
           <label className="text-sm font-medium text-slate-300 sm:col-span-2">Summary<input maxLength={500} value={summary} onChange={(event) => setSummary(event.target.value)} className={`${input} mt-1.5`} /></label>
           <label className="text-sm font-medium text-slate-300 sm:col-span-2">Document content<textarea required rows={10} value={body} onChange={(event) => setBody(event.target.value)} className={`${input} mt-1.5`} /></label>
-          <label className="text-sm font-medium text-slate-300">Publication state<select value={status} onChange={(event) => setStatus(event.target.value as ContentStatus)} className={`${input} mt-1.5`}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label>
+          <label className="text-sm font-medium text-slate-300">Publication state<CustomSelect value={status} onChange={(event) => setStatus(event.target.value as ContentStatus)} className={`${input} mt-1.5`}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></CustomSelect></label>
         </div>
         {formError && <p role="alert" className="mt-4 text-sm text-rose-300">{formError}</p>}
         <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">Cancel</button><button type="submit" disabled={saving || !title.trim() || !slug.trim()} className={button}>{saving ? 'Saving…' : <><Check className="h-4 w-4" />Save document</>}</button></div>

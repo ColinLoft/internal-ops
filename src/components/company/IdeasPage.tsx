@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronUp, Lightbulb, MessageCircle, Plus, Search, Send, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -148,8 +149,8 @@ export const IdeasPage: React.FC = () => {
         {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-full sm:w-64"><Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search ideas" aria-label="Search ideas" className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-base outline-none focus:border-brand-400 md:text-xs" /></div>
-          <select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Category" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="all">All categories</option>{Object.entries(CATEGORIES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-          <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Status" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="all">All statuses</option>{Object.entries(STATUSES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+          <CustomSelect value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Category" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="all">All categories</option>{Object.entries(CATEGORIES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</CustomSelect>
+          <CustomSelect value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Status" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="all">All statuses</option>{Object.entries(STATUSES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</CustomSelect>
         </div>
 
         {loading ? <p className="text-xs text-slate-400">Loading ideas…</p> : visible.length === 0 ? (
@@ -171,7 +172,7 @@ export const IdeasPage: React.FC = () => {
                       <h2 className="text-sm font-bold text-slate-900">{idea.title}</h2>
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{CATEGORIES[idea.category] || idea.category}</span>
                       {canManage ? (
-                        <select value={idea.status} onChange={(event) => void update(idea, { status: event.target.value })} aria-label="Idea status" className={`rounded-full border-0 px-2 py-0.5 text-[11px] font-bold ${statusTone[idea.status] || ''}`}>{Object.entries(STATUSES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+                        <CustomSelect value={idea.status} onChange={(event) => void update(idea, { status: event.target.value })} aria-label="Idea status" className={`rounded-full border-0 px-2 py-0.5 text-[11px] font-bold ${statusTone[idea.status] || ''}`}>{Object.entries(STATUSES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</CustomSelect>
                       ) : <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${statusTone[idea.status] || ''}`}>{STATUSES[idea.status] || idea.status}</span>}
                     </div>
                     {idea.description && <p className="mt-1 whitespace-pre-wrap text-xs text-slate-600">{idea.description}</p>}
@@ -225,7 +226,7 @@ export const IdeasPage: React.FC = () => {
                 <textarea rows={3} maxLength={3000} value={form.effort} onChange={(event) => setForm((value) => ({ ...value, effort: event.target.value }))} placeholder="Effort, dependencies or risks" className={field} />
                 <textarea rows={3} maxLength={3000} value={form.next_step} onChange={(event) => setForm((value) => ({ ...value, next_step: event.target.value }))} placeholder="A small next step to explore it" className={field} />
               </div>
-              <select value={form.category} onChange={(event) => setForm((value) => ({ ...value, category: event.target.value }))} className={field}>{Object.entries(CATEGORIES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+              <CustomSelect value={form.category} onChange={(event) => setForm((value) => ({ ...value, category: event.target.value }))} className={field}>{Object.entries(CATEGORIES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</CustomSelect>
             </div>
             <button type="button" disabled={!form.title.trim()} onClick={() => void create()} className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white disabled:opacity-50">{editing ? 'Save changes' : 'Share idea'}</button>
           </div>

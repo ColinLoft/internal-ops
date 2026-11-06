@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Ban,
@@ -277,7 +278,7 @@ export const AdminPage: React.FC = () => {
                       </button>
                     ) : (
                       <>
-                        <select
+                        <CustomSelect
                           aria-label={`Suspension duration for ${user.name}`}
                           value={suspensionDurations[user.id] || '7d'}
                           onChange={(event) => setSuspensionDurations((previous) => ({
@@ -291,7 +292,7 @@ export const AdminPage: React.FC = () => {
                           <option value="7d">7 days</option>
                           <option value="30d">30 days</option>
                           <option value="indefinite">Indefinite</option>
-                        </select>
+                        </CustomSelect>
                         <button
                           type="button"
                           onClick={() => void handleUserAction(user.id, 'suspend')}
@@ -338,7 +339,7 @@ export const AdminPage: React.FC = () => {
                 <p className="mt-1 text-xs text-slate-500">Persistent user and workspace events. Message text and passwords are never recorded.</p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <select
+                <CustomSelect
                   value={activityFilter}
                   onChange={(event) => setActivityFilter(event.target.value)}
                   aria-label="Filter activity by user"
@@ -346,7 +347,7 @@ export const AdminPage: React.FC = () => {
                 >
                   <option value="all">Entire system — all users</option>
                   {activityUsers.map(([userId, userName]) => <option key={userId} value={userId}>{userName}</option>)}
-                </select>
+                </CustomSelect>
                 <label className="relative block sm:w-64">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -532,12 +533,12 @@ const SelectField: React.FC<{
 }> = ({ label, name, defaultValue, options }) => (
   <label className="text-xs font-semibold text-slate-600">
     {label}
-    <select
+    <CustomSelect
       name={name}
       defaultValue={defaultValue}
       className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base md:text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
     >
       {options.map(([value, title]) => <option key={value} value={value}>{title}</option>)}
-    </select>
+    </CustomSelect>
   </label>
 );

@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChevronLeft, ChevronRight, MessageSquareWarning, Plus, Send, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -198,8 +199,8 @@ const PostDialog: React.FC<{
         <input disabled={!editable} maxLength={200} placeholder="Post title" value={f.title} onChange={set('title')} className={field} />
         <textarea disabled={!editable} rows={5} placeholder="Post copy / caption" value={f.body} onChange={set('body')} className={field} />
         <div className="grid grid-cols-2 gap-3">
-          <select disabled={!editable} value={f.channel} onChange={set('channel')} className={field}>{channels.map((c) => <option key={c} value={c}>{label(c)}</option>)}</select>
-          <select disabled={!editable} value={f.campaign_id} onChange={set('campaign_id')} className={field}><option value="">No campaign</option>{campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+          <CustomSelect disabled={!editable} value={f.channel} onChange={set('channel')} className={field}>{channels.map((c) => <option key={c} value={c}>{label(c)}</option>)}</CustomSelect>
+          <CustomSelect disabled={!editable} value={f.campaign_id} onChange={set('campaign_id')} className={field}><option value="">No campaign</option>{campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</CustomSelect>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <input disabled={!editable} placeholder="Campaign objective" value={f.objective} onChange={set('objective')} className={field} />
@@ -274,7 +275,7 @@ const CampaignDialog: React.FC<{ campaign: Campaign | null; userId: string; onCl
         <textarea rows={2} value={form.objective} onChange={(event) => setForm((current) => ({ ...current, objective: event.target.value }))} placeholder="Objective and success measure" className={field} />
         <div className="grid gap-3 sm:grid-cols-2">
           <input value={form.audience} onChange={(event) => setForm((current) => ({ ...current, audience: event.target.value }))} placeholder="Target audience" className={field} />
-          <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} className={field}><option value="planned">Planned</option><option value="active">Active</option><option value="completed">Completed</option><option value="paused">Paused</option></select>
+          <CustomSelect value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} className={field}><option value="planned">Planned</option><option value="active">Active</option><option value="completed">Completed</option><option value="paused">Paused</option></CustomSelect>
           <label className="text-xs text-slate-500">Campaign through<input type="date" value={form.due_date} onChange={(event) => setForm((current) => ({ ...current, due_date: event.target.value }))} className={`${field} mt-1`} /></label>
           <label className="text-xs text-slate-500">Budget<input type="number" min="0" step="0.01" value={form.budget} onChange={(event) => setForm((current) => ({ ...current, budget: event.target.value }))} className={`${field} mt-1`} /></label>
         </div>

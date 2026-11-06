@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, Search, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -121,9 +122,9 @@ const TaskModal: React.FC<{ projects: EngProject[]; initialTitle?: string; onClo
       {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
       <input autoFocus value={form.title} onChange={set('title')} placeholder="Task title" className={input} />
       <div className="grid gap-3 sm:grid-cols-2">
-        <select value={form.eng_project_id} onChange={set('eng_project_id')} className={input} aria-label="Project"><option value="">No project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select>
-        <select value={form.assignee_id} onChange={set('assignee_id')} className={input} aria-label="Assignee"><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select>
-        <select value={form.priority} onChange={set('priority')} className={input} aria-label="Priority"><option value="low">Low priority</option><option value="medium">Medium priority</option><option value="high">High priority</option></select>
+        <CustomSelect value={form.eng_project_id} onChange={set('eng_project_id')} className={input} aria-label="Project"><option value="">No project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</CustomSelect>
+        <CustomSelect value={form.assignee_id} onChange={set('assignee_id')} className={input} aria-label="Assignee"><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect>
+        <CustomSelect value={form.priority} onChange={set('priority')} className={input} aria-label="Priority"><option value="low">Low priority</option><option value="medium">Medium priority</option><option value="high">High priority</option></CustomSelect>
         <input type="date" value={form.due_date} onChange={set('due_date')} className={input} aria-label="Due date" />
       </div>
       <button type="button" onClick={() => void save()} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white">Create task</button>

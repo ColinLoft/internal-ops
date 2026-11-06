@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -101,7 +102,7 @@ const NewProject: React.FC<{ discipline: Discipline; onClose: () => void; onCrea
       <input autoFocus value={form.name} onChange={set('name')} placeholder="Project name" className={inputClass} />
       <textarea value={form.description} onChange={set('description')} placeholder="Goal and scope" className={`${inputClass} min-h-20`} />
       <div className="grid gap-3 sm:grid-cols-3">
-        <label className="text-xs font-semibold text-slate-600">Owner<select value={form.owner_id} onChange={set('owner_id')} className={`${inputClass} mt-1`}><option value="">Unassigned</option>{users.filter((user) => user.accountStatus !== 'removed').map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></label>
+        <label className="text-xs font-semibold text-slate-600">Owner<CustomSelect value={form.owner_id} onChange={set('owner_id')} className={`${inputClass} mt-1`}><option value="">Unassigned</option>{users.filter((user) => user.accountStatus !== 'removed').map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect></label>
         <label className="text-xs font-semibold text-slate-600">Start<input type="date" value={form.start_date} onChange={set('start_date')} className={`${inputClass} mt-1`} /></label>
         <label className="text-xs font-semibold text-slate-600">Target<input type="date" value={form.target_date} onChange={set('target_date')} className={`${inputClass} mt-1`} /></label>
       </div>

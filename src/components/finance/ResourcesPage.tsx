@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Building2, Copy, ExternalLink, Plus, Search, Trash2, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -90,7 +91,7 @@ export const ResourcesPage: React.FC = () => {
         {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</p>}
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search resources" className={`${field} pl-9`} /></div>
-          <select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Category" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="all">All categories</option>{CATEGORIES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select>
+          <CustomSelect value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Category" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="all">All categories</option>{CATEGORIES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect>
         </div>
         {shown.length ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{shown.map((row) => (
           <article key={row.id} className={card}>
@@ -143,7 +144,7 @@ const ResourceModal: React.FC<{ resource: Resource | null; userId: string; onClo
         <div className="space-y-2">
           {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
           <input autoFocus value={form.title} onChange={set('title')} placeholder="Title" className={field} />
-          <select value={form.category} onChange={set('category')} aria-label="Category" className={field}>{CATEGORIES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select>
+          <CustomSelect value={form.category} onChange={set('category')} aria-label="Category" className={field}>{CATEGORIES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect>
           <input value={form.summary} onChange={set('summary')} placeholder="Short summary for search and AI context" className={field} />
           <input value={form.audience} onChange={set('audience')} placeholder="Relevant programs, audiences or use cases" className={field} />
           <div className="grid gap-4 lg:grid-cols-2">

@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, Download, FileSearch, UserPlus, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -115,7 +116,7 @@ const ReviewTeam: React.FC<{ team: Reviewer[]; isAdmin: boolean; users: ReturnTy
                 {!members.length && <span className="text-xs text-slate-400">No reviewers yet. Admins can vote.</span>}
               </div>
               {isAdmin && (adding === item.id ? (
-                <select autoFocus defaultValue="" onChange={(event) => event.target.value && void add(event.target.value, item.id)} onBlur={() => setAdding(null)} className={`${inputClass} mt-2`}><option value="">Choose a person</option>{candidates.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select>
+                <CustomSelect autoFocus defaultValue="" onChange={(event) => event.target.value && void add(event.target.value, item.id)} onBlur={() => setAdding(null)} className={`${inputClass} mt-2`}><option value="">Choose a person</option>{candidates.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect>
               ) : <button type="button" onClick={() => setAdding(item.id)} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-600"><UserPlus className="h-3.5 w-3.5" />Add reviewer</button>)}
             </div>
           );
@@ -252,7 +253,7 @@ const ReviewDetail: React.FC<{ reviewId: string }> = ({ reviewId }) => {
             ) : canDecide ? (
               <div className="mt-2 space-y-2">
                 <p className="text-xs text-slate-500">{votes.length >= required ? 'Enough reviewers have responded. Record the outcome.' : `Waiting for ${required - votes.length} more reviewer vote${required - votes.length === 1 ? '' : 's'} before you can decide.`}</p>
-                <select value={outcome} onChange={(event) => setOutcome(event.target.value)} disabled={votes.length < required} className={inputClass} aria-label="Outcome">{spec.outcomes.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+                <CustomSelect value={outcome} onChange={(event) => setOutcome(event.target.value)} disabled={votes.length < required} className={inputClass} aria-label="Outcome">{spec.outcomes.map((item) => <option key={item} value={item}>{item}</option>)}</CustomSelect>
                 <textarea value={note} onChange={(event) => setNote(event.target.value)} disabled={votes.length < required} placeholder="Decision note (optional)" className={`${inputClass} min-h-16`} />
                 <button type="button" onClick={() => void decide()} disabled={votes.length < required} className="w-full rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-40">Record decision</button>
               </div>

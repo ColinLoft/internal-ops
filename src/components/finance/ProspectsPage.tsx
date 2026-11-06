@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ExternalLink, Plus, Search, Sparkles, Trash2, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -53,7 +54,7 @@ export const ProspectsPage: React.FC = () => {
         {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</p>}
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search opportunities" className={`${field} pl-9`} /></div>
-          <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filter" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="open">Open</option><option value="all">All</option>{STATUSES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select>
+          <CustomSelect value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filter" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="open">Open</option><option value="all">All</option>{STATUSES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect>
         </div>
         {loading ? <p className="py-10 text-center text-xs text-slate-400">Loading…</p> : shown.length ? (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{shown.map((row) => (
@@ -123,12 +124,12 @@ const ProspectModal: React.FC<{ prospect: Prospect | null; userId: string; users
           <label className={l}>Program page<input type="url" value={form.url} onChange={set('url')} className={field} /></label>
           <label className={`${l} sm:col-span-2`}>Direct application page<input type="url" value={form.application_url} onChange={set('application_url')} className={field} /></label>
           <label className={l}>Deadline<input type="date" value={form.deadline} onChange={set('deadline')} className={field} /></label>
-          <label className={l}>Grant type<select value={form.grant_type} onChange={set('grant_type')} className={field}>{GRANT_TYPES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
-          <label className={l}>Status<select value={form.status} onChange={set('status')} className={field}>{STATUSES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
+          <label className={l}>Grant type<CustomSelect value={form.grant_type} onChange={set('grant_type')} className={field}>{GRANT_TYPES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect></label>
+          <label className={l}>Status<CustomSelect value={form.status} onChange={set('status')} className={field}>{STATUSES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect></label>
           <label className={l}>Min award ($)<input type="number" min="0" value={form.amount_min} onChange={set('amount_min')} className={field} /></label>
           <label className={l}>Max award ($)<input type="number" min="0" value={form.amount_max} onChange={set('amount_max')} className={field} /></label>
-          <label className={l}>How we found it<select value={form.source} onChange={set('source')} className={field}><option value="">Not recorded</option>{SOURCES.map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label className={l}>Owner<select value={form.owner_id} onChange={set('owner_id')} className={field}><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></label>
+          <label className={l}>How we found it<CustomSelect value={form.source} onChange={set('source')} className={field}><option value="">Not recorded</option>{SOURCES.map((item) => <option key={item}>{item}</option>)}</CustomSelect></label>
+          <label className={l}>Owner<CustomSelect value={form.owner_id} onChange={set('owner_id')} className={field}><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect></label>
           <label className={`${l} sm:col-span-2`}>Focus areas<textarea rows={2} value={form.focus_areas} onChange={set('focus_areas')} className={field} /></label>
           <label className={`${l} sm:col-span-2`}>Eligibility<textarea rows={2} value={form.eligibility} onChange={set('eligibility')} className={field} /></label>
           <label className={`${l} sm:col-span-2`}>Notes<textarea rows={2} value={form.notes} onChange={set('notes')} className={field} /></label>
@@ -175,7 +176,7 @@ const ResearchModal: React.FC<{ userId: string; onClose: () => void; onAdded: ()
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-label="Research grants">
       <div className="max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
         <div className="mb-3 flex items-center justify-between"><div><h2 className="text-base font-bold text-slate-900">Grant Finder</h2><p className="mt-1 text-xs text-slate-500">Live web results are matched against your organization summary and saved grant resources.</p></div><button type="button" aria-label="Close" onClick={onClose}><X className="h-4 w-4" /></button></div>
-        <label className="text-xs font-semibold text-slate-500">Grant type<select value={grantType} onChange={(event) => setGrantType(event.target.value)} className={field}><option value="any">Any</option>{GRANT_TYPES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
+        <label className="text-xs font-semibold text-slate-500">Grant type<CustomSelect value={grantType} onChange={(event) => setGrantType(event.target.value)} className={field}><option value="any">Any</option>{GRANT_TYPES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect></label>
         <label className="text-xs font-semibold text-slate-500">What should it look for? (optional)<textarea rows={2} value={focus} onChange={(event) => setFocus(event.target.value)} placeholder="e.g. youth technology programs, Pacific Northwest, under $50k" className={field} /></label>
         <button type="button" disabled={busy} onClick={() => void run()} className="mt-2 inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-60"><Sparkles className={`h-3.5 w-3.5 ${busy ? 'animate-pulse' : ''}`} />{busy ? 'Searching the web and checking fit…' : 'Find grants'}</button>
         {busy && <div role="status" aria-live="polite" className="mt-4 flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50/60 p-4">

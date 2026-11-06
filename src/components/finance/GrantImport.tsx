@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useMemo, useState } from 'react';
 import { Upload, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -136,12 +137,12 @@ export const GrantImport: React.FC<{ userId: string; existing: Grant[]; onClose:
             <p className="text-xs text-slate-500">Check the matched columns. Anything not matched is saved in each grant's notes so no data is lost.</p>
             <div className="grid gap-2 sm:grid-cols-2">{FIELDS.map(([key, name]) => (
               <label key={key} className="text-xs font-semibold text-slate-500">{name}
-                <select value={map[key] ?? ''} onChange={(event) => setMap({ ...map, [key]: event.target.value === '' ? undefined : Number(event.target.value) })} className={field}><option value="">— none —</option>{table[0].map((header, i) => <option key={i} value={i}>{header || `Column ${i + 1}`}</option>)}</select>
+                <CustomSelect value={map[key] ?? ''} onChange={(event) => setMap({ ...map, [key]: event.target.value === '' ? undefined : Number(event.target.value) })} className={field}><option value="">— none —</option>{table[0].map((header, i) => <option key={i} value={i}>{header || `Column ${i + 1}`}</option>)}</CustomSelect>
               </label>
             ))}</div>
             <div className="grid gap-2 sm:grid-cols-2">
-              <label className="text-xs font-semibold text-slate-500">Status when the sheet has none<select value={fallback} onChange={(event) => setFallback(event.target.value)} className={field}><option value="awarded">Awarded</option><option value="reporting">Reporting</option><option value="closed">Closed</option></select></label>
-              <label className="text-xs font-semibold text-slate-500">Grant type<select value={type} onChange={(event) => setType(event.target.value)} className={field}><option value="money">Money</option><option value="product">Product / in-kind</option><option value="both">Money + product</option></select></label>
+              <label className="text-xs font-semibold text-slate-500">Status when the sheet has none<CustomSelect value={fallback} onChange={(event) => setFallback(event.target.value)} className={field}><option value="awarded">Awarded</option><option value="reporting">Reporting</option><option value="closed">Closed</option></CustomSelect></label>
+              <label className="text-xs font-semibold text-slate-500">Grant type<CustomSelect value={type} onChange={(event) => setType(event.target.value)} className={field}><option value="money">Money</option><option value="product">Product / in-kind</option><option value="both">Money + product</option></CustomSelect></label>
             </div>
             <p className="rounded-lg bg-slate-50 p-2 text-xs text-slate-600">{fresh.length} grant{fresh.length === 1 ? '' : 's'} will be added{items.length - fresh.length ? `; ${items.length - fresh.length} already exist and will be skipped` : ''}. {fresh[0] ? `First: ${fresh[0].row.name}${fresh[0].row.funder_name ? ` (${fresh[0].row.funder_name})` : ''}` : 'Map a Grant name column to continue.'}</p>
             <div className="flex justify-end gap-2"><button type="button" onClick={() => setTable([])} className="px-3 py-2 text-xs font-semibold text-slate-500">Back</button><button type="button" disabled={busy || !fresh.length} onClick={() => void submit()} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{busy ? 'Importing…' : `Import ${fresh.length}`}</button></div>

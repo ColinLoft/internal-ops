@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BookOpen, Bug, ChevronDown, CircleCheck, Lightbulb, LifeBuoy, KeyRound, Search, Send } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -207,12 +208,12 @@ export const HelpCenterPage: React.FC = () => {
               )}
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block text-xs font-medium text-slate-600">Where in Flown?
-                  <select value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} className={`${inputClass} mt-1`}>{areas.map((area) => <option key={area}>{area}</option>)}</select>
+                  <CustomSelect value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} className={`${inputClass} mt-1`}>{areas.map((area) => <option key={area}>{area}</option>)}</CustomSelect>
                 </label>
                 <label className="block text-xs font-medium text-slate-600">How urgent?
-                  <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className={`${inputClass} mt-1`}>
+                  <CustomSelect value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className={`${inputClass} mt-1`}>
                     <option value="low">Low – whenever</option><option value="normal">Normal</option><option value="high">High – blocking my work</option><option value="urgent">Urgent – nobody can work</option>
-                  </select>
+                  </CustomSelect>
                 </label>
               </div>
               <p className="text-xs text-slate-500">We include the current page and your browser to help the team investigate.</p>

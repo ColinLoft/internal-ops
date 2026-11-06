@@ -1,3 +1,4 @@
+import { CustomSelect } from "../../common/CustomSelect";
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Circle, Copy, Image as ImageIcon, Play, Plus, Square, Trash2, Type, X } from 'lucide-react';
 
@@ -182,9 +183,9 @@ export const SlidesEditor: React.FC<Props> = ({ name, content, onChange }) => {
       </aside>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-0.5 border-b border-slate-200 bg-white px-2 py-1" role="toolbar" aria-label="Slide tools">
-          <select aria-label="Layout" value={slide.layout} onChange={(event) => patchSlide({ layout: event.target.value as Layout })} className="min-h-11 rounded-lg border border-slate-200 bg-white px-2 text-base md:min-h-8 md:text-xs">
+          <CustomSelect aria-label="Layout" value={slide.layout} onChange={(event) => patchSlide({ layout: event.target.value as Layout })} className="min-h-11 rounded-lg border border-slate-200 bg-white px-2 text-base md:min-h-8 md:text-xs">
             {LAYOUTS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
-          </select>
+          </CustomSelect>
           <button type="button" className={btn} onClick={() => addEl({ type: 'text', x: 20, y: 40, w: 40, h: 15, text: 'Text', size: 28 })}><Type className="h-4 w-4" />Text</button>
           <button type="button" className={btn} onClick={() => addEl({ type: 'shape', x: 35, y: 30, w: 25, h: 35, shape: 'rect', fill: '#2563eb' })}><Square className="h-4 w-4" />Box</button>
           <button type="button" className={btn} onClick={() => addEl({ type: 'shape', x: 35, y: 30, w: 25, h: 35, shape: 'ellipse', fill: '#16a34a' })}><Circle className="h-4 w-4" />Oval</button>

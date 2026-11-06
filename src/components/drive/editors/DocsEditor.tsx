@@ -1,3 +1,4 @@
+import { CustomSelect } from "../../common/CustomSelect";
 import React, { useEffect, useRef, useState } from 'react';
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Image as ImageIcon, Italic, Link2, List, ListOrdered, Minus, Redo2, Strikethrough, Table2, Underline, Undo2 } from 'lucide-react';
 import { countWords, sanitizeDocHtml, textToHtml } from './docHtml';
@@ -82,14 +83,14 @@ export const DocsEditor: React.FC<Props> = ({ name, content, onChange }) => {
       <div className="flex flex-wrap items-center gap-0.5 border-b border-slate-200 bg-white px-2 py-1" role="toolbar" aria-label="Formatting">
         <button type="button" className={tool} onClick={() => exec('undo')} aria-label="Undo"><Undo2 className="h-4 w-4" /></button>
         <button type="button" className={tool} onClick={() => exec('redo')} aria-label="Redo"><Redo2 className="h-4 w-4" /></button>
-        <select aria-label="Text style" defaultValue="P" onChange={(event) => exec('formatBlock', event.target.value)} className="min-h-11 rounded-lg border border-slate-200 bg-white px-2 text-base md:min-h-8 md:text-xs">
+        <CustomSelect aria-label="Text style" defaultValue="P" onChange={(event) => exec('formatBlock', event.target.value)} className="min-h-11 rounded-lg border border-slate-200 bg-white px-2 text-base md:min-h-8 md:text-xs">
           <option value="P">Normal</option>
           <option value="H1">Heading 1</option>
           <option value="H2">Heading 2</option>
           <option value="H3">Heading 3</option>
           <option value="BLOCKQUOTE">Quote</option>
           <option value="PRE">Code</option>
-        </select>
+        </CustomSelect>
         <button type="button" className={tool} onClick={() => exec('bold')} aria-label="Bold"><Bold className="h-4 w-4" /></button>
         <button type="button" className={tool} onClick={() => exec('italic')} aria-label="Italic"><Italic className="h-4 w-4" /></button>
         <button type="button" className={tool} onClick={() => exec('underline')} aria-label="Underline"><Underline className="h-4 w-4" /></button>

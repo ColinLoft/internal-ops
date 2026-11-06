@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useState } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -145,11 +146,11 @@ export const EmailRulesPanel: React.FC<Props> = ({ mailboxId, userId, onActivity
             </label>
             <label className="text-xs font-semibold text-slate-600">
               Action
-              <select name="action" defaultValue="label" className="mt-1 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base font-normal outline-none md:text-sm focus:border-brand-500">
+              <CustomSelect name="action" defaultValue="label" className="mt-1 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base font-normal outline-none md:text-sm focus:border-brand-500">
                 <option value="label">Add label</option>
                 <option value="mark_read">Mark as read</option>
                 <option value="archive">Archive</option>
-              </select>
+              </CustomSelect>
             </label>
             <label className="text-xs font-semibold text-slate-600">
               Label (for “Add label”)

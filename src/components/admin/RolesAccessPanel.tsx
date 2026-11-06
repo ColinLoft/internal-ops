@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import { resetAppAccessCache } from '../../lib/useAppAccess';
 import React, { useCallback, useEffect, useState } from 'react';
 import { KeyRound, Plus, Trash2 } from 'lucide-react';
@@ -126,12 +127,12 @@ export const RolesAccessPanel: React.FC = () => {
                   {apps.map((app) => (
                     <label key={app.id} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-xs">
                       <span className="font-semibold text-slate-700">{app.label}</span>
-                      <select value={levelFor(app.id)} onChange={(event) => void setLevel(app.id, event.target.value)} className="rounded-md border border-slate-200 px-1.5 py-1">
+                      <CustomSelect value={levelFor(app.id)} onChange={(event) => void setLevel(app.id, event.target.value)} className="rounded-md border border-slate-200 px-1.5 py-1">
                         <option value="">No access</option>
                         <option value="view">View</option>
                         <option value="edit">Edit</option>
                         <option value="manage">Manage</option>
-                      </select>
+                      </CustomSelect>
                     </label>
                   ))}
                 </div>

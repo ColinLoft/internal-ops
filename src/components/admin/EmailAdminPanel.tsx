@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useState } from 'react';
 import { Mail, RefreshCw, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -198,7 +199,7 @@ export const EmailAdminPanel: React.FC = () => {
                 </div>
 
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <select
+                  <CustomSelect
                     aria-label={`Staff member for ${mailbox.email}`}
                     value={selectedUsers[mailbox.id] || ''}
                     onChange={(event) => setSelectedUsers((previous) => ({ ...previous, [mailbox.id]: event.target.value }))}
@@ -206,7 +207,7 @@ export const EmailAdminPanel: React.FC = () => {
                   >
                     <option value="">Choose staff to grant access</option>
                     {eligibleUsers.map((staff) => <option key={staff.id} value={staff.id}>{staff.name} · {staff.email}</option>)}
-                  </select>
+                  </CustomSelect>
                   <label className="flex items-center gap-2 px-1 text-xs text-slate-600">
                     <input
                       type="checkbox"

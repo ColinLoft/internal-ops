@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
@@ -324,14 +325,14 @@ export const FirstLoginOnboarding: React.FC = () => {
                 <OnboardingField label="Location / office" value={location} onChange={setLocation} required />
                 <label className="text-xs font-semibold text-slate-600">
                   Profile banner <span className="text-rose-500">*</span>
-                  <select
+                  <CustomSelect
                     value={banner}
                     onChange={(event) => setBanner(event.target.value as ProfileBanner)}
                     required
                     className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base md:text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
                   >
                     {PROFILE_BANNERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                  </select>
+                  </CustomSelect>
                 </label>
               </div>
 
@@ -427,7 +428,7 @@ export const FirstLoginOnboarding: React.FC = () => {
 const OnboardingSelect: React.FC<{ label: string; value: string; options: string[]; onChange: (value: string) => void }> = ({ label, value, options, onChange }) => (
   <label className="text-xs font-semibold text-slate-600">
     {label} <span className="text-rose-500">*</span>
-    <select
+    <CustomSelect
       value={value}
       onChange={(event) => onChange(event.target.value)}
       required
@@ -435,7 +436,7 @@ const OnboardingSelect: React.FC<{ label: string; value: string; options: string
     >
       <option value="">Select {label.toLowerCase()}</option>
       {Array.from(new Set([...options, ...(value ? [value] : [])])).map((option) => <option key={option} value={option}>{option}</option>)}
-    </select>
+    </CustomSelect>
   </label>
 );
 

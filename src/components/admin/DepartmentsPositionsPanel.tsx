@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useState } from 'react';
 import { BriefcaseBusiness, Building2, Plus, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -116,10 +117,10 @@ export const DepartmentsPositionsPanel: React.FC = () => {
         <FormDialog title="Add department" error={error} onClose={() => setDialog(null)} onSave={() => void saveDepartment()}>
           <label className="block text-xs font-semibold text-slate-600">Department name<input value={department.name} onChange={(event) => setDepartment((value) => ({ ...value, name: event.target.value }))} className={field} /></label>
           <label className="block text-xs font-semibold text-slate-600">Department head
-            <select value={department.head_id} onChange={(event) => setDepartment((value) => ({ ...value, head_id: event.target.value }))} className={field}>
+            <CustomSelect value={department.head_id} onChange={(event) => setDepartment((value) => ({ ...value, head_id: event.target.value }))} className={field}>
               <option value="">Unassigned</option>
               {activeUsers.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
-            </select>
+            </CustomSelect>
           </label>
           <label className="block text-xs font-semibold text-slate-600">Description<textarea value={department.description} onChange={(event) => setDepartment((value) => ({ ...value, description: event.target.value }))} className={`${field} min-h-20`} /></label>
         </FormDialog>
@@ -128,23 +129,23 @@ export const DepartmentsPositionsPanel: React.FC = () => {
         <FormDialog title="Add position" error={error} onClose={() => setDialog(null)} onSave={() => void savePosition()}>
           <label className="block text-xs font-semibold text-slate-600">Position title<input value={position.title} onChange={(event) => setPosition((value) => ({ ...value, title: event.target.value }))} className={field} /></label>
           <label className="block text-xs font-semibold text-slate-600">Department
-            <select value={position.department_id} onChange={(event) => setPosition((value) => ({ ...value, department_id: event.target.value }))} className={field}>
+            <CustomSelect value={position.department_id} onChange={(event) => setPosition((value) => ({ ...value, department_id: event.target.value }))} className={field}>
               <option value="">No department</option>
               {departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            </CustomSelect>
           </label>
           <label className="block text-xs font-semibold text-slate-600">Reports to
-            <select value={position.reports_to_id} onChange={(event) => setPosition((value) => ({ ...value, reports_to_id: event.target.value }))} className={field}>
+            <CustomSelect value={position.reports_to_id} onChange={(event) => setPosition((value) => ({ ...value, reports_to_id: event.target.value }))} className={field}>
               <option value="">Unassigned</option>
               {activeUsers.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
-            </select>
+            </CustomSelect>
           </label>
           <label className="block text-xs font-semibold text-slate-600">Status
-            <select value={position.status} onChange={(event) => setPosition((value) => ({ ...value, status: event.target.value }))} className={field}>
+            <CustomSelect value={position.status} onChange={(event) => setPosition((value) => ({ ...value, status: event.target.value }))} className={field}>
               <option value="open">Open</option>
               <option value="filled">Filled</option>
               <option value="archived">Archived</option>
-            </select>
+            </CustomSelect>
           </label>
         </FormDialog>
       )}

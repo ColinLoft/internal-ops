@@ -1,3 +1,4 @@
+import { CustomSelect } from "../common/CustomSelect";
 import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, CalendarPlus, CheckCircle2, Clock3, Headset, ListTodo, Mail, MessageSquare, Phone, Plus, Search, StickyNote, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -153,8 +154,8 @@ export const CustomerWorkspace: React.FC<Props> = ({ orgs, contacts, items, sele
         ))}
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
-        <label className="col-span-2">Company type<select disabled={!canEdit} value={org.category} onChange={(event) => void onMutate(supabase.from('crm_organizations').update({ category: event.target.value }).eq('id', org.id))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs"><option value="customer">Customer</option><option value="funder">Funder</option></select></label>
-        <label>Stage<select disabled={!canEdit} value={org.stage ?? 'lead'} onChange={(event) => void onMutate(supabase.from('crm_organizations').update({ stage: event.target.value }).eq('id', org.id))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs">{STAGES.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+        <label className="col-span-2">Company type<CustomSelect disabled={!canEdit} value={org.category} onChange={(event) => void onMutate(supabase.from('crm_organizations').update({ category: event.target.value }).eq('id', org.id))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs"><option value="customer">Customer</option><option value="funder">Funder</option></CustomSelect></label>
+        <label>Stage<CustomSelect disabled={!canEdit} value={org.stage ?? 'lead'} onChange={(event) => void onMutate(supabase.from('crm_organizations').update({ stage: event.target.value }).eq('id', org.id))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs">{STAGES.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</CustomSelect></label>
         <div>Relationship<p className="mt-1 rounded-lg bg-slate-50 px-2 py-1.5 font-semibold text-slate-700">{lastTouch ? (daysSince(lastTouch) <= 14 ? 'Warm' : daysSince(lastTouch) <= 45 ? 'Cooling' : 'Cold') : 'New'} <span className="font-normal text-slate-400">· {lastTouch ? `${daysSince(lastTouch)}d ago` : 'no touch'}</span></p></div>
       </div>
       <p className="text-xs text-slate-400">Owner: {userName(org.owner_id)} · Added {fmt(org.created_at)}</p>
