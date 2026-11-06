@@ -3,6 +3,7 @@ import { Activity, ArrowUpRight, BookOpen, Check, Clock3, FileText, Globe2, Hist
 import { supabase } from '../../lib/supabase';
 import { useAppAccess } from '../../lib/useAppAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useConfirm } from '../common/useConfirm';
 
 type ContentType = 'policy' | 'support_doc';
 type ContentStatus = 'draft' | 'published' | 'archived';
@@ -34,6 +35,7 @@ const formatDate = (value: string) => new Date(value).toLocaleDateString(undefin
 
 export const WebsitePage: React.FC = () => {
   const { currentUser } = useWorkspace();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const { canEdit } = useAppAccess('legal');
   const [tab, setTab] = useState<Tab>('analytics');
   const [content, setContent] = useState<WebsiteContent[]>([]);
@@ -84,7 +86,7 @@ export const WebsitePage: React.FC = () => {
   };
 
   const saveContent = async (values: Pick<WebsiteContent, 'content_type' | 'title' | 'slug' | 'summary' | 'body' | 'status'>, id?: string): Promise<string> => {
-    if (values.status === 'published' && !window.confirm('Publish this content? It will be readable by the public website integration.')) return 'Publication was not confirmed; the document was not saved.';
+    if (values.status === 'published' && !await confirm({ title: 'Publish this content?', message: 'It will be readable by the public website integration.', confirmLabel: 'Publish', variant: 'primary' })) return 'Publication was canceled; the document was not saved.';
     setError('');
     const payload = { ...values, updated_at: new Date().toISOString() };
     const result = id
@@ -101,7 +103,7 @@ export const WebsitePage: React.FC = () => {
   };
 
   const removeContent = async (item: WebsiteContent) => {
-    if (!window.confirm(`Delete "${item.title}" and its revision history?`)) return;
+    if (!await confirm({ title: `Delete “${item.title}”?`, message: 'Its revision history will also be deleted.', confirmLabel: 'Delete' })) return;
     const { error: deleteError } = await supabase.from('website_content').delete().eq('id', item.id);
     if (deleteError) setError(deleteError.message);
     else { setSelected(null); await load(); }
@@ -274,6 +276,7 @@ export const WebsitePage: React.FC = () => {
           onSave={(values) => saveContent(values, editing?.id)}
         />
       )}
+      {confirmDialog}
     </main>
   );
 };

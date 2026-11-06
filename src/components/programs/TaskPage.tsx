@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { ActivityPanel, AttachmentsPanel, ChecklistPanel, CommentsPanel, LinksPanel, TimePanel, card, field, formatMinutes, logActivity } from '../work/EntityPanels';
 import { RichNotes } from '../work/RichNotes';
 import { navigate } from '../../lib/navigate';
+import { useConfirm } from '../common/useConfirm';
 
 type Task = {
   id: string; project_id: string | null; eng_project_id: string | null; assignee_id: string | null; parent_task_id: string | null; title: string; description: string | null; notes: string | null;
@@ -16,6 +17,7 @@ const STATUS: Record<string, string> = { not_started: 'Not started', in_progress
 
 export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
   const { users } = useWorkspace();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [task, setTask] = useState<Task | null>(null);
   const [projects, setProjects] = useState<{ id: string; name: string; discipline: string }[]>([]);
   const [subtasks, setSubtasks] = useState<Lite[]>([]);
@@ -78,7 +80,7 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
     setDep(''); await load();
   };
   const remove = async () => {
-    if (!window.confirm('Delete this task? This cannot be undone.')) return;
+    if (!await confirm({ title: 'Delete this task?', message: 'This cannot be undone.', confirmLabel: 'Delete' })) return;
     const { error: deleteError } = await supabase.from('program_tasks').delete().eq('id', taskId);
     if (deleteError) setError(deleteError.message); else navigate(backPath);
   };
@@ -143,6 +145,7 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
           <ActivityPanel entityType="task" entityId={taskId} />
         </div>
       </div>
+      {confirmDialog}
     </main>
   );
 };

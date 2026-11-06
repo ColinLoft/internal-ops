@@ -3,6 +3,7 @@ import { Camera, Hash, Lock, Megaphone, Trash2, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Channel, UserRole } from '../../types';
 import { uploadAvatarToSupabase } from '../../lib/supabase';
+import { useConfirm } from '../common/useConfirm';
 
 type Props = { channel: Channel; onClose: () => void };
 
@@ -26,6 +27,7 @@ export const ChannelMemberPicker: React.FC<{ selected: string[]; lockedId?: stri
 
 export const EditChannelModal: React.FC<Props> = ({ channel, onClose }) => {
   const { updateChannel, deleteChannel, users, currentUser } = useWorkspace();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [name, setName] = useState(channel.name);
   const [description, setDescription] = useState(channel.description);
   const [type, setType] = useState(channel.type);
@@ -65,7 +67,7 @@ export const EditChannelModal: React.FC<Props> = ({ channel, onClose }) => {
   };
 
   const remove = async () => {
-    if (!window.confirm(`Delete #${channel.name} and all of its messages? This cannot be undone.`)) return;
+    if (!await confirm({ title: `Delete #${channel.name}?`, message: 'All messages in this channel will also be deleted. This cannot be undone.', confirmLabel: 'Delete channel' })) return;
     setSaving(true);
     try { await deleteChannel(channel.id); onClose(); } catch (err) { setError(err instanceof Error ? err.message : 'Could not delete the channel.'); setSaving(false); }
   };
@@ -121,6 +123,7 @@ export const EditChannelModal: React.FC<Props> = ({ channel, onClose }) => {
               <button type="button" onClick={onClose} className="min-h-11 rounded-xl px-4 text-xs font-semibold text-slate-600 hover:bg-slate-100 md:min-h-0 md:py-2">Cancel</button>
               <button type="submit" disabled={saving || uploading} className="min-h-11 rounded-xl bg-brand-600 px-4 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-60 md:min-h-0 md:py-2">{saving ? 'Saving…' : 'Save changes'}</button>
             </div>
+            {confirmDialog}
           </div>
         </form>
       </div>

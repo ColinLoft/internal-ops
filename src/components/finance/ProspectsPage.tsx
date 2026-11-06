@@ -4,6 +4,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { card, field } from '../work/EntityPanels';
 import { GRANT_TYPES, SOURCES, askGrantAi, dueTone, goTo, money } from './grantShared';
+import { useConfirm } from '../common/useConfirm';
 
 type Prospect = {
   id: string; name: string; funder_name: string | null; funder_org_id: string | null; url: string | null; application_url?: string | null; source_url?: string | null; source_title?: string | null; deadline: string | null; amount_min: number | null; amount_max: number | null;
@@ -73,6 +74,7 @@ export const ProspectsPage: React.FC = () => {
 };
 
 const ProspectModal: React.FC<{ prospect: Prospect | null; userId: string; users: { id: string; name: string }[]; onClose: () => void; onSaved: () => void; onConvert: (row: Prospect) => Promise<void> }> = ({ prospect, userId, users, onClose, onSaved, onConvert }) => {
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [form, setForm] = useState({ grant_type: prospect?.grant_type || 'money', name: prospect?.name || '', funder_name: prospect?.funder_name || '', url: prospect?.url || '', application_url: prospect?.application_url || '', deadline: prospect?.deadline || '', amount_min: prospect?.amount_min ?? '', amount_max: prospect?.amount_max ?? '', focus_areas: prospect?.focus_areas || '', eligibility: prospect?.eligibility || '', status: prospect?.status || 'new', source: prospect?.source || '', notes: prospect?.notes || '', owner_id: prospect?.owner_id || userId, fit_score: prospect?.fit_score ?? null as number | null, fit_notes: prospect?.fit_notes || '' });
   const [paste, setPaste] = useState('');
   const [busy, setBusy] = useState('');
@@ -107,7 +109,7 @@ const ProspectModal: React.FC<{ prospect: Prospect | null; userId: string; users
       else setForm((current) => ({ ...current, fit_score: result.score, fit_notes: result.notes }));
     } catch (aiError) { setError(aiError instanceof Error ? aiError.message : 'AI request failed.'); } finally { setBusy(''); }
   };
-  const remove = async () => { if (!prospect || !window.confirm(`Delete "${prospect.name}"?`)) return; const { error: deleteError } = await supabase.from('grant_prospects').delete().eq('id', prospect.id); if (deleteError) setError(deleteError.message); else onSaved(); };
+  const remove = async () => { if (!prospect || !await confirm({ title: `Delete “${prospect.name}”?`, message: 'This will remove the opportunity from the grant finder.', confirmLabel: 'Delete' })) return; const { error: deleteError } = await supabase.from('grant_prospects').delete().eq('id', prospect.id); if (deleteError) setError(deleteError.message); else onSaved(); };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-label="Opportunity">
@@ -141,6 +143,7 @@ const ProspectModal: React.FC<{ prospect: Prospect | null; userId: string; users
           </div>
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 };

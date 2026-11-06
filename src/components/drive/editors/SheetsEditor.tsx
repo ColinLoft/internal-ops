@@ -1,6 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { AlignCenter, AlignLeft, AlignRight, Bold, Download, Italic, Plus, Upload } from 'lucide-react';
 import { columnName, FormulaEvaluator, parseCsv, toCsv } from './sheetFormulas';
+import { useConfirm } from '../../common/useConfirm';
+import { useTextPrompt } from '../../common/useTextPrompt';
 
 type Format = { b?: boolean; i?: boolean; align?: 'left' | 'center' | 'right'; color?: string; bg?: string };
 type Sheet = { id: string; name: string; rows: string[][]; formats: Record<string, Format> };
@@ -26,6 +28,8 @@ const btn = 'flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 t
 const small = 'rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 min-h-11 md:min-h-8';
 
 export const SheetsEditor: React.FC<Props> = ({ name, content, onChange }) => {
+  const { confirm, dialog: confirmDialog } = useConfirm();
+  const { prompt, dialog: promptDialog } = useTextPrompt();
   const [sheets, setSheets] = useState<Sheet[]>(() => readSheets(content));
   const [activeId, setActiveId] = useState(() => readSheets(content)[0].id);
   const [anchor, setAnchor] = useState<Cell>({ r: 0, c: 0 });
@@ -162,13 +166,13 @@ export const SheetsEditor: React.FC<Props> = ({ name, content, onChange }) => {
     setActiveId(next.id);
     setAnchor({ r: 0, c: 0 }); setFocus({ r: 0, c: 0 });
   };
-  const renameSheet = (id: string) => {
+  const renameSheet = async (id: string) => {
     const current = sheets.find((entry) => entry.id === id);
-    const nextName = window.prompt('Rename sheet', current?.name)?.trim();
+    const nextName = (await prompt({ title: 'Rename sheet', initialValue: current?.name || '', confirmLabel: 'Save name' }))?.trim();
     if (nextName) commit(sheets.map((entry) => entry.id === id ? { ...entry, name: nextName.slice(0, 40) } : entry));
   };
-  const deleteSheet = (id: string) => {
-    if (sheets.length === 1 || !window.confirm('Delete this sheet?')) return;
+  const deleteSheet = async (id: string) => {
+    if (sheets.length === 1 || !await confirm({ title: 'Delete this sheet?', message: 'This sheet and its contents will be removed.', confirmLabel: 'Delete sheet' })) return;
     const next = sheets.filter((entry) => entry.id !== id);
     commit(next);
     setActiveId(next[0].id);
@@ -263,16 +267,18 @@ export const SheetsEditor: React.FC<Props> = ({ name, content, onChange }) => {
         <button type="button" className={btn} aria-label="Add sheet" onClick={addSheet}><Plus className="h-4 w-4" /></button>
         {sheets.map((entry) => (
           <span key={entry.id} className={`flex shrink-0 items-center rounded-lg text-xs font-semibold ${entry.id === sheet.id ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600'}`}>
-            <button type="button" role="tab" aria-selected={entry.id === sheet.id} onClick={() => { setActiveId(entry.id); setAnchor({ r: 0, c: 0 }); setFocus({ r: 0, c: 0 }); setEditing(null); }} onDoubleClick={() => renameSheet(entry.id)} className="min-h-11 px-3 md:min-h-8">{entry.name}</button>
+            <button type="button" role="tab" aria-selected={entry.id === sheet.id} onClick={() => { setActiveId(entry.id); setAnchor({ r: 0, c: 0 }); setFocus({ r: 0, c: 0 }); setEditing(null); }} onDoubleClick={() => void renameSheet(entry.id)} className="min-h-11 px-3 md:min-h-8">{entry.name}</button>
             {entry.id === sheet.id && (
               <>
-                <button type="button" aria-label="Rename sheet" onClick={() => renameSheet(entry.id)} className="px-1 text-slate-400 hover:text-slate-700">✎</button>
-                {sheets.length > 1 && <button type="button" aria-label="Delete sheet" onClick={() => deleteSheet(entry.id)} className="px-1 text-slate-400 hover:text-rose-600">×</button>}
+                <button type="button" aria-label="Rename sheet" onClick={() => void renameSheet(entry.id)} className="px-1 text-slate-400 hover:text-slate-700">✎</button>
+                {sheets.length > 1 && <button type="button" aria-label="Delete sheet" onClick={() => void deleteSheet(entry.id)} className="px-1 text-slate-400 hover:text-rose-600">×</button>}
               </>
             )}
           </span>
         ))}
       </div>
+      {promptDialog}
+      {confirmDialog}
     </div>
   );
 };

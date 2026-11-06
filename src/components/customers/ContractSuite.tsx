@@ -3,6 +3,7 @@ import { ArrowDownToLine, ArrowLeft, CalendarClock, Check, ChevronRight, Clock3,
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAppAccess } from '../../lib/useAppAccess';
+import { useConfirm } from '../common/useConfirm';
 
 type ContractStatus = 'draft' | 'pending_signature' | 'active' | 'renewal_due' | 'ended' | 'expired';
 type ContractType = 'service' | 'partnership' | 'grant' | 'nda' | 'vendor' | 'other';
@@ -61,6 +62,7 @@ const blankForm = (): FormValues => ({
 
 export const ContractSuite: React.FC = () => {
   const { currentUser, users } = useWorkspace();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const { canEdit, canManage } = useAppAccess('customers');
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [orgs, setOrgs] = useState<Org[]>([]);
@@ -216,7 +218,7 @@ export const ContractSuite: React.FC = () => {
   };
 
   const deleteFile = async (file: ContractFile) => {
-    if (!window.confirm(`Delete "${file.file_name}"?`)) return;
+    if (!await confirm({ title: `Delete “${file.file_name}”?`, message: 'This file will be removed from the contract.', confirmLabel: 'Delete' })) return;
     const { error: storageError } = await supabase.storage.from('contracts-files').remove([file.storage_path]);
     if (storageError) { setError(storageError.message); return; }
     const { error: rowError } = await supabase.from('customer_contract_files').delete().eq('id', file.id);
@@ -230,17 +232,17 @@ export const ContractSuite: React.FC = () => {
   };
 
   const markRequestSent = async (contract: Contract) => {
-    if (!window.confirm(`Confirm that you sent the signature request to ${contract.counterparty_email}?`)) return;
+    if (!await confirm({ title: 'Mark signature request as sent?', message: `Confirm that you sent the request to ${contract.counterparty_email}.`, confirmLabel: 'Confirm sent', variant: 'primary' })) return;
     await transition(contract, 'pending_signature', `Signature request sent to ${contract.counterparty_email}.`, { signature_requested_at: new Date().toISOString() });
   };
 
   const terminate = async (contract: Contract) => {
-    if (!window.confirm(`End "${contract.name}"? This will record the agreement as ended.`)) return;
+    if (!await confirm({ title: `End “${contract.name}”?`, message: 'This will record the agreement as ended.', confirmLabel: 'End contract' })) return;
     await transition(contract, 'ended', 'Contract marked as ended.', { ended_at: new Date().toISOString() });
   };
 
   const remove = async (contract: Contract) => {
-    if (!canManage || !window.confirm(`Delete "${contract.name}" and its stored files? This cannot be undone.`)) return;
+    if (!canManage || !await confirm({ title: `Delete “${contract.name}”?`, message: 'The contract and its stored files will be deleted. This cannot be undone.', confirmLabel: 'Delete' })) return;
     setBusy(true);
     const contractFiles = files.filter((file) => file.contract_id === contract.id);
     if (contractFiles.length) {
@@ -369,6 +371,7 @@ export const ContractSuite: React.FC = () => {
       </div>
 
       {editing !== false && <ContractForm initial={editing || undefined} organizations={orgs} contacts={contacts} users={users.filter((user) => user.accountStatus !== 'removed')} currentUserId={currentUser.id} busy={busy} onClose={() => setEditing(false)} onSave={(values) => save(values, editing?.id)} />}
+      {confirmDialog}
     </main>
   );
 };

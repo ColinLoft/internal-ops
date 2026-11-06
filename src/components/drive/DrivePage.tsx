@@ -26,6 +26,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { ProfessionalEditor } from './ProfessionalEditor';
 import { DriveCard } from './DriveCard';
+import { useConfirm } from '../common/useConfirm';
 
 type DriveItem = {
   id: string;
@@ -102,6 +103,7 @@ const normalizeEditorContent = (item: DriveItem): Record<string, unknown> => {
 
 export const DrivePage: React.FC = () => {
   const { currentUser } = useWorkspace();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [items, setItems] = useState<DriveItem[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<DriveItem | null>(null);
@@ -285,7 +287,7 @@ export const DrivePage: React.FC = () => {
   };
 
   const permanentlyDelete = async (item: DriveItem) => {
-    if (!window.confirm(`Permanently delete "${item.name}"? This cannot be undone.`)) return;
+    if (!await confirm({ title: `Permanently delete “${item.name}”?`, message: 'This cannot be undone.', confirmLabel: 'Delete permanently' })) return;
     const { error: deleteError } = await supabase.from('drive_items').delete().eq('id', item.id);
     if (deleteError) setError(`Could not permanently delete item: ${deleteError.message}`);
     else setItems((current) => current.filter((entry) => entry.id !== item.id));
@@ -487,6 +489,7 @@ export const DrivePage: React.FC = () => {
       {selectedItem && selectedItem.item_type === 'file' && <DriveEditor item={selectedItem} onClose={() => setSelectedItem(null)} onSave={updateDocument} onShare={() => setIsShareOpen(true)} onTrash={() => void moveToTrash(selectedItem)} onDownload={() => void downloadFile(selectedItem)} />}
       {isCreateOpen && <CreateDriveItem allowedTypes={['folder']} onClose={() => setIsCreateOpen(false)} onCreate={createItem} />}
       {isShareOpen && selectedItem && <ShareDialog item={selectedItem} onClose={() => setIsShareOpen(false)} onShare={shareItem} />}
+      {confirmDialog}
     </main>
   );
 };

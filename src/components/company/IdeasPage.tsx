@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronUp, Lightbulb, Plus, Search, Trash2, X } from 'lucide-react';
+import { ChevronUp, Lightbulb, MessageCircle, Plus, Search, Send, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { EmptyState } from '../common/Feedback';
+import { useConfirm } from '../common/useConfirm';
 
-type Idea = { id: string; title: string; description: string | null; category: string; status: string; created_by: string; created_at: string };
+type Idea = { id: string; title: string; description: string | null; problem?: string | null; impact?: string | null; effort?: string | null; next_step?: string | null; category: string; status: string; created_by: string; created_at: string };
+type IdeaComment = { id: string; idea_id: string; author_id: string; body: string; created_at: string };
 
 const CATEGORIES: Record<string, string> = {
   general: 'General', brand: 'Brand', grants: 'Grants', marketing: 'Marketing', product: 'Product',
@@ -19,6 +21,7 @@ const field = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-base out
 
 export const IdeasPage: React.FC = () => {
   const { currentUser, users } = useWorkspace();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const isLead = currentUser.systemRole === 'admin' || currentUser.systemRole === 'coordinator';
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [votes, setVotes] = useState<Record<string, Set<string>>>({});
@@ -28,11 +31,16 @@ export const IdeasPage: React.FC = () => {
   const [status, setStatus] = useState('all');
   const [query, setQuery] = useState('');
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', category: 'general' });
+  const [editing, setEditing] = useState<Idea | null>(null);
+  const [discussionId, setDiscussionId] = useState<string | null>(null);
+  const [comments, setComments] = useState<Record<string, IdeaComment[]>>({});
+  const [commentDraft, setCommentDraft] = useState('');
+  const [commentBusy, setCommentBusy] = useState(false);
+  const [form, setForm] = useState({ title: '', description: '', problem: '', impact: '', effort: '', next_step: '', category: 'general' });
 
   const load = useCallback(async () => {
     const [ideaResult, voteResult] = await Promise.all([
-      supabase.from('company_ideas').select('id,title,description,category,status,created_by,created_at').order('created_at', { ascending: false }),
+      supabase.from('company_ideas').select('id,title,description,problem,impact,effort,next_step,category,status,created_by,created_at').order('created_at', { ascending: false }),
       supabase.from('company_idea_votes').select('idea_id,user_id'),
     ]);
     const failure = ideaResult.error || voteResult.error;
@@ -57,12 +65,20 @@ export const IdeasPage: React.FC = () => {
 
   const create = async () => {
     if (!form.title.trim()) return;
-    const { error: insertError } = await supabase.from('company_ideas').insert({
-      title: form.title.trim(), description: form.description.trim() || null, category: form.category, created_by: currentUser.id,
-    });
+    const values = {
+      title: form.title.trim(), description: form.description.trim() || null,
+      problem: form.problem.trim() || null, impact: form.impact.trim() || null,
+      effort: form.effort.trim() || null, next_step: form.next_step.trim() || null,
+      category: form.category,
+    };
+    const result = editing
+      ? await supabase.from('company_ideas').update({ ...values, updated_at: new Date().toISOString() }).eq('id', editing.id)
+      : await supabase.from('company_ideas').insert({ ...values, created_by: currentUser.id });
+    const insertError = result.error;
     if (insertError) { setError(insertError.message); return; }
-    setForm({ title: '', description: '', category: 'general' });
+    setForm({ title: '', description: '', problem: '', impact: '', effort: '', next_step: '', category: 'general' });
     setCreating(false);
+    setEditing(null);
     await load();
   };
 
@@ -82,10 +98,41 @@ export const IdeasPage: React.FC = () => {
   };
 
   const remove = async (idea: Idea) => {
-    if (!window.confirm(`Delete the idea "${idea.title}"?`)) return;
+    if (!await confirm({ title: `Delete “${idea.title}”?`, message: 'Its discussion and votes will also be removed.', confirmLabel: 'Delete' })) return;
     const { error: deleteError } = await supabase.from('company_ideas').delete().eq('id', idea.id);
     if (deleteError) { setError(deleteError.message); return; }
     await load();
+  };
+
+  const openDiscussion = async (idea: Idea) => {
+    if (discussionId === idea.id) { setDiscussionId(null); return; }
+    setDiscussionId(idea.id);
+    setCommentDraft('');
+    if (comments[idea.id]) return;
+    const { data, error: commentError } = await supabase.from('company_idea_comments').select('id,idea_id,author_id,body,created_at').eq('idea_id', idea.id).order('created_at');
+    if (commentError) { setError(commentError.message); return; }
+    setComments((current) => ({ ...current, [idea.id]: (data || []) as IdeaComment[] }));
+  };
+
+  const addComment = async (ideaId: string) => {
+    const body = commentDraft.trim();
+    if (!body) return;
+    setCommentBusy(true);
+    const { data, error: commentError } = await supabase.from('company_idea_comments').insert({ idea_id: ideaId, author_id: currentUser.id, body }).select('id,idea_id,author_id,body,created_at').single();
+    setCommentBusy(false);
+    if (commentError || !data) { setError(commentError?.message || 'Could not add the discussion message.'); return; }
+    setComments((current) => ({ ...current, [ideaId]: [...(current[ideaId] || []), data as IdeaComment] }));
+    setCommentDraft('');
+  };
+
+  const editIdea = (idea: Idea) => {
+    setEditing(idea);
+    setForm({
+      title: idea.title, description: idea.description || '', problem: idea.problem || '',
+      impact: idea.impact || '', effort: idea.effort || '', next_step: idea.next_step || '',
+      category: idea.category,
+    });
+    setCreating(true);
   };
 
   return (
@@ -114,7 +161,8 @@ export const IdeasPage: React.FC = () => {
               const voted = votes[idea.id]?.has(currentUser.id);
               const canManage = isLead || idea.created_by === currentUser.id;
               return (
-                <li key={idea.id} className="flex gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <li key={idea.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="flex gap-3">
                   <button type="button" onClick={() => void toggleVote(idea)} aria-pressed={voted} aria-label={voted ? 'Remove upvote' : 'Upvote'} className={`flex h-14 w-12 shrink-0 flex-col items-center justify-center rounded-xl border text-xs font-bold transition-colors ${voted ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
                     <ChevronUp className="h-4 w-4" />{count}
                   </button>
@@ -127,9 +175,36 @@ export const IdeasPage: React.FC = () => {
                       ) : <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${statusTone[idea.status] || ''}`}>{STATUSES[idea.status] || idea.status}</span>}
                     </div>
                     {idea.description && <p className="mt-1 whitespace-pre-wrap text-xs text-slate-600">{idea.description}</p>}
+                    {(idea.problem || idea.impact || idea.effort || idea.next_step) && <dl className="mt-3 grid gap-x-4 gap-y-2 sm:grid-cols-2">
+                      {idea.problem && <div><dt className="text-xs font-semibold text-slate-500">Problem</dt><dd className="mt-0.5 whitespace-pre-wrap text-xs text-slate-700">{idea.problem}</dd></div>}
+                      {idea.impact && <div><dt className="text-xs font-semibold text-slate-500">Expected impact</dt><dd className="mt-0.5 whitespace-pre-wrap text-xs text-slate-700">{idea.impact}</dd></div>}
+                      {idea.effort && <div><dt className="text-xs font-semibold text-slate-500">Effort / dependencies</dt><dd className="mt-0.5 whitespace-pre-wrap text-xs text-slate-700">{idea.effort}</dd></div>}
+                      {idea.next_step && <div><dt className="text-xs font-semibold text-slate-500">Next step</dt><dd className="mt-0.5 whitespace-pre-wrap text-xs text-slate-700">{idea.next_step}</dd></div>}
+                    </dl>}
                     <p className="mt-2 text-[11px] text-slate-400">{users.find((user) => user.id === idea.created_by)?.name || 'Someone'} · {new Date(idea.created_at).toLocaleDateString()}</p>
                   </div>
-                  {canManage && <button type="button" onClick={() => void remove(idea)} aria-label="Delete idea" className="self-start rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>}
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <button type="button" onClick={() => void openDiscussion(idea)} aria-expanded={discussionId === idea.id} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"><MessageCircle className="h-3.5 w-3.5" />Discuss{comments[idea.id]?.length ? ` · ${comments[idea.id].length}` : ''}</button>
+                    {canManage && <button type="button" onClick={() => editIdea(idea)} className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50">Edit</button>}
+                    {canManage && <button type="button" onClick={() => void remove(idea)} aria-label="Delete idea" className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>}
+                  </div>
+                  </div>
+                  {discussionId === idea.id && <section className="mt-4 border-t border-slate-100 pt-4" aria-label={`Discussion for ${idea.title}`}>
+                    <h3 className="text-xs font-bold text-slate-800">Discussion</h3>
+                    <p className="mt-1 text-xs text-slate-500">Ask questions, share context, and agree on a useful next step.</p>
+                    <ol className="mt-3 max-h-80 space-y-3 overflow-y-auto">
+                      {(comments[idea.id] || []).map((comment) => <li key={comment.id} className="rounded-xl bg-slate-50 px-3 py-2.5">
+                        <div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold text-slate-800">{users.find((user) => user.id === comment.author_id)?.name || 'Team member'}</span><time className="text-xs text-slate-400">{new Date(comment.created_at).toLocaleString()}</time></div>
+                        <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-700">{comment.body}</p>
+                      </li>)}
+                      {!comments[idea.id]?.length && <li className="text-xs text-slate-400">Start the discussion with a question or comment.</li>}
+                    </ol>
+                    <form className="mt-3 flex items-end gap-2" onSubmit={(event) => { event.preventDefault(); void addComment(idea.id); }}>
+                      <label className="sr-only" htmlFor={`idea-comment-${idea.id}`}>Write a discussion message</label>
+                      <textarea id={`idea-comment-${idea.id}`} rows={2} maxLength={5000} value={commentDraft} onChange={(event) => setCommentDraft(event.target.value)} placeholder="Ask a question or add a thought…" className={`${field} min-h-11 flex-1`} />
+                      <button type="submit" disabled={!commentDraft.trim() || commentBusy} className="inline-flex h-10 items-center gap-1 rounded-lg bg-brand-600 px-3 text-xs font-bold text-white disabled:opacity-50"><Send className="h-3.5 w-3.5" />Send</button>
+                    </form>
+                  </section>}
                 </li>
               );
             })}
@@ -139,17 +214,24 @@ export const IdeasPage: React.FC = () => {
 
       {creating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-3" onClick={() => setCreating(false)}>
-          <div role="dialog" aria-label="New idea" onClick={(event) => event.stopPropagation()} className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
-            <div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">New idea</h2><button type="button" onClick={() => setCreating(false)} aria-label="Close" className="-m-2 p-2"><X className="h-4 w-4 text-slate-400" /></button></div>
+          <div role="dialog" aria-label={editing ? 'Edit idea' : 'New idea'} onClick={(event) => event.stopPropagation()} className="max-h-[calc(100dvh-1.5rem)] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
+            <div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">{editing ? 'Edit idea' : 'New idea'}</h2><button type="button" onClick={() => { setCreating(false); setEditing(null); }} aria-label="Close" className="-m-2 p-2"><X className="h-4 w-4 text-slate-400" /></button></div>
             <div className="mt-4 space-y-3">
               <input autoFocus maxLength={200} value={form.title} onChange={(event) => setForm((value) => ({ ...value, title: event.target.value }))} placeholder="What's the idea?" className={field} />
-              <textarea rows={4} maxLength={5000} value={form.description} onChange={(event) => setForm((value) => ({ ...value, description: event.target.value }))} placeholder="Add detail: why it matters, what it would take…" className={field} />
+              <textarea rows={3} maxLength={5000} value={form.description} onChange={(event) => setForm((value) => ({ ...value, description: event.target.value }))} placeholder="Describe the idea and context" className={field} />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <textarea rows={3} maxLength={3000} value={form.problem} onChange={(event) => setForm((value) => ({ ...value, problem: event.target.value }))} placeholder="What problem or opportunity does this address?" className={field} />
+                <textarea rows={3} maxLength={3000} value={form.impact} onChange={(event) => setForm((value) => ({ ...value, impact: event.target.value }))} placeholder="Who benefits, and what would improve?" className={field} />
+                <textarea rows={3} maxLength={3000} value={form.effort} onChange={(event) => setForm((value) => ({ ...value, effort: event.target.value }))} placeholder="Effort, dependencies or risks" className={field} />
+                <textarea rows={3} maxLength={3000} value={form.next_step} onChange={(event) => setForm((value) => ({ ...value, next_step: event.target.value }))} placeholder="A small next step to explore it" className={field} />
+              </div>
               <select value={form.category} onChange={(event) => setForm((value) => ({ ...value, category: event.target.value }))} className={field}>{Object.entries(CATEGORIES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
             </div>
-            <button type="button" disabled={!form.title.trim()} onClick={() => void create()} className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white disabled:opacity-50">Share idea</button>
+            <button type="button" disabled={!form.title.trim()} onClick={() => void create()} className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white disabled:opacity-50">{editing ? 'Save changes' : 'Share idea'}</button>
           </div>
         </div>
       )}
+      {confirmDialog}
     </main>
   );
 };

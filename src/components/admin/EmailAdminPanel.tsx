@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Mail, RefreshCw, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useConfirm } from '../common/useConfirm';
 
 type Mailbox = {
   id: string;
@@ -28,6 +29,7 @@ type Grant = {
 };
 
 export const EmailAdminPanel: React.FC = () => {
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const { currentUser } = useWorkspace();
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
   const [users, setUsers] = useState<StaffMember[]>([]);
@@ -154,9 +156,9 @@ export const EmailAdminPanel: React.FC = () => {
                     </p>
                     {mailbox.push_error && <p role="alert" className="mt-1 text-xs text-brand-700">{mailbox.push_error}</p>}
                   </div>
-                  <button type="button" disabled={saving} onClick={() => {
-                    if (window.confirm(`Disconnect ${mailbox.email} and remove its synced email from this workspace?`)) {
-                      void invoke('disconnect', { mailboxId: mailbox.id });
+                  <button type="button" disabled={saving} onClick={async () => {
+                    if (await confirm({ title: `Disconnect ${mailbox.email}?`, message: 'Its synced email will be removed from this workspace.', confirmLabel: 'Disconnect' })) {
+                      await invoke('disconnect', { mailboxId: mailbox.id });
                     }
                   }} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50 min-h-11 md:min-h-0">
                     <Trash2 className="h-3.5 w-3.5" /> Disconnect
@@ -253,6 +255,7 @@ export const EmailAdminPanel: React.FC = () => {
           {saving ? 'Saving…' : 'Save retention'}
         </button>
       </form>
+      {confirmDialog}
     </section>
   );
 };

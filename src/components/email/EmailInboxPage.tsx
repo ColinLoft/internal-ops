@@ -35,6 +35,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import type { Attachment } from '../../types';
 import { sanitizeEmailHtml } from '../../lib/sanitizeEmailHtml';
+import { useTextPrompt } from '../common/useTextPrompt';
 
 type Mailbox = {
   id: string;
@@ -165,6 +166,7 @@ const senderInitials = (message: EmailMessage) => (message.sender_name || messag
   .toUpperCase();
 
 export const EmailInboxPage: React.FC = () => {
+  const { prompt, dialog: promptDialog } = useTextPrompt();
   const {
     activeTab,
     currentUser,
@@ -759,8 +761,8 @@ export const EmailInboxPage: React.FC = () => {
     setComposeBody(editorRef.current?.innerHTML || '');
   };
 
-  const insertComposeLink = () => {
-    const url = window.prompt('Enter a web address to link to:');
+  const insertComposeLink = async () => {
+    const url = await prompt({ title: 'Insert link', placeholder: 'https:// or mailto:' });
     if (!url) return;
     let parsed: URL;
     try {
@@ -1699,6 +1701,7 @@ export const EmailInboxPage: React.FC = () => {
           </form>
         </div>
       )}
+      {promptDialog}
     </main>
   );
 };

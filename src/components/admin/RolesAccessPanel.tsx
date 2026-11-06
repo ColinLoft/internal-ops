@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { KeyRound, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useConfirm } from '../common/useConfirm';
 
 type Level = 'view' | 'edit' | 'manage';
 type Role = { id: string; name: string; description: string };
@@ -24,6 +25,7 @@ const apps = [
 
 export const RolesAccessPanel: React.FC = () => {
   const { users, currentUser } = useWorkspace();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -82,7 +84,7 @@ export const RolesAccessPanel: React.FC = () => {
   };
 
   const deleteRole = async () => {
-    if (!selected || !window.confirm(`Delete the "${selected.name}" role? Members lose the access it grants.`)) return;
+    if (!selected || !await confirm({ title: `Delete the “${selected.name}” role?`, message: 'Members will lose the access granted by this role.', confirmLabel: 'Delete role' })) return;
     setSelectedId(null);
     await run(supabase.from('workspace_roles').delete().eq('id', selected.id));
   };
@@ -154,6 +156,7 @@ export const RolesAccessPanel: React.FC = () => {
           )}
         </div>
       </div>
+      {confirmDialog}
     </section>
   );
 };

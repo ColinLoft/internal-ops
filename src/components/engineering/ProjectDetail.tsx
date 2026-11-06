@@ -6,6 +6,7 @@ import {
   type EngEntry, type EngFile, type EngProject, type EngReview, type ReviewType, ENTRY_KINDS, FILE_KINDS, Modal, PROJECT_STATUS, REVIEW_TYPES,
   ago, defaultReviewType, disciplineOf, fileSize, inputClass, navigate, outcomeTone, statusTone, today,
 } from './shared';
+import { useConfirm } from '../common/useConfirm';
 
 type Tab = 'log' | 'tasks' | 'files' | 'reviews';
 type TaskRow = { id: string; title: string; status: string; priority: string; due_date: string | null; assignee_id: string | null; parent_task_id: string | null };
@@ -30,6 +31,7 @@ export const openEngFile = async (path: string) => {
 
 export const ProjectDetail: React.FC<{ projectId: string }> = ({ projectId }) => {
   const { users, currentUser } = useWorkspace();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [project, setProject] = useState<EngProject | null>(null);
   const [missing, setMissing] = useState(false);
   const [entries, setEntries] = useState<EngEntry[]>([]);
@@ -71,7 +73,7 @@ export const ProjectDetail: React.FC<{ projectId: string }> = ({ projectId }) =>
   };
 
   const remove = async () => {
-    if (!project || !window.confirm(`Delete "${project.name}" and all of its log, files, tasks and reviews?`)) return;
+    if (!project || !await confirm({ title: `Delete “${project.name}”?`, message: 'Its log, files, tasks and reviews will also be deleted.', confirmLabel: 'Delete' })) return;
     const paths = files.map((file) => file.storage_path);
     if (paths.length) await supabase.storage.from('engineering-files').remove(paths);
     const { error: deleteError } = await supabase.from('eng_projects').delete().eq('id', project.id);
@@ -136,6 +138,7 @@ export const ProjectDetail: React.FC<{ projectId: string }> = ({ projectId }) =>
       </div>
 
       {requesting !== false && <RequestReview project={project} files={files} initialFile={requesting} onClose={() => setRequesting(false)} onCreated={async (id) => { setRequesting(false); await load(); navigate(`/engineering/review/${id}`); }} />}
+      {confirmDialog}
     </main>
   );
 };
@@ -220,6 +223,7 @@ const TasksTab: React.FC<{ projectId: string; tasks: TaskRow[]; onChanged: () =>
 
 const FilesTab: React.FC<{ project: EngProject; files: EngFile[]; name: (id: string | null) => string; onChanged: () => void; onError: (message: string) => void; onRequest: (fileId: string) => void }> = ({ project, files, name, onChanged, onError, onRequest }) => {
   const { currentUser } = useWorkspace();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [busy, setBusy] = useState(false);
   const upload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const list = Array.from(event.target.files || []);
@@ -239,7 +243,7 @@ const FilesTab: React.FC<{ project: EngProject; files: EngFile[]; name: (id: str
     onChanged();
   };
   const remove = async (file: EngFile) => {
-    if (!window.confirm(`Delete ${file.name}?`)) return;
+    if (!await confirm({ title: `Delete “${file.name}”?`, message: 'This file will be removed from the project.', confirmLabel: 'Delete' })) return;
     await supabase.storage.from('engineering-files').remove([file.storage_path]);
     const { error } = await supabase.from('eng_project_files').delete().eq('id', file.id);
     if (error) onError(error.message); else onChanged();
@@ -262,6 +266,7 @@ const FilesTab: React.FC<{ project: EngProject; files: EngFile[]; name: (id: str
         ))}
         {!files.length && <p className="p-8 text-center text-xs text-slate-500">No files yet.</p>}
       </div>
+      {confirmDialog}
     </div>
   );
 };

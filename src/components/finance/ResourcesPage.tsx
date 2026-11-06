@@ -3,6 +3,7 @@ import { Building2, Copy, ExternalLink, Plus, Search, Trash2, X } from 'lucide-r
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { card, field } from '../work/EntityPanels';
+import { useConfirm } from '../common/useConfirm';
 
 type Resource = { id: string; title: string; category: string; body: string | null; summary?: string; audience?: string; content_format?: string; url: string | null; tags: string[] };
 const CATEGORIES = [['boilerplate', 'Boilerplate language'], ['template', 'Templates'], ['directory', 'Funder directories'], ['guide', 'Guides'], ['document', 'Documents'], ['link', 'Links']] as const;
@@ -113,6 +114,7 @@ export const ResourcesPage: React.FC = () => {
 };
 
 const ResourceModal: React.FC<{ resource: Resource | null; userId: string; onClose: () => void; onSaved: () => void }> = ({ resource, userId, onClose, onSaved }) => {
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [form, setForm] = useState({ title: resource?.title || '', category: resource?.category || 'boilerplate', summary: resource?.summary || '', audience: resource?.audience || '', body: resource?.body || '', url: resource?.url || '', tags: (resource?.tags || []).join(', ') });
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const [error, setError] = useState('');
@@ -133,7 +135,7 @@ const ResourceModal: React.FC<{ resource: Resource | null; userId: string; onClo
     const { error: saveError } = resource ? await supabase.from('grant_resources').update(payload).eq('id', resource.id) : await supabase.from('grant_resources').insert({ ...payload, created_by: userId });
     if (saveError) setError(saveError.message); else onSaved();
   };
-  const remove = async () => { if (!resource || !window.confirm(`Delete "${resource.title}"?`)) return; const { error: deleteError } = await supabase.from('grant_resources').delete().eq('id', resource.id); if (deleteError) setError(deleteError.message); else onSaved(); };
+  const remove = async () => { if (!resource || !await confirm({ title: `Delete “${resource.title}”?`, message: 'This resource will be removed from the grant library.', confirmLabel: 'Delete' })) return; const { error: deleteError } = await supabase.from('grant_resources').delete().eq('id', resource.id); if (deleteError) setError(deleteError.message); else onSaved(); };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-label="Resource">
       <div className="max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
@@ -165,6 +167,7 @@ const ResourceModal: React.FC<{ resource: Resource | null; userId: string; onClo
           <div className="flex items-center justify-between pt-1">{resource ? <button type="button" onClick={() => void remove()} className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600"><Trash2 className="h-3.5 w-3.5" />Delete</button> : <span />}<div className="flex gap-2"><button type="button" onClick={onClose} className="px-3 py-2 text-xs font-semibold text-slate-500">Cancel</button><button type="button" onClick={() => void save()} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white">Save</button></div></div>
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 };

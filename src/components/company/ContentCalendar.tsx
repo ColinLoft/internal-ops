@@ -3,6 +3,7 @@ import { CheckCircle2, ChevronLeft, ChevronRight, MessageSquareWarning, Plus, Se
 import { supabase } from '../../lib/supabase';
 import { useAppAccess } from '../../lib/useAppAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useConfirm } from '../common/useConfirm';
 
 type Post = {
   id: string; title: string; body: string | null; channel: string; campaign_id: string | null; scheduled_for: string | null;
@@ -142,6 +143,7 @@ const PostDialog: React.FC<{
   post: Post | null; campaigns: Campaign[]; canManage: boolean; canEdit: boolean; currentUserId: string; authorName: string; reviewerName: string;
   onClose: () => void; onSaved: () => void;
 }> = ({ post, campaigns, canManage, canEdit, currentUserId, authorName, reviewerName, onClose, onSaved }) => {
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [f, setF] = useState({
     title: post?.title || '', body: post?.body || '', channel: post?.channel || 'instagram', campaign_id: post?.campaign_id || '',
     scheduled_for: toLocalInput(post?.scheduled_for || null), objective: post?.objective || '', audience: post?.audience || '',
@@ -179,7 +181,7 @@ const PostDialog: React.FC<{
     if (e) setError(e.message); else onSaved();
   };
   const remove = async () => {
-    if (!post || !window.confirm('Delete this post?')) return;
+    if (!post || !await confirm({ title: `Delete “${post.title}”?`, message: 'This post will be removed from the content calendar.', confirmLabel: 'Delete' })) return;
     const { error: e } = await supabase.from('gtm_content_posts').delete().eq('id', post.id);
     if (e) setError(e.message); else onSaved();
   };
@@ -229,11 +231,13 @@ const PostDialog: React.FC<{
           {post && (canManage || (own && post.status === 'draft')) && <button type="button" onClick={remove} className="ml-auto inline-flex items-center gap-1 text-xs text-rose-600"><Trash2 className="h-3.5 w-3.5" /> Delete</button>}
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 };
 
 const CampaignDialog: React.FC<{ campaign: Campaign | null; userId: string; onClose: () => void; onSaved: () => void }> = ({ campaign, userId, onClose, onSaved }) => {
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [form, setForm] = useState({
     name: campaign?.name || '', description: campaign?.description || '', status: campaign?.status || 'planned',
     due_date: campaign?.due_date || '', objective: campaign?.objective || '', audience: campaign?.audience || '',
@@ -256,7 +260,7 @@ const CampaignDialog: React.FC<{ campaign: Campaign | null; userId: string; onCl
     if (saveError) setError(saveError.message); else onSaved();
   };
   const remove = async () => {
-    if (!campaign || !window.confirm(`Delete "${campaign.name}"? Posts in this campaign will remain.`)) return;
+    if (!campaign || !await confirm({ title: `Delete “${campaign.name}”?`, message: 'Posts in this campaign will remain in the calendar.', confirmLabel: 'Delete' })) return;
     const { error: deleteError } = await supabase.from('gtm_records').delete().eq('id', campaign.id);
     if (deleteError) setError(deleteError.message); else onSaved();
   };
@@ -278,6 +282,7 @@ const CampaignDialog: React.FC<{ campaign: Campaign | null; userId: string; onCl
         <p className="text-xs text-slate-400">Posts can be planned, approved and marked published here. Connecting social accounts is not configured, so publishing and metrics must be recorded manually.</p>
         <div className="flex items-center justify-between pt-1">{campaign ? <button type="button" onClick={() => void remove()} className="text-xs font-semibold text-rose-600">Delete campaign</button> : <span />}<div className="flex gap-2"><button type="button" onClick={onClose} className="px-3 py-2 text-xs font-semibold text-slate-500">Cancel</button><button type="button" disabled={busy} onClick={() => void save()} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{busy ? 'Saving…' : 'Save campaign'}</button></div></div>
       </div>
+      {confirmDialog}
     </div>
   );
 };

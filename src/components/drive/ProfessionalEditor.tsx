@@ -4,6 +4,7 @@ import { DocsEditor } from './editors/DocsEditor';
 import { SheetsEditor } from './editors/SheetsEditor';
 import { SlidesEditor } from './editors/SlidesEditor';
 import { FormsEditor } from './editors/FormsEditor';
+import { useConfirm } from '../common/useConfirm';
 
 type ItemType = 'document' | 'presentation' | 'spreadsheet' | 'form';
 type Content = Record<string, unknown>;
@@ -20,6 +21,7 @@ type SaveState = 'saved' | 'dirty' | 'saving' | 'error';
 const AUTOSAVE_MS = 1500;
 
 export const ProfessionalEditor: React.FC<Props> = ({ item, onClose, onSave }) => {
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [content, setContent] = useState<Content>(item.content);
   const [state, setState] = useState<SaveState>('saved');
   const [message, setMessage] = useState('');
@@ -69,21 +71,16 @@ export const ProfessionalEditor: React.FC<Props> = ({ item, onClose, onSave }) =
         void flush();
       }
     };
-    const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (dirty.current) { event.preventDefault(); event.returnValue = ''; }
-    };
     window.addEventListener('keydown', onKey);
-    window.addEventListener('beforeunload', onBeforeUnload);
     return () => {
       window.removeEventListener('keydown', onKey);
-      window.removeEventListener('beforeunload', onBeforeUnload);
       window.clearTimeout(timer.current);
     };
   }, [flush]);
 
   const close = async () => {
     const ok = await flush();
-    if (ok || window.confirm('Your latest changes could not be saved. Leave without saving?')) onClose();
+    if (ok || await confirm({ title: 'Changes could not be saved', message: 'Leave the editor without saving your latest changes?', confirmLabel: 'Leave without saving' })) onClose();
   };
 
   const status = {
@@ -109,6 +106,7 @@ export const ProfessionalEditor: React.FC<Props> = ({ item, onClose, onSave }) =
         {item.item_type === 'spreadsheet' && <SheetsEditor name={item.name} content={content} onChange={change} />}
         {item.item_type === 'presentation' && <SlidesEditor name={item.name} content={content} onChange={change} />}
         {item.item_type === 'form' && <FormsEditor itemId={item.id} name={item.name} content={content} onChange={change} />}
+        {confirmDialog}
       </div>
     </div>
   );

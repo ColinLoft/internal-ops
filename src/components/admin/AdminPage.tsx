@@ -18,6 +18,7 @@ import { PROFILE_BANNERS, SystemActivityLog, User, UserRole, UserStatus } from '
 import { EmailAdminPanel } from './EmailAdminPanel';
 import { RolesAccessPanel } from './RolesAccessPanel';
 import { DepartmentsPositionsPanel } from './DepartmentsPositionsPanel';
+import { useConfirm } from '../common/useConfirm';
 
 const roleLabels: Record<UserRole, string> = {
   admin: 'Admin',
@@ -26,6 +27,7 @@ const roleLabels: Record<UserRole, string> = {
 };
 
 export const AdminPage: React.FC = () => {
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const {
     currentUser,
     users,
@@ -92,7 +94,7 @@ export const AdminPage: React.FC = () => {
     const targetUser = users.find((user) => user.id === userId);
     if (!targetUser) return;
     const confirmed = action === 'remove'
-      ? window.confirm(`Remove ${targetUser.name} from the workspace? This cannot be undone.`)
+      ? await confirm({ title: `Remove ${targetUser.name} from the workspace?`, message: 'This action cannot be undone.', confirmLabel: 'Remove staff member' })
       : true;
     if (!confirmed) return;
     try {
@@ -478,6 +480,7 @@ export const AdminPage: React.FC = () => {
           </form>
         </div>
       )}
+      {confirmDialog}
     </main>
   );
 };

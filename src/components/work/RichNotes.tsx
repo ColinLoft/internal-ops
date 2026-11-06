@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Bold, Heading2, Italic, Link2, List, ListOrdered, Save } from 'lucide-react';
 import { sanitizeEmailHtml } from '../../lib/sanitizeEmailHtml';
+import { useTextPrompt } from '../common/useTextPrompt';
 
 const tools = [
   { icon: Bold, label: 'Bold', command: 'bold' },
@@ -11,6 +12,7 @@ const tools = [
 ] as const;
 
 export const RichNotes: React.FC<{ value: string; onSave: (html: string) => Promise<void> | void; placeholder?: string; readOnly?: boolean }> = ({ value, onSave, placeholder = 'Write notes…', readOnly }) => {
+  const { prompt, dialog: promptDialog } = useTextPrompt();
   const ref = useRef<HTMLDivElement>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -26,8 +28,8 @@ export const RichNotes: React.FC<{ value: string; onSave: (html: string) => Prom
     document.execCommand(command, false, arg);
     setDirty(true);
   };
-  const addLink = () => {
-    const url = window.prompt('Link address (https://…)');
+  const addLink = async () => {
+    const url = await prompt({ title: 'Insert link', placeholder: 'https://…' });
     if (url && /^https?:\/\//i.test(url)) run('createLink', url);
   };
   const save = async () => {
@@ -60,6 +62,7 @@ export const RichNotes: React.FC<{ value: string; onSave: (html: string) => Prom
         onInput={() => setDirty(true)}
         className="min-h-40 px-4 py-3 text-sm leading-6 text-slate-700 outline-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)] [&_a]:text-brand-600 [&_a]:underline [&_h3]:mt-2 [&_h3]:text-base [&_h3]:font-bold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
       />
+      {promptDialog}
     </div>
   );
 };

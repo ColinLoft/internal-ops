@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Image as ImageIcon, Italic, Link2, List, ListOrdered, Minus, Redo2, Strikethrough, Table2, Underline, Undo2 } from 'lucide-react';
 import { countWords, sanitizeDocHtml, textToHtml } from './docHtml';
+import { useTextPrompt } from '../../common/useTextPrompt';
 
 type Props = { name: string; content: Record<string, unknown>; onChange: (content: Record<string, unknown>) => void };
 
@@ -16,6 +17,7 @@ const initialHtml = (content: Record<string, unknown>) => {
 const tool = 'flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-slate-600 hover:bg-slate-100 md:min-h-8 md:min-w-8';
 
 export const DocsEditor: React.FC<Props> = ({ name, content, onChange }) => {
+  const { prompt, dialog: promptDialog } = useTextPrompt();
   const pageRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef(content);
@@ -43,8 +45,8 @@ export const DocsEditor: React.FC<Props> = ({ name, content, onChange }) => {
     emit();
   };
 
-  const addLink = () => {
-    const url = window.prompt('Link address (https://…)');
+  const addLink = async () => {
+    const url = await prompt({ title: 'Insert link', placeholder: 'https:// or mailto:' });
     if (!url) return;
     if (!/^(https?:|mailto:)/i.test(url)) { setNotice('Links must start with https://, http:// or mailto:'); return; }
     exec('createLink', url);
@@ -59,10 +61,17 @@ export const DocsEditor: React.FC<Props> = ({ name, content, onChange }) => {
     reader.readAsDataURL(file);
   };
 
-  const addTable = () => {
-    const rows = Math.min(Number(window.prompt('Rows', '3')) || 0, 20);
-    const cols = Math.min(Number(window.prompt('Columns', '3')) || 0, 10);
-    if (!rows || !cols) return;
+  const addTable = async () => {
+    const rowValue = await prompt({ title: 'Table rows', initialValue: '3', confirmLabel: 'Next' });
+    if (rowValue === null) return;
+    const colValue = await prompt({ title: 'Table columns', initialValue: '3', confirmLabel: 'Insert table' });
+    if (colValue === null) return;
+    const rows = Math.min(Number(rowValue) || 0, 20);
+    const cols = Math.min(Number(colValue) || 0, 10);
+    if (!Number.isInteger(rows) || !Number.isInteger(cols) || rows < 1 || cols < 1) {
+      setNotice('Tables need at least one row and one column.');
+      return;
+    }
     const cell = '<td style="min-width:60px;border:1px solid #cbd5e1;padding:4px"><br></td>';
     const html = `<table style="border-collapse:collapse;width:100%"><tbody>${`<tr>${cell.repeat(cols)}</tr>`.repeat(rows)}</tbody></table><p><br></p>`;
     exec('insertHTML', html);
@@ -101,6 +110,7 @@ export const DocsEditor: React.FC<Props> = ({ name, content, onChange }) => {
         <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={(event) => { addImage(event.target.files?.[0]); event.target.value = ''; }} />
       </div>
       {notice && <button type="button" onClick={() => setNotice('')} className="bg-amber-50 px-4 py-2 text-left text-xs text-amber-800">{notice} <span className="font-bold">Dismiss</span></button>}
+      {promptDialog}
       <div className="min-h-0 flex-1 overflow-y-auto p-3 md:p-8">
         <div
           ref={pageRef}
