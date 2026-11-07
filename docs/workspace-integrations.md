@@ -2,6 +2,19 @@
 
 Flown no longer includes Drive, Docs, Sheets, Slides, or a standalone personal-email inbox. Use your existing document and email providers for authoring and personal mail. Calendar remains in the workspace; Forms and Automation are under Company.
 
+## One-file database update
+
+For manual deployment, open [workspace_integrations_all.sql](../supabase/workspace_integrations_all.sql), copy the **entire file**, and run it once in the Supabase SQL Editor. It contains all four migrations for this update, in dependency order:
+
+- `20261107150000_company_forms.sql`
+- `20261107151000_pdf_contracts_and_document_signing.sql`
+- `20261110140000_retire_personal_email.sql`
+- `20261110141000_retire_office_editors.sql`
+
+You do not need to run those four files separately when using the bundle. It checks prerequisite tables/functions first and runs in one transaction: a failure rolls back the entire update. Existing data is preserved, and the bundle supports rerunning these migrations if some were already applied. It is not a fresh-database bootstrap and does not include earlier messaging, task, or Wildfire updates.
+
+The originals remain in the migrations directory for Supabase CLI deployment history. The manual bundle is intentionally outside that directory and does not mark CLI migrations as applied; CLI users should continue using the original migrations rather than moving the bundle into that directory. Edge Function deployment and provider setup below are still required.
+
 ## Documents
 
 Upload attachments directly to tasks, projects, and grants using their existing Files panels. External document URLs can be added in Linked items. Existing Drive records and storage objects are preserved, not dropped; old linked Drive attachments can still be downloaded, with editor content exported as JSON source. Apply `20261110141000_retire_office_editors.sql` to disable office-table writes for browser users. Remove the previously deployed `docs-ai` Edge Function with `supabase functions delete docs-ai --project-ref <your-project-ref>`; deleting its source does not undeploy a hosted function.

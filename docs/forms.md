@@ -4,6 +4,10 @@ Company Forms is a standalone workspace feature at `/company/forms`. The additiv
 
 ## Routes to integrate
 
+The legacy `drive_form_responses` table is optional: when absent, the migration creates the standalone response table without importing historical answers. When present, its records are copied and legacy submission permissions are retired.
+
+For the complete Forms/PDF signing/office-and-email retirement database update, run the single [combined SQL file](../supabase/workspace_integrations_all.sql) instead of selecting individual migrations. See the [rollout guide](./workspace-integrations.md#one-file-database-update).
+
 - Import `FormsPage` from `src/components/forms` for `/company/forms`.
 - Import `PublicFormPage` from `src/components/forms` for `/company/forms/respond/:token`, passing the path token as its `token` prop.
 - Preserve `/forms` as a compatibility redirect to `/company/forms`. Redirect legacy private editor paths `/forms/:id` to `/company/forms?form=:id` so the migrated record is selected when the signed-in user still has access. Never treat an item ID as a public share credential; public responders must use the new published token path.

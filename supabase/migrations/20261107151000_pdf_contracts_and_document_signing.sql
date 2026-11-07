@@ -21,6 +21,10 @@ from numbered_files
 where files.id = numbered_files.id and files.version_number is null;
 
 alter table public.customer_contract_files
+  drop constraint if exists customer_contract_files_version_positive,
+  drop constraint if exists customer_contract_files_sha256_format;
+
+alter table public.customer_contract_files
   alter column version_number set not null,
   alter column version_number set default 1,
   add constraint customer_contract_files_version_positive check (version_number > 0),

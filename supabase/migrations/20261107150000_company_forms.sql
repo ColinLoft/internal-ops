@@ -201,14 +201,22 @@ create table if not exists public.company_form_responses (
   respondent_name text
 );
 
-insert into public.company_form_responses (
-  id, form_id, submitted_at, duration_seconds, answers, respondent_email, respondent_name
-)
-select response.id, response.form_item_id, response.submitted_at, response.duration_seconds,
-  response.answers, response.respondent_email, response.respondent_name
-from public.drive_form_responses response
-join public.company_forms form on form.id = response.form_item_id
-on conflict (id) do nothing;
+do $legacy_responses$
+begin
+  if to_regclass('public.drive_form_responses') is not null then
+    insert into public.company_form_responses (
+      id, form_id, submitted_at, duration_seconds, answers, respondent_email, respondent_name
+    )
+    select response.id, response.form_item_id, response.submitted_at, response.duration_seconds,
+      response.answers, response.respondent_email, response.respondent_name
+    from public.drive_form_responses response
+    join public.company_forms form on form.id = response.form_item_id
+    on conflict (id) do nothing;
+  else
+    raise notice 'No legacy Drive form response table exists; Company Forms starts without imported responses.';
+  end if;
+end;
+$legacy_responses$;
 
 create index if not exists company_form_responses_form_idx
   on public.company_form_responses(form_id, submitted_at desc);
@@ -228,9 +236,15 @@ revoke insert, update, delete on public.company_form_responses from anon, authen
 
 -- Retain legacy records but prevent any remaining Drive UI from bypassing the
 -- new validated Company Forms submission endpoint.
-drop policy if exists "Anyone can submit an active form" on public.drive_form_responses;
-revoke insert, update, delete on public.drive_form_responses from anon, authenticated;
-grant select on public.drive_form_responses to authenticated;
+do $legacy_response_permissions$
+begin
+  if to_regclass('public.drive_form_responses') is not null then
+    drop policy if exists "Anyone can submit an active form" on public.drive_form_responses;
+    revoke insert, update, delete on public.drive_form_responses from anon, authenticated;
+    grant select on public.drive_form_responses to authenticated;
+  end if;
+end;
+$legacy_response_permissions$;
 
 create or replace function public.prevent_company_form_schema_mutation()
 returns trigger

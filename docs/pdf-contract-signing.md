@@ -2,6 +2,8 @@
 
 ## Deploy
 
+The [combined SQL file](../supabase/workspace_integrations_all.sql) includes this PDF migration plus Company Forms and office/personal-email retirement. Run the entire bundle in the Supabase SQL Editor instead of the four individual files. Edge Functions still need deployment; see the [rollout guide](./workspace-integrations.md#one-file-database-update).
+
 Apply `supabase/migrations/20261107151000_pdf_contracts_and_document_signing.sql` before deploying the frontend. Then deploy the Edge Function:
 
 ```sh
