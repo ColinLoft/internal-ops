@@ -469,6 +469,12 @@ alter table public.wildfire_product_costs enable row level security;
 alter table public.wildfire_quote_costs enable row level security;
 alter table public.wildfire_activity enable row level security;
 
+drop policy if exists "wildfire managers read product costs" on public.wildfire_product_costs;
+drop policy if exists "wildfire managers manage product costs" on public.wildfire_product_costs;
+drop policy if exists "wildfire managers read quote costs" on public.wildfire_quote_costs;
+drop policy if exists "wildfire managers manage quote costs" on public.wildfire_quote_costs;
+drop policy if exists "wildfire staff read activity" on public.wildfire_activity;
+
 create policy "wildfire managers read product costs" on public.wildfire_product_costs
   for select to authenticated using (public.has_app_access('wildfire', 'manage'));
 create policy "wildfire managers manage product costs" on public.wildfire_product_costs

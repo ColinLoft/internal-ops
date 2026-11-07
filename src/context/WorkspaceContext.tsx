@@ -680,13 +680,17 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   useEffect(() => {
     if (!currentUser.id) return;
     let active = true;
+    let loadingIncomingCall = false;
+    let lastIncomingCallError = '';
 
     const handleCallRow = (rawRow: Record<string, unknown>) => {
       const row = rawRow as unknown as IncomingCall;
       if (!row.id || !row.participant_ids?.includes(currentUser.id)) return;
 
-      if (row.id === callSession.sessionId && row.status === 'ended') {
-        setCallSession((previous) => ({ ...previous, active: false, status: 'ended', isScreenSharing: false }));
+      if (row.id === callSession.sessionId) {
+        if (row.status === 'ended') {
+          setCallSession((previous) => ({ ...previous, active: false, status: 'ended', isScreenSharing: false }));
+        }
         return;
       }
       if (row.status === 'ended') {
@@ -711,6 +715,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const loadIncomingCalls = async () => {
+      if (loadingIncomingCall) return;
+      loadingIncomingCall = true;
       const since = new Date(Date.now() - 15 * 60_000).toISOString();
       const { data, error } = await supabase
         .from('call_sessions')
@@ -721,13 +727,20 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         .order('created_at', { ascending: false })
         .limit(1);
       if (error) {
-        console.error('Unable to load incoming calls:', error);
+        if (lastIncomingCallError !== error.message) {
+          console.error('Unable to load incoming calls:', error);
+          lastIncomingCallError = error.message;
+        }
+        loadingIncomingCall = false;
         return;
       }
+      lastIncomingCallError = '';
       if (active && data?.[0]) handleCallRow(data[0]);
+      loadingIncomingCall = false;
     };
 
     void loadIncomingCalls();
+    const poll = window.setInterval(() => void loadIncomingCalls(), 8000);
     const channel = supabase
       .channel(`call-sessions:${currentUser.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'call_sessions' }, (payload) => {
@@ -741,6 +754,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     return () => {
       active = false;
+      window.clearInterval(poll);
       void supabase.removeChannel(channel);
     };
   }, [currentUser.id, users, callSession.active, callSession.sessionId, dismissedCallIds]);

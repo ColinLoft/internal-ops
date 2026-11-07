@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ConnectionState,
   Participant,
@@ -18,6 +18,9 @@ import {
   Minimize2,
   Users,
   X,
+  Volume2,
+  RotateCw,
+  LoaderCircle,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
@@ -58,16 +61,18 @@ const AttachedVideo: React.FC<{ track?: Track; className?: string; muted?: boole
   return <video ref={elementRef} autoPlay playsInline muted={muted} className={className} />;
 };
 
-const AttachedAudio: React.FC<{ track: Track }> = ({ track }) => {
+const AttachedAudio: React.FC<{ track: Track; onPlaybackBlocked: () => void }> = ({ track, onPlaybackBlocked }) => {
   const elementRef = useRef<HTMLAudioElement>(null);
   useEffect(() => {
     if (!elementRef.current) return;
     const element = track.attach(elementRef.current);
-    element.play().catch(() => undefined);
+    element.muted = false;
+    element.volume = 1;
+    void element.play().catch(() => onPlaybackBlocked());
     return () => {
       track.detach(element);
     };
-  }, [track]);
+  }, [track, onPlaybackBlocked]);
   return <audio ref={elementRef} autoPlay />;
 };
 
@@ -109,13 +114,18 @@ export const CallOverlay: React.FC = () => {
   const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.Disconnected);
   const [isScreenShareBusy, setIsScreenShareBusy] = useState(false);
   const [audioPlaybackBlocked, setAudioPlaybackBlocked] = useState(false);
+  const [microphoneError, setMicrophoneError] = useState('');
+  const [isMicrophoneBusy, setIsMicrophoneBusy] = useState(false);
+  const [connectionAttempt, setConnectionAttempt] = useState(0);
   const screenSharingRef = useRef(callSession.isScreenSharing);
+  const handleAudioPlaybackBlocked = useCallback(() => setAudioPlaybackBlocked(true), []);
 
   useEffect(() => {
     if (!callSession.active || !callSession.sessionId) {
       setRoom(null);
       setRemoteMedia([]);
       setConnectionState(ConnectionState.Disconnected);
+      setMicrophoneError('');
       return;
     }
 
@@ -159,6 +169,8 @@ export const CallOverlay: React.FC = () => {
     setRoom(liveKitRoom);
     setConnectionState(ConnectionState.Connecting);
     setAudioPlaybackBlocked(false);
+    setMicrophoneError('');
+    setRemoteMedia([]);
 
     const connect = async () => {
       try {
@@ -177,37 +189,12 @@ export const CallOverlay: React.FC = () => {
           return;
         }
 
-        const audioOptions = {
-          noiseSuppression: workspaceSettings.noiseSuppression,
-          echoCancellation: true,
-          autoGainControl: true,
-          ...(workspaceSettings.microphoneDeviceId ? { deviceId: workspaceSettings.microphoneDeviceId } : {}),
-        };
-        await liveKitRoom.localParticipant.setMicrophoneEnabled(!callSession.isMuted, audioOptions);
-        if (callSession.type === 'video' && !callSession.isCameraOff) {
-          try {
-            await liveKitRoom.localParticipant.setCameraEnabled(true, {
-              ...(workspaceSettings.cameraDeviceId ? { deviceId: workspaceSettings.cameraDeviceId } : {}),
-              resolution: { width: 1280, height: 720, frameRate: 24 },
-            });
-          } catch (error) {
-            if (mounted) {
-              setCallError(error instanceof Error
-                ? `Camera unavailable; continuing with audio: ${error.message}`
-                : 'Camera unavailable; continuing with audio.');
-            }
-          }
-        }
-        if (!mounted) {
-          await liveKitRoom.disconnect();
-          return;
-        }
         setCallConnected(callSession.sessionId);
         refreshMedia();
       } catch (error) {
         if (mounted) {
+          setConnectionState(ConnectionState.Disconnected);
           setCallError(error instanceof Error ? error.message : 'Unable to connect to the call.');
-          endCall();
         }
       }
     };
@@ -217,21 +204,29 @@ export const CallOverlay: React.FC = () => {
       mounted = false;
       void liveKitRoom.disconnect();
     };
-  }, [callSession.active, callSession.sessionId, callSession.type]);
+  }, [callSession.active, callSession.sessionId, callSession.type, connectionAttempt]);
 
   useEffect(() => {
     if (!room || connectionState !== ConnectionState.Connected) return;
-    void room.localParticipant.setMicrophoneEnabled(!callSession.isMuted).catch((error: unknown) => {
-      setCallError(error instanceof Error ? `Microphone could not be changed: ${error.message}` : 'Microphone could not be changed.');
+    void room.localParticipant.setMicrophoneEnabled(!callSession.isMuted, {
+      noiseSuppression: workspaceSettings.noiseSuppression,
+      echoCancellation: true,
+      autoGainControl: true,
+      ...(workspaceSettings.microphoneDeviceId ? { deviceId: workspaceSettings.microphoneDeviceId } : {}),
+    }).then(() => setMicrophoneError('')).catch((error: unknown) => {
+      setMicrophoneError(error instanceof Error ? error.message : 'Microphone could not be enabled.');
     });
-  }, [room, connectionState, callSession.isMuted, setCallError]);
+  }, [room, connectionState, callSession.isMuted, workspaceSettings.microphoneDeviceId, workspaceSettings.noiseSuppression]);
 
   useEffect(() => {
     if (!room || connectionState !== ConnectionState.Connected) return;
-    void room.localParticipant.setCameraEnabled(!callSession.isCameraOff && callSession.type === 'video').catch((error: unknown) => {
+    void room.localParticipant.setCameraEnabled(!callSession.isCameraOff && callSession.type === 'video', {
+      ...(workspaceSettings.cameraDeviceId ? { deviceId: workspaceSettings.cameraDeviceId } : {}),
+      resolution: { width: 1280, height: 720, frameRate: 24 },
+    }).catch((error: unknown) => {
       setCallError(error instanceof Error ? `Camera could not be changed: ${error.message}` : 'Camera could not be changed.');
     });
-  }, [room, connectionState, callSession.isCameraOff, callSession.type, setCallError]);
+  }, [room, connectionState, callSession.isCameraOff, callSession.type, workspaceSettings.cameraDeviceId, setCallError]);
 
   const localCameraTrack = room?.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
   const localScreenTrack = room?.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track;
@@ -269,12 +264,41 @@ export const CallOverlay: React.FC = () => {
     }
   };
 
+  const enableMicrophone = async () => {
+    if (!room || isMicrophoneBusy) return;
+    setIsMicrophoneBusy(true);
+    try {
+      await room.localParticipant.setMicrophoneEnabled(true, {
+        noiseSuppression: workspaceSettings.noiseSuppression,
+        echoCancellation: true,
+        autoGainControl: true,
+        ...(workspaceSettings.microphoneDeviceId ? { deviceId: workspaceSettings.microphoneDeviceId } : {}),
+      });
+      setMicrophoneError('');
+      if (callSession.isMuted) toggleCallMute();
+    } catch (error) {
+      setMicrophoneError(error instanceof Error ? error.message : 'Microphone could not be enabled.');
+    } finally {
+      setIsMicrophoneBusy(false);
+    }
+  };
+
+  const handleMicrophoneButton = () => {
+    if (microphoneError) void enableMicrophone();
+    else toggleCallMute();
+  };
+
+  const retryConnection = () => {
+    setCallError('');
+    setConnectionAttempt((attempt) => attempt + 1);
+  };
+
   const minutes = Math.floor(callSession.durationSeconds / 60);
   const seconds = (callSession.durationSeconds % 60).toString().padStart(2, '0');
 
   return (
     <>
-      {callError && (
+      {callError && (!callSession.active || connectionState === ConnectionState.Connected) && (
         <div role="alert" className="fixed left-3 right-3 top-20 z-[70] flex max-w-md md:left-auto md:right-5 items-start gap-3 rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm text-rose-700 shadow-xl">
           <p className="flex-1">{callError}</p>
           <button type="button" onClick={() => setCallError('')} aria-label="Dismiss call error"><X className="h-4 w-4" /></button>
@@ -300,25 +324,27 @@ export const CallOverlay: React.FC = () => {
       )}
 
       {callSession.active && (
-        <div className={`fixed ${callSession.isMinimized ? 'bottom-[4.5rem] right-3 w-[min(25rem,calc(100vw-1.5rem))] md:bottom-6 md:right-6 md:w-[min(25rem,calc(100vw-2rem))]' : 'inset-3 sm:inset-6'} z-50 flex flex-col overflow-hidden rounded-3xl border border-slate-700 bg-slate-950 text-white shadow-2xl`}>
-          <header className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-4 py-3 sm:px-5">
+        <div className={`fixed ${callSession.isMinimized ? 'bottom-[4.5rem] right-3 w-[min(25rem,calc(100vw-1.5rem))] md:bottom-6 md:right-6 md:w-[min(25rem,calc(100vw-2rem))]' : 'inset-0 sm:inset-4'} z-50 flex flex-col overflow-hidden border border-[#303236] bg-[#111214] text-white shadow-2xl ${callSession.isMinimized ? 'rounded-xl' : 'rounded-none sm:rounded-2xl'}`}>
+          <header className="flex min-h-16 items-center justify-between border-b border-[#303236] bg-[#18191b] px-4 py-3 sm:px-6">
             <div className="flex min-w-0 items-center gap-3">
-              <span className={`h-2.5 w-2.5 rounded-full ${connectionState === ConnectionState.Connected ? 'bg-brand-400' : 'bg-brand-400 animate-pulse'}`} />
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${connectionState === ConnectionState.Connected ? 'bg-emerald-400' : connectionState === ConnectionState.Disconnected ? 'bg-rose-400' : 'animate-pulse bg-amber-300'}`} />
               <div className="min-w-0">
                 <h2 className="truncate text-sm font-bold">
                   {callSession.targetChannel ? `#${callSession.targetChannel.name}` : callSession.peerUser?.name || 'Team call'}
                 </h2>
-                <p className="text-xs text-slate-400">
-                  {connectionState === ConnectionState.Connected ? `${minutes}:${seconds}` : 'Connecting to secure call…'}
-                  {' · '}{callSession.type === 'video' ? 'Video call' : 'Voice call'}
+                <p className="text-xs text-[#b8b9bc]">
+                  {connectionState === ConnectionState.Connected
+                    ? `Connected · ${minutes}:${seconds} · ${remoteMedia.length + 1} ${remoteMedia.length === 0 ? 'person' : 'people'}`
+                    : connectionState === ConnectionState.Disconnected ? 'Connection unavailable' : 'Connecting to the call…'}
+                  {' · '}{callSession.type === 'video' ? 'Video' : 'Audio'}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <button type="button" onClick={toggleCallMinimize} title={callSession.isMinimized ? 'Expand call' : 'Minimize call'} aria-label={callSession.isMinimized ? 'Expand call' : 'Minimize call'} className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 md:min-h-0 md:min-w-0 text-slate-300 hover:bg-slate-800">
+              <button type="button" onClick={toggleCallMinimize} title={callSession.isMinimized ? 'Expand call' : 'Minimize call'} aria-label={callSession.isMinimized ? 'Expand call' : 'Minimize call'} className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-[#d0d1d3] hover:bg-[#292a2d]">
                 {callSession.isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
               </button>
-              <button type="button" onClick={endCall} title="Leave call" aria-label="Leave call" className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 md:min-h-0 md:min-w-0 text-slate-300 hover:bg-rose-600 hover:text-white">
+              <button type="button" onClick={endCall} title="Leave call" aria-label="Leave call" className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-[#d0d1d3] hover:bg-rose-700 hover:text-white">
                 <PhoneOff className="h-4 w-4" />
               </button>
             </div>
@@ -326,84 +352,115 @@ export const CallOverlay: React.FC = () => {
 
           {!callSession.isMinimized && (
             <>
-              <section className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3 sm:p-5">
+              <section className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto bg-[#0b0c0e] p-4 sm:p-6">
                 {audioPlaybackBlocked && (
-                  <button
-                    type="button"
-                    onClick={() => void enableAudioPlayback()}
-                    className="rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-slate-950"
-                  >
-                    Enable call audio
-                  </button>
+                  <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#35373b] bg-[#18191b] px-4 py-3">
+                    <span className="flex items-center gap-2 text-sm text-[#e1e2e4]"><Volume2 className="h-4 w-4 text-amber-300" />Allow audio playback to hear the call.</span>
+                    <button type="button" onClick={() => void enableAudioPlayback()} className="min-h-10 rounded-md bg-white px-3 text-sm font-semibold text-black hover:bg-[#e6e6e6]">Turn on audio</button>
+                  </div>
+                )}
+                {microphoneError && (
+                  <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#513637] bg-[#211719] px-4 py-3">
+                    <span className="text-sm text-[#f0c5c6]">Microphone unavailable: {microphoneError}</span>
+                    <button type="button" onClick={() => void enableMicrophone()} disabled={isMicrophoneBusy} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#5b4143] px-3 text-sm font-semibold text-white hover:bg-[#342326] disabled:opacity-60">
+                      {isMicrophoneBusy && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                      Try microphone again
+                    </button>
+                  </div>
+                )}
+                {connectionState === ConnectionState.Disconnected && (
+                  <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#513637] bg-[#211719] px-4 py-3">
+                    <span className="text-sm text-[#f0c5c6]">{callError || 'The call connection is unavailable.'}</span>
+                    <button type="button" onClick={retryConnection} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-white px-3 text-sm font-semibold text-black hover:bg-[#e6e6e6]">
+                      <RotateCw className="h-4 w-4" />Reconnect
+                    </button>
+                  </div>
                 )}
                 {sharedScreen?.screen && (
-                  <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-black">
+                  <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg bg-black">
                     <AttachedVideo track={sharedScreen.screen} className="h-full max-h-full w-full object-contain" />
-                    <span className="absolute left-3 top-3 rounded-lg bg-black/70 px-2 py-1 text-xs font-semibold">{sharedScreen.name} is sharing their screen</span>
+                    <span className="absolute left-3 top-3 rounded-md bg-black/75 px-2.5 py-1.5 text-xs font-semibold">{sharedScreen.name} is sharing their screen</span>
                   </div>
                 )}
                 {localScreenTrack && (
-                  <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-black">
+                  <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg bg-black">
                     <AttachedVideo track={localScreenTrack} muted className="h-full max-h-full w-full object-contain" />
-                    <span className="absolute left-3 top-3 rounded-lg bg-black/70 px-2 py-1 text-xs font-semibold">You are sharing your screen</span>
+                    <span className="absolute left-3 top-3 rounded-md bg-black/75 px-2.5 py-1.5 text-xs font-semibold">You are sharing your screen</span>
                   </div>
                 )}
                 {!sharedScreen && !localScreenTrack && (
-                  <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className={`grid min-h-0 flex-1 content-center gap-4 ${remoteMedia.length === 0 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
                     {remoteMedia.map((participant) => (
-                      <div key={participant.identity} className={`relative min-h-40 overflow-hidden rounded-2xl border bg-slate-900 ${participant.speaking ? 'border-brand-400' : 'border-slate-800'}`}>
-                        {participant.camera ? (
-                          <AttachedVideo track={participant.camera} className="h-full w-full object-cover" />
+                      <div key={participant.identity} className={`relative flex min-h-48 items-center justify-center overflow-hidden rounded-xl border bg-[#17181a] ${participant.speaking ? 'border-emerald-400' : 'border-[#303236]'}`}>
+                        {callSession.type === 'video' && participant.camera ? (
+                          <AttachedVideo track={participant.camera} className="absolute inset-0 h-full w-full object-cover" />
                         ) : (
-                          <div className="flex h-full min-h-40 items-center justify-center text-4xl font-bold text-slate-500">
-                            {participant.name.charAt(0).toUpperCase()}
+                          <div className="flex flex-col items-center gap-3">
+                            <span className={`flex h-24 w-24 items-center justify-center rounded-full bg-[#2c2e32] text-3xl font-semibold text-white ${participant.speaking ? 'ring-2 ring-emerald-400 ring-offset-4 ring-offset-[#17181a]' : ''}`}>
+                              {participant.name.charAt(0).toUpperCase()}
+                            </span>
+                            <span className="flex items-center gap-2 text-sm text-[#d5d6d8]">
+                              {participant.speaking && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
+                              {participant.speaking ? 'Speaking' : 'In the call'}
+                            </span>
                           </div>
                         )}
-                        <span className="absolute bottom-2 left-2 rounded-lg bg-black/65 px-2 py-1 text-xs">{participant.name}</span>
+                        <span className="absolute bottom-3 left-3 rounded-md bg-black/75 px-2.5 py-1.5 text-sm font-medium">{participant.name}</span>
                       </div>
                     ))}
-                    <div className="relative min-h-40 overflow-hidden rounded-2xl border border-brand-500/70 bg-slate-900">
-                      {localCameraTrack && !callSession.isCameraOff && workspaceSettings.showCameraPreview ? (
-                        <AttachedVideo track={localCameraTrack} muted className="h-full w-full scale-x-[-1] object-cover" />
+                    <div className="relative flex min-h-48 items-center justify-center overflow-hidden rounded-xl border border-[#303236] bg-[#17181a]">
+                      {callSession.type === 'video' && localCameraTrack && !callSession.isCameraOff && workspaceSettings.showCameraPreview ? (
+                        <AttachedVideo track={localCameraTrack} muted className="absolute inset-0 h-full w-full scale-x-[-1] object-cover" />
                       ) : (
-                        <div className="flex h-full min-h-40 items-center justify-center text-4xl font-bold text-brand-300">
-                          {currentUser.name.charAt(0).toUpperCase()}
+                        <div className="flex flex-col items-center gap-3">
+                          <span className="flex h-24 w-24 items-center justify-center rounded-full bg-[#292b2e] text-3xl font-semibold text-white">
+                            {currentUser.name.charAt(0).toUpperCase()}
+                          </span>
+                          <span className="text-sm text-[#d5d6d8]">You</span>
                         </div>
                       )}
-                      <span className="absolute bottom-2 left-2 rounded-lg bg-black/65 px-2 py-1 text-xs">You{callSession.isMuted ? ' · muted' : ''}</span>
+                      <span className="absolute bottom-3 left-3 flex items-center gap-2 rounded-md bg-black/75 px-2.5 py-1.5 text-sm font-medium">
+                        You{callSession.isMuted && <span className="text-[#ffb9b9]">· muted</span>}
+                      </span>
                     </div>
                     {remoteMedia.length === 0 && connectionState === ConnectionState.Connected && (
-                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-slate-950/80 px-4 py-2 text-center text-xs text-slate-400">
-                        <Users className="mx-auto mb-1 h-4 w-4" />
-                        Waiting for teammates to join
+                      <div className="text-center text-sm text-[#b8b9bc]">
+                        <Users className="mx-auto mb-2 h-5 w-5" />
+                        {callSession.peerUser ? `Waiting for ${callSession.peerUser.name} to join` : 'Waiting for teammates to join'}
                       </div>
                     )}
                   </div>
                 )}
                 {remoteMedia.flatMap((participant) =>
-                  participant.audio.map((track) => <AttachedAudio key={track.sid} track={track} />)
+                  participant.audio.map((track) => <AttachedAudio key={track.sid} track={track} onPlaybackBlocked={handleAudioPlaybackBlocked} />)
                 )}
               </section>
 
-              <footer className="flex items-center justify-center gap-3 border-t border-slate-800 bg-slate-900 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                <button type="button" onClick={toggleCallMute} aria-label={callSession.isMuted ? 'Unmute microphone' : 'Mute microphone'} className={`rounded-xl p-3 ${callSession.isMuted ? 'bg-rose-600' : 'bg-slate-800 hover:bg-slate-700'}`}>
-                  {callSession.isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+              <footer className="flex flex-wrap items-center justify-center gap-2 border-t border-[#303236] bg-[#18191b] px-3 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:gap-3 sm:px-5 sm:py-4">
+                <button type="button" onClick={handleMicrophoneButton} disabled={isMicrophoneBusy} aria-label={microphoneError ? 'Retry microphone' : callSession.isMuted ? 'Unmute microphone' : 'Mute microphone'} className={`flex min-h-14 min-w-[4.75rem] flex-col items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium transition-colors disabled:opacity-60 ${callSession.isMuted ? 'bg-[#4b2527] text-[#ffdede] hover:bg-[#603033]' : 'bg-[#292b2e] text-white hover:bg-[#383a3e]'}`}>
+                  {isMicrophoneBusy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : callSession.isMuted || microphoneError ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                  <span>{microphoneError ? 'Retry mic' : callSession.isMuted ? 'Unmute' : 'Mute'}</span>
                 </button>
-                <button type="button" onClick={toggleCallCamera} aria-label={callSession.isCameraOff ? 'Turn camera on' : 'Turn camera off'} className={`rounded-xl p-3 ${callSession.isCameraOff ? 'bg-rose-600' : 'bg-slate-800 hover:bg-slate-700'}`}>
-                  {callSession.isCameraOff ? <VideoOff className="h-5 w-5" /> : <VideoIcon className="h-5 w-5" />}
-                </button>
-                <button type="button" onClick={() => void handleScreenShare()} disabled={isScreenShareBusy || connectionState !== ConnectionState.Connected} aria-label={callSession.isScreenSharing ? 'Stop sharing screen' : 'Share screen'} className={`rounded-xl p-3 disabled:opacity-50 ${callSession.isScreenSharing ? 'bg-brand-600' : 'bg-slate-800 hover:bg-slate-700'}`}>
+                {callSession.type === 'video' && (
+                  <button type="button" onClick={toggleCallCamera} aria-label={callSession.isCameraOff ? 'Turn camera on' : 'Turn camera off'} className="flex min-h-14 min-w-[4.75rem] flex-col items-center justify-center gap-1 rounded-lg bg-[#292b2e] px-3 text-xs font-medium text-white transition-colors hover:bg-[#383a3e]">
+                    {callSession.isCameraOff ? <VideoOff className="h-5 w-5" /> : <VideoIcon className="h-5 w-5" />}
+                    <span>{callSession.isCameraOff ? 'Camera on' : 'Camera off'}</span>
+                  </button>
+                )}
+                <button type="button" onClick={() => void handleScreenShare()} disabled={isScreenShareBusy || connectionState !== ConnectionState.Connected} aria-label={callSession.isScreenSharing ? 'Stop sharing screen' : 'Share screen'} className={`flex min-h-14 min-w-[4.75rem] flex-col items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium transition-colors disabled:opacity-50 ${callSession.isScreenSharing ? 'bg-[#d9e8ff] text-[#123f87]' : 'bg-[#292b2e] text-white hover:bg-[#383a3e]'}`}>
                   {callSession.isScreenSharing ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
+                  <span>{callSession.isScreenSharing ? 'Stop share' : 'Share'}</span>
                 </button>
-                <button type="button" onClick={endCall} aria-label="Leave call" className="rounded-xl bg-rose-600 p-3 hover:bg-rose-500">
+                <button type="button" onClick={endCall} aria-label="Leave call" className="flex min-h-14 min-w-[4.75rem] flex-col items-center justify-center gap-1 rounded-lg bg-rose-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-rose-600">
                   <PhoneOff className="h-5 w-5" />
+                  <span>Leave</span>
                 </button>
               </footer>
             </>
           )}
           {callSession.isMinimized && (
             <div className="flex items-center justify-between px-4 py-2 text-xs text-slate-300">
-              <span>{connectionState === ConnectionState.Connected ? `${minutes}:${seconds}` : 'Connecting…'}</span>
+              <span>{connectionState === ConnectionState.Connected ? `${minutes}:${seconds}` : connectionState === ConnectionState.Disconnected ? 'Connection lost' : 'Connecting…'}</span>
               <div className="flex gap-2">
                 <button type="button" onClick={toggleCallMute} aria-label={callSession.isMuted ? 'Unmute' : 'Mute'} className="rounded-lg bg-slate-800 p-2">
                   {callSession.isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
