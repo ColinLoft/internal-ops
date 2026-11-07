@@ -154,6 +154,7 @@ export interface Message {
   callDuration?: string;
   poll?: Poll;
   parentId?: string; // if in a thread
+  sendStatus?: 'sending' | 'sent' | 'failed';
 }
 
 export interface Conversation {
@@ -255,5 +256,6 @@ export interface IncomingCall {
   declined_by: string[];
   call_type: 'audio' | 'video';
   status: 'ringing' | 'active' | 'ended';
+  created_at: string;
   caller?: User;
 }

@@ -35,6 +35,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     openUserProfile,
     toggleReaction,
     votePoll,
+    retryMessage,
   } = useWorkspace();
 
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -320,19 +321,35 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           </div>
         )}
 
-        {/* Seen status or Read Receipt (matching Screenshot 1 Sage) */}
-        {isCurrentUser && activeTab !== 'channels' && (
-          <div className="flex items-center gap-1 mt-1 text-xs font-semibold text-brand-600">
-            <CheckCheck className="w-3.5 h-3.5" />
-            <span>Seen</span>
-            {message.seenBy.includes('user-courtney') && (
-              <img
-                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150"
-                alt="Seen by Courtney"
-                className="w-3.5 h-3.5 rounded-full object-cover ml-0.5 border border-white"
-                title="Seen by Courtney Henry"
-              />
-            )}
+        {isCurrentUser && message.sendStatus === 'failed' && (
+          <button
+            type="button"
+            onClick={() => void retryMessage(message.id)}
+            className="mt-1 text-xs font-medium text-red-600 hover:text-red-700"
+          >
+            Not sent · Retry
+          </button>
+        )}
+        {isCurrentUser && message.sendStatus !== 'failed' && (
+          <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${
+            message.sendStatus === 'sending' ? 'text-slate-400' : 'text-brand-600'
+          }`}>
+            {message.sendStatus === 'sending' ? (
+              <span>Sending…</span>
+            ) : activeTab !== 'channels' && message.seenBy.some((userId) => userId !== currentUser.id) ? (
+              <>
+                <CheckCheck className="w-3.5 h-3.5" />
+                <span>
+                  Seen by {users
+                    .filter((user) => message.seenBy.includes(user.id) && user.id !== currentUser.id)
+                    .map((user) => user.name)
+                    .slice(0, 2)
+                    .join(', ') || 'participant'}
+                </span>
+              </>
+            ) : message.sendStatus === 'sent' ? (
+              <span>Sent</span>
+            ) : null}
           </div>
         )}
 

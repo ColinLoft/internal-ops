@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import type { User as SupabaseAuthUser } from '@supabase/supabase-js';
 import {
   User,
@@ -105,6 +105,8 @@ interface WorkspaceContextType {
   
   // Messaging actions
   sendMessage: (text: string, attachments?: Attachment[], poll?: Poll, targetConversationId?: string) => Promise<void>;
+  markMessagesSeen: (conversationId: string) => Promise<void>;
+  retryMessage: (messageId: string) => Promise<void>;
   postChannelMessage: (channelId: string, text: string, attachments?: Attachment[]) => Promise<void>;
   sendThreadReply: (parentId: string, text: string, attachments?: Attachment[]) => Promise<void>;
   votePoll: (messageId: string, optionId: string, parentId?: string) => void;
@@ -278,6 +280,52 @@ const formatLastSeen = (iso: string) => {
   return days < 7 ? `${days} day${days === 1 ? '' : 's'} ago` : when.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
 
+const mergeMessages = (previous: Message[], incoming: Message[]) => {
+  const byId = new Map(previous.map((message) => [message.id, message]));
+  for (const message of incoming) {
+    const existing = byId.get(message.id);
+    byId.set(message.id, existing ? { ...existing, ...message } : message);
+  }
+  return [...byId.values()];
+};
+
+const mapSupabaseMessage = async (row: Record<string, unknown>, existing?: Message): Promise<Message> => {
+  const attachmentRows = Array.isArray(row.attachments) ? row.attachments as Attachment[] : [];
+  const attachments = await Promise.all(attachmentRows.map(async (attachment) => {
+    if (!attachment.storagePath) return attachment;
+    const cachedAttachment = existing?.attachments?.find((item) =>
+      item.id === attachment.id && item.storagePath === attachment.storagePath
+    );
+    if (cachedAttachment?.url) return cachedAttachment;
+    const { data, error } = await supabase.storage
+      .from(attachment.storageBucket || 'channel-attachments')
+      .createSignedUrl(attachment.storagePath, 60 * 60);
+    if (error) throw new Error(`Attachment "${attachment.name}" could not be opened: ${error.message}`);
+    return { ...attachment, url: data.signedUrl };
+  }));
+  const createdAt = typeof row.created_at === 'string' ? row.created_at : new Date().toISOString();
+  return {
+    id: String(row.id || ''),
+    conversationId: String(row.conversation_id || ''),
+    senderId: String(row.sender_id || ''),
+    senderName: String(row.sender_name || 'Staff member'),
+    senderAvatar: typeof row.sender_avatar === 'string' ? row.sender_avatar : '',
+    senderRole: typeof row.sender_role === 'string' ? row.sender_role : undefined,
+    text: typeof row.text === 'string' ? row.text : '',
+    timestamp: typeof row.timestamp === 'string' && row.timestamp
+      ? row.timestamp
+      : new Date(createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+    seenBy: Array.isArray(row.seen_by) ? row.seen_by.filter((userId): userId is string => typeof userId === 'string') : [],
+    reactions: Array.isArray(row.reactions) ? row.reactions as Message['reactions'] : [],
+    attachments,
+    poll: row.poll && typeof row.poll === 'object' ? row.poll as Poll : undefined,
+    isCallRecord: Boolean(row.is_call_record),
+    callDuration: typeof row.call_duration === 'string' ? row.call_duration : undefined,
+    parentId: typeof row.parent_id === 'string' ? row.parent_id : undefined,
+    sendStatus: 'sent',
+  };
+};
+
 // Presence is automatic: a recent heartbeat means online; otherwise offline with a last-seen time.
 const derivePresence = (row: Record<string, any>): { status: UserStatus; lastSeen?: string } => {
   const seenAt = typeof row.last_seen_at === 'string' ? row.last_seen_at : null;
@@ -444,40 +492,12 @@ const loadSupabaseWorkspaceData = async (userIds: string[]) => {
       category: ['General', 'Projects', 'Departments', 'Outreach'].includes(row.category) ? row.category : 'General',
     }));
 
-    const mapMessage = async (row: Record<string, any>): Promise<Message> => {
-      const attachments = await Promise.all((Array.isArray(row.attachments) ? row.attachments : []).map(async (attachment: Attachment) => {
-        if (!attachment.storagePath) return attachment;
-        const { data, error } = await supabase.storage
-          .from(attachment.storageBucket || 'channel-attachments')
-          .createSignedUrl(attachment.storagePath, 60 * 60);
-        if (error) throw new Error(`Channel attachment "${attachment.name}" could not be opened: ${error.message}`);
-        return { ...attachment, url: data.signedUrl };
-      }));
-      return {
-        id: row.id,
-        conversationId: row.conversation_id,
-        senderId: row.sender_id,
-        senderName: row.sender_name,
-        senderAvatar: row.sender_avatar || '',
-        senderRole: row.sender_role || undefined,
-        text: row.text || '',
-        timestamp: row.timestamp || new Date(row.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
-        seenBy: Array.isArray(row.seen_by) ? row.seen_by : [],
-        reactions: Array.isArray(row.reactions) ? row.reactions : [],
-        attachments,
-        poll: row.poll || undefined,
-        isCallRecord: Boolean(row.is_call_record),
-        callDuration: row.call_duration || undefined,
-        parentId: row.parent_id || undefined,
-      };
-    };
-
     const messages: Record<string, Message[]> = {};
     const threadReplies: Record<string, Message[]> = {};
     const repliesByParent = new Map<string, Message[]>();
 
     for (const row of messageResult.data) {
-      const message = await mapMessage(row);
+      const message = await mapSupabaseMessage(row);
       if (message.parentId) {
         const replies = repliesByParent.get(message.parentId) || [];
         replies.push(message);
@@ -594,6 +614,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [messages, setMessages] = useState<Record<string, Message[]>>(initialMessages);
 
   const [threadReplies, setThreadReplies] = useState<Record<string, Message[]>>(initialThreadReplies);
+  const messageCacheRef = React.useRef({ messages, threadReplies });
+  messageCacheRef.current = { messages, threadReplies };
 
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(initialCalendarEvents);
 
@@ -697,6 +719,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         setIncomingCall((previous) => previous?.id === row.id ? null : previous);
         return;
       }
+      if (row.status !== 'ringing') {
+        setIncomingCall((previous) => previous?.id === row.id ? null : previous);
+        return;
+      }
       if (
         row.caller_id === currentUser.id
         || row.declined_by?.includes(currentUser.id)
@@ -717,11 +743,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     const loadIncomingCalls = async () => {
       if (loadingIncomingCall) return;
       loadingIncomingCall = true;
-      const since = new Date(Date.now() - 15 * 60_000).toISOString();
+      const since = new Date(Date.now() - 2 * 60_000).toISOString();
       const { data, error } = await supabase
         .from('call_sessions')
         .select('*')
-        .in('status', ['ringing', 'active'])
+        .eq('status', 'ringing')
         .contains('participant_ids', [currentUser.id])
         .gte('created_at', since)
         .order('created_at', { ascending: false })
@@ -735,7 +761,15 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         return;
       }
       lastIncomingCallError = '';
-      if (active && data?.[0]) handleCallRow(data[0]);
+      if (active && data?.[0]) {
+        handleCallRow(data[0]);
+      } else if (active) {
+        setIncomingCall((previous) => {
+          if (!previous) return previous;
+          const age = Date.now() - Date.parse(previous.created_at);
+          return Number.isFinite(age) && age >= 2 * 60_000 ? null : previous;
+        });
+      }
       loadingIncomingCall = false;
     };
 
@@ -758,6 +792,100 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       void supabase.removeChannel(channel);
     };
   }, [currentUser.id, users, callSession.active, callSession.sessionId, dismissedCallIds]);
+
+  useEffect(() => {
+    const conversationId = activeTab === 'channels'
+      ? activeChannelId
+      : activeTab === 'messages' ? activeConversationId : '';
+    if (!isAuthenticated || !currentUser.id || !conversationId) return;
+
+    let active = true;
+    let loading = false;
+    let lastError = '';
+    const mergeIncoming = async (rows: Record<string, unknown>[]) => {
+      try {
+        const existingById = new Map([
+          ...(messageCacheRef.current.messages[conversationId] || []),
+          ...Object.values(messageCacheRef.current.threadReplies).flat(),
+        ].map((message) => [message.id, message]));
+        const mapped = await Promise.all(rows.map((row) =>
+          mapSupabaseMessage(row, existingById.get(String(row.id || '')))
+        ));
+        if (!active) return;
+        const topLevel = mapped.filter((message) => !message.parentId);
+        const replies = mapped.filter((message) => message.parentId);
+        if (topLevel.length) {
+          setMessages((previous) => ({
+            ...previous,
+            [conversationId]: mergeMessages(previous[conversationId] || [], topLevel),
+          }));
+        }
+        for (const reply of replies) {
+          setThreadReplies((previous) => ({
+            ...previous,
+            [reply.parentId!]: mergeMessages(previous[reply.parentId!] || [], [reply]),
+          }));
+        }
+      } catch (error) {
+        console.error('Unable to update live messages:', error);
+      }
+    };
+    const refreshMessages = async () => {
+      if (loading || document.visibilityState === 'hidden') return;
+      loading = true;
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: false })
+        .limit(75);
+      if (error) {
+        if (lastError !== error.message) {
+          console.error('Unable to refresh active conversation:', error);
+          lastError = error.message;
+        }
+      } else {
+        lastError = '';
+        await mergeIncoming((data || []).reverse());
+      }
+      loading = false;
+    };
+
+    void refreshMessages();
+    const poll = window.setInterval(() => void refreshMessages(), 5000);
+    const channel = supabase
+      .channel(`messages:${currentUser.id}:${conversationId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`,
+      }, (payload) => {
+        if (payload.eventType === 'DELETE') {
+          const deletedId = String((payload.old as Record<string, unknown>).id || '');
+          if (deletedId) {
+            setMessages((previous) => ({
+              ...previous,
+              [conversationId]: (previous[conversationId] || []).filter((message) => message.id !== deletedId),
+            }));
+          }
+          return;
+        }
+        const row = payload.new as Record<string, unknown>;
+        if (row.conversation_id === conversationId) void mergeIncoming([row]);
+      })
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('Message realtime subscription failed:', error);
+        }
+      });
+
+    return () => {
+      active = false;
+      window.clearInterval(poll);
+      void supabase.removeChannel(channel);
+    };
+  }, [activeTab, activeChannelId, activeConversationId, currentUser.id, isAuthenticated]);
 
   // Call timer
   useEffect(() => {
@@ -1399,7 +1527,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const storagePath = `${currentUser.id}/${conversationId}/${messageId}/${safeName}`;
       const { error } = await supabase.storage.from('message-attachments').upload(storagePath, blob, {
         contentType: blob.type || 'application/octet-stream',
-        upsert: false,
+        upsert: true,
       });
       if (error) throw new Error(`Attachment "${attachment.name}" could not be saved: ${error.message}`);
       const { data: signedUrl, error: signedUrlError } = await supabase.storage
@@ -1417,10 +1545,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (!targetId || (!text.trim() && !attachments?.length && !poll)) return;
     if (!currentUser.id) throw new Error('Sign in before sending messages.');
 
-    const messageId = `msg-${crypto.randomUUID()}`;
-    const persistedAttachments = await persistAttachments(targetId, messageId, attachments);
     const newMsg: Message = {
-      id: messageId,
+      id: `msg-${crypto.randomUUID()}`,
       conversationId: targetId,
       senderId: currentUser.id,
       senderName: currentUser.name,
@@ -1430,43 +1556,18 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
       seenBy: [currentUser.id],
       reactions: [],
-      attachments: persistedAttachments,
+      attachments: attachments || [],
       poll: poll,
+      sendStatus: 'sending',
     };
-
-    const { error } = await supabase.from('messages').insert({
-      id: newMsg.id,
-      conversation_id: targetId,
-      sender_id: currentUser.id,
-      sender_name: currentUser.name,
-      sender_avatar: currentUser.avatar,
-      sender_role: currentUser.role,
-      text: newMsg.text,
-      timestamp: newMsg.timestamp,
-      attachments: persistedAttachments,
-      poll: newMsg.poll,
-      reactions: newMsg.reactions,
-      seen_by: newMsg.seenBy,
-      is_call_record: false,
-    });
-    if (error) throw error;
 
     const messageTarget = isChannelMessage
       ? channels.find((channel) => channel.id === targetId)
       : conversations.find((conversation) => conversation.id === targetId);
-    await recordSystemActivity({
-      eventType: poll ? 'poll_created' : 'message_sent',
-      summary: `${poll ? 'Created a poll' : 'Sent a message'} in ${isChannelMessage ? `#${messageTarget?.name || 'channel'}` : messageTarget?.name || 'a conversation'}.`,
-      targetType: isChannelMessage ? 'channel' : 'conversation',
-      targetId,
-      targetName: messageTarget?.name || 'Conversation',
-      metadata: { attachmentCount: attachments?.length || 0, includesPoll: Boolean(poll) },
-    });
-
     sounds.playMessageSent();
-    setMessages((prev) => ({
-      ...prev,
-      [targetId]: [...(prev[targetId] || []), newMsg],
+    setMessages((previous) => ({
+      ...previous,
+      [targetId]: mergeMessages(previous[targetId] || [], [newMsg]),
     }));
 
     if (!isChannelMessage) {
@@ -1521,7 +1622,132 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         ]);
       }, 500);
     }
+
+    try {
+      const persistedAttachments = await persistAttachments(targetId, newMsg.id, attachments);
+      setMessages((previous) => ({
+        ...previous,
+        [targetId]: (previous[targetId] || []).map((message) =>
+          message.id === newMsg.id ? { ...message, attachments: persistedAttachments } : message
+        ),
+      }));
+      const { error } = await supabase.from('messages').insert({
+        id: newMsg.id,
+        conversation_id: targetId,
+        sender_id: currentUser.id,
+        sender_name: currentUser.name,
+        sender_avatar: currentUser.avatar,
+        sender_role: currentUser.role,
+        text: newMsg.text,
+        timestamp: newMsg.timestamp,
+        attachments: persistedAttachments,
+        poll: newMsg.poll,
+        reactions: newMsg.reactions,
+        seen_by: newMsg.seenBy,
+        is_call_record: false,
+      });
+      if (error) throw error;
+      setMessages((previous) => ({
+        ...previous,
+        [targetId]: (previous[targetId] || []).map((message) =>
+          message.id === newMsg.id ? { ...message, sendStatus: 'sent' } : message
+        ),
+      }));
+      void recordSystemActivity({
+        eventType: poll ? 'poll_created' : 'message_sent',
+        summary: `${poll ? 'Created a poll' : 'Sent a message'} in ${isChannelMessage ? `#${messageTarget?.name || 'channel'}` : messageTarget?.name || 'a conversation'}.`,
+        targetType: isChannelMessage ? 'channel' : 'conversation',
+        targetId,
+        targetName: messageTarget?.name || 'Conversation',
+        metadata: { attachmentCount: attachments?.length || 0, includesPoll: Boolean(poll) },
+      });
+    } catch (error) {
+      setMessages((previous) => ({
+        ...previous,
+        [targetId]: (previous[targetId] || []).map((message) =>
+          message.id === newMsg.id ? { ...message, sendStatus: 'failed' } : message
+        ),
+      }));
+      throw error;
+    }
   };
+
+  const retryMessage = async (messageId: string) => {
+    const message = Object.values(messages).flat().find((item) => item.id === messageId)
+      || Object.values(threadReplies).flat().find((item) => item.id === messageId);
+    if (!message || message.senderId !== currentUser.id || message.sendStatus !== 'failed') return;
+    const updateStatus = (status: Message['sendStatus'], attachments?: Attachment[]) => {
+      if (message.parentId) {
+        setThreadReplies((previous) => ({
+          ...previous,
+          [message.parentId!]: (previous[message.parentId!] || []).map((item) =>
+            item.id === messageId ? { ...item, attachments: attachments || item.attachments, sendStatus: status } : item
+          ),
+        }));
+      } else {
+        setMessages((previous) => ({
+          ...previous,
+          [message.conversationId]: (previous[message.conversationId] || []).map((item) =>
+            item.id === messageId ? { ...item, attachments: attachments || item.attachments, sendStatus: status } : item
+          ),
+        }));
+      }
+    };
+    updateStatus('sending');
+    try {
+      const persistedAttachments = await persistAttachments(message.conversationId, message.id, message.attachments);
+      const { error } = await supabase.from('messages').upsert({
+        id: message.id,
+        conversation_id: message.conversationId,
+        parent_id: message.parentId || null,
+        sender_id: message.senderId,
+        sender_name: message.senderName,
+        sender_avatar: message.senderAvatar,
+        sender_role: message.senderRole,
+        text: message.text,
+        timestamp: message.timestamp,
+        attachments: persistedAttachments,
+        poll: message.poll,
+        reactions: message.reactions,
+        seen_by: message.seenBy,
+        is_call_record: Boolean(message.isCallRecord),
+      }, { onConflict: 'id' });
+      if (error) throw error;
+      updateStatus('sent', persistedAttachments);
+    } catch (error) {
+      updateStatus('failed');
+      console.error('Unable to retry message:', error);
+    }
+  };
+
+  const markMessagesSeen = useCallback(async (conversationId: string) => {
+    if (!currentUser.id || !conversationId) return;
+    const unseen = messages[conversationId]?.some((message) =>
+      message.senderId !== currentUser.id && !message.seenBy.includes(currentUser.id)
+    );
+    if (!unseen) return;
+    const { error } = await supabase.rpc('mark_messages_seen', { p_conversation_id: conversationId });
+    if (error) {
+      console.error('Unable to mark messages as seen:', error);
+      return;
+    }
+    setMessages((previous) => ({
+      ...previous,
+      [conversationId]: (previous[conversationId] || []).map((message) =>
+        message.senderId !== currentUser.id
+          ? { ...message, seenBy: message.seenBy.includes(currentUser.id) ? message.seenBy : [...message.seenBy, currentUser.id] }
+          : message
+      ),
+    }));
+    setThreadReplies((previous) => Object.fromEntries(
+      Object.entries(previous).map(([parentId, replies]) => [
+        parentId,
+        replies.map((message) => message.senderId !== currentUser.id
+          ? { ...message, seenBy: message.seenBy.includes(currentUser.id) ? message.seenBy : [...message.seenBy, currentUser.id] }
+          : message),
+      ])
+    ));
+  }, [currentUser.id, messages]);
 
   const postChannelMessage = async (channelId: string, text: string, attachments: Attachment[] = []) => {
     const channel = channels.find((item) => item.id === channelId);
@@ -1586,10 +1812,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (!currentUser.id) throw new Error('Sign in before sending messages.');
 
     const targetId = activeTab === 'channels' ? activeChannelId : activeConversationId;
-    const messageId = `msg-${crypto.randomUUID()}`;
-    const persistedAttachments = await persistAttachments(targetId, messageId, attachments);
     const newReply: Message = {
-      id: messageId,
+      id: `msg-${crypto.randomUUID()}`,
       conversationId: targetId,
       parentId,
       senderId: currentUser.id,
@@ -1600,41 +1824,17 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
       seenBy: [currentUser.id],
       reactions: [],
-      attachments: persistedAttachments,
+      attachments: attachments || [],
+      sendStatus: 'sending',
     };
-
-    const { error } = await supabase.from('messages').insert({
-      id: newReply.id,
-      conversation_id: targetId,
-      parent_id: parentId,
-      sender_id: currentUser.id,
-      sender_name: currentUser.name,
-      sender_avatar: currentUser.avatar,
-      sender_role: currentUser.role,
-      text: newReply.text,
-      timestamp: newReply.timestamp,
-      attachments: persistedAttachments,
-      reactions: newReply.reactions,
-      seen_by: newReply.seenBy,
-    });
-    if (error) throw error;
 
     const threadTarget = activeTab === 'channels'
       ? channels.find((channel) => channel.id === targetId)
       : conversations.find((conversation) => conversation.id === targetId);
-    await recordSystemActivity({
-      eventType: 'thread_reply_sent',
-      summary: `Replied in a thread in ${activeTab === 'channels' ? `#${threadTarget?.name || 'channel'}` : threadTarget?.name || 'a conversation'}.`,
-      targetType: activeTab === 'channels' ? 'channel' : 'conversation',
-      targetId,
-      targetName: threadTarget?.name || 'Conversation',
-      metadata: { attachmentCount: attachments?.length || 0 },
-    });
-
     sounds.playMessageSent();
     setThreadReplies((prev) => ({
       ...prev,
-      [parentId]: [...(prev[parentId] || []), newReply],
+      [parentId]: mergeMessages(prev[parentId] || [], [newReply]),
     }));
     setMessages((prev) => ({
       ...prev,
@@ -1644,6 +1844,53 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           : message
       ),
     }));
+
+    try {
+      const persistedAttachments = await persistAttachments(targetId, newReply.id, attachments);
+      setThreadReplies((previous) => ({
+        ...previous,
+        [parentId]: (previous[parentId] || []).map((reply) =>
+          reply.id === newReply.id ? { ...reply, attachments: persistedAttachments } : reply
+        ),
+      }));
+      const { error } = await supabase.from('messages').insert({
+        id: newReply.id,
+        conversation_id: targetId,
+        parent_id: parentId,
+        sender_id: currentUser.id,
+        sender_name: currentUser.name,
+        sender_avatar: currentUser.avatar,
+        sender_role: currentUser.role,
+        text: newReply.text,
+        timestamp: newReply.timestamp,
+        attachments: persistedAttachments,
+        reactions: newReply.reactions,
+        seen_by: newReply.seenBy,
+      });
+      if (error) throw error;
+      setThreadReplies((previous) => ({
+        ...previous,
+        [parentId]: (previous[parentId] || []).map((reply) =>
+          reply.id === newReply.id ? { ...reply, sendStatus: 'sent' } : reply
+        ),
+      }));
+      void recordSystemActivity({
+        eventType: 'thread_reply_sent',
+        summary: `Replied in a thread in ${activeTab === 'channels' ? `#${threadTarget?.name || 'channel'}` : threadTarget?.name || 'a conversation'}.`,
+        targetType: activeTab === 'channels' ? 'channel' : 'conversation',
+        targetId,
+        targetName: threadTarget?.name || 'Conversation',
+        metadata: { attachmentCount: attachments?.length || 0 },
+      });
+    } catch (error) {
+      setThreadReplies((previous) => ({
+        ...previous,
+        [parentId]: (previous[parentId] || []).map((reply) =>
+          reply.id === newReply.id ? { ...reply, sendStatus: 'failed' } : reply
+        ),
+      }));
+      throw error;
+    }
   };
 
   const votePoll = (messageId: string, optionId: string, parentId?: string) => {
@@ -2201,14 +2448,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           : callSession.peerUser?.name || 'Workspace call',
       });
     }
-    if (endedSession && callSession.callerId === currentUser.id) {
-      void supabase
-        .from('call_sessions')
-        .update({ status: 'ended', ended_at: new Date().toISOString() })
-        .eq('id', endedSession)
-        .then(({ error }) => {
-          if (error) setCallError(`Call ended locally, but could not notify other participants: ${error.message}`);
-        });
+    if (endedSession) {
+      void supabase.rpc('end_call_session', { p_session_id: endedSession }).then(({ error }) => {
+        if (error) setCallError(`Call ended locally, but could not notify other participants: ${error.message}`);
+      });
     }
     setCallSession((prev) => ({
       ...prev,
@@ -2393,6 +2636,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         setSearchQuery,
         setFocusedEmailId,
         sendMessage,
+        markMessagesSeen,
+        retryMessage,
         postChannelMessage,
         sendThreadReply,
         votePoll,

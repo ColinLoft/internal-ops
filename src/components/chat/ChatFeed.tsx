@@ -33,6 +33,7 @@ export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
     currentUser,
     users,
     sendMessage,
+    markMessagesSeen,
     openThread,
     toggleRightDrawer,
     isRightDrawerOpen,
@@ -50,10 +51,23 @@ export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
 
   const targetId = isChannel ? activeChannelId : activeConversationId;
   const currentMessages = messages[targetId] || [];
+  const markMessagesSeenRef = useRef(markMessagesSeen);
+  markMessagesSeenRef.current = markMessagesSeen;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentMessages.length, targetId]);
+
+  useEffect(() => {
+    const markVisibleConversationSeen = () => {
+      if (document.visibilityState === 'visible' && targetId) {
+        void markMessagesSeenRef.current(targetId);
+      }
+    };
+    markVisibleConversationSeen();
+    document.addEventListener('visibilitychange', markVisibleConversationSeen);
+    return () => document.removeEventListener('visibilitychange', markVisibleConversationSeen);
+  }, [activeTab, targetId, currentMessages.length]);
 
   const partnerUser =
     !isChannel && currentConv?.type === 'direct'

@@ -32,7 +32,6 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [sendError, setSendError] = useState('');
-  const [isSending, setIsSending] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMentionMenu, setShowMentionMenu] = useState(false);
@@ -158,23 +157,25 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     textareaRef.current?.focus();
   };
 
-  const handleSend = async () => {
-    if (isAnnouncementRestricted || isSending) return;
+  const handleSend = () => {
+    if (isAnnouncementRestricted) return;
     if (!text.trim() && attachments.length === 0) return;
 
-    setIsSending(true);
     setSendError('');
+    let sendResult: void | Promise<void>;
     try {
-      await onSendMessage(text, attachments);
-      setText('');
-      setAttachments([]);
-      setShowEmojiPicker(false);
-      setShowMentionMenu(false);
+      sendResult = onSendMessage(text, attachments);
     } catch (error) {
       setSendError(error instanceof Error ? error.message : 'Message was not saved. Please try again.');
-    } finally {
-      setIsSending(false);
+      return;
     }
+    setText('');
+    setAttachments([]);
+    setShowEmojiPicker(false);
+    setShowMentionMenu(false);
+    void Promise.resolve(sendResult).catch((error: unknown) => {
+      setSendError(error instanceof Error ? error.message : 'Message was not saved. Please try again.');
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -370,10 +371,10 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         {/* Send Button */}
         <button
           onClick={handleSend}
-          disabled={isSending || (!text.trim() && attachments.length === 0)}
+          disabled={!text.trim() && attachments.length === 0}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:hover:bg-brand-600 text-white rounded-lg text-xs font-medium shadow-xs transition-all active:scale-98"
         >
-          <span>{isSending ? 'Saving…' : 'Send'}</span>
+          <span>Send</span>
           <Send className="w-3.5 h-3.5" />
         </button>
       </div>
