@@ -48,7 +48,7 @@ interface WorkspaceContextType {
   isSupabaseConnected: boolean;
   
   // Navigation & Views
-  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs';
+  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs' | 'wildfire';
   activeConversationId: string;
   activeChannelId: string;
   activeThreadMessageId: string | null;
@@ -93,7 +93,7 @@ interface WorkspaceContextType {
   completeOnboarding: () => Promise<void>;
   
   // Navigation actions
-  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs') => void;
+  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs' | 'wildfire') => void;
   setActiveConversationId: (id: string) => void;
   setActiveChannelId: (id: string) => void;
   openThread: (messageId: string) => void;
@@ -185,7 +185,7 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const STORAGE_PREFIX = 'beacon_v3_';
-type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs';
+type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs' | 'wildfire';
 
 const tabFromPath = (pathname: string): WorkspaceTab | null => {
   const segment = pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
@@ -194,6 +194,7 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
   if (segment === 'company' || segment === 'finance' || segment === 'legal' || segment === 'gtm') return 'company';
   if (segment === 'operations' || segment === 'organization') return 'home';
   if (segment === 'engineering') return 'engineering';
+  if (segment === 'wildfire') return 'wildfire';
   if (segment === 'help') return 'customers';
   if (segment === 'help') return 'customers';
   if (segment === 'insights') return 'insights';
@@ -218,6 +219,7 @@ const pathForTab = (tab: WorkspaceTab) => ({
   settings: '/settings',
   insights: '/insights',
   programs: '/programs/tasks',
+  wildfire: '/wildfire/overview',
   messages: '/messages',
   channels: '/channels',
   calendar: '/calendar',

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, Mail, FolderKanban, Code2, HardDrive, UsersRound, Building2, Settings, ChevronsUpDown, Bug, LogOut, PanelLeftClose,
+  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, Mail, FolderKanban, Code2, HardDrive, UsersRound, Building2, Settings, ChevronsUpDown, Bug, LogOut, PanelLeftClose, Flame,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAllAppAccess } from '../../lib/useAppAccess';
@@ -25,9 +25,10 @@ const appDropdowns: NavItem[] = [
   { id: 'engineering', label: 'Products', icon: Code2 },
   { id: 'customers', label: 'Customers', icon: UsersRound },
   { id: 'company', label: 'Company', icon: Building2 },
+  { id: 'wildfire', label: 'Wildfire Solutions', icon: Flame },
 ];
 
-const accessKey: Partial<Record<Tab, string>> = { customers: 'customers', admin: 'systems' };
+const accessKey: Partial<Record<Tab, string>> = { customers: 'customers', admin: 'systems', wildfire: 'wildfire' };
 
 interface SidebarProps {
   isMobileOpen?: boolean;

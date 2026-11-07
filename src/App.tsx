@@ -36,6 +36,7 @@ import { InsightsPage } from './components/insights/InsightsPage';
 import { ProgramsPage } from './components/programs/ProgramsPage';
 import { EngineeringPage } from './components/engineering/EngineeringPage';
 import { PendingDocumentPrompt } from './components/organization/PolicySigning';
+import { WildfireSolutionsPage } from './components/wildfire/WildfireSolutionsPage';
 
 const PublicChatPage = lazy(async () => ({
   default: (await import('./components/support/PublicChatPage')).PublicChatPage,
@@ -44,7 +45,7 @@ const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
 }));
 
-const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|company(?:\/[^/]+)*|finance(?:\/[^/]+)*|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|help|settings|contact|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)*|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|systems(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
+const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|company(?:\/[^/]+)*|finance(?:\/[^/]+)*|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|wildfire(?:\/[^/]+)*|help|settings|contact|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)*|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|systems(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
 
 const WorkspaceShell: React.FC = () => {
   const {
@@ -151,6 +152,7 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'programs' && <ProgramsPage />}
           {activeTab === 'settings' && <SettingsPage />}
           {activeTab === 'engineering' && <EngineeringPage />}
+          {activeTab === 'wildfire' && <WildfireSolutionsPage />}
           {activeTab === 'messages' && (
             <>
               {/* Combined channels and direct messages sidebar */}

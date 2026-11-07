@@ -1,7 +1,7 @@
 import {
   CheckSquare, Headset, House, ContactRound, Building2, BookOpen, BarChart3, Users, ShieldCheck,
   Landmark, Target, FolderKanban, Code2, Cog, Cable, Network,
-  FileText,
+  FileText, MapPin, Package, ClipboardList, Truck, Siren, FileCheck2,
   Calendar as CalendarIcon, Lightbulb, type LucideIcon,
 } from 'lucide-react';
 
@@ -61,6 +61,19 @@ export const getSectionTabs = (activeTab: string, _routePath: string): SectionTa
         tab('Electrical', 'Electrical', Cable, '/engineering/electrical'),
         tab('Systems', 'Systems', Network, '/engineering/systems'),
         tab('Review', 'Review', ShieldCheck, '/engineering/review'),
+      ];
+    case 'wildfire':
+      return [
+        tab('Overview', 'Overview', House, '/wildfire/overview'),
+        tab('Opportunities', 'Opportunities', Target, '/wildfire/opportunities'),
+        tab('Site planner', 'Planner', MapPin, '/wildfire/site-planner'),
+        tab('Quotes & pricing', 'Quotes', FileText, '/wildfire/quotes'),
+        tab('Proposals', 'Proposals', FileCheck2, '/wildfire/proposals'),
+        tab('Site surveys', 'Surveys', ClipboardList, '/wildfire/surveys'),
+        tab('Deployments', 'Deployments', Truck, '/wildfire/deployments'),
+        tab('Product catalog', 'Catalog', Package, '/wildfire/catalog'),
+        tab('Customer requests', 'Requests', Headset, '/wildfire/requests'),
+        tab('System alerts', 'Alerts', Siren, '/wildfire/alerts'),
       ];
     default:
       return null;

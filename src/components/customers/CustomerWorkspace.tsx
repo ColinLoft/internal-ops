@@ -1,16 +1,18 @@
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useEffect, useMemo, useState } from 'react';
-import { Building2, CalendarPlus, CheckCircle2, Clock3, Headset, ListTodo, Mail, MessageSquare, Phone, Plus, Search, StickyNote, Trash2, X } from 'lucide-react';
+import { Building2, CalendarPlus, CheckCircle2, Clock3, Headset, ListTodo, Mail, MessageSquare, Phone, Plus, Search, StickyNote, Trash2, X, Flame } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { PanelLayout } from '../common/PanelLayout';
 import { EmptyState, ProvenanceBadge } from '../common/Feedback';
 import { useConfirm } from '../common/useConfirm';
+import { useAppAccess } from '../../lib/useAppAccess';
 
 export type CrmOrg = { id: string; name: string; category: string; website: string | null; notes: string | null; owner_id: string | null; created_at: string; stage?: string };
 export type CrmContact = { id: string; organization_id: string | null; name: string; role_title: string | null; email: string | null; phone: string | null };
 export type CrmInteraction = { id: string; organization_id: string | null; contact_id: string | null; kind: string; subject: string; body: string | null; occurred_at: string; follow_up_at: string | null; follow_up_done: boolean };
 type Conversation = { id: string; subject: string; status: string; last_message_at: string; last_message_preview: string | null; summary: unknown };
+type WildfireProfileData = { properties: { id: string; label: string; city: string; region: string }[]; opportunities: { id: string; name: string; stage: string; estimated_value: number | null }[] };
 
 export const STAGES: [string, string, string][] = [
   ['lead', 'Lead', 'bg-slate-100 text-slate-600'],
@@ -42,6 +44,7 @@ interface Props {
 
 export const CustomerWorkspace: React.FC<Props> = ({ orgs, contacts, items, selectedId, onSelect, canEdit, canManage, userName, onAdd, onMutate }) => {
   const { currentUser, setActiveTab } = useWorkspace();
+  const { level: wildfireAccess } = useAppAccess('wildfire');
   const { confirm, dialog } = useConfirm();
   const [query, setQuery] = useState('');
   const [stage, setStage] = useState('all');
@@ -49,6 +52,9 @@ export const CustomerWorkspace: React.FC<Props> = ({ orgs, contacts, items, sele
   const [note, setNote] = useState('');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [dismissed, setDismissed] = useState<string[]>([]);
+  const [wildfireData, setWildfireData] = useState<WildfireProfileData>({ properties: [], opportunities: [] });
+  const [wildfireError, setWildfireError] = useState('');
+  const [wildfireLoading, setWildfireLoading] = useState(false);
 
   const org = orgs.find((item) => item.id === selectedId) || null;
   const orgContacts = useMemo(() => contacts.filter((contact) => contact.organization_id === org?.id), [contacts, org?.id]);
@@ -74,6 +80,28 @@ export const CustomerWorkspace: React.FC<Props> = ({ orgs, contacts, items, sele
     })();
     return () => { active = false; };
   }, [org, orgContacts]);
+
+  useEffect(() => {
+    setWildfireData({ properties: [], opportunities: [] });
+    setWildfireError('');
+    if (!org || wildfireAccess < 1) return;
+    let active = true;
+    setWildfireLoading(true);
+    void Promise.all([
+      supabase.from('wildfire_properties').select('id,label,city,region').eq('organization_id', org.id).order('label'),
+      supabase.from('wildfire_opportunities').select('id,name,stage,estimated_value').eq('organization_id', org.id).order('updated_at', { ascending: false }).limit(5),
+    ]).then(([propertyResult, opportunityResult]) => {
+      if (!active) return;
+      const failure = propertyResult.error || opportunityResult.error;
+      if (failure) setWildfireError(`Wildfire records could not be loaded: ${failure.message}`);
+      else setWildfireData({
+        properties: propertyResult.data || [],
+        opportunities: opportunityResult.data || [],
+      });
+      setWildfireLoading(false);
+    });
+    return () => { active = false; };
+  }, [org?.id, wildfireAccess]);
 
   const needle = query.trim().toLowerCase();
   const visible = orgs.filter((item) => (stage === 'all' || (item.stage ?? 'lead') === stage)
@@ -159,6 +187,22 @@ export const CustomerWorkspace: React.FC<Props> = ({ orgs, contacts, items, sele
         <div>Relationship<p className="mt-1 rounded-lg bg-slate-50 px-2 py-1.5 font-semibold text-slate-700">{lastTouch ? (daysSince(lastTouch) <= 14 ? 'Warm' : daysSince(lastTouch) <= 45 ? 'Cooling' : 'Cold') : 'New'} <span className="font-normal text-slate-400">· {lastTouch ? `${daysSince(lastTouch)}d ago` : 'no touch'}</span></p></div>
       </div>
       <p className="text-xs text-slate-400">Owner: {userName(org.owner_id)} · Added {fmt(org.created_at)}</p>
+
+      {wildfireAccess >= 1 && <section>
+        <div className="mb-1.5 flex items-center justify-between gap-2"><h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400"><Flame className="h-3.5 w-3.5" />Wildfire Solutions</h4><button type="button" onClick={() => go('/wildfire/overview')} className="text-xs font-semibold text-brand-700 hover:underline">Open workspace</button></div>
+        {wildfireLoading ? <p className="text-xs text-slate-500">Loading linked records…</p> : wildfireError ? <p role="alert" className="text-xs text-rose-700">{wildfireError}</p> : (
+          <div className="space-y-2">
+            <div className="rounded-lg border border-slate-200 bg-white p-2.5">
+              <p className="text-xs font-semibold text-slate-700">Properties <span className="font-normal text-slate-500">{wildfireData.properties.length}</span></p>
+              {wildfireData.properties.length ? <ul className="mt-1.5 space-y-1">{wildfireData.properties.slice(0, 3).map((property) => <li key={property.id} className="text-xs text-slate-600">{property.label}{property.city ? ` · ${property.city}` : ''}{property.region ? `, ${property.region}` : ''}</li>)}</ul> : <p className="mt-1 text-xs text-slate-500">No wildfire properties linked.</p>}
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-white p-2.5">
+              <p className="text-xs font-semibold text-slate-700">Recent opportunities <span className="font-normal text-slate-500">{wildfireData.opportunities.length}</span></p>
+              {wildfireData.opportunities.length ? <ul className="mt-1.5 space-y-1">{wildfireData.opportunities.slice(0, 3).map((opportunity) => <li key={opportunity.id} className="flex items-center justify-between gap-2 text-xs"><span className="truncate text-slate-700">{opportunity.name}</span><span className="shrink-0 text-slate-500">{label(opportunity.stage)}</span></li>)}</ul> : <p className="mt-1 text-xs text-slate-500">No opportunities linked.</p>}
+            </div>
+          </div>
+        )}
+      </section>}
 
       <div>
         <div className="mb-1.5 flex items-center justify-between"><h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Suggested next actions <ProvenanceBadge kind="automated" /></h4></div>
