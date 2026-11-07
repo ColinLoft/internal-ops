@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, FolderKanban, Code2, UsersRound, Building2, Settings, ChevronsUpDown, Bug, LogOut, PanelLeftClose, Flame, Network, Bell,
+  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, FolderKanban, Code2, UsersRound, Building2, Settings, ChevronsUpDown, Bug, LogOut, Flame, Network, Bell,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAllAppAccess } from '../../lib/useAppAccess';
@@ -41,16 +41,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenMo
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('flown-sidebar-groups') || '{}'); } catch { return {}; } });
   const access = useAllAppAccess();
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
-  const [collapsed, setCollapsed] = useState(true);
-  const [hoverOpen, setHoverOpen] = useState(false);
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const railRef = useRef<HTMLElement>(null);
-  const edgeRef = useRef<HTMLButtonElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
-  const expanded = !collapsed || hoverOpen || keyboardOpen;
   const openForSearch = useCallback(() => {
-    setKeyboardOpen(true);
     if (window.innerWidth < 768) onOpenMobile?.();
   }, [onOpenMobile]);
   const [supportUnread, setSupportUnread] = useState(0);
@@ -68,28 +61,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenMo
   const firstRoute = useRef(true);
   useEffect(() => {
     if (firstRoute.current) { firstRoute.current = false; return; }
-    setCollapsed(true);
-    setHoverOpen(false);
-    setKeyboardOpen(false);
     setNotificationsOpen(false);
   }, [routePath, activeTab]);
 
   useEffect(() => {
-    const expandForTour = () => setCollapsed(false);
-    const finishTour = () => { setCollapsed(true); setHoverOpen(false); setKeyboardOpen(false); };
-    window.addEventListener('flown-onboarding-target-notifications', expandForTour);
-    window.addEventListener('flown-onboarding-target-bug-report', expandForTour);
-    window.addEventListener('flown-onboarding-tour-finished', finishTour);
-    return () => {
-      window.removeEventListener('flown-onboarding-target-bug-report', expandForTour);
-      window.removeEventListener('flown-onboarding-target-notifications', expandForTour);
-      window.removeEventListener('flown-onboarding-tour-finished', finishTour);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!expanded && !isMobileOpen) setNotificationsOpen(false);
-  }, [expanded, isMobileOpen]);
+    if (!isMobileOpen && window.innerWidth < 768) setNotificationsOpen(false);
+  }, [isMobileOpen]);
 
   useEffect(() => {
     if (!notificationsOpen) return;
@@ -150,46 +127,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenMo
   const row = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-lg px-2.5 py-1.5 text-left text-[13px] font-medium transition-all duration-150 ${active ? 'bg-white/20 text-white shadow-xs font-semibold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`;
 
   return (
-    <>
-    <button
-      ref={edgeRef}
-      type="button"
-      aria-label="Open navigation"
-      aria-controls="workspace-navigation"
-      aria-expanded={expanded}
-      onMouseEnter={() => setHoverOpen(true)}
-      onMouseLeave={(event) => {
-        if (!(event.relatedTarget instanceof Node) || !railRef.current?.contains(event.relatedTarget)) setHoverOpen(false);
-      }}
-      onMouseDown={(event) => event.preventDefault()}
-      onFocus={() => setKeyboardOpen(true)}
-      onClick={(event) => {
-        if (event.detail === 0) setKeyboardOpen(true);
-        else setHoverOpen(true);
-      }}
-      onBlur={(event) => {
-        if (!railRef.current?.contains(event.relatedTarget as Node | null)) setKeyboardOpen(false);
-      }}
-      className="fixed inset-y-0 left-0 z-30 hidden w-3 bg-transparent focus-visible:bg-brand-600 md:block"
-    />
     <aside
       id="workspace-navigation"
-      ref={railRef}
       aria-label="Primary navigation"
-      onMouseEnter={() => setHoverOpen(true)}
-      onMouseLeave={() => setHoverOpen(false)}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setKeyboardOpen(false);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') {
-          edgeRef.current?.focus();
-          setCollapsed(true);
-          setHoverOpen(false);
-          setKeyboardOpen(false);
-        }
-      }}
-      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-slate-950 text-white border-r border-slate-200 transition-transform duration-200 motion-reduce:transition-none md:z-30 md:w-64 w-72 ${isMobileOpen ? 'translate-x-0 visible' : '-translate-x-full invisible'} ${expanded ? 'md:translate-x-0 md:visible' : 'md:-translate-x-full md:invisible'}`}
+      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-slate-950 text-white border-r border-slate-200 transition-transform duration-200 motion-reduce:transition-none md:static md:z-30 md:w-56 md:translate-x-0 md:visible w-72 ${isMobileOpen ? 'translate-x-0 visible' : '-translate-x-full invisible'}`}
     >
       <div className="flex items-center gap-2 p-3 pb-2.5">
         <button
@@ -200,14 +141,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenMo
         >
           <img src="/flown-logo.png" alt="Flown" className="h-10 w-auto max-w-full object-contain brightness-0 invert opacity-95" />
           <span className="ml-2 text-xs font-semibold text-brand-300">Ops</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => { edgeRef.current?.focus(); setCollapsed(true); setHoverOpen(false); setKeyboardOpen(false); }}
-          aria-label="Close navigation"
-          className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/80 hover:bg-white/15 hover:text-white md:flex transition-colors"
-        >
-          <PanelLeftClose className="h-4 w-4" />
         </button>
       </div>
 
@@ -300,6 +233,5 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenMo
         </div>
       </div>
     </aside>
-    </>
   );
 };

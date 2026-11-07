@@ -37,9 +37,8 @@ light mode or custom accent colors. Historical stored appearance preferences
 are normalized without changing account permissions.
 
 There is no top bar, Quick Add menu, or sitewide AI assistant. On desktop,
-hover near the left edge to reveal the navigation rail over the current page;
-it closes when the pointer leaves. Keyboard users can focus Open navigation
-and tab into the rail. Mobile users keep the bottom Menu button.
+the 224px navigation rail stays visible beside the page, with no open/close
+controls or hover behavior. Mobile users keep the bottom Menu drawer.
 Notifications is near the bottom of the rail, alongside Bug report and Settings.
 Support and grant AI integrations are unchanged. No SQL update is needed for
 these navigation changes.

@@ -49,17 +49,10 @@ import { Sidebar } from './Sidebar';
 
 let container: HTMLDivElement;
 let root: Root;
-const edge = () => container.querySelector<HTMLButtonElement>('[aria-label="Open navigation"]')!;
 const rail = () => container.querySelector<HTMLElement>('aside')!;
 const notifications = () => container.querySelector<HTMLButtonElement>('[data-onboarding-target="notifications-button"]')!;
-const hoverEdge = async () => {
-  await act(async () => edge().dispatchEvent(new MouseEvent('mouseover', { bubbles: true })));
-};
-const leaveRail = async () => {
-  await act(async () => rail().dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body })));
-};
 
-describe('hover navigation rail', () => {
+describe('permanent desktop navigation rail', () => {
   beforeEach(async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     vi.clearAllMocks();
@@ -73,48 +66,44 @@ describe('hover navigation rail', () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
+    vi.unstubAllGlobals();
   });
 
-  it('opens at the left edge without reserving page space and closes on leaving', async () => {
-    expect(edge().getAttribute('aria-expanded')).toBe('false');
-    expect(rail().classList.contains('fixed')).toBe(true);
-    expect(rail().classList.contains('md:static')).toBe(false);
-    await hoverEdge();
-    expect(edge().getAttribute('aria-expanded')).toBe('true');
-    await leaveRail();
-    expect(edge().getAttribute('aria-expanded')).toBe('false');
+  it('reserves a smaller, always-visible desktop rail without open or close controls', () => {
+    expect(rail().classList.contains('md:static')).toBe(true);
+    expect(rail().classList.contains('md:w-56')).toBe(true);
+    expect(rail().classList.contains('md:visible')).toBe(true);
+    expect(rail().classList.contains('md:translate-x-0')).toBe(true);
+    expect(container.querySelector('[aria-label="Open navigation"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Close navigation"]')).toBeNull();
     expect(container.textContent).not.toContain('Quick Add');
     expect(container.textContent).not.toContain('Workspace assistant');
   });
 
-  it('does not leave navigation open when the pointer skips past the edge', async () => {
-    await hoverEdge();
-    await act(async () => edge().dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body })));
-    expect(edge().getAttribute('aria-expanded')).toBe('false');
-  });
-
-  it('supports keyboard entry, Escape, and focus leaving the rail', async () => {
-    await act(async () => edge().focus());
-    expect(edge().getAttribute('aria-expanded')).toBe('true');
-    await act(async () => rail().querySelector<HTMLButtonElement>('button')!.focus());
-    await leaveRail();
-    expect(edge().getAttribute('aria-expanded')).toBe('true');
+  it('stays visible after Escape, leaving, navigation, and finishing onboarding', async () => {
+    const classes = rail().className;
     await act(async () => rail().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
-    expect(edge().getAttribute('aria-expanded')).toBe('false');
-    await act(async () => { edge().blur(); edge().focus(); });
-    const outside = document.createElement('button');
-    container.append(outside);
-    await act(async () => outside.focus());
-    expect(edge().getAttribute('aria-expanded')).toBe('false');
+    await act(async () => rail().dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body })));
+    await act(async () => {
+      window.history.pushState({}, '', '/messages');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      window.dispatchEvent(new Event('flown-onboarding-tour-finished'));
+    });
+    expect(rail().className).toBe(classes);
   });
 
-  it('reveals the rail when global search requests keyboard access', async () => {
+  it('opens the mobile menu for the global search shortcut only on phones', async () => {
+    const onOpenMobile = vi.fn();
+    await act(async () => root.render(<Sidebar onOpenMobile={onOpenMobile} onOpenBugReport={vi.fn()} />));
+    vi.stubGlobal('innerWidth', 1440);
     await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true })));
-    expect(edge().getAttribute('aria-expanded')).toBe('true');
+    expect(onOpenMobile).not.toHaveBeenCalled();
+    vi.stubGlobal('innerWidth', 390);
+    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true })));
+    expect(onOpenMobile).toHaveBeenCalledOnce();
   });
 
-  it('keeps notification actions and closes both popover and hover rail after navigation', async () => {
-    await hoverEdge();
+  it('keeps notification actions and dismisses the popover after navigation', async () => {
     expect(notifications().getAttribute('aria-label')).toBe('Notifications, 2 unread');
     await act(async () => notifications().click());
     const dialog = container.querySelector('[role="dialog"]')!;
@@ -132,31 +121,29 @@ describe('hover navigation rail', () => {
       window.history.pushState({}, '', '/messages');
       window.dispatchEvent(new PopStateEvent('popstate'));
     });
-    expect(edge().getAttribute('aria-expanded')).toBe('false');
+    expect(rail().classList.contains('md:visible')).toBe(true);
   });
 
-  it('dismisses notifications outside and on Escape and hides them when the rail closes', async () => {
-    await hoverEdge();
+  it('dismisses notifications outside and on Escape without closing the rail', async () => {
     await act(async () => notifications().click());
     await act(async () => document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })));
     expect(container.querySelector('[role="dialog"]')).toBeNull();
     await act(async () => notifications().click());
     await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
     expect(container.querySelector('[role="dialog"]')).toBeNull();
-    await act(async () => notifications().click());
-    await leaveRail();
-    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(rail().classList.contains('md:visible')).toBe(true);
   });
 
-  it('retains mobile navigation and reveals notification and bug report tour targets', async () => {
+  it('retains the mobile drawer and hides its notifications when closed', async () => {
+    vi.stubGlobal('innerWidth', 390);
     await act(async () => root.render(<Sidebar isMobileOpen onOpenBugReport={vi.fn()} />));
     expect(rail().classList.contains('visible')).toBe(true);
     expect(rail().classList.contains('translate-x-0')).toBe(true);
-    await act(async () => window.dispatchEvent(new Event('flown-onboarding-target-notifications')));
-    expect(edge().getAttribute('aria-expanded')).toBe('true');
-    await act(async () => window.dispatchEvent(new Event('flown-onboarding-tour-finished')));
-    expect(edge().getAttribute('aria-expanded')).toBe('false');
-    await act(async () => window.dispatchEvent(new Event('flown-onboarding-target-bug-report')));
-    expect(edge().getAttribute('aria-expanded')).toBe('true');
+    await act(async () => notifications().click());
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    await act(async () => root.render(<Sidebar onOpenBugReport={vi.fn()} />));
+    expect(rail().classList.contains('invisible')).toBe(true);
+    expect(rail().classList.contains('md:visible')).toBe(true);
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 });

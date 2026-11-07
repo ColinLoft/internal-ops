@@ -89,11 +89,13 @@ const WorkspaceShell: React.FC = () => {
     window.addEventListener('popstate', closeNav);
     window.addEventListener('keydown', onKey);
     window.addEventListener('flown-onboarding-target-bug-report', openNavForTour);
+    window.addEventListener('flown-onboarding-target-notifications', openNavForTour);
     window.addEventListener('flown-onboarding-tour-finished', finishTour);
     return () => {
       window.removeEventListener('popstate', closeNav);
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('flown-onboarding-target-bug-report', openNavForTour);
+      window.removeEventListener('flown-onboarding-target-notifications', openNavForTour);
       window.removeEventListener('flown-onboarding-tour-finished', finishTour);
     };
   }, []);

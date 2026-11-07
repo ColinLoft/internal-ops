@@ -38,7 +38,7 @@ type SpotlightRect = { top: number; left: number; width: number; height: number 
 const TOUR_STEPS: TourStep[] = [
   {
     title: 'Flown Ops at a glance',
-    description: 'Home brings your tasks, calendar, messages, and updates together. Hover near the left edge to open navigation; it closes when you move away. On mobile, use Menu at the bottom. Use dashboard shortcuts to jump into your work.',
+    description: 'Home brings your tasks, calendar, messages, and updates together. The navigation rail stays visible on desktop. On mobile, use Menu at the bottom. Use dashboard shortcuts to jump into your work.',
     tab: 'home',
     target: 'home-overview',
     icon: Building2,
