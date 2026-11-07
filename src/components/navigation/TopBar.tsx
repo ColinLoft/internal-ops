@@ -46,7 +46,6 @@ export const TopBar: React.FC = () => {
     <header className="flex-shrink-0 bg-slate-950 text-white border-b border-slate-200">
       <div className="flex h-12 items-center justify-between gap-3 px-3 md:px-5">
         <div className="flex min-w-0 items-center gap-2">
-          <button type="button" onClick={() => setActiveTab('home')} className="flex shrink-0 items-center gap-2 text-sm font-semibold" aria-label="Flown Ops home"><img src="/brand-icon.png" alt="" className="h-5 w-5 object-contain" /><span>Flown Ops</span></button>
           {sidebarHidden && (
             <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('flown-toggle-sidebar'))} aria-label="Show sidebar" title="Show sidebar" className="hidden h-8 items-center gap-2 rounded-lg bg-white/15 px-2.5 text-white ring-1 ring-white/20 transition-colors hover:bg-white/25 md:flex"><PanelLeft className="h-4 w-4" /><span className="text-xs font-semibold">Menu</span></button>
           )}
