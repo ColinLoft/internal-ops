@@ -1173,7 +1173,7 @@ export const EmailInboxPage: React.FC = () => {
   ) : null;
 
   return (
-    <main className="flex min-w-0 flex-1 flex-col overflow-hidden md:flex-row bg-[linear-gradient(135deg,#f8fbff_0%,#eef6ff_52%,#f8fafc_100%)] print:bg-white">
+    <main data-onboarding-target="email-workspace" className="flex min-w-0 flex-1 flex-col overflow-hidden md:flex-row bg-[linear-gradient(135deg,#f8fbff_0%,#eef6ff_52%,#f8fafc_100%)] print:bg-white">
       <aside className={`${mobileFoldersOpen ? 'flex' : 'hidden'} min-h-0 w-full flex-1 overflow-y-auto md:flex md:w-52 md:flex-none md:overflow-visible shrink-0 flex-col border-r border-slate-200/80 bg-white/90 p-2 shadow-[4px_0_24px_rgba(30,64,175,0.04)] print:hidden`}>
         <div className="mb-3 flex items-center justify-between rounded-xl bg-gradient-to-br from-brand-600 to-brand-600 p-2.5 text-white shadow-lg shadow-brand-500/15">
           <div>

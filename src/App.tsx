@@ -31,7 +31,7 @@ import { CustomerPage } from './components/customers/CustomerPage';
 import { CompanyPage } from './components/company/CompanyPage';
 import { HomePage } from './components/home/HomePage';
 import { NotFoundPage } from './components/NotFoundPage';
-import { HelpCenterPage } from './components/help/HelpCenterPage';
+import { BugReportDialog } from './components/bug-report/BugReportDialog';
 import { InsightsPage } from './components/insights/InsightsPage';
 import { ProgramsPage } from './components/programs/ProgramsPage';
 import { EngineeringPage } from './components/engineering/EngineeringPage';
@@ -44,7 +44,7 @@ const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
 }));
 
-const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|company(?:\/[^/]+)*|finance(?:\/[^/]+)*|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|help|help-center|settings|contact|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)*|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|systems(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
+const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|company(?:\/[^/]+)*|finance(?:\/[^/]+)*|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|help|settings|contact|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)*|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|systems(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
 
 const WorkspaceShell: React.FC = () => {
   const {
@@ -63,11 +63,12 @@ const WorkspaceShell: React.FC = () => {
     setIsAddTeammateOpen,
     inviteReadyData,
     setInviteReadyData,
-    workspaceSettings,
   } = useWorkspace();
   useOverlayA11y();
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [mobileChatPane, setMobileChatPane] = useState<'list' | 'feed'>('list');
+  const [bugReportOpen, setBugReportOpen] = useState(false);
+  const [bugReportSeed, setBugReportSeed] = useState<{ subject: string; details: string } | null>(null);
 
   useEffect(() => {
     setIsNavOpen(false);
@@ -76,12 +77,18 @@ const WorkspaceShell: React.FC = () => {
 
   useEffect(() => {
     const closeNav = () => setIsNavOpen(false);
+    const openNavForTour = () => setIsNavOpen(true);
+    const finishTour = () => setIsNavOpen(false);
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsNavOpen(false); };
     window.addEventListener('popstate', closeNav);
     window.addEventListener('keydown', onKey);
+    window.addEventListener('flown-onboarding-target-bug-report', openNavForTour);
+    window.addEventListener('flown-onboarding-tour-finished', finishTour);
     return () => {
       window.removeEventListener('popstate', closeNav);
       window.removeEventListener('keydown', onKey);
+      window.removeEventListener('flown-onboarding-target-bug-report', openNavForTour);
+      window.removeEventListener('flown-onboarding-tour-finished', finishTour);
     };
   }, []);
 
@@ -99,15 +106,29 @@ const WorkspaceShell: React.FC = () => {
   }
 
   if (!isKnownPath(window.location.pathname)) {
-    return <NotFoundPage onGoHome={() => {
-      window.history.pushState({}, '', '/drive');
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    }} />;
+    return (
+      <>
+        <NotFoundPage
+          onGoHome={() => {
+            window.history.pushState({}, '', '/home');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }}
+          onReportBug={() => {
+            setBugReportSeed({
+              subject: `Broken page: ${window.location.pathname}`,
+              details: `I reached a page that returned 404: ${window.location.pathname}`,
+            });
+            setBugReportOpen(true);
+          }}
+        />
+        {bugReportOpen && <BugReportDialog initialSubject={bugReportSeed?.subject} initialDetails={bugReportSeed?.details} onClose={() => setBugReportOpen(false)} />}
+      </>
+    );
   }
 
   return (
     <div className="flex h-dvh min-h-dvh w-screen overflow-hidden bg-[#fafbfc]">
-      <Sidebar isMobileOpen={isNavOpen} />
+      <Sidebar isMobileOpen={isNavOpen} onOpenBugReport={() => { setBugReportSeed(null); setBugReportOpen(true); }} />
       {isNavOpen && (
         <button
           type="button"
@@ -126,7 +147,6 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'home' && <HomePage />}
           {activeTab === 'customers' && <AccessGate app="customers" name="Customers"><CustomerPage /></AccessGate>}
           {activeTab === 'company' && <CompanyPage />}
-          {activeTab === 'helpcenter' && <HelpCenterPage />}
           {activeTab === 'insights' && <InsightsPage />}
           {activeTab === 'programs' && <ProgramsPage />}
           {activeTab === 'settings' && <SettingsPage />}
@@ -171,6 +191,7 @@ const WorkspaceShell: React.FC = () => {
       </div>
 
       <ShortcutsHelp />
+      {bugReportOpen && <BugReportDialog initialSubject={bugReportSeed?.subject} initialDetails={bugReportSeed?.details} onClose={() => setBugReportOpen(false)} />}
       <MobileTabBar isMenuOpen={isNavOpen} onToggleMenu={() => setIsNavOpen((open) => !open)} />
 
       {/* Floating In-App Voice & Video Call Overlay */}

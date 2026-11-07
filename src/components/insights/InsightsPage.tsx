@@ -121,7 +121,7 @@ export const InsightsPage: React.FC = () => {
   };
 
   return (
-    <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
+    <main data-onboarding-target="insights-workspace" className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Insights</h1>

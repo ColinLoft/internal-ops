@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, Mail, FolderKanban, Code2, HardDrive, UsersRound, Building2, Settings, ChevronsUpDown, CircleHelp, LogOut, PanelLeftClose,
+  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, Mail, FolderKanban, Code2, HardDrive, UsersRound, Building2, Settings, ChevronsUpDown, Bug, LogOut, PanelLeftClose,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAllAppAccess } from '../../lib/useAppAccess';
 import { supabase } from '../../lib/supabase';
 import { GlobalSearch } from './GlobalSearch';
-import { ProfilePopover } from '../profile/ProfilePopover';
 import { getSectionTabs, isSectionSelected } from './sectionTabs';
 
 type Tab = ReturnType<typeof useWorkspace>['activeTab'];
@@ -32,13 +31,12 @@ const accessKey: Partial<Record<Tab, string>> = { customers: 'customers', admin:
 
 interface SidebarProps {
   isMobileOpen?: boolean;
+  onOpenBugReport: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenBugReport }) => {
   const { activeTab, setActiveTab, conversations, currentUser, logout } = useWorkspace();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('flown-sidebar-groups') || '{}'); } catch { return {}; } });
-  const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
   const access = useAllAppAccess();
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('flown-sidebar-collapsed') === '1');
@@ -54,14 +52,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
     localStorage.setItem('flown-sidebar-groups', JSON.stringify(openGroups));
   }, [openGroups]);
 
-  useEffect(() => {
-    const onDown = (event: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) setProfileOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, []);
-
   const firstRoute = useRef(true);
   useEffect(() => {
     if (firstRoute.current) { firstRoute.current = false; return; }
@@ -72,6 +62,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
     const toggle = () => setCollapsed((value) => !value);
     window.addEventListener('flown-toggle-sidebar', toggle);
     return () => window.removeEventListener('flown-toggle-sidebar', toggle);
+  }, []);
+
+  useEffect(() => {
+    const expandForTour = () => setCollapsed(false);
+    const finishTour = () => setCollapsed(true);
+    window.addEventListener('flown-onboarding-target-bug-report', expandForTour);
+    window.addEventListener('flown-onboarding-tour-finished', finishTour);
+    return () => {
+      window.removeEventListener('flown-onboarding-target-bug-report', expandForTour);
+      window.removeEventListener('flown-onboarding-tour-finished', finishTour);
+    };
   }, []);
 
   useEffect(() => {
@@ -201,20 +202,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
       </nav>
 
       <div className="space-y-0.5 border-t border-white/15 p-2.5">
-        <button type="button" title="Help Center" onClick={() => setActiveTab('helpcenter')} className={row(activeTab === 'helpcenter')}>
-          <CircleHelp className="h-[17px] w-[17px] shrink-0 text-white/80" />
-          Help &amp; Support
+        <button type="button" data-onboarding-target="bug-report-button" title="Bug report" onClick={onOpenBugReport} className={row(false)}>
+          <Bug className="h-[17px] w-[17px] shrink-0 text-white/80" />
+          Bug report
         </button>
         <button type="button" title="Settings" onClick={() => setActiveTab('settings')} className={row(activeTab === 'settings')}>
           <Settings className="h-[17px] w-[17px] shrink-0 text-white/80" />
           Settings
         </button>
-        <div className="relative pt-1" ref={profileRef}>
-          <div className={`flex items-center gap-2.5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 p-2 transition-colors ${collapsed ? 'justify-center' : ''}`}>
-            <button type="button" data-onboarding-target="profile-button" onClick={() => setProfileOpen((open) => !open)} aria-label="Profile and status" title={`${currentUser.name} (${currentUser.role})`} className="relative shrink-0 rounded-full">
+        <div className="pt-1">
+          <div data-onboarding-target="profile-summary" className={`flex items-center gap-2.5 rounded-xl border border-white/20 bg-white/10 p-2 transition-colors ${collapsed ? 'justify-center' : ''}`}>
+            <span title={`${currentUser.name} (${currentUser.role})`} className="relative block shrink-0 rounded-full">
               <img src={currentUser.avatar} alt={currentUser.name} className="h-8 w-8 rounded-full border border-white/40 object-cover" />
               <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#2569F5] ${statusColor}`} />
-            </button>
+            </span>
             {!collapsed && (
               <>
                 <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-white">{currentUser.name}</span><span className="block truncate text-[11px] text-white/75">{currentUser.role}</span></span>
@@ -222,11 +223,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false }) => {
               </>
             )}
           </div>
-          {profileOpen && (
-            <div className="absolute bottom-full left-0 z-[70] mb-2 text-slate-800">
-              <ProfilePopover onClose={() => setProfileOpen(false)} />
-            </div>
-          )}
         </div>
       </div>
     </aside>

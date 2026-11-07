@@ -3,12 +3,20 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
+  BarChart3,
+  Building2,
+  Bug,
   CalendarDays,
   Check,
-  Hash,
+  Code2,
+  FolderKanban,
+  HardDrive,
   ImagePlus,
+  Lightbulb,
   LoaderCircle,
+  Mail,
   MessageSquare,
+  Settings,
   UserRound,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -19,7 +27,7 @@ import { PROFILE_BANNERS, ProfileBanner } from '../../types';
 type TourStep = {
   title: string;
   description: string;
-  tab?: 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin';
+  tab?: 'home' | 'messages' | 'calendar' | 'inbox' | 'drive' | 'programs' | 'customers' | 'company' | 'engineering' | 'insights' | 'settings';
   target: string;
   icon: React.ComponentType<{ className?: string }>;
   action: string;
@@ -29,50 +37,98 @@ type SpotlightRect = { top: number; left: number; width: number; height: number 
 
 const TOUR_STEPS: TourStep[] = [
   {
-    title: 'Find your channels',
-    description: 'This sidebar lists your team channels. Choose a channel to open its conversation, catch up on updates, and share work with the whole team.',
-    tab: 'channels',
-    target: 'channel-list',
-    icon: Hash,
-    action: 'Show channel conversation',
+    title: 'Your workspace at a glance',
+    description: 'Home brings your tasks, calendar, messages, and updates together. Use the dashboard shortcuts to jump into the work that needs attention.',
+    tab: 'home',
+    target: 'home-overview',
+    icon: Building2,
+    action: 'Explore messages',
   },
   {
-    title: 'Join the conversation',
-    description: 'Here you can read channel posts, reply, add reactions, and share files. Restricted channels show a note when posting is limited.',
-    tab: 'channels',
-    target: 'channel-feed',
-    icon: MessageSquare,
-    action: 'Explore direct messages',
-  },
-  {
-    title: 'Message a teammate',
-    description: 'Your message list keeps direct and group conversations together. Select a conversation to continue chatting, or start a new one.',
+    title: 'Messages and channels',
+    description: 'Direct messages and channels live together. Search people, channels, and message text, start a new conversation, share files, or open a channel to post.',
     tab: 'messages',
     target: 'conversation-list',
     icon: MessageSquare,
-    action: 'Show a message',
+    action: 'See tasks and projects',
   },
   {
-    title: 'Your chat workspace',
-    description: 'This is where your direct conversation appears. Send messages, share attachments, or start an audio or video call with teammates.',
-    tab: 'messages',
-    target: 'message-feed',
-    icon: MessageSquare,
-    action: 'Show the calendar',
+    title: 'Tasks and project work',
+    description: 'Track shared tasks here, including tasks created inside Software, Mechanical, Electrical, and Systems projects. Filter by owner, status, or project.',
+    tab: 'programs',
+    target: 'tasks-workspace',
+    icon: FolderKanban,
+    action: 'Open the calendar',
   },
   {
     title: 'Keep up with the team',
-    description: 'The calendar brings team events and your personal schedule together. Use it to see what is coming up or add an event.',
+    description: 'The shared calendar keeps team events and schedules together. Review upcoming items or add an event for everyone.',
     tab: 'calendar',
     target: 'calendar-controls',
     icon: CalendarDays,
-    action: 'See your profile options',
+    action: 'Visit Drive',
   },
   {
-    title: 'Your profile and settings',
-    description: 'Your profile button opens status, profile editing, and settings like themes, audio/video devices, and ringtones. Click it after the tour to explore.',
-    target: 'profile-button',
-    icon: UserRound,
+    title: 'Files and collaborative work',
+    description: 'Drive stores shared files and folders, with Docs, Sheets, Slides, and Forms for creating and editing workspace materials.',
+    tab: 'drive',
+    target: 'drive-workspace',
+    icon: HardDrive,
+    action: 'Check your email',
+  },
+  {
+    title: 'Workspace email',
+    description: 'Use the shared inbox to read and organize email, compose messages, and coordinate follow-ups with the team.',
+    tab: 'inbox',
+    target: 'email-workspace',
+    icon: Mail,
+    action: 'Open Customers',
+  },
+  {
+    title: 'Customers and support',
+    description: 'Keep customer and funder organizations, contacts, contracts, and history in one place. Customer support tickets are under Customers → Support.',
+    tab: 'customers',
+    target: 'customers-workspace',
+    icon: Building2,
+    action: 'Explore Company',
+  },
+  {
+    title: 'Company-wide work',
+    description: 'Company brings ideas, marketing, grants and grant resources, and Website policy/support content together.',
+    tab: 'company',
+    target: 'company-workspace',
+    icon: Lightbulb,
+    action: 'See Products',
+  },
+  {
+    title: 'Products and reviews',
+    description: 'Manage Software, Mechanical, Electrical, and Systems projects. Projects hold updates, tasks, files, and requests for code, CAD, PCB, or other reviews.',
+    tab: 'engineering',
+    target: 'product-projects',
+    icon: Code2,
+    action: 'View Insights',
+  },
+  {
+    title: 'Organization insights',
+    description: 'Insights combines activity and operational metrics in one view. Choose the measures you need when exporting a report.',
+    tab: 'insights',
+    target: 'insights-workspace',
+    icon: BarChart3,
+    action: 'Review settings',
+  },
+  {
+    title: 'Settings and your profile',
+    description: 'Settings is where you edit your profile and manage notifications, appearance, keyboard shortcuts, calls, security, and privacy preferences.',
+    tab: 'settings',
+    target: 'settings-workspace',
+    icon: Settings,
+    action: 'Learn about bug reports',
+  },
+  {
+    title: 'Send a developer bug report',
+    description: 'Choose Bug report at the bottom of the navigation rail when something breaks. Add steps, an error code, and a screenshot. Reports are flagged internal for developers. Browser and IP diagnostics are included only if you consent.',
+    target: 'bug-report-button',
+    icon: Bug,
     action: 'Finish tour',
   },
 ];
@@ -213,6 +269,7 @@ export const FirstLoginOnboarding: React.FC = () => {
     setError('');
     try {
       await completeOnboarding();
+      window.dispatchEvent(new Event('flown-onboarding-tour-finished'));
     } catch (finishError) {
       setError(finishError instanceof Error ? finishError.message : 'Could not finish onboarding.');
     } finally {
@@ -223,6 +280,9 @@ export const FirstLoginOnboarding: React.FC = () => {
   const moveTour = (direction: -1 | 1) => {
     const nextIndex = Math.max(0, Math.min(tourSteps.length - 1, tourIndex + direction));
     setTourIndex(nextIndex);
+    if (nextIndex === tourSteps.length - 1) {
+      window.dispatchEvent(new Event('flown-onboarding-target-bug-report'));
+    }
     const tab = tourSteps[nextIndex]?.tab;
     if (tab) setActiveTab(tab);
   };
@@ -378,25 +438,33 @@ export const FirstLoginOnboarding: React.FC = () => {
               <p className="mt-2 text-sm leading-6 text-slate-600">{activeStep?.description}</p>
             </div>
 
-            <div className="mx-5 mb-5 grid grid-cols-6 gap-1.5">
+            <div className="mx-5 mb-5 flex gap-1.5">
               {tourSteps.map((step, index) => (
                 <div
                   key={step.title}
                   aria-label={`Tour step ${index + 1}`}
-                  className={`h-1.5 rounded-full ${index === tourIndex ? 'bg-brand-600' : index < tourIndex ? 'bg-brand-200' : 'bg-slate-100'}`}
+                  className={`h-1.5 flex-1 rounded-full ${index === tourIndex ? 'bg-brand-600' : index < tourIndex ? 'bg-brand-200' : 'bg-slate-100'}`}
                 />
               ))}
             </div>
 
             {error && <p role="alert" className="mx-6 mb-4 text-xs font-semibold text-rose-700 sm:mx-8">{error}</p>}
 
-            <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/70 px-6 py-4 sm:px-8">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/70 px-6 py-4 sm:px-8">
               <button
                 type="button"
                 onClick={() => tourIndex === 0 ? setStage('profile') : moveTour(-1)}
                 className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
               >
                 <ArrowLeft className="h-4 w-4" /> Back
+              </button>
+              <button
+                type="button"
+                onClick={() => void finishTour()}
+                disabled={saving}
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50"
+              >
+                Skip tour
               </button>
               {tourIndex < tourSteps.length - 1 ? (
                 <button

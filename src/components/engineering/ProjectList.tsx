@@ -45,7 +45,7 @@ export const ProjectList: React.FC<{ discipline: Discipline }> = ({ discipline }
   const late = projects.filter((project) => project.target_date && project.target_date < today() && !['completed', 'archived'].includes(project.status)).length;
 
   return (
-    <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
+    <main data-onboarding-target="product-projects" className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8 sm:py-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600"><Icon className="h-5 w-5" /></span>

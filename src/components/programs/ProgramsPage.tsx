@@ -77,7 +77,7 @@ const TasksList: React.FC = () => {
   const overdue = (task: Task) => Boolean(task.due_date) && task.status !== 'completed' && (task.due_date as string) < today();
 
   return (
-    <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
+    <main data-onboarding-target="tasks-workspace" className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
       <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-8 sm:py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

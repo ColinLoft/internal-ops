@@ -397,7 +397,7 @@ export const DrivePage: React.FC = () => {
   }
 
   return (
-    <main className="flex min-w-0 flex-1 overflow-hidden bg-white/40">
+    <main data-onboarding-target="drive-workspace" className="flex min-w-0 flex-1 overflow-hidden bg-white/40">
       <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(event) => { const files = Array.from(event.target.files || []); void Promise.all(files.map(uploadFile)); event.target.value = ''; }} />
       <aside className="hidden w-56 shrink-0 flex-col border-r border-slate-200/80 bg-white/65 p-4 lg:flex">
         <NewMenu onFolder={() => setIsCreateOpen(true)} onUpload={() => fileInputRef.current?.click()} onCreate={(type, name) => void createItem(type, name)} />

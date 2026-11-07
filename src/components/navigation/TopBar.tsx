@@ -7,7 +7,7 @@ import { NotificationCenter } from '../notifications/NotificationCenter';
 export const appLabels: Record<string, string> = {
   home: 'Home', messages: 'Messages', channels: 'Channels', calendar: 'Calendar', inbox: 'Email', drive: 'Drive',
   engineering: 'Products', company: 'Company', customers: 'Customers',
-  programs: 'Tasks', admin: 'Settings', settings: 'Settings', help: 'Support', helpcenter: 'Help Center', insights: 'Insights'
+  programs: 'Tasks', admin: 'Settings', settings: 'Settings', insights: 'Insights'
 };
 
 export const TopBar: React.FC = () => {

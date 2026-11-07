@@ -100,7 +100,7 @@ export const SettingsPage: React.FC = () => {
   const prefsSection = section !== 'profile' && section !== 'security' && section !== 'privacy' && section !== 'admin';
 
   return (
-    <main className="flex-1 overflow-y-auto">
+    <main data-onboarding-target="settings-workspace" className="flex-1 overflow-y-auto">
       <div className={`mx-auto p-5 sm:p-8 lg:p-10 ${section === 'admin' ? 'max-w-6xl' : 'max-w-5xl'}`}>
         <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Account</p>
         <h1 className="mb-6 text-3xl font-bold text-slate-900">Settings</h1>

@@ -243,7 +243,7 @@ export const HomePage: React.FC = () => {
   const toggleHidden = (id: WidgetId) => save({ ...config, hidden: config.hidden.includes(id) ? config.hidden.filter((item) => item !== id) : [...config.hidden, id] });
 
   return (
-    <main className="min-w-0 flex-1 overflow-y-auto bg-[#f4f7fb]">
+    <main data-onboarding-target="home-overview" className="min-w-0 flex-1 overflow-y-auto bg-[#f4f7fb]">
       <div className="mx-auto max-w-7xl space-y-3 px-4 py-3 sm:px-6">
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-white px-4 py-3">
           <div className="min-w-0"><h1 className="text-lg font-bold tracking-tight text-slate-900">{greeting}, {firstName}</h1><p className="text-xs text-slate-500">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} · {overdueTasks.length ? `${overdueTasks.length} overdue task${overdueTasks.length === 1 ? '' : 's'} need attention` : 'Nothing overdue'}</p></div>
