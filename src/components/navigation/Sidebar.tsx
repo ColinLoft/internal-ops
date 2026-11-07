@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, FolderKanban, Code2, UsersRound, Building2, Settings, ChevronsUpDown, Bug, LogOut, PanelLeftClose, Flame,
+  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, FolderKanban, Code2, UsersRound, Building2, Settings, ChevronsUpDown, Bug, LogOut, PanelLeftClose, Flame, Network,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAllAppAccess } from '../../lib/useAppAccess';
@@ -18,6 +18,7 @@ const overviewItems: NavItem[] = [
   { id: 'programs', label: 'Tasks', icon: FolderKanban },
   { id: 'calendar', label: 'Calendar', icon: CalendarIcon },
   { id: 'insights', label: 'Insights', icon: Lightbulb },
+  { id: 'systems', label: 'Systems', icon: Network },
 ];
 const appDropdowns: NavItem[] = [
   { id: 'engineering', label: 'Products', icon: Code2 },
@@ -119,7 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenBu
   return (
     <aside
       aria-label="Primary navigation"
-      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-gradient-to-b from-[#2569F5] via-[#2f75f7] to-[#488af9] text-white border-r border-white/15 transition-all duration-200 md:static md:z-30 md:translate-x-0 ${collapsed ? 'md:w-0 md:overflow-hidden md:border-r-0 md:invisible' : 'md:w-64'} w-72 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-slate-950 text-white border-r border-slate-200 transition-all duration-200 md:static md:z-30 md:translate-x-0 ${collapsed ? 'md:w-0 md:overflow-hidden md:border-r-0 md:invisible' : 'md:w-64'} w-72 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
     >
       <div className="flex items-center gap-2 p-3 pb-2.5">
         <button
@@ -129,6 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenBu
           className={`h-10 min-w-0 flex-1 items-center justify-start px-2 rounded-lg hover:bg-white/10 transition-colors ${collapsed ? 'flex md:hidden' : 'flex'}`}
         >
           <img src="/flown-logo.png" alt="Flown" className="h-10 w-auto max-w-full object-contain brightness-0 invert opacity-95" />
+          <span className="ml-2 text-xs font-semibold text-brand-300">Ops</span>
         </button>
         <button
           type="button"

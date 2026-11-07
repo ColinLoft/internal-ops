@@ -12,6 +12,7 @@ const sources: { type: string; table: string; column: string; detail: string; pa
   { type: 'Contact', table: 'crm_contacts', column: 'name', detail: 'email', path: '/customers/contacts' },
   { type: 'Conversation', table: 'support_conversations', column: 'subject', detail: 'status', path: '/customers/support' },
   { type: 'Marketing post', table: 'gtm_content_posts', column: 'title', detail: 'status', path: '/company/calendar' },
+  { type: 'System', table: 'flown_systems', column: 'name', detail: 'environment', path: '/systems' },
 ];
 
 // Row-level security limits each table to what the signed-in user may read.

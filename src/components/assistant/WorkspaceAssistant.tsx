@@ -130,7 +130,7 @@ export const WorkspaceAssistant: React.FC<{ triggerClassName?: string }> = ({ tr
         setActiveTab('calendar');
       } else if (proposal.type === 'open_view') {
         const details = proposal.details || {};
-        const tabs = ['home', 'messages', 'channels', 'calendar', 'customers', 'company', 'engineering', 'settings', 'insights', 'programs', 'wildfire'] as const;
+        const tabs = ['home', 'messages', 'channels', 'calendar', 'customers', 'company', 'engineering', 'settings', 'insights', 'programs', 'wildfire', 'systems'] as const;
         const tab = tabs.find((value) => value === details.tab);
         if (!tab) throw new Error('That workspace view is not available. Drive and personal email have been retired.');
         setActiveTab(tab);

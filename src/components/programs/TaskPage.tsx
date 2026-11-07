@@ -1,5 +1,5 @@
 import { CustomSelect } from "../common/CustomSelect";
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
@@ -8,6 +8,7 @@ import { AssignedField, assignedIds, TaskDateField } from './taskFields';
 import { RichNotes } from '../work/RichNotes';
 import { navigate } from '../../lib/navigate';
 import { useConfirm } from '../common/useConfirm';
+import { useLiveRefresh } from '../../hooks/useLiveRefresh';
 
 type Task = {
   id: string; project_id: string | null; eng_project_id: string | null; assignee_id: string | null; assigned_ids: string[]; parent_task_id: string | null; title: string; description: string | null; notes: string | null;
@@ -30,6 +31,20 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
   const [dep, setDep] = useState('');
   const [error, setError] = useState('');
   const [missing, setMissing] = useState(false);
+  const titleInput = useRef<HTMLInputElement>(null);
+  const descriptionInput = useRef<HTMLTextAreaElement>(null);
+  const estimateInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!task) return;
+    for (const [element, value] of [
+      [titleInput.current, task.title],
+      [descriptionInput.current, task.description || ''],
+      [estimateInput.current, String(task.estimate_hours ?? '')],
+    ] as const) {
+      if (element && document.activeElement !== element) element.value = value;
+    }
+  }, [task]);
 
   const load = useCallback(async () => {
     const [t, p, s, d, time] = await Promise.all([
@@ -39,8 +54,11 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
       supabase.from('program_task_dependencies').select('depends_on_task_id').eq('task_id', taskId),
       supabase.from('entity_time_entries').select('minutes').eq('entity_type', 'task').eq('entity_id', taskId),
     ]);
-    if (t.error) { setError(t.error.message); return; }
+    const failure = t.error || p.error || s.error || d.error || time.error;
+    if (failure) { setError(`Task could not be refreshed: ${failure.message}`); return; }
     if (!t.data) { setMissing(true); return; }
+    setMissing(false);
+    setError('');
     const row = t.data as Task;
     setTask(row);
     setProjects((p.data || []) as { id: string; name: string; discipline: string }[]);
@@ -48,9 +66,10 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
     setDeps(((d.data || []) as { depends_on_task_id: string }[]).map((r) => r.depends_on_task_id));
     setMinutes(((time.data || []) as { minutes: number }[]).reduce((sum, r) => sum + r.minutes, 0));
     const sib = await supabase.from('program_tasks').select('id,title,status,assignee_id,due_date').is('parent_task_id', null).neq('id', taskId).order('created_at', { ascending: false }).limit(200);
+    if (sib.error) { setError(`Related tasks could not be refreshed: ${sib.error.message}`); return; }
     setSiblings((sib.data || []) as Lite[]);
   }, [taskId]);
-  useEffect(() => { void load(); }, [load]);
+  useLiveRefresh(load, ['program_tasks', 'program_task_dependencies', 'entity_time_entries']);
 
   const patch = async (values: Partial<Task> & { completed_at?: string | null }, activity?: string) => {
     setTask((current) => (current ? { ...current, ...values } : current));
@@ -102,7 +121,7 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
       <header className="border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
         <button type="button" onClick={() => navigate(backPath)} className="mb-2 inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-brand-600"><ArrowLeft className="h-3.5 w-3.5" />{project ? project.name : 'Tasks'}</button>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <input value={task.title} onChange={(event) => setTask({ ...task, title: event.target.value })} onBlur={(event) => event.target.value.trim() && void patch({ title: event.target.value.trim() }, 'renamed the task')} aria-label="Task title" className="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-1 text-xl font-bold text-slate-900 outline-none hover:border-slate-200 focus:border-brand-400" />
+          <input ref={titleInput} defaultValue={task.title} onBlur={(event) => event.target.value.trim() && event.target.value.trim() !== task.title && void patch({ title: event.target.value.trim() }, 'renamed the task')} aria-label="Task title" className="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-1 text-xl font-bold text-slate-900 outline-none hover:border-slate-200 focus:border-brand-400" />
           <button type="button" onClick={() => void remove()} className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600"><Trash2 className="h-3.5 w-3.5" />Delete</button>
         </div>
         {task.grant_id && <button type="button" onClick={() => navigate(`/company/grants/${task.grant_id}`)} className="mt-1 text-xs font-bold text-brand-600">From a grant award · open grant</button>}
@@ -112,7 +131,7 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
           <div><AssignedField value={assignedIds(task)} onChange={(ids) => void patch({ assigned_ids: ids }, 'changed assigned people')} />{assignedIds(task).length === 0 && <button type="button" onClick={() => void patch({ assigned_ids: [currentUser.id] }, 'claimed task')} className="mt-2 text-xs font-semibold text-brand-600">Claim task</button>}</div>
           <label className="text-xs font-semibold text-slate-500">Project<CustomSelect value={task.eng_project_id || ''} onChange={(event) => void patch({ eng_project_id: event.target.value || null }, 'moved the task')} className={field}><option value="">No project</option>{projects.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</CustomSelect></label>
           <TaskDateField label={overdue ? 'Due date (overdue)' : 'Due date'} value={task.due_date} onChange={(date) => void patch({ due_date: date })} />
-          <label className="text-xs font-semibold text-slate-500">Estimate (hours)<input type="number" min="0" step="0.5" value={task.estimate_hours ?? ''} onChange={(event) => setTask({ ...task, estimate_hours: event.target.value === '' ? null : Number(event.target.value) })} onBlur={(event) => void patch({ estimate_hours: event.target.value === '' ? null : Number(event.target.value) })} className={field} /></label>
+          <label className="text-xs font-semibold text-slate-500">Estimate (hours)<input ref={estimateInput} type="number" min="0" step="0.5" defaultValue={task.estimate_hours ?? ''} onBlur={(event) => void patch({ estimate_hours: event.target.value === '' ? null : Number(event.target.value) })} className={field} /></label>
         </div>
         {estimate > 0 && <p className="mt-2 text-xs text-slate-500">Logged {formatMinutes(minutes)} of {estimate}h estimated ({Math.round((minutes / 60 / estimate) * 100)}%)</p>}
       </header>
@@ -122,7 +141,7 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
           {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</p>}
           <section className={card}>
             <h3 className="mb-2 text-sm font-bold text-slate-900">Description</h3>
-            <textarea value={task.description || ''} onChange={(event) => setTask({ ...task, description: event.target.value })} onBlur={(event) => void patch({ description: event.target.value.trim() || null })} rows={3} placeholder="What needs to be done?" className={field} />
+            <textarea ref={descriptionInput} defaultValue={task.description || ''} onBlur={(event) => void patch({ description: event.target.value.trim() || null })} rows={3} placeholder="What needs to be done?" className={field} />
           </section>
           <section><h3 className="mb-2 text-sm font-bold text-slate-900">Notes</h3><RichNotes value={task.notes || ''} onSave={(html) => patch({ notes: html }, 'updated notes')} placeholder="Working notes, findings, what you did…" /></section>
           <section className={card}>

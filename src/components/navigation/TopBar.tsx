@@ -7,7 +7,7 @@ import { NotificationCenter } from '../notifications/NotificationCenter';
 export const appLabels: Record<string, string> = {
   home: 'Home', messages: 'Messages', channels: 'Channels', calendar: 'Calendar',
   engineering: 'Products', company: 'Company', customers: 'Customers',
-  programs: 'Tasks', admin: 'Settings', settings: 'Settings', insights: 'Insights'
+  programs: 'Tasks', admin: 'Settings', settings: 'Settings', insights: 'Insights', systems: 'Systems',
 };
 
 export const TopBar: React.FC = () => {
@@ -43,9 +43,10 @@ export const TopBar: React.FC = () => {
   const iconBtn = 'relative flex h-8 w-8 items-center justify-center rounded-lg text-white/85 hover:text-white hover:bg-white/15 transition-colors';
 
   return (
-    <header className="flex-shrink-0 bg-gradient-to-r from-[#2569F5] via-[#377bf7] to-[#5695FA] text-white border-b border-white/15">
-      <div className="flex h-11 items-center justify-between gap-3 px-3 md:px-5">
+    <header className="flex-shrink-0 bg-slate-950 text-white border-b border-slate-200">
+      <div className="flex h-12 items-center justify-between gap-3 px-3 md:px-5">
         <div className="flex min-w-0 items-center gap-2">
+          <button type="button" onClick={() => setActiveTab('home')} className="flex shrink-0 items-center gap-2 text-sm font-semibold" aria-label="Flown Ops home"><img src="/brand-icon.png" alt="" className="h-5 w-5 object-contain" /><span>Flown Ops</span></button>
           {sidebarHidden && (
             <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('flown-toggle-sidebar'))} aria-label="Show sidebar" title="Show sidebar" className="hidden h-8 items-center gap-2 rounded-lg bg-white/15 px-2.5 text-white ring-1 ring-white/20 transition-colors hover:bg-white/25 md:flex"><PanelLeft className="h-4 w-4" /><span className="text-xs font-semibold">Menu</span></button>
           )}
@@ -58,7 +59,7 @@ export const TopBar: React.FC = () => {
               aria-label="Quick add"
               aria-haspopup="menu"
               aria-expanded={isQuickOpen}
-              className="flex h-8 items-center gap-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 px-3 text-xs font-semibold text-white ring-1 ring-white/20 transition-colors"
+              className="flex h-8 items-center gap-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 px-3 text-xs font-semibold text-white transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Quick Add</span>
@@ -77,7 +78,7 @@ export const TopBar: React.FC = () => {
               </div>
             )}
           </div>
-          {workspaceSettings.aiAssistantEnabled && <WorkspaceAssistant triggerClassName="relative flex h-8 w-8 items-center justify-center rounded-lg bg-[#1746b8] text-white ring-1 ring-white/20 hover:bg-[#1c52d0] transition-colors" />}
+          {workspaceSettings.aiAssistantEnabled && <WorkspaceAssistant triggerClassName="relative flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-white hover:bg-slate-100 transition-colors" />}
           <div className="relative" ref={notificationsRef}>
             <button
               type="button"
@@ -86,7 +87,7 @@ export const TopBar: React.FC = () => {
               aria-haspopup="dialog"
               aria-expanded={isNotificationsOpen}
               title="Notifications"
-              className={`${iconBtn} bg-[#1746b8] ring-1 ring-white/20 ${isNotificationsOpen ? 'bg-[#1c52d0]' : ''}`}
+              className={`${iconBtn} bg-slate-50 ${isNotificationsOpen ? 'bg-slate-100' : ''}`}
             >
               <Bell className="h-4 w-4" />
               {unreadNotificationCount > 0 && (

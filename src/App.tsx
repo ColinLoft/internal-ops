@@ -36,6 +36,8 @@ import { ProgramsPage } from './components/programs/ProgramsPage';
 import { EngineeringPage } from './components/engineering/EngineeringPage';
 import { PendingDocumentPrompt } from './components/organization/PolicySigning';
 import { WildfireSolutionsPage } from './components/wildfire/WildfireSolutionsPage';
+import { SystemsPage } from './components/systems';
+import { isKnownWorkspacePath } from './lib/workspaceRoutes';
 
 const PublicChatPage = lazy(async () => ({
   default: (await import('./components/support/PublicChatPage')).PublicChatPage,
@@ -49,8 +51,6 @@ const PublicContractSigning = lazy(async () => ({
 const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
 }));
-
-const isKnownPath = (pathname: string) => /^\/?(|home|customers(?:\/[^/]+)?|company(?:\/[^/]+)*|finance(?:\/[^/]+)*|operations(?:\/[^/]+)?|legal(?:\/[^/]+)?|engineering(?:\/[^/]+)?|wildfire(?:\/[^/]+)*|help|settings|contact|insights(?:\/[^/]+)?|organization(?:\/[^/]+)?|programs(?:\/[^/]+)*|gtm(?:\/[^/]+)?|messages|channels|calendar|email|inbox|admin(?:\/[^/]+)?|systems(?:\/[^/]+)?|drive|docs(?:\/[^/]+)?|slides(?:\/[^/]+)?|sheets(?:\/[^/]+)?|forms(?:\/[^/]+)?)\/?$/.test(pathname);
 
 const WorkspaceShell: React.FC = () => {
   const {
@@ -128,7 +128,7 @@ const WorkspaceShell: React.FC = () => {
     return <AuthScreen />;
   }
 
-  if (!isKnownPath(routePath) && !isRetiredWorkspacePath(routePath)) {
+  if (!isKnownWorkspacePath(routePath) && !isRetiredWorkspacePath(routePath)) {
     return (
       <>
         <NotFoundPage
@@ -174,6 +174,7 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'insights' && <InsightsPage />}
           {activeTab === 'programs' && <ProgramsPage />}
           {activeTab === 'settings' && <SettingsPage />}
+          {activeTab === 'systems' && <SystemsPage />}
           {activeTab === 'engineering' && <EngineeringPage />}
           {activeTab === 'wildfire' && <WildfireSolutionsPage />}
           {activeTab === 'messages' && (

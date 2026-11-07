@@ -57,7 +57,7 @@ const OrgSummaryCard: React.FC = () => {
     <section className={`${card} space-y-2`}>
       <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Building2 className="h-4 w-4 text-brand-600" />Organization summary</h2>
       <p className="text-xs text-slate-500">Mission, programs, population served, budget size, location and impact. Used by AI grant research, fit scoring and drafting, and handy to paste into applications.</p>
-      <textarea rows={6} value={text} onChange={(event) => { setText(event.target.value); setMsg(''); }} placeholder="We are a nonprofit that…" className={field} />
+      <textarea rows={6} value={text} onChange={(event) => { setText(event.target.value); setMsg(''); }} placeholder="Flown's mission, programs, and impact…" className={field} />
       <div className="flex items-center gap-3"><button type="button" disabled={text === saved} onClick={() => void save()} className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Save summary</button><button type="button" onClick={() => void navigator.clipboard.writeText(text)} className="text-xs font-semibold text-slate-500">Copy</button>{msg && <span role="status" className="text-xs text-slate-500">{msg}</span>}</div>
     </section>
   );

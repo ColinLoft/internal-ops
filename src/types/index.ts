@@ -63,7 +63,7 @@ export interface SystemActivityInput {
 }
 
 export interface WorkspaceSettings {
-  theme: 'light' | 'dark';
+  theme: 'dark';
   accentColor: string;
   microphoneDeviceId: string;
   cameraDeviceId: string;

@@ -15,6 +15,7 @@ import {
   LoaderCircle,
   MessageSquare,
   Settings,
+  Network,
   UserRound,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -25,7 +26,7 @@ import { PROFILE_BANNERS, ProfileBanner } from '../../types';
 type TourStep = {
   title: string;
   description: string;
-  tab?: 'home' | 'messages' | 'calendar' | 'programs' | 'customers' | 'company' | 'engineering' | 'insights' | 'settings';
+  tab?: 'home' | 'messages' | 'calendar' | 'programs' | 'customers' | 'company' | 'engineering' | 'insights' | 'settings' | 'systems';
   target: string;
   icon: React.ComponentType<{ className?: string }>;
   action: string;
@@ -35,7 +36,7 @@ type SpotlightRect = { top: number; left: number; width: number; height: number 
 
 const TOUR_STEPS: TourStep[] = [
   {
-    title: 'Your workspace at a glance',
+    title: 'Flown Ops at a glance',
     description: 'Home brings your tasks, calendar, messages, and updates together. Use the dashboard shortcuts to jump into the work that needs attention.',
     tab: 'home',
     target: 'home-overview',
@@ -88,6 +89,14 @@ const TOUR_STEPS: TourStep[] = [
     tab: 'engineering',
     target: 'product-projects',
     icon: Code2,
+    action: 'Manage Flown systems',
+  },
+  {
+    title: 'Flown managed systems',
+    description: 'Track Flown services, owners, uptime checks, incidents, and maintenance. All staff can help keep the system inventory current.',
+    tab: 'systems',
+    target: 'systems-workspace',
+    icon: Network,
     action: 'View Insights',
   },
   {

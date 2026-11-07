@@ -1,10 +1,11 @@
 import { CustomSelect } from "../common/CustomSelect";
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ChevronUp, Lightbulb, MessageCircle, Plus, Search, Send, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { EmptyState } from '../common/Feedback';
 import { useConfirm } from '../common/useConfirm';
+import { useLiveRefresh } from '../../hooks/useLiveRefresh';
 
 type Idea = { id: string; title: string; description: string | null; problem?: string | null; impact?: string | null; effort?: string | null; next_step?: string | null; category: string; status: string; created_by: string; created_at: string };
 type IdeaComment = { id: string; idea_id: string; author_id: string; body: string; created_at: string };
@@ -45,8 +46,12 @@ export const IdeasPage: React.FC = () => {
       supabase.from('company_idea_votes').select('idea_id,user_id'),
     ]);
     const failure = ideaResult.error || voteResult.error;
-    if (failure) setError(/company_idea/.test(failure.message) ? 'The ideas tables are missing. Run the 20261104120000_company_ideas.sql migration in Supabase.' : failure.message);
-    else setError('');
+    if (failure) {
+      setError(`Ideas could not be refreshed: ${failure.message}`);
+      setLoading(false);
+      return;
+    }
+    setError('');
     setIdeas((ideaResult.data as Idea[]) || []);
     const map: Record<string, Set<string>> = {};
     ((voteResult.data as { idea_id: string; user_id: string }[]) || []).forEach((vote) => { (map[vote.idea_id] ??= new Set()).add(vote.user_id); });
@@ -54,7 +59,15 @@ export const IdeasPage: React.FC = () => {
     setLoading(false);
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useLiveRefresh(load, ['company_ideas', 'company_idea_votes']);
+
+  const loadComments = useCallback(async () => {
+    if (!discussionId) return;
+    const { data, error: commentError } = await supabase.from('company_idea_comments').select('id,idea_id,author_id,body,created_at').eq('idea_id', discussionId).order('created_at');
+    if (commentError) { setError(`Discussion could not be refreshed: ${commentError.message}`); return; }
+    setComments((current) => ({ ...current, [discussionId]: (data || []) as IdeaComment[] }));
+  }, [discussionId]);
+  useLiveRefresh(loadComments, ['company_idea_comments']);
 
   const visible = useMemo(() => {
     const term = query.trim().toLowerCase();

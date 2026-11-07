@@ -33,20 +33,12 @@ export const AuthScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-dvh w-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90 p-4 relative overflow-hidden">
-      {/* Decorative ambient glowing orbs in brand blue */}
-      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-brand-500/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-brand-400/10 rounded-full blur-3xl pointer-events-none" />
-
-      {/* Main Glassy Card */}
-      <div className="w-full max-w-md bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200">
-        {/* Top Brand Banner */}
-        <div className="bg-gradient-to-r from-brand-600 via-brand-700 to-brand-800 p-6 text-white text-center relative">
-          <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-black/10">
-            <img src="/brand-icon.png" alt="Flown" className="w-8 h-8 object-contain" />
-          </div>
-          <h2 className="text-xl font-bold tracking-tight">Flown</h2>
-          <p className="text-brand-100 text-xs mt-1">Flown's Operations Platform</p>
+    <div className="min-h-dvh w-full flex flex-col items-center justify-center bg-slate-950 p-4">
+      <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="p-6 text-white">
+          <img src="/flown-logo.png" alt="Flown" className="h-12 w-auto object-contain brightness-0 invert mb-4" />
+          <h1 className="text-2xl font-semibold tracking-tight">Flown Operations</h1>
+          <p className="text-sm text-slate-500 mt-2">Our people, products, and systems.</p>
 
         </div>
 
@@ -54,8 +46,8 @@ export const AuthScreen: React.FC = () => {
         <div className="p-6">
           <div className="mb-5 text-center">
             <h3 className="text-base font-bold text-slate-900">Staff Portal Sign In</h3>
-            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Sign in with your email and password for operation account.
+            <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+              Sign in with your Flown staff account.
             </p>
           </div>
 
@@ -69,18 +61,19 @@ export const AuthScreen: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Field */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="flown-email" className="block text-sm font-semibold text-slate-700 mb-1">
                 Email Address
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                 <input
                   type="email"
+                  id="flown-email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="firstname@yourorganization.org"
+                  placeholder="Your Flown email"
                   required
-                  className="w-full pl-9 pr-3 py-2.5 text-base md:text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all"
+                  className="w-full pl-9 pr-3 py-2.5 text-base bg-slate-50 focus:bg-white rounded-lg border border-slate-200 focus:border-brand-500 outline-none transition-colors"
                 />
               </div>
             </div>
@@ -88,7 +81,7 @@ export const AuthScreen: React.FC = () => {
             {/* Password Field */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-700">
+                <label htmlFor="flown-password" className="block text-sm font-semibold text-slate-700">
                   Password
                 </label>
               </div>
@@ -96,11 +89,12 @@ export const AuthScreen: React.FC = () => {
                 <Key className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                 <input
                   type="password"
+                  id="flown-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password or invite code"
                   required
-                  className="w-full pl-9 pr-3 py-2.5 text-base md:text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all"
+                  className="w-full pl-9 pr-3 py-2.5 text-base bg-slate-50 focus:bg-white rounded-lg border border-slate-200 focus:border-brand-500 outline-none transition-colors"
                 />
               </div>
             </div>
@@ -109,9 +103,9 @@ export const AuthScreen: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-500/25 transition-all flex items-center justify-center gap-2 group active:scale-95 disabled:opacity-50"
+              className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 group disabled:opacity-50"
             >
-              <span>{loading ? 'Authenticating...' : 'Sign In to Workspace'}</span>
+              <span>{loading ? 'Authenticating...' : 'Sign in to Flown Ops'}</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </button>
           </form>

@@ -41,7 +41,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
 
-  // Common non-profit emojis
+  // Common reactions
   const emojiCategories = [
     '😊', '👍', '❤️', '🎉', '🔥', '🙌', '✨', '🌟', 
     '🤝', '💡', '📋', '📢', '🍁', '🌱', '🕊️', '💼'

@@ -1,5 +1,5 @@
 import { CustomSelect } from "../common/CustomSelect";
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ArrowLeft, Download, FileUp, Plus, Send, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -9,6 +9,7 @@ import {
 } from './shared';
 import { useConfirm } from '../common/useConfirm';
 import { AssignedField, assignedIds, formatTaskDate, TaskDateField } from '../programs/taskFields';
+import { useLiveRefresh } from '../../hooks/useLiveRefresh';
 
 type Tab = 'log' | 'tasks' | 'files' | 'reviews';
 type TaskRow = { id: string; title: string; status: string; priority: string; due_date: string | null; assignee_id: string | null; assigned_ids: string[]; parent_task_id: string | null };
@@ -52,8 +53,11 @@ export const ProjectDetail: React.FC<{ projectId: string }> = ({ projectId }) =>
       supabase.from('program_tasks').select('id,title,status,priority,due_date,assignee_id,assigned_ids,parent_task_id').eq('eng_project_id', projectId).order('created_at', { ascending: false }),
       supabase.from('eng_reviews').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
     ]);
-    if (p.error) { setError(p.error.message); return; }
+    const failure = p.error || e.error || f.error || t.error || r.error;
+    if (failure) { setError(`Project could not be refreshed: ${failure.message}`); return; }
     if (!p.data) { setMissing(true); return; }
+    setMissing(false);
+    setError('');
     setProject(p.data as EngProject);
     setEntries((e.data || []) as EngEntry[]);
     setFiles((f.data || []) as EngFile[]);
@@ -61,7 +65,7 @@ export const ProjectDetail: React.FC<{ projectId: string }> = ({ projectId }) =>
     setReviews((r.data || []) as EngReview[]);
   }, [projectId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useLiveRefresh(load, ['eng_projects', 'eng_project_entries', 'eng_project_files', 'program_tasks', 'eng_reviews']);
 
   const name = (id: string | null) => (id === currentUser.id ? 'You' : users.find((user) => user.id === id)?.name || 'Unknown');
   const canManage = !!project && (project.created_by === currentUser.id || project.owner_id === currentUser.id || ['admin', 'coordinator'].includes(currentUser.systemRole));
@@ -108,7 +112,7 @@ export const ProjectDetail: React.FC<{ projectId: string }> = ({ projectId }) =>
             {canManage && <button type="button" onClick={() => void remove()} aria-label="Delete project" className="flex min-h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:text-rose-600 md:min-h-0 md:h-8 md:w-8"><Trash2 className="h-4 w-4" /></button>}
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 text-xs md:grid-cols-5">
+        <div className="mt-4 grid grid-cols-2 gap-3 text-xs xl:grid-cols-5">
           <label className="font-semibold text-slate-500">Status<CustomSelect value={project.status} disabled={!canManage} onChange={(event) => void patch({ status: event.target.value }, `Status changed to ${PROJECT_STATUS[event.target.value]}.`)} className={`${inputClass} mt-1 ${statusTone[project.status]}`}>{Object.entries(PROJECT_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</CustomSelect></label>
           <label className="font-semibold text-slate-500">Owner<CustomSelect value={project.owner_id || ''} disabled={!canManage} onChange={(event) => void patch({ owner_id: event.target.value || null })} className={`${inputClass} mt-1`}><option value="">Unassigned</option>{users.filter((user) => user.accountStatus !== 'removed').map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect></label>
           <label className="font-semibold text-slate-500">Start<input type="date" value={project.start_date || ''} disabled={!canManage} onChange={(event) => void patch({ start_date: event.target.value || null })} className={`${inputClass} mt-1`} /></label>

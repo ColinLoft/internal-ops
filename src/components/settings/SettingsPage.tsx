@@ -9,9 +9,7 @@ import { AdminPage } from '../admin/AdminPage';
 
 type Section = 'profile' | 'general' | 'appearance' | 'notifications' | 'calls' | 'ai' | 'security' | 'privacy' | 'admin';
 
-const ACCENTS = [['#2569F5', 'Blue'], ['#0EA5E9', 'Sky'], ['#14B8A6', 'Teal'], ['#8B5CF6', 'Violet'], ['#EC4899', 'Pink'], ['#F59E0B', 'Amber']];
-
-const card = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm';
+const card = 'rounded-xl border border-slate-200 bg-white p-5';
 const input = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-brand-500';
 
 const Toggle: React.FC<{ label: string; description: string; checked: boolean; onChange: (value: boolean) => void }> = ({ label, description, checked, onChange }) => (
@@ -102,8 +100,8 @@ export const SettingsPage: React.FC = () => {
   return (
     <main data-onboarding-target="settings-workspace" className="flex-1 overflow-y-auto">
       <div className={`mx-auto p-5 sm:p-8 lg:p-10 ${section === 'admin' ? 'max-w-6xl' : 'max-w-5xl'}`}>
-        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Account</p>
-        <h1 className="mb-6 text-3xl font-bold text-slate-900">Settings</h1>
+        <h1 className="mb-2 text-2xl font-bold text-slate-900">Settings</h1>
+        <p className="mb-6 text-sm text-slate-500">Your Flown Ops account and preferences.</p>
         <div className="flex flex-col gap-6 md:flex-row">
           <nav aria-label="Settings sections" className="flex shrink-0 gap-1 overflow-x-auto md:w-52 md:flex-col">
             {nav.map(({ id, label, icon: Icon }) => (
@@ -158,15 +156,10 @@ export const SettingsPage: React.FC = () => {
             {section === 'appearance' && (
               <section className={card}>
                 <h2 className="text-lg font-bold text-slate-900">Appearance</h2>
-                <h3 className="mt-5 text-xs font-bold uppercase tracking-wide text-slate-400">Accent color</h3>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {ACCENTS.map(([color, name]) => (
-                    <button key={color} type="button" title={name} aria-label={`${name} accent`} aria-pressed={draft.accentColor.toLowerCase() === color.toLowerCase()} onClick={() => update('accentColor', color)} style={{ backgroundColor: color }} className={`flex h-8 w-8 items-center justify-center rounded-full ring-offset-2 ring-offset-transparent ${draft.accentColor.toLowerCase() === color.toLowerCase() ? 'ring-2 ring-slate-400' : ''}`}>
-                      {draft.accentColor.toLowerCase() === color.toLowerCase() && <Check className="h-4 w-4 text-white" />}
-                    </button>
-                  ))}
-                  <input type="color" value={draft.accentColor} onChange={(event) => update('accentColor', event.target.value)} aria-label="Custom accent color" className="h-8 w-10 cursor-pointer rounded-lg border border-slate-200 bg-white p-0.5" />
-                  <span className="font-mono text-xs text-slate-500">{draft.accentColor.toUpperCase()}</span>
+                <p className="mt-3 text-sm text-slate-500">Flown Ops uses our deep-navy theme and light-blue branding across every page. Light mode and custom accent colors are no longer available.</p>
+                <div className="mt-4 rounded-lg bg-slate-50 p-4">
+                  <p className="font-semibold text-slate-900">Flown Operations</p>
+                  <p className="mt-1 text-sm text-brand-600">People, products, and systems in one place.</p>
                 </div>
                 <h3 className="mt-6 text-xs font-bold uppercase tracking-wide text-slate-400">Text size</h3>
                 <div className="mt-2 inline-flex rounded-xl border border-slate-200 p-0.5">

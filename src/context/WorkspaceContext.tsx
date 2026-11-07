@@ -181,8 +181,8 @@ interface WorkspaceContextType {
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
-const STORAGE_PREFIX = 'beacon_v3_';
-type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'admin' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs' | 'wildfire';
+const STORAGE_PREFIX = 'flown_ops_v3_';
+type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'admin' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs' | 'wildfire' | 'systems';
 
 const tabFromPath = (pathname: string): WorkspaceTab | null => {
   const segment = pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
@@ -201,7 +201,8 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
   if (segment === 'calendar') return 'calendar';
   if (segment === 'email' || segment === 'inbox') return 'home';
   if (segment === 'admin') return 'settings';
-  if (segment === 'systems' || segment === 'settings') return 'settings';
+  if (segment === 'systems') return 'systems';
+  if (segment === 'settings') return 'settings';
   if (segment === 'drive' || segment === 'docs' || segment === 'slides' || segment === 'sheets') return 'home';
   if (segment === 'forms') return 'company';
   return null;
@@ -220,33 +221,9 @@ const pathForTab = (tab: WorkspaceTab) => ({
   messages: '/messages',
   channels: '/channels',
   calendar: '/calendar',
-  admin: '/systems',
+  admin: '/settings',
+  systems: '/systems',
 }[tab]);
-
-const BRAND_STEPS: [string, string, number][] = [
-  ['50', '#ffffff', 0.93], ['100', '#ffffff', 0.86], ['200', '#ffffff', 0.72], ['300', '#ffffff', 0.55],
-  ['400', '#ffffff', 0.3], ['500', '#ffffff', 0.3], ['700', '#000000', 0.15], ['800', '#000000', 0.3],
-  ['900', '#000000', 0.45], ['950', '#000000', 0.6],
-];
-
-const hexToRgb = (hex: string) => [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16));
-
-// Derives the whole brand scale from the accent so every brand utility follows it.
-const applyAccentPalette = (accent: string) => {
-  const root = document.documentElement.style;
-  const isDefault = accent.toLowerCase() === DEFAULT_WORKSPACE_SETTINGS.accentColor.toLowerCase();
-  const names = ['600', ...BRAND_STEPS.map(([name]) => name)];
-  if (isDefault || !/^#[0-9a-f]{6}$/i.test(accent)) {
-    names.forEach((name) => root.removeProperty(`--brand-${name}`));
-    return;
-  }
-  const base = hexToRgb(accent);
-  root.setProperty('--brand-600', base.join(' '));
-  BRAND_STEPS.forEach(([name, mixHex, amount]) => {
-    const mix = hexToRgb(mixHex);
-    root.setProperty(`--brand-${name}`, base.map((value, index) => Math.round(value + (mix[index] - value) * amount)).join(' '));
-  });
-};
 
 const getFunctionError = async (error: unknown): Promise<Error> => {
   if (error instanceof Error && 'context' in error && error.context instanceof Response) {
@@ -362,9 +339,7 @@ const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
   return {
     ...DEFAULT_WORKSPACE_SETTINGS,
     theme: 'dark',
-    accentColor: typeof preferences.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(preferences.accentColor)
-      ? preferences.accentColor
-      : DEFAULT_WORKSPACE_SETTINGS.accentColor,
+    accentColor: DEFAULT_WORKSPACE_SETTINGS.accentColor,
     microphoneDeviceId: typeof preferences.microphoneDeviceId === 'string' ? preferences.microphoneDeviceId : '',
     cameraDeviceId: typeof preferences.cameraDeviceId === 'string' ? preferences.cameraDeviceId : '',
     ringtone: ['classic', 'chime', 'pulse', 'soft'].includes(preferences.ringtone)
@@ -1132,6 +1107,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     setActiveThreadMessageId(null);
     if (typeof window !== 'undefined' && window.location.pathname !== pathForTab(tab)) {
       window.history.pushState({}, '', `${pathForTab(tab)}${window.location.search}${window.location.hash}`);
+      window.dispatchEvent(new PopStateEvent('popstate'));
     }
   };
 
@@ -1194,7 +1170,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     });
   };
 
-  const saveWorkspaceSettings = async (settings: WorkspaceSettings) => {
+  const saveWorkspaceSettings = async (requested: WorkspaceSettings) => {
+    const settings: WorkspaceSettings = { ...requested, theme: 'dark', accentColor: DEFAULT_WORKSPACE_SETTINGS.accentColor };
     const { data, error } = await supabase
       .from('profiles')
       .update({ preferences: settings })
@@ -1223,7 +1200,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     document.documentElement.dataset.theme = 'dark';
     document.documentElement.dataset.motion = workspaceSettings.reduceMotion ? 'reduced' : 'full';
     document.documentElement.style.fontSize = workspaceSettings.fontSize === 'small' ? '93.75%' : workspaceSettings.fontSize === 'large' ? '112.5%' : '';
-    applyAccentPalette(workspaceSettings.accentColor);
     sounds.setRingtone(workspaceSettings.ringtone);
   }, [workspaceSettings.theme, workspaceSettings.accentColor, workspaceSettings.ringtone, workspaceSettings.reduceMotion, workspaceSettings.fontSize]);
 
@@ -1461,7 +1437,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const resetWorkspace = () => {
     Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith('beacon_')) {
+      if (key.startsWith(STORAGE_PREFIX)) {
         localStorage.removeItem(key);
       }
     });
