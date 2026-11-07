@@ -2,6 +2,7 @@ import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Headset, Mail, MessageSquare, Plus, Search, Send, Sparkles, StickyNote, X, Wand2, Clock3, Copy } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { sendOperationalEmail } from '../../lib/operationalEmail';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAppAccess } from '../../lib/useAppAccess';
 import { PanelLayout } from '../common/PanelLayout';
@@ -49,7 +50,7 @@ const parseSummary = (raw: string | null): Summary | null => {
 const notifyChanged = () => window.dispatchEvent(new Event('flown-support-changed'));
 
 export const SupportInbox: React.FC = () => {
-  const { currentUser, users, requestEmailCompose, workspaceSettings } = useWorkspace();
+  const { currentUser, users, workspaceSettings } = useWorkspace();
   const { canEdit: isAgent } = useAppAccess('support');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [customers, setCustomers] = useState<Record<string, Customer>>({});
@@ -63,6 +64,8 @@ export const SupportInbox: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<'chat' | 'email' | 'note'>('chat');
+  const [mailboxes, setMailboxes] = useState<{ id: string; email: string }[]>([]);
+  const [mailboxId, setMailboxId] = useState('');
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState('');
   const [showNew, setShowNew] = useState(false);
@@ -72,6 +75,19 @@ export const SupportInbox: React.FC = () => {
   const selected = conversations.find((item) => item.id === selectedId) ?? null;
   const customer = selected ? customers[selected.customer_id] : undefined;
   const summary = parseSummary(selected?.summary ?? null);
+
+  useEffect(() => {
+    if (mode !== 'email') return;
+    let active = true;
+    void supabase.from('email_mailboxes').select('id,email').eq('mailbox_type', 'shared').order('email').then(({ data, error: mailboxError }) => {
+      if (!active) return;
+      if (mailboxError) { setError(mailboxError.message); return; }
+      const rows = data || [];
+      setMailboxes(rows);
+      setMailboxId((current) => rows.some((row) => row.id === current) ? current : rows.length === 1 ? rows[0].id : '');
+    });
+    return () => { active = false; };
+  }, [mode]);
 
   const loadConversations = useCallback(async () => {
     const { data, error: loadError } = await supabase.from('support_conversations').select(conversationColumns).order('last_message_at', { ascending: false }).limit(300);
@@ -154,12 +170,7 @@ export const SupportInbox: React.FC = () => {
     try {
       if (mode === 'email') {
         if (!customer.email) throw new Error('This customer has no email address.');
-        const { data: mailbox } = await supabase.from('email_mailboxes').select('id').limit(1).maybeSingle();
-        if (!mailbox) throw new Error('Connect a mailbox in Email before sending email replies.');
-        const { error: mailError } = await supabase.functions.invoke('mail-api', {
-          body: { action: 'send', mailboxId: mailbox.id, to: customer.email, subject: `Re: ${selected.subject}`, body },
-        });
-        if (mailError) throw new Error(mailError.message || 'Email could not be sent.');
+        await sendOperationalEmail({ mailboxId, to: customer.email, subject: `Re: ${selected.subject}`, body });
       }
       const { error: insertError } = await supabase.from('support_messages').insert({
         conversation_id: selected.id,
@@ -308,7 +319,6 @@ export const SupportInbox: React.FC = () => {
           <div className="flex gap-2">
             {customer.email && <button type="button" onClick={() => { setMode('email'); }} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"><Mail className="h-3.5 w-3.5" />Email</button>}
             <button type="button" onClick={() => { void navigator.clipboard.writeText(`${window.location.origin}/contact`); }} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"><Copy className="h-3.5 w-3.5" />Chat link</button>
-            <button type="button" onClick={() => requestEmailCompose()} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50" title="Open the email composer"><Mail className="h-3.5 w-3.5" /></button>
           </div>
 
           <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-3">
@@ -389,6 +399,13 @@ export const SupportInbox: React.FC = () => {
                   {workspaceSettings.aiSuggestedReplies && <button type="button" disabled={busy === 'suggest'} onClick={() => void runAi('suggest')} className="flex items-center gap-1 rounded-md bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-60"><Sparkles className="h-3 w-3" />{busy === 'suggest' ? 'Thinking…' : 'Suggest reply'}</button>}
                 </div>
                 {aiDraft && draft && <p className="mb-1.5 flex items-center gap-2 rounded-lg bg-violet-50 px-2 py-1 text-xs text-violet-800"><ProvenanceBadge kind="ai" />Review and edit before sending. Nothing is sent automatically.<button type="button" onClick={() => { setDraft(''); setAiDraft(false); }} className="ml-auto font-semibold hover:underline">Discard</button></p>}
+                  {mode === 'email' && <label className="mb-3 block text-xs text-slate-600">Send from shared mailbox
+                    <CustomSelect aria-label="Shared mailbox" value={mailboxId} onChange={(event) => setMailboxId(event.target.value)} className={`${inputClass} mt-1`}>
+                      <option value="">Choose a shared mailbox</option>
+                      {mailboxes.map((mailbox) => <option key={mailbox.id} value={mailbox.id}>{mailbox.email}</option>)}
+                    </CustomSelect>
+                    {!mailboxes.length && <span className="mt-1 block">No shared mailbox is available. Ask an administrator to configure operational email.</span>}
+                  </label>}
                 <div className="flex gap-2">
                   <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={2} maxLength={10000} aria-label="Reply"
                     onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void sendReply(); }}

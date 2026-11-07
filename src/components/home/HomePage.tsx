@@ -1,23 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, Clock3, Eye, EyeOff, FileText, FolderOpen, GripVertical, Headset, History, MessageSquare, Settings2, Sparkles, Target, Users, Flag, Mail, AlertTriangle, ListChecks } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, Clock3, Eye, EyeOff, GripVertical, Headset, History, MessageSquare, Settings2, Sparkles, Target, Users, Flag, Mail, AlertTriangle, ListChecks } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { EmptyState, ProvenanceBadge, Skeleton } from '../common/Feedback';
 
-type RecentFile = { id: string; name: string; item_type: string; updated_at: string };
 type MyTask = { id: string; title: string; status: string; priority: string; due_date: string | null; source: 'program' | 'operations' };
 type Activity = { id: string; entity_type: string; entity_id: string; action: string; detail: string | null; created_by: string | null; created_at: string };
 type Deadline = { id: string; title: string; date: string; kind: string; tab: 'programs' | 'company' };
 
 const WIDGETS = [
   ['tasks', 'My tasks'], ['events', 'Upcoming events'], ['deadlines', 'Deadlines'], ['attention', 'Needs attention'],
-  ['activity', 'Recent activity'], ['next', 'Suggested next actions'], ['files', 'Recent files'], ['mentions', 'Mentions & messages'],
+  ['activity', 'Recent activity'], ['next', 'Suggested next actions'], ['mentions', 'Mentions & messages'],
 ] as const;
 type WidgetId = typeof WIDGETS[number][0];
 const DEFAULT_ORDER: WidgetId[] = WIDGETS.map((item) => item[0]);
 const WIDE: WidgetId[] = ['mentions'];
 const STORAGE = 'flown-home-widgets-v2';
-const DEFAULT_HIDDEN: WidgetId[] = ['activity', 'files', 'mentions', 'next'];
+const DEFAULT_HIDDEN: WidgetId[] = ['activity', 'mentions', 'next'];
 
 const statusPill: Record<string, string> = { not_started: 'bg-slate-100 text-slate-600', in_progress: 'bg-brand-50 text-brand-700', blocked: 'bg-rose-50 text-rose-700', completed: 'bg-emerald-50 text-emerald-700', planned: 'bg-slate-100 text-slate-600', in_review: 'bg-amber-50 text-amber-700' };
 const priorityBar: Record<string, string> = { high: 'bg-rose-400', medium: 'bg-amber-300', low: 'bg-slate-200', urgent: 'bg-rose-500' };
@@ -52,7 +51,6 @@ const loadConfig = (): { order: WidgetId[]; hidden: WidgetId[] } => {
 
 export const HomePage: React.FC = () => {
   const { currentUser, users, calendarEvents, conversations, channels, messages, notifications, setActiveTab, setActiveConversationId, setActiveChannelId, setIsAddEventOpen } = useWorkspace();
-  const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [myTasks, setMyTasks] = useState<MyTask[]>([]);
   const [activity, setActivity] = useState<Activity[]>([]);
   const [deadlines, setDeadlines] = useState<Deadline[]>([]);
@@ -73,8 +71,7 @@ export const HomePage: React.FC = () => {
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const [files, programs, operations, feed, reports, support] = await Promise.all([
-        supabase.from('drive_items').select('id, name, item_type, updated_at').is('deleted_at', null).neq('item_type', 'folder').order('updated_at', { ascending: false }).limit(5),
+      const [programs, operations, feed, reports, support] = await Promise.all([
         currentUser.id ? supabase.from('program_tasks').select('id,title,status,priority,due_date').contains('assigned_ids', [currentUser.id]).neq('status', 'completed') : Promise.resolve({ data: [] }),
         currentUser.id ? supabase.from('operation_tasks').select('id,title,status,priority,due_date').eq('assignee_id', currentUser.id).not('status', 'in', '(completed,cancelled)') : Promise.resolve({ data: [] }),
         supabase.from('entity_activity').select('id,entity_type,entity_id,action,detail,created_by,created_at').order('created_at', { ascending: false }).limit(8),
@@ -82,7 +79,6 @@ export const HomePage: React.FC = () => {
         supabase.from('support_conversations').select('id', { count: 'exact', head: true }).eq('status', 'open'),
       ]);
       if (!active) return;
-      setRecentFiles((files.data || []) as RecentFile[]);
       setMyTasks([
         ...((programs.data || []) as Omit<MyTask, 'source'>[]).map((task) => ({ ...task, source: 'program' as const })),
         ...((operations.data || []) as Omit<MyTask, 'source'>[]).map((task) => ({ ...task, source: 'operations' as const })),
@@ -193,12 +189,6 @@ export const HomePage: React.FC = () => {
           <button type="button" onClick={item.go} className="shrink-0 rounded-md bg-brand-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-brand-700">{item.action}</button>
         </div>
       )) : <EmptyState icon={Sparkles} text="Nothing urgent. Enjoy the quiet." />;
-      case 'files': return recentFiles.length ? recentFiles.map((file) => (
-        <button key={file.id} type="button" onClick={() => setActiveTab('drive')} className={row}>
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-100 text-brand-700"><FileText className="h-3.5 w-3.5" /></span>
-          <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-800">{file.name}</span><span className="text-[11px] text-slate-400">{file.item_type} · {new Date(file.updated_at).toLocaleDateString()}</span></span>
-        </button>
-      )) : <EmptyState icon={FolderOpen} text="Your recent Drive files will appear here." action="Open Drive" onClick={() => setActiveTab('drive')} />;
       case 'mentions': return (
         <div className="grid gap-1 md:grid-cols-2">
           {mentions.map((message) => { const channel = channels.find((item) => item.id === message.conversationId); return (
@@ -223,7 +213,7 @@ export const HomePage: React.FC = () => {
     events: { label: 'Add event', go: () => { setActiveTab('calendar'); setIsAddEventOpen(true); } },
     deadlines: { label: 'View all', go: goTasks },
   };
-  const icons: Record<WidgetId, React.ElementType> = { tasks: Target, events: CalendarDays, deadlines: Flag, attention: CheckCircle2, activity: History, next: Sparkles, files: FolderOpen, mentions: MessageSquare };
+  const icons: Record<WidgetId, React.ElementType> = { tasks: Target, events: CalendarDays, deadlines: Flag, attention: CheckCircle2, activity: History, next: Sparkles, mentions: MessageSquare };
   const visible = config.order.filter((id) => !config.hidden.includes(id));
   const move = (id: WidgetId, delta: number) => {
     const index = config.order.indexOf(id);
@@ -249,7 +239,6 @@ export const HomePage: React.FC = () => {
           <div className="min-w-0"><h1 className="text-lg font-bold tracking-tight text-slate-900">{greeting}, {firstName}</h1><p className="text-xs text-slate-500">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} · {overdueTasks.length ? `${overdueTasks.length} overdue task${overdueTasks.length === 1 ? '' : 's'} need attention` : 'Nothing overdue'}</p></div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setActiveTab('calendar')} className={heroBtn}><CalendarDays className="h-3.5 w-3.5" />Calendar</button>
-            <button type="button" onClick={() => setActiveTab('drive')} className={heroBtn}><FolderOpen className="h-3.5 w-3.5" />Drive</button>
             <button type="button" onClick={() => setEditing((value) => !value)} aria-pressed={editing} className={heroBtn}><Settings2 className="h-3.5 w-3.5" />{editing ? 'Done' : 'Customize'}</button>
           </div>
         </section>

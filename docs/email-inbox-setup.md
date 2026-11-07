@@ -1,5 +1,7 @@
 # Email inbox setup: step-by-step
 
+> **Archived guide:** The personal-email inbox and its composer have been retired. Do not use the personal-account connection or frontend instructions below for a new deployment. Shared operational email is retained for support and automation; see [Workspace integrations](./workspace-integrations.md) for the current scope.
+
 This guide walks through setting up the workspace email inbox with Microsoft 365. First connect a personal mailbox, then configure optional push notifications and AI if you need them.
 
 The inbox stores synchronized email content in Supabase. Access is controlled by the workspace, and administrators can set how long message content is retained. Connecting a provider grants the app permission to read, change read/star/archive status, and send mail for the account. AI features are optional and only send a message to Azure OpenAI when a user explicitly chooses an AI action.

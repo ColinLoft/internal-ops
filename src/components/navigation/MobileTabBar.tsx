@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { House, MessageSquare, Mail, Calendar as CalendarIcon, Menu } from 'lucide-react';
+import { House, MessageSquare, ClipboardList, Calendar as CalendarIcon, Menu } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { getSectionTabs, isSectionSelected } from './sectionTabs';
 
@@ -29,7 +29,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({ isMenuOpen, onToggle
       badge: unread,
       onSelect: () => setActiveTab('messages'),
     },
-    { label: 'Email', icon: Mail, isActive: activeTab === 'inbox', onSelect: () => setActiveTab('inbox') },
+    { label: 'Tasks', icon: ClipboardList, isActive: activeTab === 'programs', onSelect: () => setActiveTab('programs') },
     { label: 'Calendar', icon: CalendarIcon, isActive: activeTab === 'calendar', onSelect: () => setActiveTab('calendar') },
   ];
 

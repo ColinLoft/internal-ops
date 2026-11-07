@@ -46,7 +46,8 @@ Deno.serve(async (request: Request) => {
 
   if (action === 'authorize') {
     const provider = payload.provider === 'microsoft' ? payload.provider : null;
-    const mailboxType = payload.mailboxType === 'shared' ? 'shared' : 'personal';
+    if (payload.mailboxType !== 'shared') return jsonResponse({ error: 'Personal mailbox connections have been retired. Use your email provider.' }, 400);
+    const mailboxType = 'shared';
     const targetEmail = typeof payload.targetEmail === 'string' ? payload.targetEmail.trim().toLowerCase() : '';
     if (!provider) return jsonResponse({ error: 'Only Microsoft 365 mailboxes are supported.' }, 400);
     if (mailboxType === 'shared') {
@@ -133,6 +134,7 @@ Deno.serve(async (request: Request) => {
     .maybeSingle();
   if (stateError) return jsonResponse({ error: `Mailbox authorization state could not be consumed: ${stateError.message}` }, 500);
   if (!oauthState) return jsonResponse({ error: 'Mailbox authorization expired or could not be verified. Start the connection again.' }, 400);
+  if (oauthState.mailbox_type !== 'shared') return jsonResponse({ error: 'Personal mailbox connections have been retired.' }, 400);
 
   const provider = oauthState.provider as 'microsoft' | 'google';
   const redirectUri = Deno.env.get('MAIL_REDIRECT_URI');

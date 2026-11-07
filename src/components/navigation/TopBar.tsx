@@ -1,17 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, PanelLeft, Plus, MessageSquarePlus, MailPlus, CalendarPlus } from 'lucide-react';
+import { Bell, PanelLeft, Plus, MessageSquarePlus, CalendarPlus } from 'lucide-react';
 import { WorkspaceAssistant } from '../assistant/WorkspaceAssistant';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 
 export const appLabels: Record<string, string> = {
-  home: 'Home', messages: 'Messages', channels: 'Channels', calendar: 'Calendar', inbox: 'Email', drive: 'Drive',
+  home: 'Home', messages: 'Messages', channels: 'Channels', calendar: 'Calendar',
   engineering: 'Products', company: 'Company', customers: 'Customers',
   programs: 'Tasks', admin: 'Settings', settings: 'Settings', insights: 'Insights'
 };
 
 export const TopBar: React.FC = () => {
-  const { setActiveTab, unreadNotificationCount, setIsNewMessageOpen, setIsAddEventOpen, requestEmailCompose, workspaceSettings } = useWorkspace();
+  const { setActiveTab, unreadNotificationCount, setIsNewMessageOpen, setIsAddEventOpen, workspaceSettings } = useWorkspace();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isQuickOpen, setIsQuickOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
@@ -37,7 +37,6 @@ export const TopBar: React.FC = () => {
 
   const quickItems = [
     { label: 'New chat', hint: 'Direct or group message', icon: MessageSquarePlus, run: () => { setActiveTab('messages'); setIsNewMessageOpen(true); } },
-    { label: 'New email', hint: 'Open the composer', icon: MailPlus, run: () => requestEmailCompose() },
     { label: 'New event', hint: 'Add to the calendar', icon: CalendarPlus, run: () => { setActiveTab('calendar'); setIsAddEventOpen(true); } },
   ];
 

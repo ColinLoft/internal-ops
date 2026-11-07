@@ -124,8 +124,8 @@ Deno.serve(async (request: Request) => {
       if (emailError) return jsonResponse({ error: `Email context could not be loaded: ${emailError.message}` }, 400);
       if (!email) return jsonResponse({ error: 'The selected email could not be found.' }, 404);
       const { data: mailbox } = await adminClient.from('email_mailboxes')
-        .select('id, connected_by').eq('id', email.mailbox_id).maybeSingle();
-      if (!mailbox || (mailbox.connected_by !== user.id
+        .select('id, connected_by, mailbox_type').eq('id', email.mailbox_id).maybeSingle();
+      if (!mailbox || mailbox.mailbox_type !== 'shared' || (mailbox.connected_by !== user.id
         && !(await adminClient.from('email_mailbox_access').select('user_id').eq('mailbox_id', mailbox.id).eq('user_id', user.id).maybeSingle()).data)) {
         return jsonResponse({ error: 'You do not have access to the selected email.' }, 403);
       }

@@ -10,11 +10,9 @@ import {
   Check,
   Code2,
   FolderKanban,
-  HardDrive,
   ImagePlus,
   Lightbulb,
   LoaderCircle,
-  Mail,
   MessageSquare,
   Settings,
   UserRound,
@@ -27,7 +25,7 @@ import { PROFILE_BANNERS, ProfileBanner } from '../../types';
 type TourStep = {
   title: string;
   description: string;
-  tab?: 'home' | 'messages' | 'calendar' | 'inbox' | 'drive' | 'programs' | 'customers' | 'company' | 'engineering' | 'insights' | 'settings';
+  tab?: 'home' | 'messages' | 'calendar' | 'programs' | 'customers' | 'company' | 'engineering' | 'insights' | 'settings';
   target: string;
   icon: React.ComponentType<{ className?: string }>;
   action: string;
@@ -54,7 +52,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     title: 'Tasks and project work',
-    description: 'Track shared tasks here, including tasks created inside Software, Mechanical, Electrical, and Systems projects. Filter by owner, status, or project.',
+    description: 'Use Board or Calendar for shared tasks, assign multiple people, or claim unassigned work. Editing notes or moving tasks does not assign them to you.',
     tab: 'programs',
     target: 'tasks-workspace',
     icon: FolderKanban,
@@ -66,27 +64,11 @@ const TOUR_STEPS: TourStep[] = [
     tab: 'calendar',
     target: 'calendar-controls',
     icon: CalendarDays,
-    action: 'Visit Drive',
-  },
-  {
-    title: 'Files and collaborative work',
-    description: 'Drive stores shared files and folders, with Docs, Sheets, Slides, and Forms for creating and editing workspace materials.',
-    tab: 'drive',
-    target: 'drive-workspace',
-    icon: HardDrive,
-    action: 'Check your email',
-  },
-  {
-    title: 'Workspace email',
-    description: 'Use the shared inbox to read and organize email, compose messages, and coordinate follow-ups with the team.',
-    tab: 'inbox',
-    target: 'email-workspace',
-    icon: Mail,
     action: 'Open Customers',
   },
   {
     title: 'Customers and support',
-    description: 'Keep customer and funder organizations, contacts, contracts, and history in one place. Customer support tickets are under Customers → Support.',
+    description: 'Keep companies, contacts, uploaded PDF contracts, signatures, and version history together. Support handles customer conversations; personal email stays with your email provider.',
     tab: 'customers',
     target: 'customers-workspace',
     icon: Building2,
@@ -94,7 +76,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     title: 'Company-wide work',
-    description: 'Company brings ideas, marketing, grants and grant resources, and Website policy/support content together.',
+    description: 'Company brings shareable Forms, Automation, ideas, marketing, grants and grant resources, and Website content together.',
     tab: 'company',
     target: 'company-workspace',
     icon: Lightbulb,
@@ -248,10 +230,22 @@ export const FirstLoginOnboarding: React.FC = () => {
         avatar,
         banner,
       });
-      const { data: documents } = await supabase.from('organization_documents').select('*').eq('status', 'published').eq('required_onboarding', true).order('created_at');
-      setRequiredDocuments((documents || []) as OrganizationDocument[]);
+      const [{ data: documents }, { data: responses }, { data: versions }] = await Promise.all([
+        supabase.from('organization_documents').select('*').eq('status', 'published').eq('required_onboarding', true).order('created_at'),
+        supabase.from('organization_document_responses').select('document_id,document_version_id').eq('user_id', currentUser.id),
+        supabase.from('organization_document_versions').select('id,document_id,storage_path'),
+      ]);
+      const currentVersionIds = new Map((versions || []).map((version) => [`${version.document_id}:${version.storage_path}`, version.id]));
+      const completedVersions = new Set((responses || []).map((response) =>
+        `${response.document_id}:${response.document_version_id || ''}`,
+      ));
+      const pendingDocuments = (documents || []).filter((document) => {
+        const versionId = currentVersionIds.get(`${document.id}:${document.storage_path}`);
+        return !versionId || !completedVersions.has(`${document.id}:${versionId}`);
+      });
+      setRequiredDocuments(pendingDocuments as OrganizationDocument[]);
       setDocumentIndex(0);
-      if (documents?.length) {
+      if (pendingDocuments.length) {
         setStage('policy');
       } else {
         setStage('tour');
@@ -293,7 +287,6 @@ export const FirstLoginOnboarding: React.FC = () => {
   if (stage === 'policy' && requiredDocuments[documentIndex]) {
     return <DocumentSigningDialog
       document={requiredDocuments[documentIndex]}
-      userId={currentUser.id}
       onComplete={() => {
         if (documentIndex + 1 < requiredDocuments.length) {
           setDocumentIndex((index) => index + 1);

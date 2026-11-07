@@ -24,8 +24,7 @@ import { NewMessageModal } from './components/modals/NewMessageModal';
 import { AddEventModal } from './components/modals/AddEventModal';
 import { AddTeammateModal } from './components/modals/AddTeammateModal';
 import { InviteReadyModal } from './components/modals/InviteReadyModal';
-import { EmailInboxPage } from './components/email/EmailInboxPage';
-import { DrivePage } from './components/drive/DrivePage';
+import { isRetiredWorkspacePath, RetiredWorkspacePage } from './components/RetiredWorkspacePage';
 import { AccessGate } from './components/common/AccessGate';
 import { CustomerPage } from './components/customers/CustomerPage';
 import { CompanyPage } from './components/company/CompanyPage';
@@ -40,6 +39,12 @@ import { WildfireSolutionsPage } from './components/wildfire/WildfireSolutionsPa
 
 const PublicChatPage = lazy(async () => ({
   default: (await import('./components/support/PublicChatPage')).PublicChatPage,
+}));
+const PublicFormPage = lazy(async () => ({
+  default: (await import('./components/forms/PublicFormPage')).PublicFormPage,
+}));
+const PublicContractSigning = lazy(async () => ({
+  default: (await import('./components/customers/PublicContractSigning')).PublicContractSigning,
 }));
 const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
@@ -66,6 +71,7 @@ const WorkspaceShell: React.FC = () => {
     setInviteReadyData,
   } = useWorkspace();
   useOverlayA11y();
+  const [routePath, setRoutePath] = useState(() => window.location.pathname);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [mobileChatPane, setMobileChatPane] = useState<'list' | 'feed'>('list');
   const [bugReportOpen, setBugReportOpen] = useState(false);
@@ -77,7 +83,7 @@ const WorkspaceShell: React.FC = () => {
   }, [activeTab]);
 
   useEffect(() => {
-    const closeNav = () => setIsNavOpen(false);
+    const closeNav = () => { setIsNavOpen(false); setRoutePath(window.location.pathname); };
     const openNavForTour = () => setIsNavOpen(true);
     const finishTour = () => setIsNavOpen(false);
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsNavOpen(false); };
@@ -93,7 +99,23 @@ const WorkspaceShell: React.FC = () => {
     };
   }, []);
 
-  if (/^\/contact\/?$/.test(window.location.pathname)) {
+  useEffect(() => {
+    const legacyForm = routePath.match(/^\/forms(?:\/([^/]+))?\/?$/);
+    if (!legacyForm) return;
+    window.history.replaceState({}, '', `/company/forms${legacyForm[1] ? `?form=${encodeURIComponent(legacyForm[1])}` : ''}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, [routePath]);
+
+  const publicForm = routePath.match(/^\/company\/forms\/respond\/([^/]+)\/?$/);
+  if (publicForm) {
+    return <Suspense fallback={<div role="status" className="p-6">Loading form...</div>}><PublicFormPage token={publicForm[1]} /></Suspense>;
+  }
+
+  if (/^\/contract-signature\/?$/.test(routePath)) {
+    return <Suspense fallback={<div role="status" className="p-6">Loading document...</div>}><PublicContractSigning token={new URLSearchParams(window.location.search).get('token') || ''} /></Suspense>;
+  }
+
+  if (/^\/contact\/?$/.test(routePath)) {
     return <Suspense fallback={null}><PublicChatPage /></Suspense>;
   }
 
@@ -106,7 +128,7 @@ const WorkspaceShell: React.FC = () => {
     return <AuthScreen />;
   }
 
-  if (!isKnownPath(window.location.pathname)) {
+  if (!isKnownPath(routePath) && !isRetiredWorkspacePath(routePath)) {
     return (
       <>
         <NotFoundPage
@@ -145,6 +167,7 @@ const WorkspaceShell: React.FC = () => {
         {/* Workspace Body */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#fafbfc]">
           <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+          {isRetiredWorkspacePath(routePath) ? <RetiredWorkspacePage /> : <>
           {activeTab === 'home' && <HomePage />}
           {activeTab === 'customers' && <AccessGate app="customers" name="Customers"><CustomerPage /></AccessGate>}
           {activeTab === 'company' && <CompanyPage />}
@@ -186,8 +209,7 @@ const WorkspaceShell: React.FC = () => {
           )}
 
           {activeTab === 'calendar' && <CalendarView />}
-          {activeTab === 'inbox' && <EmailInboxPage />}
-          {activeTab === 'drive' && <DrivePage />}
+          </>}
           </div>
         </div>
       </div>

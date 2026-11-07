@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, Mail, FolderKanban, Code2, HardDrive, UsersRound, Building2, Settings, ChevronsUpDown, Bug, LogOut, PanelLeftClose, Flame,
+  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, FolderKanban, Code2, UsersRound, Building2, Settings, ChevronsUpDown, Bug, LogOut, PanelLeftClose, Flame,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAllAppAccess } from '../../lib/useAppAccess';
@@ -16,9 +16,7 @@ const overviewItems: NavItem[] = [
   { id: 'home', label: 'Home', icon: House },
   { id: 'messages', label: 'Messages', icon: MessageSquare },
   { id: 'programs', label: 'Tasks', icon: FolderKanban },
-  { id: 'inbox', label: 'Email', icon: Mail },
   { id: 'calendar', label: 'Calendar', icon: CalendarIcon },
-  { id: 'drive', label: 'Drive', icon: HardDrive },
   { id: 'insights', label: 'Insights', icon: Lightbulb },
 ];
 const appDropdowns: NavItem[] = [

@@ -224,7 +224,7 @@ export const AttachmentsPanel: React.FC<Props> = ({ entityType, entityId }) => {
 type LinkRow = { id: string; link_type: string; target_id: string | null; label: string; url: string | null };
 export const LinksPanel: React.FC<Props> = ({ entityType, entityId }) => {
   const { rows, error, load } = useRows<LinkRow>('entity_links', entityType, entityId);
-  const [kind, setKind] = useState<'drive' | 'calendar' | 'url'>('drive');
+  const [kind, setKind] = useState<'calendar' | 'url'>('url');
   const [options, setOptions] = useState<{ id: string; label: string }[]>([]);
   const [selected, setSelected] = useState('');
   const [url, setUrl] = useState('');
@@ -235,12 +235,11 @@ export const LinksPanel: React.FC<Props> = ({ entityType, entityId }) => {
     setSelected('');
     if (kind === 'url') { setOptions([]); return; }
     let active = true;
-    const request = kind === 'drive'
-      ? supabase.from('drive_items').select('id,name').is('deleted_at', null).neq('item_type', 'folder').order('updated_at', { ascending: false }).limit(100)
-      : supabase.from('calendar_events').select('id,title,date').order('date', { ascending: false }).limit(100);
-    void request.then(({ data }) => {
+    const request = supabase.from('calendar_events').select('id,title,date').order('date', { ascending: false }).limit(100);
+    void request.then(({ data, error: queryError }) => {
       if (!active) return;
-      setOptions(((data || []) as Record<string, string>[]).map((row) => ({ id: row.id, label: kind === 'drive' ? row.name : `${row.title} · ${row.date}` })));
+      if (queryError) { setMessage(queryError.message); setOptions([]); return; }
+      setOptions(((data || []) as Record<string, string>[]).map((row) => ({ id: row.id, label: `${row.title} · ${row.date}` })));
     });
     return () => { active = false; };
   }, [kind]);
@@ -258,9 +257,31 @@ export const LinksPanel: React.FC<Props> = ({ entityType, entityId }) => {
     void logActivity(entityType, entityId, 'linked', kind === 'url' ? (label || url) : chosen?.label);
     await load();
   };
-  const open = (row: LinkRow) => {
+  const open = async (row: LinkRow) => {
+    setMessage('');
     if (row.url) { window.open(row.url, '_blank', 'noopener,noreferrer'); return; }
-    window.history.pushState({}, '', row.link_type === 'drive' ? '/drive' : '/calendar');
+    if (row.link_type === 'drive') {
+      const { data: item, error: lookupError } = await supabase.from('drive_items').select('name,storage_path,content').eq('id', row.target_id).single();
+      if (lookupError) { setMessage(`Archived attachment could not be loaded: ${lookupError.message}`); return; }
+      let href: string;
+      let temporary = false;
+      if (item.storage_path) {
+        const { data, error: urlError } = await supabase.storage.from('drive-files').createSignedUrl(item.storage_path, 60);
+        if (urlError) { setMessage(urlError.message); return; }
+        href = data.signedUrl;
+      } else {
+        href = URL.createObjectURL(new Blob([JSON.stringify(item.content, null, 2)], { type: 'application/json' }));
+        temporary = true;
+      }
+      const link = document.createElement('a');
+      link.href = href;
+      link.download = temporary ? `${item.name}.json` : item.name;
+      link.rel = 'noopener noreferrer';
+      link.click();
+      if (temporary) window.setTimeout(() => URL.revokeObjectURL(href), 1000);
+      return;
+    }
+    window.history.pushState({}, '', '/calendar');
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
   return (
@@ -268,7 +289,7 @@ export const LinksPanel: React.FC<Props> = ({ entityType, entityId }) => {
       <Title icon={Link2}>Linked items</Title>
       {(error || message) && <p role="alert" className="mb-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error || message}</p>}
       <div className="flex flex-wrap gap-2">
-        <CustomSelect value={kind} onChange={(event) => setKind(event.target.value as typeof kind)} className={`${field} w-36`} aria-label="Link type"><option value="drive">Drive file</option><option value="calendar">Calendar event</option><option value="url">Web link</option></CustomSelect>
+        <CustomSelect value={kind} onChange={(event) => setKind(event.target.value as typeof kind)} className={`${field} w-36`} aria-label="Link type"><option value="calendar">Calendar event</option><option value="url">External document or web link</option></CustomSelect>
         {kind === 'url' ? (<><input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://…" className={`${field} min-w-0 flex-1`} /><input value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Label (optional)" className={`${field} w-40`} /></>) : (
           <CustomSelect value={selected} onChange={(event) => setSelected(event.target.value)} className={`${field} min-w-0 flex-1`} aria-label="Item"><option value="">Choose…</option>{options.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</CustomSelect>
         )}
@@ -276,7 +297,7 @@ export const LinksPanel: React.FC<Props> = ({ entityType, entityId }) => {
       </div>
       <ul className="mt-3 space-y-1">
         {rows.map((row) => (
-          <li key={row.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs"><button type="button" onClick={() => open(row)} className="flex min-w-0 items-center gap-2 text-left font-semibold text-slate-700 hover:text-brand-600"><ExternalLink className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{row.label}</span><span className="text-slate-400">{row.link_type}</span></button><button type="button" aria-label="Remove link" onClick={() => void supabase.from('entity_links').delete().eq('id', row.id).then(() => load())} className="text-slate-400 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button></li>
+          <li key={row.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs"><button type="button" onClick={() => void open(row)} className="flex min-w-0 items-center gap-2 text-left font-semibold text-slate-700 hover:text-brand-600"><ExternalLink className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{row.label}</span><span className="text-slate-400">{row.link_type === 'drive' ? 'Download archived source' : row.link_type}</span></button><button type="button" aria-label="Remove link" onClick={() => void supabase.from('entity_links').delete().eq('id', row.id).then(() => load())} className="text-slate-400 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button></li>
         ))}
         {!rows.length && <li className="text-xs text-slate-400">Nothing linked yet.</li>}
       </ul>

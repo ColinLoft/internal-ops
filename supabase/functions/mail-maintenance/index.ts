@@ -72,6 +72,7 @@ const processScheduledSends = async (adminClient: ReturnType<typeof createClient
         .maybeSingle();
       if (mailboxError) throw new Error(`Mailbox could not be loaded: ${mailboxError.message}`);
       if (!mailbox) throw new Error('The scheduled mailbox no longer exists.');
+      if (mailbox.mailbox_type !== 'shared') throw new Error('Personal scheduled email has been retired. Send this message from your email provider.');
       if (mailbox.provider !== 'microsoft') throw new Error('Scheduled delivery is currently supported for Microsoft 365 only.');
       const accessToken = await getAccessToken(adminClient, mailbox);
       const userPath = mailbox.mailbox_type === 'shared' ? `users/${encodeURIComponent(mailbox.email)}` : 'me';
@@ -189,7 +190,8 @@ Deno.serve(async (request: Request) => {
 
   const { data: mailboxes, error: mailboxError } = await adminClient
     .from('email_mailboxes')
-    .select('id, provider, mailbox_type, email, google_history_id, graph_subscription_id, graph_client_state, push_expires_at');
+    .select('id, provider, mailbox_type, email, google_history_id, graph_subscription_id, graph_client_state, push_expires_at')
+    .eq('mailbox_type', 'shared');
   if (mailboxError) return jsonResponse({ error: `Mailboxes could not be loaded: ${mailboxError.message}` }, 500);
 
   const renewed: string[] = [];

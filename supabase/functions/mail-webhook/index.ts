@@ -65,6 +65,7 @@ Deno.serve(async (request: Request) => {
         .from('email_mailboxes')
         .select('id, graph_client_state')
         .eq('provider', 'microsoft')
+        .eq('mailbox_type', 'shared')
         .eq('graph_subscription_id', item.subscriptionId)
         .maybeSingle();
       if (!mailbox || mailbox.graph_client_state !== item.clientState) continue;
@@ -119,6 +120,7 @@ Deno.serve(async (request: Request) => {
     .from('email_mailboxes')
     .select('*')
     .eq('provider', 'google')
+    .eq('mailbox_type', 'shared')
     .eq('email', email)
     .maybeSingle();
   if (!mailbox) return response(JSON.stringify({ ignored: true }), 202);

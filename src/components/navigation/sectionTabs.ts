@@ -48,6 +48,8 @@ export const getSectionTabs = (activeTab: string, _routePath: string): SectionTa
     case 'company':
       return [
         tab('Ideas', 'Ideas', Lightbulb, '/company/ideas', ['/company']),
+        tab('Forms', 'Forms', ClipboardList, '/company/forms'),
+        tab('Automation', 'Automation', Cog, '/company/automation'),
         tab('Grants', 'Grants', Landmark, '/company/grants', undefined, 'finance'),
         tab('Find Grants', 'Find', Target, '/company/prospects', undefined, 'finance'),
         tab('Grant Resources', 'Library', BookOpen, '/company/resources', undefined, 'finance'),

@@ -1,14 +1,15 @@
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDownToLine, ArrowLeft, CalendarClock, Check, ChevronRight, Clock3, FilePlus2, FileText, Plus, RefreshCw, Search, Send, Trash2, Upload, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeft, CalendarClock, Check, ChevronRight, Clock3, Copy, FilePlus2, FileText, Link, Plus, RefreshCw, Search, Send, Upload, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAppAccess } from '../../lib/useAppAccess';
 import { useConfirm } from '../common/useConfirm';
+import { isPdfHeader, sha256Hex } from '../../lib/pdfFiles';
 
 type ContractStatus = 'draft' | 'pending_signature' | 'active' | 'renewal_due' | 'ended' | 'expired';
 type ContractType = 'service' | 'partnership' | 'grant' | 'nda' | 'vendor' | 'other';
-type FileKind = 'document' | 'signed_copy' | 'amendment' | 'other';
+type FileKind = 'document' | 'original_pdf' | 'signed_copy' | 'amendment' | 'other';
 type Contract = {
   id: string;
   organization_id: string | null;
@@ -35,8 +36,9 @@ type Contract = {
 };
 type Org = { id: string; name: string };
 type Contact = { id: string; organization_id: string | null; name: string; email: string | null };
-type ContractFile = { id: string; contract_id: string; file_name: string; storage_path: string; file_size: number | null; file_kind: FileKind; created_at: string };
+type ContractFile = { id: string; contract_id: string; file_name: string; storage_path: string; file_size: number | null; mime_type: string | null; file_kind: FileKind; version_number: number; sha256: string | null; source_file_id: string | null; created_at: string };
 type ContractEvent = { id: string; actor_id: string | null; event_type: string; details: string; created_at: string };
+type SignatureLink = { contractId: string; requestId: string; url: string; expiresAt: string };
 type FormValues = Pick<Contract, 'organization_id' | 'contact_id' | 'name' | 'contract_type' | 'description' | 'value' | 'currency' | 'start_date' | 'end_date' | 'renewal_date' | 'auto_renew' | 'counterparty_name' | 'counterparty_email' | 'owner_id'>;
 
 const statuses: ContractStatus[] = ['draft', 'pending_signature', 'active', 'renewal_due', 'ended', 'expired'];
@@ -54,6 +56,7 @@ const label = (value: string) => value.replace(/_/g, ' ').replace(/^\w/, (char) 
 const fmt = (value: string | null) => value ? new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 const bytes = (value: number | null) => !value ? '' : value < 1024 * 1024 ? `${Math.round(value / 1024)} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`;
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const isPdfFile = (file: ContractFile) => file.mime_type === 'application/pdf';
 
 const blankForm = (): FormValues => ({
   organization_id: null, contact_id: null, name: '', contract_type: 'other', description: '', value: null,
@@ -64,12 +67,13 @@ const blankForm = (): FormValues => ({
 export const ContractSuite: React.FC = () => {
   const { currentUser, users } = useWorkspace();
   const { confirm, dialog: confirmDialog } = useConfirm();
-  const { canEdit, canManage } = useAppAccess('customers');
+  const { canEdit } = useAppAccess('customers');
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [files, setFiles] = useState<ContractFile[]>([]);
   const [events, setEvents] = useState<ContractEvent[]>([]);
+  const [signatureLink, setSignatureLink] = useState<SignatureLink | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<ContractStatus | 'all'>('all');
@@ -116,6 +120,7 @@ export const ContractSuite: React.FC = () => {
     if (selectedId) void loadDetails(selectedId);
     else { setFiles([]); setEvents([]); }
   }, [loadDetails, selectedId]);
+  useEffect(() => { setSignatureLink(null); }, [selectedId]);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -172,6 +177,10 @@ export const ContractSuite: React.FC = () => {
   };
 
   const prepareSignatureEmail = async (contract: Contract) => {
+    if (!files.some((file) => (file.file_kind === 'original_pdf' || file.file_kind === 'document') && isPdfFile(file))) {
+      setError('Upload the original agreement PDF before preparing a signature request.');
+      return;
+    }
     if (!contract.counterparty_email || !isValidEmail(contract.counterparty_email)) {
       setError('Add a valid counterparty email before preparing the signature request.');
       setEditing(contract);
@@ -185,21 +194,86 @@ export const ContractSuite: React.FC = () => {
     await appendEvent(contract.id, 'signature_email_prepared', `Email draft prepared for ${contract.counterparty_email}; it has not been sent yet.`);
     const subject = encodeURIComponent(`Signature requested: ${contract.name}`);
     const body = encodeURIComponent(
-      `Hello ${contract.counterparty_name || 'there'},\n\nPlease review and sign the attached agreement, "${contract.name}".\n\nPlease reply with the signed copy or contact us with any questions.\n\nRegards`,
+      `Hello ${contract.counterparty_name || 'there'},\n\nPlease review and sign the attached agreement, "${contract.name}". Attach the original agreement PDF from our workspace before sending.\n\nPlease reply with the signed copy or contact us with any questions.\n\nRegards`,
     );
     window.location.href = `mailto:${encodeURIComponent(contract.counterparty_email)}?subject=${subject}&body=${body}`;
   };
 
+  const createSignatureLink = async (contract: Contract) => {
+    const original = files.filter((file) => (file.file_kind === 'original_pdf' || file.file_kind === 'document') && isPdfFile(file))
+      .sort((left, right) => right.created_at.localeCompare(left.created_at) || right.id.localeCompare(left.id))[0];
+    if (!original) { setError('Upload an original agreement PDF before creating a signing link.'); return; }
+    setBusy(true);
+    setError('');
+    const { data, error: linkError } = await supabase.functions.invoke('create-contract-signature-link', {
+      body: { action: 'create', contractId: contract.id, sourceFileId: original.id },
+    });
+    if (linkError) {
+      const context = (linkError as { context?: unknown }).context;
+      const responseBody = context instanceof Response ? await context.json().catch(() => null) as { error?: string } | null : null;
+      setError(responseBody?.error || linkError.message);
+    } else if (data?.requestId && data?.signingUrl && data?.expiresAt) {
+      setSignatureLink({ contractId: contract.id, requestId: data.requestId, url: data.signingUrl, expiresAt: data.expiresAt });
+    } else setError('The signing service did not return a usable link.');
+    setBusy(false);
+  };
+
+  const markSignatureLinkSent = async (contract: Contract) => {
+    if (!signatureLink || signatureLink.contractId !== contract.id) return;
+    if (!await confirm({
+      title: 'Confirm signature link was sent?',
+      message: `Confirm that you shared the link with ${contract.counterparty_email || 'the customer'} outside Flown. Flown will not send it for you.`,
+      confirmLabel: 'Confirm sent',
+      variant: 'primary',
+    })) return;
+    setBusy(true);
+    setError('');
+    const { error: sendError } = await supabase.functions.invoke('create-contract-signature-link', {
+      body: { action: 'mark-sent', requestId: signatureLink.requestId },
+    });
+    if (sendError) {
+      const context = (sendError as { context?: unknown }).context;
+      const responseBody = context instanceof Response ? await context.json().catch(() => null) as { error?: string } | null : null;
+      setError(responseBody?.error || sendError.message);
+    } else {
+      setSignatureLink(null);
+      await load();
+      await loadDetails(contract.id);
+    }
+    setBusy(false);
+  };
+
+  const copySignatureLink = async () => {
+    if (!signatureLink) return;
+    try {
+      await navigator.clipboard.writeText(signatureLink.url);
+      setError('');
+    } catch {
+      setError('Copy was blocked by the browser. Select and copy the signing link below.');
+    }
+  };
+
   const uploadFile = async (contract: Contract, file: File, kind: FileKind) => {
     if (file.size > 50 * 1024 * 1024) { setError('Files must be 50 MB or smaller.'); return; }
+    if (!isPdfHeader(new Uint8Array(await file.slice(0, 5).arrayBuffer()))) { setError('Contracts, signed copies, and amendments must be PDF files.'); return; }
+    if (kind === 'signed_copy' && !files.some((item) => item.contract_id === contract.id && (item.file_kind === 'original_pdf' || item.file_kind === 'document') && isPdfFile(item))) {
+      setError('Upload the original agreement PDF before adding a signed copy.');
+      return;
+    }
+    const sourceFile = kind === 'signed_copy'
+      ? files.filter((item) => (item.file_kind === 'original_pdf' || item.file_kind === 'document') && isPdfFile(item))
+        .sort((left, right) => right.created_at.localeCompare(left.created_at) || right.id.localeCompare(left.id))[0]
+      : null;
+    const sha256 = await sha256Hex(new Uint8Array(await file.arrayBuffer()));
     setBusy(true);
     setError('');
     const path = `${currentUser.id}/${contract.id}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
-    const { error: uploadError } = await supabase.storage.from('contracts-files').upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
+    const { error: uploadError } = await supabase.storage.from('contracts-files').upload(path, file, { contentType: 'application/pdf', upsert: false });
     if (uploadError) { setError(uploadError.message); setBusy(false); return; }
     const { error: rowError } = await supabase.from('customer_contract_files').insert({
       contract_id: contract.id, uploaded_by: currentUser.id, file_name: file.name,
-      storage_path: path, file_size: file.size, mime_type: file.type || null, file_kind: kind,
+      storage_path: path, file_size: file.size, mime_type: 'application/pdf', file_kind: kind, sha256,
+      source_file_id: sourceFile?.id || null,
     });
     if (rowError) {
       const { error: cleanupError } = await supabase.storage.from('contracts-files').remove([path]);
@@ -209,6 +283,7 @@ export const ContractSuite: React.FC = () => {
     }
     await loadDetails(contract.id);
     await appendEvent(contract.id, 'file_uploaded', `${label(kind)} uploaded: ${file.name}`);
+    if (kind === 'original_pdf') setSignatureLink(null);
     setBusy(false);
   };
 
@@ -218,17 +293,13 @@ export const ContractSuite: React.FC = () => {
     window.open(data.signedUrl, '_blank', 'noopener');
   };
 
-  const deleteFile = async (file: ContractFile) => {
-    if (!await confirm({ title: `Delete “${file.file_name}”?`, message: 'This file will be removed from the contract.', confirmLabel: 'Delete' })) return;
-    const { error: storageError } = await supabase.storage.from('contracts-files').remove([file.storage_path]);
-    if (storageError) { setError(storageError.message); return; }
-    const { error: rowError } = await supabase.from('customer_contract_files').delete().eq('id', file.id);
-    if (rowError) setError(rowError.message);
-    else { await loadDetails(file.contract_id); await appendEvent(file.contract_id, 'file_deleted', `${file.file_name} deleted.`); }
-  };
-
   const markSigned = async (contract: Contract) => {
-    if (!files.some((file) => file.file_kind === 'signed_copy')) { setError('Upload the signed copy before marking this contract active.'); return; }
+    const original = files.filter((file) => (file.file_kind === 'original_pdf' || file.file_kind === 'document') && isPdfFile(file))
+      .sort((left, right) => right.created_at.localeCompare(left.created_at) || right.id.localeCompare(left.id))[0];
+    if (!original || !files.some((file) => file.file_kind === 'signed_copy' && isPdfFile(file) && file.source_file_id === original.id)) {
+      setError('Keep both the original agreement PDF and signed PDF on the contract before marking it active.');
+      return;
+    }
     await transition(contract, 'active', 'Signed copy received and contract marked active.', { signed_at: new Date().toISOString() });
   };
 
@@ -240,20 +311,6 @@ export const ContractSuite: React.FC = () => {
   const terminate = async (contract: Contract) => {
     if (!await confirm({ title: `End “${contract.name}”?`, message: 'This will record the agreement as ended.', confirmLabel: 'End contract' })) return;
     await transition(contract, 'ended', 'Contract marked as ended.', { ended_at: new Date().toISOString() });
-  };
-
-  const remove = async (contract: Contract) => {
-    if (!canManage || !await confirm({ title: `Delete “${contract.name}”?`, message: 'The contract and its stored files will be deleted. This cannot be undone.', confirmLabel: 'Delete' })) return;
-    setBusy(true);
-    const contractFiles = files.filter((file) => file.contract_id === contract.id);
-    if (contractFiles.length) {
-      const { error: storageError } = await supabase.storage.from('contracts-files').remove(contractFiles.map((file) => file.storage_path));
-      if (storageError) { setError(storageError.message); setBusy(false); return; }
-    }
-    const { error: deleteError } = await supabase.from('customer_contracts').delete().eq('id', contract.id);
-    if (deleteError) setError(deleteError.message);
-    else { setSelectedId(null); await load(); }
-    setBusy(false);
   };
 
   const openCreate = () => setEditing(null);
@@ -313,12 +370,13 @@ export const ContractSuite: React.FC = () => {
                     </div>
                     {canEdit && <div className="flex flex-wrap gap-2">
                       <button type="button" onClick={() => setEditing(selected)} className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800">Edit details</button>
-                      {selected.status === 'draft' && !selected.signature_requested_at && <button type="button" disabled={busy} onClick={() => void prepareSignatureEmail(selected)} className={button}><Send className="h-4 w-4" />Prepare signature email</button>}
-                      {selected.status === 'draft' && !!selected.signature_requested_at && <button type="button" disabled={busy} onClick={() => void markRequestSent(selected)} className={button}><Send className="h-4 w-4" />Mark request sent</button>}
+                      {['draft', 'pending_signature'].includes(selected.status) && <button type="button" disabled={busy} onClick={() => void createSignatureLink(selected)} className={button}><Link className="h-4 w-4" />{selected.status === 'draft' ? 'Create signing link' : 'Create replacement link'}</button>}
+                      {signatureLink?.contractId === selected.id && <button type="button" disabled={busy} onClick={() => void markSignatureLinkSent(selected)} className={button}><Send className="h-4 w-4" />Mark link sent</button>}
+                      {selected.status === 'draft' && !selected.signature_requested_at && <button type="button" disabled={busy} onClick={() => void prepareSignatureEmail(selected)} className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800"><Send className="h-4 w-4" />Prepare email draft</button>}
+                      {selected.status === 'draft' && !!selected.signature_requested_at && !signatureLink && <button type="button" disabled={busy} onClick={() => void markRequestSent(selected)} className={button}><Send className="h-4 w-4" />Mark email request sent</button>}
                       {selected.status === 'pending_signature' && <button type="button" disabled={busy} onClick={() => void markSigned(selected)} className={button}><Check className="h-4 w-4" />Mark signed</button>}
                       {['active', 'renewal_due'].includes(selected.status) && <button type="button" disabled={busy} onClick={() => void terminate(selected)} className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-300 hover:border-rose-800 hover:text-rose-300">End contract</button>}
                       {['active', 'renewal_due'].includes(selected.status) && (selected.renewal_date || selected.end_date) && daysUntil((selected.renewal_date || selected.end_date)!) <= 45 && <button type="button" onClick={() => setEditing(selected)} className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800"><RefreshCw className="h-4 w-4" />Renewal terms</button>}
-                      {canManage && <button type="button" disabled={busy} aria-label="Delete contract" onClick={() => void remove(selected)} className="rounded-lg border border-slate-700 p-2 text-slate-400 hover:text-rose-400"><Trash2 className="h-4 w-4" /></button>}
                     </div>}
                   </div>
                   <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -332,26 +390,31 @@ export const ContractSuite: React.FC = () => {
                     <Detail label="Auto-renew" value={selected.auto_renew ? 'Yes' : 'No'} />
                   </div>
                   {selected.description && <p className="mt-5 max-w-4xl whitespace-pre-wrap text-sm leading-6 text-slate-300">{selected.description}</p>}
+                  {signatureLink?.contractId === selected.id && <div className="mt-4 rounded-lg border border-sky-900 bg-sky-950/40 p-3"><p className="text-xs font-semibold text-sky-200">Signing link created — not sent</p><p className="mt-1 text-[11px] leading-5 text-sky-300">Copy this link and share it with the customer outside Flown. It expires {new Date(signatureLink.expiresAt).toLocaleString()}.</p><div className="mt-2 flex gap-2"><input readOnly aria-label="Customer signing link" value={signatureLink.url} className="min-w-0 flex-1 rounded border border-slate-700 bg-slate-900 px-2 py-2 text-xs text-slate-200" /><button type="button" onClick={() => void copySignatureLink()} className="inline-flex items-center gap-1 rounded border border-slate-700 px-3 py-2 text-xs text-slate-200"><Copy className="h-3 w-3" />Copy</button></div></div>}
                   {selected.signature_requested_at && selected.status === 'draft' && <p className="mt-4 rounded-lg bg-amber-950/60 px-3 py-2.5 text-xs leading-5 text-amber-200">An email draft was prepared. After you send it from your mail client, mark the request sent here. Flown does not send email or provide a legally certified e-signature service.</p>}
-                  {selected.status === 'pending_signature' && <p className="mt-4 rounded-lg bg-amber-950/60 px-3 py-2.5 text-xs leading-5 text-amber-200">The signature request is marked as sent. Upload the returned signed copy here. Flown does not provide a legally certified e-signature service.</p>}
+                  {selected.status === 'pending_signature' && <p className="mt-4 rounded-lg bg-amber-950/60 px-3 py-2.5 text-xs leading-5 text-amber-200">Staff confirmed that a signature request was sent. The customer can sign with the active link or return a PDF signed elsewhere; upload the returned file if needed. Flown does not provide third-party identity verification or a signing certificate.</p>}
                 </div>
 
                 <div className="grid divide-y divide-slate-800 lg:grid-cols-[minmax(0,1fr)_minmax(250px,0.7fr)] lg:divide-x lg:divide-y-0">
                   <section className="p-5 sm:p-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div><h3 className="text-sm font-semibold text-white">Documents</h3><p className="mt-1 text-xs text-slate-400">{files.length} stored files · private to the workspace</p></div>
-                      {canEdit && <label className={`${button} cursor-pointer ${busy ? 'pointer-events-none opacity-50' : ''}`}><Upload className="h-4 w-4" />Upload file<input type="file" className="sr-only" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadFile(selected, file, file.name.toLowerCase().includes('signed') ? 'signed_copy' : 'document'); event.currentTarget.value = ''; }} /></label>}
+                      <div><h3 className="text-sm font-semibold text-white">PDFs and version history</h3><p className="mt-1 text-xs text-slate-400">{files.length} immutable PDF versions · private to the workspace</p></div>
+                      {canEdit && <div className="flex flex-wrap gap-2">
+                        {([
+                          ['original_pdf', 'Upload original PDF'],
+                          ['signed_copy', 'Upload signed PDF'],
+                          ['amendment', 'Upload amendment PDF'],
+                        ] as const).map(([kind, title]) => <label key={kind} className={`${button} cursor-pointer ${busy ? 'pointer-events-none opacity-50' : ''}`}><Upload className="h-4 w-4" />{title}<input type="file" accept="application/pdf,.pdf" className="sr-only" disabled={busy} onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void uploadFile(selected, file, kind); event.currentTarget.value = ''; }} /></label>)}
+                      </div>}
                     </div>
                     <div className="mt-4 space-y-2">
                       {files.length ? files.map((file) => <div key={file.id} className="flex items-center gap-3 rounded-lg bg-[#11151c] px-3 py-3">
                         <FileText className="h-4 w-4 shrink-0 text-slate-400" />
-                        <button type="button" onClick={() => void openFile(file)} className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-medium text-slate-200 hover:text-sky-300">{file.file_name}</span><span className="mt-0.5 block text-xs text-slate-500">{label(file.file_kind)}{file.file_size ? ` · ${bytes(file.file_size)}` : ''}</span></button>
+                        <button type="button" onClick={() => void openFile(file)} className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-medium text-slate-200 hover:text-sky-300">{file.file_name}</span><span className="mt-0.5 block text-xs text-slate-500">{label(file.file_kind)} · v{file.version_number}{file.source_file_id ? ` · Based on original v${files.find((item) => item.id === file.source_file_id)?.version_number ?? '?'}` : ''}{file.file_size ? ` · ${bytes(file.file_size)}` : ''}{file.sha256 ? ` · SHA-256 ${file.sha256.slice(0, 12)}…` : ''}</span></button>
                         <button type="button" title="Download file" onClick={() => void openFile(file)} className="rounded p-1.5 text-slate-400 hover:text-white"><ArrowDownToLine className="h-4 w-4" /></button>
-                        {canEdit && <button type="button" title="Delete file" onClick={() => void deleteFile(file)} className="rounded p-1.5 text-slate-500 hover:text-rose-400"><Trash2 className="h-4 w-4" /></button>}
                       </div>) : <div className="rounded-lg bg-[#11151c] px-4 py-6 text-center"><FilePlus2 className="mx-auto h-5 w-5 text-slate-500" /><p className="mt-2 text-sm text-slate-300">No files attached</p><p className="mt-1 text-xs text-slate-500">Upload the agreement, amendments and signed copy.</p></div>}
                     </div>
-                    {canEdit && <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span>Signed copy:</span>{files.some((file) => file.file_kind === 'signed_copy') ? <span className="text-emerald-300">uploaded</span> : <label className="cursor-pointer font-semibold text-sky-400 hover:text-sky-300">Upload signed copy<input type="file" className="sr-only" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadFile(selected, file, 'signed_copy'); event.currentTarget.value = ''; }} /></label>}<span>· Maximum file size 50 MB</span></div>}
-                    <p className="mt-4 text-xs leading-5 text-slate-500">Signature requests are prepared in your email client; upload the signed agreement when it is returned. For electronic signing and audit certificates, connect a dedicated e-sign provider.</p>
+                    <p className="mt-4 text-xs leading-5 text-slate-500">Originals, signed copies and amendments are append-only and SHA-256 hashed. Signature links are copy/share only; Flown does not send mail or provide a third-party identity-verification or certificate service. Maximum PDF size: 50 MB.</p>
                   </section>
 
                   <section className="p-5 sm:p-6">
@@ -426,7 +489,7 @@ const ContractForm: React.FC<{
           <Field label="End date"><input type="date" value={form.end_date || ''} onChange={(event) => set('end_date', event.target.value || null)} className={input} /></Field>
           <Field label="Renewal date"><input type="date" value={form.renewal_date || ''} onChange={(event) => set('renewal_date', event.target.value || null)} className={input} /></Field>
           <label className="flex items-center gap-2 self-end rounded-lg bg-slate-900 px-3 py-3 text-sm text-slate-300"><input type="checkbox" checked={form.auto_renew} onChange={(event) => set('auto_renew', event.target.checked)} className="h-4 w-4 accent-sky-500" />Automatically renews</label>
-          <Field label="Key terms / notes" wide><textarea rows={4} value={form.description} onChange={(event) => set('description', event.target.value)} className={input} /></Field>
+          <Field label="Internal notes (not contract text)" wide><textarea rows={4} value={form.description} onChange={(event) => set('description', event.target.value)} className={input} /></Field>
         </div>
         {formError && <p role="alert" className="mt-4 text-sm text-rose-300">{formError}</p>}
         <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">Cancel</button><button type="submit" disabled={busy || !form.name.trim()} className={button}>{busy ? 'Saving…' : initial ? 'Save changes' : 'Create contract'}</button></div>

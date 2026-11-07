@@ -10,7 +10,6 @@ const sources: { type: string; table: string; column: string; detail: string; pa
   { type: 'Support ticket', table: 'support_tickets', column: 'subject', detail: 'status', path: '/help' },
   { type: 'Organization', table: 'crm_organizations', column: 'name', detail: 'name', path: '/customers/organizations' },
   { type: 'Contact', table: 'crm_contacts', column: 'name', detail: 'email', path: '/customers/contacts' },
-  { type: 'Document', table: 'drive_items', column: 'name', detail: 'item_type', path: '/drive', live: true },
   { type: 'Conversation', table: 'support_conversations', column: 'subject', detail: 'status', path: '/customers/support' },
   { type: 'Marketing post', table: 'gtm_content_posts', column: 'title', detail: 'status', path: '/company/calendar' },
 ];

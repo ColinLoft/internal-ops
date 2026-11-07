@@ -48,7 +48,7 @@ interface WorkspaceContextType {
   isSupabaseConnected: boolean;
   
   // Navigation & Views
-  activeTab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs' | 'wildfire';
+  activeTab: WorkspaceTab;
   activeConversationId: string;
   activeChannelId: string;
   activeThreadMessageId: string | null;
@@ -73,7 +73,6 @@ interface WorkspaceContextType {
   isCreatePollOpen: boolean;
   isNewMessageOpen: boolean;
   isAddEventOpen: boolean;
-  isEmailComposeRequested: boolean;
   isAddTeammateOpen: boolean;
   inviteReadyData: {
     name: string;
@@ -84,7 +83,6 @@ interface WorkspaceContextType {
     loginUrl: string;
   } | null;
   searchQuery: string;
-  focusedEmailId: string | null;
   
   // Auth actions
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
@@ -93,7 +91,7 @@ interface WorkspaceContextType {
   completeOnboarding: () => Promise<void>;
   
   // Navigation actions
-  setActiveTab: (tab: 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs' | 'wildfire') => void;
+  setActiveTab: (tab: WorkspaceTab) => void;
   setActiveConversationId: (id: string) => void;
   setActiveChannelId: (id: string) => void;
   openThread: (messageId: string) => void;
@@ -101,7 +99,6 @@ interface WorkspaceContextType {
   toggleRightDrawer: () => void;
   setRightDrawerOpen: (open: boolean) => void;
   setSearchQuery: (query: string) => void;
-  setFocusedEmailId: (id: string | null) => void;
   
   // Messaging actions
   sendMessage: (text: string, attachments?: Attachment[], poll?: Poll, targetConversationId?: string) => Promise<void>;
@@ -178,8 +175,6 @@ interface WorkspaceContextType {
   setIsCreatePollOpen: (open: boolean) => void;
   setIsNewMessageOpen: (open: boolean) => void;
   setIsAddEventOpen: (open: boolean) => void;
-  setIsEmailComposeRequested: (requested: boolean) => void;
-  requestEmailCompose: () => void;
   setIsAddTeammateOpen: (open: boolean) => void;
   setInviteReadyData: (data: WorkspaceContextType['inviteReadyData']) => void;
 }
@@ -187,7 +182,7 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const STORAGE_PREFIX = 'beacon_v3_';
-type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs' | 'wildfire';
+type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'admin' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs' | 'wildfire';
 
 const tabFromPath = (pathname: string): WorkspaceTab | null => {
   const segment = pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
@@ -204,11 +199,11 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
   if (segment === 'messages') return 'messages';
   if (segment === 'channels') return 'channels';
   if (segment === 'calendar') return 'calendar';
-  if (segment === 'email' || segment === 'inbox') return 'inbox';
+  if (segment === 'email' || segment === 'inbox') return 'home';
   if (segment === 'admin') return 'settings';
   if (segment === 'systems' || segment === 'settings') return 'settings';
-  if (segment === 'drive') return 'drive';
-  if (segment === 'docs' || segment === 'slides' || segment === 'sheets' || segment === 'forms') return 'drive';
+  if (segment === 'drive' || segment === 'docs' || segment === 'slides' || segment === 'sheets') return 'home';
+  if (segment === 'forms') return 'company';
   return null;
 };
 
@@ -225,9 +220,7 @@ const pathForTab = (tab: WorkspaceTab) => ({
   messages: '/messages',
   channels: '/channels',
   calendar: '/calendar',
-  inbox: '/email',
   admin: '/systems',
-  drive: '/drive',
 }[tab]);
 
 const BRAND_STEPS: [string, string, number][] = [
@@ -598,14 +591,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [activeTab, setActiveTabState] = useState<WorkspaceTab>(() => {
     if (typeof window === 'undefined') return 'home';
     return tabFromPath(window.location.pathname)
-      || (new URLSearchParams(window.location.search).get('mail_oauth') === 'callback' ? 'inbox' : 'home');
+      || 'home';
   });
   const [activeConversationId, setActiveConversationId] = useState<string>('');
   const [activeChannelId, setActiveChannelId] = useState<string>('chan-announcements');
   const [activeThreadMessageId, setActiveThreadMessageId] = useState<string | null>(null);
   const [isRightDrawerOpen, setIsRightDrawerOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [focusedEmailId, setFocusedEmailId] = useState<string | null>(null);
 
   const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
 
@@ -633,7 +625,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [isCreatePollOpen, setIsCreatePollOpen] = useState<boolean>(false);
   const [isNewMessageOpen, setIsNewMessageOpen] = useState<boolean>(false);
   const [isAddEventOpen, setIsAddEventOpen] = useState<boolean>(false);
-  const [isEmailComposeRequested, setIsEmailComposeRequested] = useState<boolean>(false);
   const [isAddTeammateOpen, setIsAddTeammateOpen] = useState<boolean>(false);
   const [inviteReadyData, setInviteReadyData] = useState<WorkspaceContextType['inviteReadyData']>(null);
 
@@ -1142,11 +1133,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (typeof window !== 'undefined' && window.location.pathname !== pathForTab(tab)) {
       window.history.pushState({}, '', `${pathForTab(tab)}${window.location.search}${window.location.hash}`);
     }
-  };
-
-  const requestEmailCompose = () => {
-    setActiveTab('inbox');
-    setIsEmailComposeRequested(true);
   };
 
   const openThread = (messageId: string) => {
@@ -2617,11 +2603,9 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         isCreatePollOpen,
         isNewMessageOpen,
         isAddEventOpen,
-        isEmailComposeRequested,
         isAddTeammateOpen,
         inviteReadyData,
         searchQuery,
-        focusedEmailId,
         login,
         logout,
         setPassword,
@@ -2634,7 +2618,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         toggleRightDrawer,
         setRightDrawerOpen,
         setSearchQuery,
-        setFocusedEmailId,
         sendMessage,
         markMessagesSeen,
         retryMessage,
@@ -2679,8 +2662,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         setIsCreatePollOpen,
         setIsNewMessageOpen,
         setIsAddEventOpen,
-        setIsEmailComposeRequested,
-        requestEmailCompose,
         setIsAddTeammateOpen,
         setInviteReadyData,
       }}

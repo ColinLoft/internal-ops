@@ -1,5 +1,7 @@
 # Email suite changes: in-depth setup and rollout guide
 
+> **Archived guide:** The standalone email suite has been retired. The steps below describe the previous UI, not the current product. Shared delivery, inbound webhook, rules, and scheduling APIs remain available for operational integrations; see [Workspace integrations](./workspace-integrations.md).
+
 This guide explains how to put the expanded email suite into service: conversation threads, formatted composition, attachments, templates, printing, forwarding to people or channels, and scheduled delivery.
 
 It is written for someone who can open this repository in VS Code and has access to the workspace's Supabase project and deployment platform. Follow the sections in order. Database changes and Edge Functions run in Supabase; the user interface is a separate frontend deployment.

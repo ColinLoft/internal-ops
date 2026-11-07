@@ -113,7 +113,7 @@ export const EmailAdminPanel: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
             <Mail className="h-4 w-4 text-brand-600" />
-            Email access and retention
+            Operational email access and retention
           </div>
           <p className="mt-1 text-xs text-slate-500">Assign staff access to shared mailboxes and control synced-message retention.</p>
         </div>
@@ -135,7 +135,7 @@ export const EmailAdminPanel: React.FC = () => {
       {loading ? (
         <p className="p-6 text-sm text-slate-500">Loading email administration…</p>
       ) : mailboxes.length === 0 ? (
-        <p className="p-6 text-sm text-slate-500">No shared mailboxes are connected. Connect one from the Email Inbox to manage access here.</p>
+        <p className="p-6 text-sm text-slate-500">No shared mailboxes are configured. Configure the operational email API before enabling support delivery. Personal email remains with your email provider.</p>
       ) : (
         <div className="divide-y divide-slate-100">
           {mailboxes.map((mailbox) => {

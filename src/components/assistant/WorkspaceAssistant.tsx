@@ -32,7 +32,6 @@ export const WorkspaceAssistant: React.FC<{ triggerClassName?: string }> = ({ tr
     activeTab,
     activeChannelId,
     activeConversationId,
-    focusedEmailId,
     channels,
     conversations,
     postChannelMessage,
@@ -82,7 +81,6 @@ export const WorkspaceAssistant: React.FC<{ triggerClassName?: string }> = ({ tr
           activeTab,
           activeChannelId,
           activeConversationId,
-          focusedEmailId,
         },
       });
       if (invokeError) throw invokeError;
@@ -132,14 +130,14 @@ export const WorkspaceAssistant: React.FC<{ triggerClassName?: string }> = ({ tr
         setActiveTab('calendar');
       } else if (proposal.type === 'open_view') {
         const details = proposal.details || {};
-        setActiveTab((details.tab as 'messages' | 'channels' | 'calendar' | 'inbox' | 'admin' | 'drive') || 'messages');
+        const tabs = ['home', 'messages', 'channels', 'calendar', 'customers', 'company', 'engineering', 'settings', 'insights', 'programs', 'wildfire'] as const;
+        const tab = tabs.find((value) => value === details.tab);
+        if (!tab) throw new Error('That workspace view is not available. Drive and personal email have been retired.');
+        setActiveTab(tab);
         if (details.channelId) setActiveChannelId(details.channelId);
         if (details.conversationId) setActiveConversationId(details.conversationId);
       } else if (proposal.type === 'compose_email' || proposal.type === 'send_email' || proposal.type === 'schedule_email') {
-        setActiveTab('inbox');
-        window.setTimeout(() => window.dispatchEvent(new CustomEvent('workspace-email-action', {
-          detail: { type: proposal.type, details: proposal.details || {}, content: proposal.content },
-        })), 0);
+        throw new Error('Send operational emails from customer support or its automation API. Personal email is handled by your email provider.');
       }
       setMessages((items) => [...items, { role: 'assistant', content: `Confirmed — I completed that action for ${proposal.targetName || 'the workspace'}.` }]);
       setProposal(null);

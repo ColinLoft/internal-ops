@@ -118,6 +118,7 @@ export const hasMailboxAccess = async (
     .maybeSingle();
   if (error) throw new Error(`Mailbox could not be loaded: ${error.message}`);
   if (!mailbox) throw new Error('Mailbox not found.');
+  if (mailbox.mailbox_type !== 'shared') throw new Error('Personal email is no longer supported in Flown. Use your email provider.');
   if (mailbox.connected_by === user.id) return mailbox;
 
   const { data: grant, error: grantError } = await adminClient
@@ -141,6 +142,7 @@ export const getAccessToken = async (
   adminClient: ReturnType<typeof createClient>,
   mailbox: Record<string, any>,
 ) => {
+  if (mailbox.mailbox_type !== 'shared') throw new Error('Personal mailbox synchronization and delivery have been retired.');
   const { data: tokenRow, error } = await adminClient
     .from('email_mailbox_tokens')
     .select('encrypted_tokens, encryption_iv, access_expires_at')

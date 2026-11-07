@@ -38,6 +38,7 @@ Deno.serve(async (request: Request) => {
       .maybeSingle();
     if (mailboxError) throw new Error(`Mailbox could not be loaded: ${mailboxError.message}`);
     if (!mailbox) return jsonResponse({ error: 'Mailbox not found.' }, 404);
+    if (mailbox.mailbox_type !== 'shared') return jsonResponse({ error: 'Personal mailbox synchronization has been retired.' }, 400);
     if (callerUser) await hasMailboxAccess(adminClient, callerUser, mailboxId);
 
     const messageIds = Array.isArray(payload.messageIds)

@@ -24,10 +24,8 @@ const sources: Record<string, { table: string; columns: string }> = {
   opsTasks: { table: 'operation_tasks', columns: 'id,status,priority,due_date,created_at' },
   approvals: { table: 'operation_approvals', columns: 'id,status,created_at' },
   tickets: { table: 'support_tickets', columns: 'id,status,priority,created_at' },
-  drive: { table: 'drive_items', columns: 'id,item_type,created_at' },
   messages: { table: 'messages', columns: 'id,created_at' },
   events: { table: 'calendar_events', columns: 'id,created_at' },
-  emails: { table: 'email_messages', columns: 'id,received_at' },
   audit: { table: 'system_activity_logs', columns: 'id,event_type,created_at' },
   profiles: { table: 'profiles', columns: 'id,department,last_seen_at' },
 };
@@ -84,9 +82,7 @@ export const InsightsPage: React.FC = () => {
       { area: 'Operations', label: 'Pending approvals', value: d('approvals').filter((a) => a.status === 'pending').length },
       { area: 'Operations', label: 'Support tickets', value: d('tickets').length, detail: `${d('tickets').filter((t) => ['new', 'open', 'in_progress', 'waiting'].includes(t.status)).length} unresolved` },
       { area: 'Activity', label: 'Messages sent', value: d('messages').length },
-      { area: 'Activity', label: 'Emails', value: d('emails').length },
       { area: 'Activity', label: 'Calendar events created', value: d('events').length },
-      { area: 'Activity', label: 'Drive items created', value: d('drive').length },
       { area: 'Activity', label: 'Audit log events', value: d('audit').length },
       { area: 'People', label: 'Staff', value: d('profiles').length, detail: `${online} online now` },
     ];
