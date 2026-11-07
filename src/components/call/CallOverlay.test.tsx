@@ -244,4 +244,51 @@ describe('CallOverlay media lifecycle', () => {
     expect(state.workspace.toggleCallScreenShare).toHaveBeenCalledTimes(2);
     expect(screen.detach).toHaveBeenCalledTimes(1);
   });
+
+  it('moves the minimized call with keyboard controls without disconnecting media', async () => {
+    state.workspace.callSession.isMinimized = true;
+    await render();
+    const grip = container.querySelector<HTMLButtonElement>('[aria-label="Move call window"]')!;
+    const windowElement = grip.closest('.fixed') as HTMLDivElement;
+    vi.spyOn(windowElement, 'getBoundingClientRect').mockReturnValue({
+      left: 100, top: 100, width: 400, height: 120, right: 500, bottom: 220, x: 100, y: 100, toJSON: () => ({}),
+    });
+    await act(async () => { grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })); });
+    expect(windowElement.style.left).toBe('80px');
+    expect(windowElement.style.top).toBe('100px');
+    expect(state.rooms[0].disconnect).not.toHaveBeenCalled();
+  });
+
+  it('drags the minimized call, clamps it to the viewport and stops after release', async () => {
+    state.workspace.callSession.isMinimized = true;
+    const audio = makeTrack('remote-audio');
+    state.remotes[0].publications.push({ source: Track.Source.Microphone, kind: Track.Kind.Audio, track: audio });
+    await render();
+    const grip = container.querySelector<HTMLButtonElement>('[aria-label="Move call window"]')!;
+    const windowElement = grip.closest('.fixed') as HTMLDivElement;
+    grip.setPointerCapture = vi.fn();
+    vi.spyOn(windowElement, 'getBoundingClientRect').mockReturnValue({
+      left: 100, top: 100, width: 400, height: 120, right: 500, bottom: 220, x: 100, y: 100, toJSON: () => ({}),
+    });
+    const pointer = async (type: string, clientX: number, clientY: number) => {
+      const event = new MouseEvent(type, { button: 0, clientX, clientY, bubbles: true });
+      Object.defineProperty(event, 'pointerId', { value: 7 });
+      await act(async () => { grip.dispatchEvent(event); });
+    };
+    await pointer('pointerdown', 110, 110);
+    expect(grip.setPointerCapture).toHaveBeenCalledWith(7);
+    await pointer('pointermove', 160, 190);
+    expect(windowElement.style.left).toBe('150px');
+    expect(windowElement.style.top).toBe('180px');
+    await pointer('pointermove', -1000, 10000);
+    expect(windowElement.style.left).toBe('0px');
+    expect(windowElement.style.top).toBe(`${window.innerHeight - 120}px`);
+    await pointer('pointerup', -1000, 10000);
+    await pointer('pointermove', 160, 190);
+    expect(windowElement.style.left).toBe('0px');
+    expect(state.rooms[0].disconnect).not.toHaveBeenCalled();
+    expect(container.querySelector('audio')).not.toBeNull();
+    expect(audio.attach).toHaveBeenCalledTimes(1);
+    expect(audio.detach).not.toHaveBeenCalled();
+  });
 });

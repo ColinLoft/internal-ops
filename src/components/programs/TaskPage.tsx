@@ -3,13 +3,14 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
-import { ActivityPanel, AttachmentsPanel, ChecklistPanel, CommentsPanel, LinksPanel, TimePanel, card, field, formatMinutes, logActivity } from '../work/EntityPanels';
+import { AttachmentsPanel, ChecklistPanel, CommentsPanel, LinksPanel, TimePanel, card, field, formatMinutes, logActivity } from '../work/EntityPanels';
+import { AssignedField, assignedIds, TaskDateField } from './taskFields';
 import { RichNotes } from '../work/RichNotes';
 import { navigate } from '../../lib/navigate';
 import { useConfirm } from '../common/useConfirm';
 
 type Task = {
-  id: string; project_id: string | null; eng_project_id: string | null; assignee_id: string | null; parent_task_id: string | null; title: string; description: string | null; notes: string | null;
+  id: string; project_id: string | null; eng_project_id: string | null; assignee_id: string | null; assigned_ids: string[]; parent_task_id: string | null; title: string; description: string | null; notes: string | null;
   status: string; priority: string; due_date: string | null; start_date: string | null; progress: number; estimate_hours: number | null; grant_id: string | null;
 };
 type Lite = { id: string; title: string; status: string; assignee_id: string | null; due_date: string | null };
@@ -17,7 +18,7 @@ type Lite = { id: string; title: string; status: string; assignee_id: string | n
 const STATUS: Record<string, string> = { not_started: 'Not started', in_progress: 'In progress', blocked: 'Blocked', completed: 'Completed' };
 
 export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
-  const { users } = useWorkspace();
+  const { currentUser } = useWorkspace();
   const { confirm, dialog: confirmDialog } = useConfirm();
   const [task, setTask] = useState<Task | null>(null);
   const [projects, setProjects] = useState<{ id: string; name: string; discipline: string }[]>([]);
@@ -53,18 +54,18 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
 
   const patch = async (values: Partial<Task> & { completed_at?: string | null }, activity?: string) => {
     setTask((current) => (current ? { ...current, ...values } : current));
-    const { error: updateError } = await supabase.from('program_tasks').update({ ...values, updated_at: new Date().toISOString() }).eq('id', taskId);
+    const { data, error: updateError } = await supabase.from('program_tasks').update({ ...values, updated_at: new Date().toISOString() }).eq('id', taskId).select('*').single();
     if (updateError) { setError(updateError.message); void load(); return; }
     setError('');
+    if (data) setTask(data as Task);
     if (activity) void logActivity('task', taskId, activity);
   };
-  const userName = (id: string | null) => users.find((user) => user.id === id)?.name || 'Unassigned';
 
   const addSubtask = async () => {
     if (!subTitle.trim() || !task) return;
     const title = subTitle.trim();
     setSubTitle('');
-    const { data, error: insertError } = await supabase.from('program_tasks').insert({ title, parent_task_id: taskId, project_id: task.project_id, eng_project_id: task.eng_project_id, assignee_id: task.assignee_id, status: 'not_started', priority: task.priority, progress: 0 }).select('id,title,status,assignee_id,due_date').single();
+    const { data, error: insertError } = await supabase.from('program_tasks').insert({ title, parent_task_id: taskId, project_id: task.project_id, eng_project_id: task.eng_project_id, assigned_ids: assignedIds(task), status: 'not_started', priority: task.priority, progress: 0 }).select('id,title,status,assignee_id,due_date').single();
     if (insertError) { setError(insertError.message); return; }
     setSubtasks((current) => [...current, data as Lite]);
     void logActivity('task', taskId, 'added subtask', title);
@@ -108,9 +109,9 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
         <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
           <label className="text-xs font-semibold text-slate-500">Status<CustomSelect value={task.status} onChange={(event) => void patch({ status: event.target.value, progress: event.target.value === 'completed' ? 100 : task.progress, completed_at: event.target.value === 'completed' ? new Date().toISOString() : null }, `set status to ${STATUS[event.target.value]}`)} className={field}>{Object.entries(STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</CustomSelect></label>
           <label className="text-xs font-semibold text-slate-500">Priority<CustomSelect value={task.priority} onChange={(event) => void patch({ priority: event.target.value }, `set priority to ${event.target.value}`)} className={field}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></CustomSelect></label>
-          <label className="text-xs font-semibold text-slate-500">Assignee<CustomSelect value={task.assignee_id || ''} onChange={(event) => void patch({ assignee_id: event.target.value || null }, `assigned to ${userName(event.target.value || null)}`)} className={field}><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect></label>
+          <div><AssignedField value={assignedIds(task)} onChange={(ids) => void patch({ assigned_ids: ids }, 'changed assigned people')} />{assignedIds(task).length === 0 && <button type="button" onClick={() => void patch({ assigned_ids: [currentUser.id] }, 'claimed task')} className="mt-2 text-xs font-semibold text-brand-600">Claim task</button>}</div>
           <label className="text-xs font-semibold text-slate-500">Project<CustomSelect value={task.eng_project_id || ''} onChange={(event) => void patch({ eng_project_id: event.target.value || null }, 'moved the task')} className={field}><option value="">No project</option>{projects.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</CustomSelect></label>
-          <label className={`text-xs font-semibold ${overdue ? 'text-rose-600' : 'text-slate-500'}`}>Due{overdue ? ' (overdue)' : ''}<input type="date" value={task.due_date || ''} onChange={(event) => void patch({ due_date: event.target.value || null })} className={field} /></label>
+          <TaskDateField label={overdue ? 'Due date (overdue)' : 'Due date'} value={task.due_date} onChange={(date) => void patch({ due_date: date })} />
           <label className="text-xs font-semibold text-slate-500">Estimate (hours)<input type="number" min="0" step="0.5" value={task.estimate_hours ?? ''} onChange={(event) => setTask({ ...task, estimate_hours: event.target.value === '' ? null : Number(event.target.value) })} onBlur={(event) => void patch({ estimate_hours: event.target.value === '' ? null : Number(event.target.value) })} className={field} /></label>
         </div>
         {estimate > 0 && <p className="mt-2 text-xs text-slate-500">Logged {formatMinutes(minutes)} of {estimate}h estimated ({Math.round((minutes / 60 / estimate) * 100)}%)</p>}
@@ -143,7 +144,6 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
         <div className="min-w-0 space-y-4">
           <TimePanel entityType="task" entityId={taskId} onChanged={() => void load()} />
           <CommentsPanel entityType="task" entityId={taskId} />
-          <ActivityPanel entityType="task" entityId={taskId} />
         </div>
       </div>
       {confirmDialog}

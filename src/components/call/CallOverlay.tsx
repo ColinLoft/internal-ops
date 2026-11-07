@@ -22,6 +22,7 @@ import {
   Volume2,
   RotateCw,
   LoaderCircle,
+  GripVertical,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
@@ -120,6 +121,25 @@ export const CallOverlay: React.FC = () => {
   const [microphoneError, setMicrophoneError] = useState('');
   const [isMicrophoneBusy, setIsMicrophoneBusy] = useState(false);
   const [connectionAttempt, setConnectionAttempt] = useState(0);
+  const [compactPosition, setCompactPosition] = useState<{ x: number; y: number } | null>(null);
+  const compactRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ pointerId: number; x: number; y: number; left: number; top: number } | null>(null);
+  const moveCompact = useCallback((x: number, y: number) => {
+    const bounds = compactRef.current?.getBoundingClientRect();
+    if (!bounds) return;
+    setCompactPosition({
+      x: Math.max(0, Math.min(x, window.innerWidth - bounds.width)),
+      y: Math.max(0, Math.min(y, window.innerHeight - bounds.height)),
+    });
+  }, []);
+  useEffect(() => {
+    const keepInViewport = () => {
+      const bounds = compactRef.current?.getBoundingClientRect();
+      if (callSession.isMinimized && bounds) moveCompact(bounds.left, bounds.top);
+    };
+    window.addEventListener('resize', keepInViewport);
+    return () => window.removeEventListener('resize', keepInViewport);
+  }, [callSession.isMinimized, moveCompact]);
   const screenSharingRef = useRef(callSession.isScreenSharing);
   const handleAudioPlaybackBlocked = useCallback(() => setAudioPlaybackBlocked(true), []);
 
@@ -348,12 +368,36 @@ export const CallOverlay: React.FC = () => {
       )}
 
       {callSession.active && (
-        <div className={`fixed ${callSession.isMinimized ? 'bottom-[4.5rem] right-3 w-[min(25rem,calc(100vw-1.5rem))] md:bottom-6 md:right-6 md:w-[min(25rem,calc(100vw-2rem))]' : 'inset-0 sm:inset-4'} z-50 flex flex-col overflow-hidden border border-[#303236] bg-[#111214] text-white shadow-2xl ${callSession.isMinimized ? 'rounded-xl' : 'rounded-none sm:rounded-2xl'}`}>
+        <div ref={compactRef} style={callSession.isMinimized && compactPosition ? { left: compactPosition.x, top: compactPosition.y, right: 'auto', bottom: 'auto' } : undefined} className={`fixed ${callSession.isMinimized ? 'bottom-[4.5rem] right-3 w-[min(25rem,calc(100vw-1.5rem))] md:bottom-6 md:right-6 md:w-[min(25rem,calc(100vw-2rem))]' : 'inset-0 sm:inset-4'} z-50 flex flex-col overflow-hidden border border-[#303236] bg-[#111214] text-white shadow-2xl ${callSession.isMinimized ? 'rounded-xl' : 'rounded-none sm:rounded-2xl'}`}>
           {remoteMedia.flatMap((participant) =>
             participant.audio.map((track) => <AttachedAudio key={`${participant.identity}:${track.sid}`} track={track} onPlaybackBlocked={handleAudioPlaybackBlocked} />)
           )}
           <header className="flex min-h-16 items-center justify-between border-b border-[#303236] bg-[#18191b] px-4 py-3 sm:px-6">
             <div className="flex min-w-0 items-center gap-3">
+              {callSession.isMinimized && <button
+                type="button" aria-label="Move call window" title="Drag to move; arrow keys also move the call"
+                className="touch-none cursor-grab rounded p-1 text-[#d0d1d3] active:cursor-grabbing"
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return;
+                  const bounds = compactRef.current?.getBoundingClientRect();
+                  if (!bounds) return;
+                  dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, left: bounds.left, top: bounds.top };
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                }}
+                onPointerMove={(event) => {
+                  const drag = dragRef.current;
+                  if (drag?.pointerId === event.pointerId) moveCompact(drag.left + event.clientX - drag.x, drag.top + event.clientY - drag.y);
+                }}
+                onPointerUp={() => { dragRef.current = null; }}
+                onPointerCancel={() => { dragRef.current = null; }}
+                onLostPointerCapture={() => { dragRef.current = null; }}
+                onKeyDown={(event) => {
+                  const delta: Record<string, [number, number]> = { ArrowLeft: [-20, 0], ArrowRight: [20, 0], ArrowUp: [0, -20], ArrowDown: [0, 20] };
+                  const direction = delta[event.key];
+                  const bounds = compactRef.current?.getBoundingClientRect();
+                  if (direction && bounds) { event.preventDefault(); moveCompact(bounds.left + direction[0], bounds.top + direction[1]); }
+                }}
+              ><GripVertical className="h-4 w-4" /></button>}
               <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${connectionState === ConnectionState.Connected ? 'bg-emerald-400' : connectionState === ConnectionState.Disconnected ? 'bg-rose-400' : 'animate-pulse bg-amber-300'}`} />
               <div className="min-w-0">
                 <h2 className="truncate text-sm font-bold">

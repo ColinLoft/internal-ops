@@ -6,10 +6,11 @@ import { supabase } from '../../lib/supabase';
 import { TaskPage } from './TaskPage';
 import { TableSkeleton } from '../common/Feedback';
 import { TasksViews } from './TasksViews';
+import { AssignedField, assignedIds, TaskDateField } from './taskFields';
 import { Dropdown } from '../common/Dropdown';
 
 type EngProject = { id: string; name: string; discipline: string };
-type Task = { id: string; project_id: string | null; eng_project_id: string | null; assignee_id: string | null; title: string; status: string; priority: string; due_date: string | null; progress: number; parent_task_id?: string | null };
+type Task = { id: string; project_id: string | null; eng_project_id: string | null; assignee_id: string | null; assigned_ids: string[]; notes: string | null; grant_id: string | null; title: string; status: string; priority: string; due_date: string | null; progress: number; parent_task_id?: string | null };
 
 const TASK_STATUS: Record<string, string> = { not_started: 'Not started', in_progress: 'In progress', blocked: 'Blocked', completed: 'Completed' };
 const input = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-base outline-none focus:border-brand-400 md:text-xs';
@@ -52,7 +53,7 @@ const TasksList: React.FC = () => {
   const load = useCallback(async () => {
     const [projectResult, taskResult] = await Promise.all([
       supabase.from('eng_projects').select('id,name,discipline').order('name'),
-      supabase.from('program_tasks').select('id,project_id,eng_project_id,assignee_id,parent_task_id,title,status,priority,due_date,progress').order('due_date', { ascending: true, nullsFirst: false }),
+      supabase.from('program_tasks').select('*').order('due_date', { ascending: true, nullsFirst: false }),
     ]);
     if (taskResult.error) setError(`Tasks could not be loaded: ${taskResult.error.message}`);
     else { setError(''); setTasks((taskResult.data || []) as Task[]); }
@@ -71,9 +72,19 @@ const TasksList: React.FC = () => {
     return () => window.removeEventListener('popstate', consume);
   }, [load]);
 
+  useEffect(() => {
+    const channel = supabase.channel('shared-program-tasks')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'program_tasks' }, () => void load())
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.error('Task subscription failed:', error);
+      });
+    const poll = window.setInterval(() => { if (document.visibilityState === 'visible') void load(); }, 10000);
+    return () => { window.clearInterval(poll); void supabase.removeChannel(channel); };
+  }, [load]);
+
   const topTasks = useMemo(() => tasks.filter((task) => !task.parent_task_id), [tasks]);
   const needle = query.trim().toLowerCase();
-  const shownTasks = topTasks.filter((task) => (statusFilter === 'all' || task.status === statusFilter) && (projectFilter === 'all' || (projectFilter === 'none' ? !task.eng_project_id : task.eng_project_id === projectFilter)) && (!mineOnly || task.assignee_id === currentUser.id) && task.title.toLowerCase().includes(needle));
+  const shownTasks = topTasks.filter((task) => (statusFilter === 'all' || task.status === statusFilter) && (projectFilter === 'all' || (projectFilter === 'none' ? !task.eng_project_id : task.eng_project_id === projectFilter)) && (!mineOnly || assignedIds(task).includes(currentUser.id)) && task.title.toLowerCase().includes(needle));
   const overdue = (task: Task) => Boolean(task.due_date) && task.status !== 'completed' && (task.due_date as string) < today();
 
   return (
@@ -96,24 +107,24 @@ const TasksList: React.FC = () => {
           <Dropdown value={projectFilter} onChange={setProjectFilter} ariaLabel="Filter by project" className="min-w-40" options={[{ id: 'all', label: 'All projects' }, { id: 'none', label: 'No project' }, ...projects.map((project) => ({ id: project.id, label: `${project.name} (${project.discipline})` }))]} />
           <label className="inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-slate-600 md:min-h-0"><input type="checkbox" checked={mineOnly} onChange={(event) => setMineOnly(event.target.checked)} />Assigned to me</label>
         </div>
-        {loading ? <TableSkeleton rows={6} /> : <TasksViews tasks={shownTasks} allTasks={tasks} projects={projects} loading={false} onChanged={load} onError={setError} />}
+        {loading ? <TableSkeleton rows={6} /> : <TasksViews tasks={shownTasks} allTasks={tasks} projects={projects} loading={false} onChanged={load} onError={setError} onPatched={(ids, changes) => setTasks((current) => current.map((task) => ids.includes(task.id) ? { ...task, ...changes } : task))} />}
       </div>
 
-      {taskModal && <TaskModal projects={projects} initialTitle={taskModal.title} onClose={() => setTaskModal(null)} onSaved={(created) => { setTaskModal(null); setTasks((current) => [created, ...current]); }} />}
+      {taskModal && <TaskModal projects={projects} initialTitle={taskModal.title} onClose={() => setTaskModal(null)} onSaved={(created) => { setTaskModal(null); setTasks((current) => [created, ...current.filter((task) => task.id !== created.id)]); }} />}
     </main>
   );
 };
 
 const TaskModal: React.FC<{ projects: EngProject[]; initialTitle?: string; onClose: () => void; onSaved: (task: Task) => void }> = ({ projects, initialTitle = '', onClose, onSaved }) => {
-  const { users, currentUser } = useWorkspace();
-  const [form, setForm] = useState({ title: initialTitle, eng_project_id: '', assignee_id: currentUser.id, priority: 'medium', due_date: '' });
+  const { currentUser } = useWorkspace();
+  const [form, setForm] = useState({ title: initialTitle, eng_project_id: '', assigned_ids: [] as string[], priority: 'medium', due_date: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((value) => ({ ...value, [key]: event.target.value }));
   const save = async () => {
     if (!form.title.trim()) { setError('Task title is required.'); return; }
     setSaving(true);
-    const { data, error: insertError } = await supabase.from('program_tasks').insert({ title: form.title.trim(), eng_project_id: form.eng_project_id || null, assignee_id: form.assignee_id || null, priority: form.priority, due_date: form.due_date || null, status: 'not_started', progress: 0, created_by: currentUser.id }).select('*').single();
+    const { data, error: insertError } = await supabase.from('program_tasks').insert({ title: form.title.trim(), eng_project_id: form.eng_project_id || null, assigned_ids: form.assigned_ids, priority: form.priority, due_date: form.due_date || null, status: 'not_started', progress: 0, created_by: currentUser.id }).select('*').single();
     setSaving(false);
     if (insertError || !data) setError(insertError?.message || 'Could not create the task.'); else onSaved(data as Task);
   };
@@ -123,11 +134,11 @@ const TaskModal: React.FC<{ projects: EngProject[]; initialTitle?: string; onClo
       <input autoFocus value={form.title} onChange={set('title')} placeholder="Task title" className={input} />
       <div className="grid gap-3 sm:grid-cols-2">
         <CustomSelect value={form.eng_project_id} onChange={set('eng_project_id')} className={input} aria-label="Project"><option value="">No project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</CustomSelect>
-        <CustomSelect value={form.assignee_id} onChange={set('assignee_id')} className={input} aria-label="Assignee"><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect>
+        <AssignedField value={form.assigned_ids} onChange={(ids) => setForm((current) => ({ ...current, assigned_ids: ids }))} />
         <CustomSelect value={form.priority} onChange={set('priority')} className={input} aria-label="Priority"><option value="low">Low priority</option><option value="medium">Medium priority</option><option value="high">High priority</option></CustomSelect>
-        <input type="date" value={form.due_date} onChange={set('due_date')} className={input} aria-label="Due date" />
+        <TaskDateField value={form.due_date || null} onChange={(date) => setForm((current) => ({ ...current, due_date: date || '' }))} />
       </div>
-      <button type="button" onClick={() => void save()} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white">Create task</button>
+      <button type="button" disabled={saving} onClick={() => void save()} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{saving ? 'Creating…' : 'Create task'}</button>
     </Modal>
   );
 };

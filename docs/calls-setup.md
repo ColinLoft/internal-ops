@@ -27,6 +27,7 @@ Calls support up to eight participants. The UI can recover invitations if Supaba
 - **You cannot be heard:** check browser microphone permission and the microphone selection under Settings. The call stays connected if microphone setup fails and offers a retry control.
 - **You cannot hear others:** use **Turn on audio** in the call if the browser blocks playback; check the device's output volume and the browser's tab audio setting.
 - **Minimized calls:** microphone and remote audio remain connected while the call window is minimized. **Turn on audio** is available in the compact window if playback is blocked.
+- **Moving the compact call:** drag the grip in its header to make space. Focus the grip and use arrow keys to move it with a keyboard. The window stays within the viewport and keeps its position when expanded and minimized again.
 - **Multiple screen shares:** click a screen share to enlarge it; click it again to return to the grid. Every participant's share remains selectable, including your own.
 - **Screen-sharing performance:** capture is limited to 720p at 10 fps with a 1.5 Mbps encoding ceiling and one video layer to reduce CPU and upload demand. Prefer sharing a single window instead of the entire desktop; these settings prioritize documents and interfaces over high-frame-rate video.
 - **Speaking indicators:** your tile and avatar use the same green speaking indicator as remote participants. Muted or unavailable microphones do not show you as speaking.

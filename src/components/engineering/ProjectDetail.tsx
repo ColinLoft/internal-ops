@@ -8,9 +8,10 @@ import {
   ago, defaultReviewType, disciplineOf, fileSize, inputClass, navigate, outcomeTone, statusTone, today,
 } from './shared';
 import { useConfirm } from '../common/useConfirm';
+import { AssignedField, assignedIds, formatTaskDate, TaskDateField } from '../programs/taskFields';
 
 type Tab = 'log' | 'tasks' | 'files' | 'reviews';
-type TaskRow = { id: string; title: string; status: string; priority: string; due_date: string | null; assignee_id: string | null; parent_task_id: string | null };
+type TaskRow = { id: string; title: string; status: string; priority: string; due_date: string | null; assignee_id: string | null; assigned_ids: string[]; parent_task_id: string | null };
 
 const MAX_BYTES = 50 * 1024 * 1024;
 const kindFor = (name: string) => {
@@ -48,7 +49,7 @@ export const ProjectDetail: React.FC<{ projectId: string }> = ({ projectId }) =>
       supabase.from('eng_projects').select('*').eq('id', projectId).maybeSingle(),
       supabase.from('eng_project_entries').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
       supabase.from('eng_project_files').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
-      supabase.from('program_tasks').select('id,title,status,priority,due_date,assignee_id,parent_task_id').eq('eng_project_id', projectId).order('created_at', { ascending: false }),
+      supabase.from('program_tasks').select('id,title,status,priority,due_date,assignee_id,assigned_ids,parent_task_id').eq('eng_project_id', projectId).order('created_at', { ascending: false }),
       supabase.from('eng_reviews').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
     ]);
     if (p.error) { setError(p.error.message); return; }
@@ -181,14 +182,14 @@ const LogTab: React.FC<{ projectId: string; entries: EngEntry[]; name: (id: stri
 const TasksTab: React.FC<{ projectId: string; tasks: TaskRow[]; onChanged: () => void; onError: (message: string) => void }> = ({ projectId, tasks, onChanged, onError }) => {
   const { users, currentUser } = useWorkspace();
   const [title, setTitle] = useState('');
-  const [assignee, setAssignee] = useState(currentUser.id);
+  const [assigned, setAssigned] = useState<string[]>([]);
   const [due, setDue] = useState('');
   const add = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!title.trim()) return;
-    const { error } = await supabase.from('program_tasks').insert({ title: title.trim(), eng_project_id: projectId, assignee_id: assignee || null, due_date: due || null, status: 'not_started', priority: 'medium', progress: 0, created_by: currentUser.id });
+    const { error } = await supabase.from('program_tasks').insert({ title: title.trim(), eng_project_id: projectId, assigned_ids: assigned, due_date: due || null, status: 'not_started', priority: 'medium', progress: 0, created_by: currentUser.id });
     if (error) { onError(error.message); return; }
-    setTitle(''); setDue('');
+    setTitle(''); setDue(''); setAssigned([]);
     onChanged();
   };
   const toggle = async (task: TaskRow) => {
@@ -196,14 +197,14 @@ const TasksTab: React.FC<{ projectId: string; tasks: TaskRow[]; onChanged: () =>
     const { error } = await supabase.from('program_tasks').update({ status: completed ? 'completed' : 'not_started', progress: completed ? 100 : 0, updated_at: new Date().toISOString() }).eq('id', task.id);
     if (error) onError(error.message); else onChanged();
   };
-  const person = (id: string | null) => users.find((user) => user.id === id)?.name || 'Unassigned';
+  const person = (task: TaskRow) => users.filter((user) => assignedIds(task).includes(user.id)).map((user) => user.name).join(', ') || 'Unassigned';
   const statusLabel: Record<string, string> = { not_started: 'Not started', in_progress: 'In progress', blocked: 'Blocked', completed: 'Done' };
   return (
     <div className="space-y-3">
       <form onSubmit={(event) => void add(event)} className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-3">
         <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="New task for this project" aria-label="Task title" className={`${inputClass} min-w-48 flex-1`} />
-        <CustomSelect value={assignee} onChange={(event) => setAssignee(event.target.value)} aria-label="Assignee" className={`${inputClass} w-auto`}><option value="">Unassigned</option>{users.filter((user) => user.accountStatus !== 'removed').map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect>
-        <input type="date" value={due} onChange={(event) => setDue(event.target.value)} aria-label="Due date" className={`${inputClass} w-auto`} />
+        <AssignedField value={assigned} onChange={setAssigned} />
+        <TaskDateField value={due || null} onChange={(date) => setDue(date || '')} />
         <button type="submit" disabled={!title.trim()} className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-brand-600 px-4 text-xs font-bold text-white disabled:opacity-40 md:min-h-0"><Plus className="h-3.5 w-3.5" />Add</button>
       </form>
       <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
@@ -211,8 +212,8 @@ const TasksTab: React.FC<{ projectId: string; tasks: TaskRow[]; onChanged: () =>
           <div key={task.id} className="flex items-center gap-3 px-3 py-2.5">
             <input type="checkbox" checked={task.status === 'completed'} onChange={() => void toggle(task)} aria-label={`Mark ${task.title} ${task.status === 'completed' ? 'open' : 'done'}`} className="h-4 w-4 shrink-0" />
             <button type="button" onClick={() => navigate(`/programs/task/${task.id}`)} className={`min-w-0 flex-1 truncate text-left text-sm font-medium ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-800 hover:text-brand-600'}`}>{task.title}</button>
-            <span className="hidden text-xs text-slate-400 sm:block">{person(task.assignee_id)}</span>
-            <span className={`text-xs ${task.due_date && task.due_date < today() && task.status !== 'completed' ? 'font-semibold text-rose-600' : 'text-slate-400'}`}>{task.due_date || ''}</span>
+            <span className="hidden text-xs text-slate-400 sm:block">{person(task)}</span>
+            <span className={`text-xs ${task.due_date && task.due_date < today() && task.status !== 'completed' ? 'font-semibold text-rose-600' : 'text-slate-400'}`}>{formatTaskDate(task.due_date)}</span>
             <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{statusLabel[task.status]}</span>
           </div>
         ))}

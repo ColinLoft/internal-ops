@@ -75,7 +75,7 @@ export const HomePage: React.FC = () => {
     const load = async () => {
       const [files, programs, operations, feed, reports, support] = await Promise.all([
         supabase.from('drive_items').select('id, name, item_type, updated_at').is('deleted_at', null).neq('item_type', 'folder').order('updated_at', { ascending: false }).limit(5),
-        currentUser.id ? supabase.from('program_tasks').select('id,title,status,priority,due_date').eq('assignee_id', currentUser.id).neq('status', 'completed') : Promise.resolve({ data: [] }),
+        currentUser.id ? supabase.from('program_tasks').select('id,title,status,priority,due_date').contains('assigned_ids', [currentUser.id]).neq('status', 'completed') : Promise.resolve({ data: [] }),
         currentUser.id ? supabase.from('operation_tasks').select('id,title,status,priority,due_date').eq('assignee_id', currentUser.id).not('status', 'in', '(completed,cancelled)') : Promise.resolve({ data: [] }),
         supabase.from('entity_activity').select('id,entity_type,entity_id,action,detail,created_by,created_at').order('created_at', { ascending: false }).limit(8),
         supabase.from('grant_reports').select('id,title,due_date,status').in('status', ['upcoming', 'overdue']).order('due_date', { ascending: true }).limit(5),
