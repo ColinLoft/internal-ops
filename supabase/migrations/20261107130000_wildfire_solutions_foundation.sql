@@ -18,6 +18,20 @@ from public.workspace_roles
 where name = 'Wildfire Solutions team'
 on conflict (role_id, app) do nothing;
 
+create or replace function public.my_app_access()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(jsonb_object_agg(app, public.app_access_level(app)), '{}'::jsonb)
+  from unnest(array[
+    'insights', 'organization', 'programs', 'engineering', 'operations',
+    'customers', 'gtm', 'support', 'finance', 'legal', 'systems', 'wildfire'
+  ]) as app;
+$$;
+
 create table if not exists public.wildfire_products (
   id uuid primary key default gen_random_uuid(),
   sku text not null unique check (char_length(sku) between 1 and 100),
