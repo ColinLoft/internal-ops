@@ -29,7 +29,9 @@ history with the migrations already applied through the SQL editor.
 
 ## Flown Ops interface and collaboration
 
-Flown Ops is dark-only: deep navy surfaces, white text, and Flown blue accents.
+Flown Ops is dark-only: pure black backgrounds, charcoal panels, white primary
+text, and neutral gray secondary text. Flown blue is reserved for buttons,
+links, selected states, and focus outlines, not large background surfaces.
 Appearance settings retain text size and reduced motion, but no longer offer
 light mode or custom accent colors. Historical stored appearance preferences
 are normalized without changing account permissions.

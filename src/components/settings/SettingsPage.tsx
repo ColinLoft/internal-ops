@@ -156,7 +156,7 @@ export const SettingsPage: React.FC = () => {
             {section === 'appearance' && (
               <section className={card}>
                 <h2 className="text-lg font-bold text-slate-900">Appearance</h2>
-                <p className="mt-3 text-sm text-slate-500">Flown Ops uses our deep-navy theme and light-blue branding across every page. Light mode and custom accent colors are no longer available.</p>
+                <p className="mt-3 text-sm text-slate-500">Flown Ops uses black backgrounds, charcoal panels, and white text. Flown blue highlights buttons, links, selections, and keyboard focus. Light mode and custom accent colors are no longer available.</p>
                 <div className="mt-4 rounded-lg bg-slate-50 p-4">
                   <p className="font-semibold text-slate-900">Flown Operations</p>
                   <p className="mt-1 text-sm text-brand-600">People, products, and systems in one place.</p>
