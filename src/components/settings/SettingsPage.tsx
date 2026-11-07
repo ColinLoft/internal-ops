@@ -225,7 +225,6 @@ export const SettingsPage: React.FC = () => {
               <section className={`${card} divide-y divide-slate-100`}>
                 <h2 className="pb-1 text-lg font-bold text-slate-900">AI features</h2>
                 <p className="pb-3 text-sm text-slate-500">AI runs on the organization's Azure OpenAI deployment. Content is only sent when you use an AI feature.</p>
-                <Toggle label="Workspace AI assistant" description="Show the AI assistant button in the top bar." checked={draft.aiAssistantEnabled} onChange={(value) => update('aiAssistantEnabled', value)} />
                 <Toggle label="Suggested replies" description="Show “Suggest reply” when answering customer messages." checked={draft.aiSuggestedReplies} onChange={(value) => update('aiSuggestedReplies', value)} />
               </section>
             )}

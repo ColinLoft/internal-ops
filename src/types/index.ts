@@ -70,7 +70,6 @@ export interface WorkspaceSettings {
   ringtone: Ringtone;
   showCameraPreview: boolean;
   noiseSuppression: boolean;
-  aiAssistantEnabled: boolean;
   aiSuggestedReplies: boolean;
   fontSize: 'small' | 'default' | 'large';
   reduceMotion: boolean;
@@ -89,7 +88,6 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   ringtone: 'classic',
   showCameraPreview: true,
   noiseSuppression: true,
-  aiAssistantEnabled: true,
   aiSuggestedReplies: true,
   fontSize: 'default',
   reduceMotion: false,

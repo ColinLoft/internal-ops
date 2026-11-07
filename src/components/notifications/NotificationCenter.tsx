@@ -45,7 +45,7 @@ export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose 
   };
 
   return (
-    <div role="dialog" aria-label="Notification center" className="w-[min(20rem,calc(100vw-1rem))] md:w-80 bg-white/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-150">
+    <div role="dialog" aria-label="Notification center" className="w-[min(20rem,calc(100vw-1rem))] md:w-80 bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-150">
       {/* Header */}
       <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
         <div className="flex items-center gap-2">
@@ -72,13 +72,14 @@ export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose 
       </div>
 
       {/* Notifications List */}
-      <div className="max-h-[60dvh] md:max-h-96 overflow-y-auto divide-y divide-slate-100">
+      <div className="max-h-[max(4rem,calc(100dvh-16rem))] md:max-h-[min(24rem,max(4rem,calc(100dvh-14rem)))] overflow-y-auto divide-y divide-slate-100">
         {notifications.length > 0 ? (
           notifications.map((n) => (
-            <div
+            <button
+              type="button"
               key={n.id}
               onClick={() => handleNotificationClick(n)}
-              className={`p-3 cursor-pointer hover:bg-slate-50 transition-colors flex items-start gap-3 ${
+              className={`w-full p-3 text-left hover:bg-slate-50 transition-colors flex items-start gap-3 ${
                 !n.isRead ? 'bg-brand-50/40' : ''
               }`}
             >
@@ -92,14 +93,14 @@ export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose 
                     {n.timestamp}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                <span className="block text-xs text-slate-500 line-clamp-2 leading-relaxed">
                   {n.description}
-                </p>
+                </span>
               </div>
               {!n.isRead && (
                 <span className="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0 mt-1.5 shadow-xs" />
               )}
-            </div>
+            </button>
           ))
         ) : (
           <div className="p-6 text-center text-xs text-slate-400">No notifications</div>

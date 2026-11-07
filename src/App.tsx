@@ -2,7 +2,6 @@ import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { useOverlayA11y } from './hooks/useOverlayA11y';
 import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext';
 import { Sidebar } from './components/navigation/Sidebar';
-import { TopBar } from './components/navigation/TopBar';
 import { MobileTabBar } from './components/navigation/MobileTabBar';
 import { ConversationList } from './components/chat/ConversationList';
 import { ChatFeed } from './components/chat/ChatFeed';
@@ -151,7 +150,7 @@ const WorkspaceShell: React.FC = () => {
 
   return (
     <div className="flex h-dvh min-h-dvh w-screen overflow-hidden bg-[#fafbfc]">
-      <Sidebar isMobileOpen={isNavOpen} onOpenBugReport={() => { setBugReportSeed(null); setBugReportOpen(true); }} />
+      <Sidebar isMobileOpen={isNavOpen} onOpenMobile={() => setIsNavOpen(true)} onOpenBugReport={() => { setBugReportSeed(null); setBugReportOpen(true); }} />
       {isNavOpen && (
         <button
           type="button"
@@ -163,7 +162,6 @@ const WorkspaceShell: React.FC = () => {
 
       {/* 2. Main Workspace Layout */}
       <div className="mb-[calc(3.5rem+env(safe-area-inset-bottom))] flex min-w-0 flex-1 flex-col overflow-hidden md:mb-0">
-        <TopBar />
         {/* Workspace Body */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#fafbfc]">
           <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">

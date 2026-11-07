@@ -3,7 +3,7 @@ import { Search } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useRecordSearch } from '../../lib/useRecordSearch';
 
-export const GlobalSearch: React.FC<{ className?: string }> = ({ className = '' }) => {
+export const GlobalSearch: React.FC<{ className?: string; onRequestOpen?: () => void }> = ({ className = '', onRequestOpen }) => {
   const {
     channels, conversations, messages, users, calendarEvents, searchQuery, setSearchQuery,
     setActiveTab, setActiveConversationId, setActiveChannelId, openUserProfile,
@@ -95,11 +95,15 @@ export const GlobalSearch: React.FC<{ className?: string }> = ({ className = '' 
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); inputRef.current?.focus(); }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        onRequestOpen?.();
+        window.requestAnimationFrame(() => inputRef.current?.focus());
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [onRequestOpen]);
 
   return (
     <div className={`relative ${className}`}>

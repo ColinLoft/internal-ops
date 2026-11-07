@@ -351,9 +351,6 @@ const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
     noiseSuppression: typeof preferences.noiseSuppression === 'boolean'
       ? preferences.noiseSuppression
       : DEFAULT_WORKSPACE_SETTINGS.noiseSuppression,
-    aiAssistantEnabled: typeof preferences.aiAssistantEnabled === 'boolean'
-      ? preferences.aiAssistantEnabled
-      : DEFAULT_WORKSPACE_SETTINGS.aiAssistantEnabled,
     aiSuggestedReplies: typeof preferences.aiSuggestedReplies === 'boolean'
       ? preferences.aiSuggestedReplies
       : DEFAULT_WORKSPACE_SETTINGS.aiSuggestedReplies,

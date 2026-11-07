@@ -1,12 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, FolderKanban, Code2, UsersRound, Building2, Settings, ChevronsUpDown, Bug, LogOut, PanelLeftClose, Flame, Network,
+  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, FolderKanban, Code2, UsersRound, Building2, Settings, ChevronsUpDown, Bug, LogOut, PanelLeftClose, Flame, Network, Bell,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAllAppAccess } from '../../lib/useAppAccess';
 import { supabase } from '../../lib/supabase';
 import { GlobalSearch } from './GlobalSearch';
 import { getSectionTabs, isSectionSelected } from './sectionTabs';
+import { NotificationCenter } from '../notifications/NotificationCenter';
 
 type Tab = ReturnType<typeof useWorkspace>['activeTab'];
 type NavItem = { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> };
@@ -31,15 +32,27 @@ const accessKey: Partial<Record<Tab, string>> = { customers: 'customers', admin:
 
 interface SidebarProps {
   isMobileOpen?: boolean;
+  onOpenMobile?: () => void;
   onOpenBugReport: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenBugReport }) => {
-  const { activeTab, setActiveTab, conversations, currentUser, logout } = useWorkspace();
+export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenMobile, onOpenBugReport }) => {
+  const { activeTab, setActiveTab, conversations, currentUser, logout, unreadNotificationCount } = useWorkspace();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('flown-sidebar-groups') || '{}'); } catch { return {}; } });
   const access = useAllAppAccess();
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
-  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('flown-sidebar-collapsed') === '1');
+  const [collapsed, setCollapsed] = useState(true);
+  const [hoverOpen, setHoverOpen] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const railRef = useRef<HTMLElement>(null);
+  const edgeRef = useRef<HTMLButtonElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+  const expanded = !collapsed || hoverOpen || keyboardOpen;
+  const openForSearch = useCallback(() => {
+    setKeyboardOpen(true);
+    if (window.innerWidth < 768) onOpenMobile?.();
+  }, [onOpenMobile]);
   const [supportUnread, setSupportUnread] = useState(0);
 
   useEffect(() => {
@@ -56,29 +69,48 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenBu
   useEffect(() => {
     if (firstRoute.current) { firstRoute.current = false; return; }
     setCollapsed(true);
+    setHoverOpen(false);
+    setKeyboardOpen(false);
+    setNotificationsOpen(false);
   }, [routePath, activeTab]);
 
   useEffect(() => {
-    const toggle = () => setCollapsed((value) => !value);
-    window.addEventListener('flown-toggle-sidebar', toggle);
-    return () => window.removeEventListener('flown-toggle-sidebar', toggle);
-  }, []);
-
-  useEffect(() => {
     const expandForTour = () => setCollapsed(false);
-    const finishTour = () => setCollapsed(true);
+    const finishTour = () => { setCollapsed(true); setHoverOpen(false); setKeyboardOpen(false); };
+    window.addEventListener('flown-onboarding-target-notifications', expandForTour);
     window.addEventListener('flown-onboarding-target-bug-report', expandForTour);
     window.addEventListener('flown-onboarding-tour-finished', finishTour);
     return () => {
       window.removeEventListener('flown-onboarding-target-bug-report', expandForTour);
+      window.removeEventListener('flown-onboarding-target-notifications', expandForTour);
       window.removeEventListener('flown-onboarding-tour-finished', finishTour);
     };
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('flown-sidebar-collapsed', collapsed ? '1' : '0');
-    window.dispatchEvent(new CustomEvent('flown-sidebar-state', { detail: collapsed }));
-  }, [collapsed]);
+    if (!expanded && !isMobileOpen) setNotificationsOpen(false);
+  }, [expanded, isMobileOpen]);
+
+  useEffect(() => {
+    if (!notificationsOpen) return;
+    const onDown = (event: MouseEvent) => {
+      if (!notificationsRef.current?.contains(event.target as Node)) setNotificationsOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        setNotificationsOpen(false);
+        notificationsRef.current?.querySelector('button')?.focus();
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, [notificationsOpen]);
 
   useEffect(() => {
     let active = true;
@@ -115,34 +147,71 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenBu
   const isActive = (id: Tab) => activeTab === id || (id === 'messages' && activeTab === 'channels');
 
   const statusColor = currentUser.status === 'online' ? 'bg-emerald-400' : 'bg-slate-400';
-  const row = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-lg px-2.5 py-1.5 text-left text-[13px] font-medium transition-all duration-150 ${collapsed ? 'justify-center px-0' : ''} ${active ? 'bg-white/20 text-white shadow-xs font-semibold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`;
+  const row = (active: boolean) => `group relative flex w-full items-center gap-3 rounded-lg px-2.5 py-1.5 text-left text-[13px] font-medium transition-all duration-150 ${active ? 'bg-white/20 text-white shadow-xs font-semibold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`;
 
   return (
+    <>
+    <button
+      ref={edgeRef}
+      type="button"
+      aria-label="Open navigation"
+      aria-controls="workspace-navigation"
+      aria-expanded={expanded}
+      onMouseEnter={() => setHoverOpen(true)}
+      onMouseLeave={(event) => {
+        if (!(event.relatedTarget instanceof Node) || !railRef.current?.contains(event.relatedTarget)) setHoverOpen(false);
+      }}
+      onMouseDown={(event) => event.preventDefault()}
+      onFocus={() => setKeyboardOpen(true)}
+      onClick={(event) => {
+        if (event.detail === 0) setKeyboardOpen(true);
+        else setHoverOpen(true);
+      }}
+      onBlur={(event) => {
+        if (!railRef.current?.contains(event.relatedTarget as Node | null)) setKeyboardOpen(false);
+      }}
+      className="fixed inset-y-0 left-0 z-30 hidden w-3 bg-transparent focus-visible:bg-brand-600 md:block"
+    />
     <aside
+      id="workspace-navigation"
+      ref={railRef}
       aria-label="Primary navigation"
-      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-slate-950 text-white border-r border-slate-200 transition-all duration-200 md:static md:z-30 md:translate-x-0 ${collapsed ? 'md:w-0 md:overflow-hidden md:border-r-0 md:invisible' : 'md:w-64'} w-72 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      onMouseEnter={() => setHoverOpen(true)}
+      onMouseLeave={() => setHoverOpen(false)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setKeyboardOpen(false);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          edgeRef.current?.focus();
+          setCollapsed(true);
+          setHoverOpen(false);
+          setKeyboardOpen(false);
+        }
+      }}
+      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 select-none flex-col bg-slate-950 text-white border-r border-slate-200 transition-transform duration-200 motion-reduce:transition-none md:z-30 md:w-64 w-72 ${isMobileOpen ? 'translate-x-0 visible' : '-translate-x-full invisible'} ${expanded ? 'md:translate-x-0 md:visible' : 'md:-translate-x-full md:invisible'}`}
     >
       <div className="flex items-center gap-2 p-3 pb-2.5">
         <button
           type="button"
           onClick={() => { setActiveTab('home'); goTo('/home'); }}
           title="Flown home"
-          className={`h-10 min-w-0 flex-1 items-center justify-start px-2 rounded-lg hover:bg-white/10 transition-colors ${collapsed ? 'flex md:hidden' : 'flex'}`}
+          className="flex h-10 min-w-0 flex-1 items-center justify-start px-2 rounded-lg hover:bg-white/10 transition-colors"
         >
           <img src="/flown-logo.png" alt="Flown" className="h-10 w-auto max-w-full object-contain brightness-0 invert opacity-95" />
           <span className="ml-2 text-xs font-semibold text-brand-300">Ops</span>
         </button>
         <button
           type="button"
-          onClick={() => setCollapsed((value) => !value)}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          onClick={() => { edgeRef.current?.focus(); setCollapsed(true); setHoverOpen(false); setKeyboardOpen(false); }}
+          aria-label="Close navigation"
           className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/80 hover:bg-white/15 hover:text-white md:flex transition-colors"
         >
           <PanelLeftClose className="h-4 w-4" />
         </button>
       </div>
 
-      {!collapsed && <div className="px-3 pb-2"><GlobalSearch /></div>}
+      <div className="px-3 pb-2"><GlobalSearch onRequestOpen={openForSearch} /></div>
 
       <nav className="flex-1 overflow-y-auto px-2.5 py-1 [scrollbar-width:none]">
         {(() => {
@@ -203,6 +272,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenBu
       </nav>
 
       <div className="space-y-0.5 border-t border-white/15 p-2.5">
+        <div className="relative" ref={notificationsRef}>
+          <button type="button" data-onboarding-target="notifications-button" aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ''}`} aria-haspopup="dialog" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((value) => !value)} className={row(notificationsOpen)}>
+            <Bell className="h-[17px] w-[17px] shrink-0 text-white/80" />
+            <span className="flex-1">Notifications</span>
+            {unreadNotificationCount > 0 && <span className="rounded-full bg-rose-500 px-1.5 text-xs font-bold text-white">{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</span>}
+          </button>
+          {notificationsOpen && <div className="absolute bottom-full left-0 pb-2 md:bottom-0 md:left-full md:pb-0 md:pl-2"><NotificationCenter onClose={() => setNotificationsOpen(false)} /></div>}
+        </div>
         <button type="button" data-onboarding-target="bug-report-button" title="Bug report" onClick={onOpenBugReport} className={row(false)}>
           <Bug className="h-[17px] w-[17px] shrink-0 text-white/80" />
           Bug report
@@ -212,20 +289,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenBu
           Settings
         </button>
         <div className="pt-1">
-          <div data-onboarding-target="profile-summary" className={`flex items-center gap-2.5 rounded-xl border border-white/20 bg-white/10 p-2 transition-colors ${collapsed ? 'justify-center' : ''}`}>
+          <div data-onboarding-target="profile-summary" className="flex items-center gap-2.5 rounded-xl border border-white/20 bg-white/10 p-2 transition-colors">
             <span title={`${currentUser.name} (${currentUser.role})`} className="relative block shrink-0 rounded-full">
               <img src={currentUser.avatar} alt={currentUser.name} className="h-8 w-8 rounded-full border border-white/40 object-cover" />
               <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#2569F5] ${statusColor}`} />
             </span>
-            {!collapsed && (
-              <>
                 <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-white">{currentUser.name}</span><span className="block truncate text-[11px] text-white/75">{currentUser.role}</span></span>
                 <button type="button" onClick={() => void logout()} aria-label="Sign out" title="Sign out" className="rounded-lg p-1 text-white/80 hover:bg-white/20 hover:text-white transition-colors"><LogOut className="h-4 w-4" /></button>
-              </>
-            )}
           </div>
         </div>
       </div>
     </aside>
+    </>
   );
 };

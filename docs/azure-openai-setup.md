@@ -1,8 +1,8 @@
-# Azure OpenAI setup for email AI and the workspace assistant
+# Azure OpenAI setup for operational email AI
 
-This guide configures Azure OpenAI for the workspace email **Summarize** and **Draft reply** actions plus the sitewide conversational **Workspace assistant**. It explains where to create a model deployment, which values to copy, where to save them in Supabase, and how to test the integration.
+This guide describes the retained operational email AI integration. The personal email inbox and sitewide Workspace assistant have been removed from Flown Ops; there is no assistant button or assistant setting. Customer-support and grant AI workflows remain separate.
 
-The app calls Azure OpenAI only after a signed-in user opens the assistant or explicitly selects an AI action on an email. The email function sends the email sender, subject, and up to 30,000 characters of text. The workspace assistant retrieves the current permitted channel, conversation, or calendar context server-side. It can prepare a message action, but the browser always shows the exact target and text and requires an explicit confirmation before posting or sending. It never publishes an action directly from the model response.
+The retained email function sends the email sender, subject, and up to 30,000 characters of text when explicitly invoked. Its deployment is independent of the removed workspace assistant UI.
 
 > You need access to the Azure subscription that will pay for model usage, permission to create or use an Azure OpenAI resource and model deployment, and administrator access to the workspace's Supabase project.
 
@@ -91,27 +91,17 @@ Changing Edge Function secrets does not require a redeploy, but make sure the la
    supabase functions deploy mail-ai
    ```
 
-5. In Supabase **Edge Functions**, confirm `mail-ai` is deployed. The email AI and Flown workspace assistant both use this function.
+5. In Supabase **Edge Functions**, confirm `mail-ai` is deployed for operational integrations.
 
 Do not add `--no-verify-jwt` to this deployment. The function requires the signed-in workspace user's authentication.
 
 ## 6. Test the integration
 
-1. Sign in to the deployed workspace and open **Email inbox**.
-2. Open a non-sensitive test email in a mailbox the signed-in user can access.
-3. Select **Summarize** and verify that a summary appears and is saved with the email.
-4. Select **Draft reply** and verify that a draft is returned. Confirm it is not sent automatically.
+1. Use an authenticated operational integration that invokes `mail-ai`; the removed personal Email inbox is not available.
+2. Use a non-sensitive test email in a mailbox the signed-in user can access.
+3. Invoke **Summarize** and verify that a summary appears and is saved with the email.
+4. Invoke **Draft reply** and verify that a draft is returned. Confirm it is not sent automatically.
 5. If a request fails, note the status and error text shown in the app, then inspect **Supabase Dashboard → Edge Functions → mail-ai → Logs** for the corresponding request.
-
-### Test the Workspace assistant
-
-1. Open the deployed workspace and select the sparkle button in the lower-right corner.
-2. Ask a read-only question such as `Summarize what is happening in this channel.` Confirm the response uses the current view.
-3. In a channel where you can post, ask it to prepare a short update. Verify that it shows a **Confirmation required** card with the destination and exact text.
-4. Select **Cancel** and confirm no message was created.
-5. Ask it to prepare the update again, then select **Confirm**. Verify that one message is posted in the current channel.
-6. Change to another channel or conversation before confirming a proposal. The assistant must refuse to execute the stale proposal.
-7. If the assistant fails, inspect **Supabase Dashboard → Edge Functions → mail-ai → Logs**.
 
 Start with a short test email. Avoid putting sensitive, regulated, or confidential email content into AI processing unless the organization's Azure configuration, policies, and data-handling approval explicitly permit it.
 

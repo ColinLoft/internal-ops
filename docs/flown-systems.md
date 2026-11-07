@@ -36,6 +36,14 @@ Appearance settings retain text size and reduced motion, but no longer offer
 light mode or custom accent colors. Historical stored appearance preferences
 are normalized without changing account permissions.
 
+There is no top bar, Quick Add menu, or sitewide AI assistant. On desktop,
+hover near the left edge to reveal the navigation rail over the current page;
+it closes when the pointer leaves. Keyboard users can focus Open navigation
+and tab into the rail. Mobile users keep the bottom Menu button.
+Notifications is near the bottom of the rail, alongside Bug report and Settings.
+Support and grant AI integrations are unchanged. No SQL update is needed for
+these navigation changes.
+
 Nested engineering project/review links and large task back links are recognized
 by the shell rather than routed to the 404 page. Ideas, votes, discussions,
 project details, and task details subscribe to database changes and refresh

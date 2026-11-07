@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BarChart3,
+  Bell,
   Building2,
   Bug,
   CalendarDays,
@@ -37,7 +38,7 @@ type SpotlightRect = { top: number; left: number; width: number; height: number 
 const TOUR_STEPS: TourStep[] = [
   {
     title: 'Flown Ops at a glance',
-    description: 'Home brings your tasks, calendar, messages, and updates together. Use the dashboard shortcuts to jump into the work that needs attention.',
+    description: 'Home brings your tasks, calendar, messages, and updates together. Hover near the left edge to open navigation; it closes when you move away. On mobile, use Menu at the bottom. Use dashboard shortcuts to jump into your work.',
     tab: 'home',
     target: 'home-overview',
     icon: Building2,
@@ -113,6 +114,13 @@ const TOUR_STEPS: TourStep[] = [
     tab: 'settings',
     target: 'settings-workspace',
     icon: Settings,
+    action: 'Find notifications',
+  },
+  {
+    title: 'Your notifications',
+    description: 'Notifications lives near the bottom of the navigation rail. Open it to review updates, jump to a conversation or channel, and mark notifications as read.',
+    target: 'notifications-button',
+    icon: Bell,
     action: 'Learn about bug reports',
   },
   {
@@ -283,6 +291,9 @@ export const FirstLoginOnboarding: React.FC = () => {
   const moveTour = (direction: -1 | 1) => {
     const nextIndex = Math.max(0, Math.min(tourSteps.length - 1, tourIndex + direction));
     setTourIndex(nextIndex);
+    if (tourSteps[nextIndex]?.target === 'notifications-button') {
+      window.dispatchEvent(new Event('flown-onboarding-target-notifications'));
+    }
     if (nextIndex === tourSteps.length - 1) {
       window.dispatchEvent(new Event('flown-onboarding-target-bug-report'));
     }
