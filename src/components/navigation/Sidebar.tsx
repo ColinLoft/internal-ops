@@ -130,7 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenBu
           title="Flown home"
           className={`h-10 min-w-0 flex-1 items-center justify-start px-2 rounded-lg hover:bg-white/10 transition-colors ${collapsed ? 'flex md:hidden' : 'flex'}`}
         >
-          <img src="/flown-logo.png" alt="Flown" className="h-8 w-auto max-w-none shrink-0 brightness-0 invert opacity-95" />
+          <img src="/flown-logo.png" alt="Flown" className="h-10 w-auto max-w-full object-contain brightness-0 invert opacity-95" />
         </button>
         <button
           type="button"

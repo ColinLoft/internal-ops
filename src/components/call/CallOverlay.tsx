@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ConnectionState,
   Participant,
+  ParticipantEvent,
   Room,
   RoomEvent,
   Track,
@@ -43,11 +44,11 @@ const readFunctionError = async (error: Error) => {
   return error.message;
 };
 
-const AttachedVideo: React.FC<{ track?: Track; className?: string; muted?: boolean }> = ({
+const AttachedVideo = React.memo(function AttachedVideo({
   track,
   className = '',
   muted = false,
-}) => {
+}: { track?: Track; className?: string; muted?: boolean }) {
   const elementRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     if (!track || !elementRef.current) return;
@@ -59,7 +60,7 @@ const AttachedVideo: React.FC<{ track?: Track; className?: string; muted?: boole
   }, [track]);
 
   return <video ref={elementRef} autoPlay playsInline muted={muted} className={className} />;
-};
+});
 
 const AttachedAudio: React.FC<{ track: Track; onPlaybackBlocked: () => void }> = ({ track, onPlaybackBlocked }) => {
   const elementRef = useRef<HTMLAudioElement>(null);
@@ -111,6 +112,8 @@ export const CallOverlay: React.FC = () => {
 
   const [room, setRoom] = useState<Room | null>(null);
   const [remoteMedia, setRemoteMedia] = useState<ParticipantMedia[]>([]);
+  const [localMedia, setLocalMedia] = useState<ParticipantMedia | null>(null);
+  const [selectedScreenId, setSelectedScreenId] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.Disconnected);
   const [isScreenShareBusy, setIsScreenShareBusy] = useState(false);
   const [audioPlaybackBlocked, setAudioPlaybackBlocked] = useState(false);
@@ -124,6 +127,9 @@ export const CallOverlay: React.FC = () => {
     if (!callSession.active || !callSession.sessionId) {
       setRoom(null);
       setRemoteMedia([]);
+      setLocalMedia(null);
+      setSelectedScreenId(null);
+      screenSharingRef.current = false;
       setConnectionState(ConnectionState.Disconnected);
       setMicrophoneError('');
       return;
@@ -137,6 +143,7 @@ export const CallOverlay: React.FC = () => {
     const refreshMedia = () => {
       if (!mounted) return;
       setRemoteMedia(Array.from(liveKitRoom.remoteParticipants.values(), participantMedia));
+      setLocalMedia(participantMedia(liveKitRoom.localParticipant));
     };
 
     liveKitRoom
@@ -144,6 +151,9 @@ export const CallOverlay: React.FC = () => {
       .on(RoomEvent.TrackUnsubscribed, refreshMedia)
       .on(RoomEvent.TrackPublished, refreshMedia)
       .on(RoomEvent.TrackUnpublished, refreshMedia)
+      .on(RoomEvent.LocalTrackPublished, refreshMedia)
+      .on(RoomEvent.TrackMuted, refreshMedia)
+      .on(RoomEvent.TrackUnmuted, refreshMedia)
       .on(RoomEvent.ParticipantConnected, refreshMedia)
       .on(RoomEvent.ParticipantDisconnected, refreshMedia)
       .on(RoomEvent.ActiveSpeakersChanged, refreshMedia)
@@ -162,9 +172,10 @@ export const CallOverlay: React.FC = () => {
         if (publication.source === Track.Source.ScreenShare && mounted && screenSharingRef.current) {
           screenSharingRef.current = false;
           toggleCallScreenShare();
-          refreshMedia();
         }
+        refreshMedia();
       });
+    liveKitRoom.localParticipant.on(ParticipantEvent.IsSpeakingChanged, refreshMedia);
 
     setRoom(liveKitRoom);
     setConnectionState(ConnectionState.Connecting);
@@ -202,6 +213,7 @@ export const CallOverlay: React.FC = () => {
     void connect();
     return () => {
       mounted = false;
+      liveKitRoom.localParticipant.off(ParticipantEvent.IsSpeakingChanged, refreshMedia);
       void liveKitRoom.disconnect();
     };
   }, [callSession.active, callSession.sessionId, callSession.type, connectionAttempt]);
@@ -228,25 +240,37 @@ export const CallOverlay: React.FC = () => {
     });
   }, [room, connectionState, callSession.isCameraOff, callSession.type, workspaceSettings.cameraDeviceId, setCallError]);
 
-  const localCameraTrack = room?.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
-  const localScreenTrack = room?.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track;
-  const sharedScreen = remoteMedia.find((participant) => participant.screen);
+  const localCameraTrack = localMedia?.camera;
+  const localSpeaking = Boolean(localMedia?.speaking && !callSession.isMuted && !microphoneError);
+  const screenShares = [
+    ...remoteMedia.filter((participant) => participant.screen),
+    ...(localMedia?.screen ? [{ ...localMedia, name: 'You' }] : []),
+  ];
+  const focusedScreenId = screenShares.some((participant) => participant.identity === selectedScreenId)
+    ? selectedScreenId : null;
 
   const handleScreenShare = async () => {
-    if (!room || isScreenShareBusy) return;
+    if (!room || isScreenShareBusy || connectionState !== ConnectionState.Connected) return;
     setIsScreenShareBusy(true);
     try {
       await room.localParticipant.setScreenShareEnabled(!screenSharingRef.current, {
         audio: false,
         selfBrowserSurface: 'exclude',
         surfaceSwitching: 'include',
-        contentHint: 'motion',
-        resolution: { width: 1920, height: 1080, frameRate: 15 },
+        contentHint: 'detail',
+        resolution: { width: 1280, height: 720, frameRate: 10 },
+      }, {
+        videoCodec: 'vp8',
+        simulcast: false,
+        screenShareEncoding: { maxBitrate: 1_500_000, maxFramerate: 10 },
+        degradationPreference: 'maintain-resolution',
       });
-      if (room.localParticipant.isScreenShareEnabled && !screenSharingRef.current) {
-        screenSharingRef.current = true;
+      const enabled = room.localParticipant.isScreenShareEnabled;
+      if (enabled !== screenSharingRef.current) {
+        screenSharingRef.current = enabled;
         toggleCallScreenShare();
       }
+      setLocalMedia(participantMedia(room.localParticipant));
     } catch (error) {
       setCallError(error instanceof Error ? `Screen sharing failed: ${error.message}` : 'Screen sharing failed.');
     } finally {
@@ -325,6 +349,9 @@ export const CallOverlay: React.FC = () => {
 
       {callSession.active && (
         <div className={`fixed ${callSession.isMinimized ? 'bottom-[4.5rem] right-3 w-[min(25rem,calc(100vw-1.5rem))] md:bottom-6 md:right-6 md:w-[min(25rem,calc(100vw-2rem))]' : 'inset-0 sm:inset-4'} z-50 flex flex-col overflow-hidden border border-[#303236] bg-[#111214] text-white shadow-2xl ${callSession.isMinimized ? 'rounded-xl' : 'rounded-none sm:rounded-2xl'}`}>
+          {remoteMedia.flatMap((participant) =>
+            participant.audio.map((track) => <AttachedAudio key={`${participant.identity}:${track.sid}`} track={track} onPlaybackBlocked={handleAudioPlaybackBlocked} />)
+          )}
           <header className="flex min-h-16 items-center justify-between border-b border-[#303236] bg-[#18191b] px-4 py-3 sm:px-6">
             <div className="flex min-w-0 items-center gap-3">
               <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${connectionState === ConnectionState.Connected ? 'bg-emerald-400' : connectionState === ConnectionState.Disconnected ? 'bg-rose-400' : 'animate-pulse bg-amber-300'}`} />
@@ -350,15 +377,15 @@ export const CallOverlay: React.FC = () => {
             </div>
           </header>
 
+          {audioPlaybackBlocked && (
+            <div role="status" className="flex flex-wrap items-center justify-between gap-3 bg-[#18191b] px-4 py-3">
+              <span className="flex items-center gap-2 text-sm text-[#e1e2e4]"><Volume2 className="h-4 w-4 text-amber-300" />Allow audio playback to hear the call.</span>
+              <button type="button" onClick={() => void enableAudioPlayback()} className="min-h-10 rounded-md bg-white px-3 text-sm font-semibold text-black hover:bg-[#e6e6e6]">Turn on audio</button>
+            </div>
+          )}
           {!callSession.isMinimized && (
             <>
               <section className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto bg-[#0b0c0e] p-4 sm:p-6">
-                {audioPlaybackBlocked && (
-                  <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#35373b] bg-[#18191b] px-4 py-3">
-                    <span className="flex items-center gap-2 text-sm text-[#e1e2e4]"><Volume2 className="h-4 w-4 text-amber-300" />Allow audio playback to hear the call.</span>
-                    <button type="button" onClick={() => void enableAudioPlayback()} className="min-h-10 rounded-md bg-white px-3 text-sm font-semibold text-black hover:bg-[#e6e6e6]">Turn on audio</button>
-                  </div>
-                )}
                 {microphoneError && (
                   <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#513637] bg-[#211719] px-4 py-3">
                     <span className="text-sm text-[#f0c5c6]">Microphone unavailable: {microphoneError}</span>
@@ -376,19 +403,35 @@ export const CallOverlay: React.FC = () => {
                     </button>
                   </div>
                 )}
-                {sharedScreen?.screen && (
-                  <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg bg-black">
-                    <AttachedVideo track={sharedScreen.screen} className="h-full max-h-full w-full object-contain" />
-                    <span className="absolute left-3 top-3 rounded-md bg-black/75 px-2.5 py-1.5 text-xs font-semibold">{sharedScreen.name} is sharing their screen</span>
+                {screenShares.length > 0 && (
+                  <div className={`grid grid-cols-1 gap-4 ${screenShares.length === 2 ? 'sm:grid-cols-2' : screenShares.length > 2 ? 'sm:grid-cols-2 lg:grid-cols-3' : ''}`}>
+                    {screenShares.map((participant) => {
+                      const focused = participant.identity === focusedScreenId;
+                      const local = participant.identity === localMedia?.identity;
+                      return (
+                        <button
+                          key={participant.identity}
+                          type="button"
+                          aria-label={`${focused ? 'Reduce' : 'Enlarge'} ${local ? 'your' : `${participant.name}'s`} screen share`}
+                          aria-pressed={focused}
+                          onClick={() => setSelectedScreenId(focused ? null : participant.identity)}
+                          className={`relative overflow-hidden rounded-lg bg-black ring-1 ring-[#303236] hover:ring-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
+                            focused || screenShares.length === 1
+                              ? 'order-first col-span-full h-[min(55vh,36rem)]'
+                              : focusedScreenId ? 'h-28 w-full max-w-60 sm:h-32' : 'aspect-video'
+                          }`}
+                        >
+                          <AttachedVideo track={participant.screen} muted={local} className="absolute inset-0 h-full w-full object-contain" />
+                          <span className="absolute left-3 top-3 rounded-md bg-black/75 px-2.5 py-1.5 text-xs font-semibold">{local ? 'Your screen' : `${participant.name}'s screen`}</span>
+                          <span className="absolute bottom-3 right-3 rounded-md bg-black/75 p-2">
+                            {focused ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
-                {localScreenTrack && (
-                  <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg bg-black">
-                    <AttachedVideo track={localScreenTrack} muted className="h-full max-h-full w-full object-contain" />
-                    <span className="absolute left-3 top-3 rounded-md bg-black/75 px-2.5 py-1.5 text-xs font-semibold">You are sharing your screen</span>
-                  </div>
-                )}
-                {!sharedScreen && !localScreenTrack && (
+                {screenShares.length === 0 && (
                   <div className={`grid min-h-0 flex-1 content-center gap-4 ${remoteMedia.length === 0 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
                     {remoteMedia.map((participant) => (
                       <div key={participant.identity} className={`relative flex min-h-48 items-center justify-center overflow-hidden rounded-xl border bg-[#17181a] ${participant.speaking ? 'border-emerald-400' : 'border-[#303236]'}`}>
@@ -408,15 +451,18 @@ export const CallOverlay: React.FC = () => {
                         <span className="absolute bottom-3 left-3 rounded-md bg-black/75 px-2.5 py-1.5 text-sm font-medium">{participant.name}</span>
                       </div>
                     ))}
-                    <div className="relative flex min-h-48 items-center justify-center overflow-hidden rounded-xl border border-[#303236] bg-[#17181a]">
+                    <div aria-label={localSpeaking ? 'You are speaking' : 'Your call tile'} className={`relative flex min-h-48 items-center justify-center overflow-hidden rounded-xl border bg-[#17181a] ${localSpeaking ? 'border-emerald-400' : 'border-[#303236]'}`}>
                       {callSession.type === 'video' && localCameraTrack && !callSession.isCameraOff && workspaceSettings.showCameraPreview ? (
                         <AttachedVideo track={localCameraTrack} muted className="absolute inset-0 h-full w-full scale-x-[-1] object-cover" />
                       ) : (
                         <div className="flex flex-col items-center gap-3">
-                          <span className="flex h-24 w-24 items-center justify-center rounded-full bg-[#292b2e] text-3xl font-semibold text-white">
+                          <span className={`flex h-24 w-24 items-center justify-center rounded-full bg-[#292b2e] text-3xl font-semibold text-white ${localSpeaking ? 'ring-2 ring-emerald-400 ring-offset-4 ring-offset-[#17181a]' : ''}`}>
                             {currentUser.name.charAt(0).toUpperCase()}
                           </span>
-                          <span className="text-sm text-[#d5d6d8]">You</span>
+                          <span className="flex items-center gap-2 text-sm text-[#d5d6d8]">
+                            {localSpeaking && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
+                            {localSpeaking ? 'Speaking' : 'You'}
+                          </span>
                         </div>
                       )}
                       <span className="absolute bottom-3 left-3 flex items-center gap-2 rounded-md bg-black/75 px-2.5 py-1.5 text-sm font-medium">
@@ -430,9 +476,6 @@ export const CallOverlay: React.FC = () => {
                       </div>
                     )}
                   </div>
-                )}
-                {remoteMedia.flatMap((participant) =>
-                  participant.audio.map((track) => <AttachedAudio key={track.sid} track={track} onPlaybackBlocked={handleAudioPlaybackBlocked} />)
                 )}
               </section>
 
@@ -462,7 +505,7 @@ export const CallOverlay: React.FC = () => {
             <div className="flex items-center justify-between px-4 py-2 text-xs text-slate-300">
               <span>{connectionState === ConnectionState.Connected ? `${minutes}:${seconds}` : connectionState === ConnectionState.Disconnected ? 'Connection lost' : 'Connecting…'}</span>
               <div className="flex gap-2">
-                <button type="button" onClick={toggleCallMute} aria-label={callSession.isMuted ? 'Unmute' : 'Mute'} className="rounded-lg bg-slate-800 p-2">
+                <button type="button" onClick={handleMicrophoneButton} disabled={isMicrophoneBusy} aria-label={microphoneError ? 'Retry microphone' : callSession.isMuted ? 'Unmute' : 'Mute'} className="rounded-lg bg-slate-800 p-2">
                   {callSession.isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </button>
                 <button type="button" onClick={endCall} aria-label="Leave call" className="rounded-lg bg-rose-600 p-2"><PhoneOff className="h-4 w-4" /></button>
