@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ExternalLink, Link2, Mail, Plus, Search, Trash2 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
+import { celebrateMilestone } from '../../lib/milestones';
 import { AttachmentsPanel, CommentsPanel, LinksPanel, card, field, formatDateTime, logActivity } from '../work/EntityPanels';
 import { RichNotes } from '../work/RichNotes';
 import { AiTab, FunderPicker, PeopleTab, RequirementsTab } from './GrantExtras';
@@ -64,9 +65,11 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
   useEffect(() => { void load(); }, [load]);
 
   const patch = async (values: Partial<Grant>, activity?: string) => {
+    const previousStage = grant?.stage;
     setGrant((current) => (current ? { ...current, ...values } : current));
-    const { error: updateError } = await supabase.from('grants').update(values).eq('id', grantId);
+    const { data, error: updateError } = await supabase.from('grants').update(values).eq('id', grantId).select('stage').single();
     if (updateError) { setError(updateError.message); void load(); return; }
+    if (values.stage && data) celebrateMilestone('grant', grantId, previousStage, data.stage);
     setError('');
     if (activity) void logActivity('grant', grantId, activity);
     if (values.stage) {
@@ -330,8 +333,12 @@ const TasksTab: React.FC<{ grant: Grant; tasks: GrantTask[]; currentUserId: stri
   };
   const toggle = async (task: GrantTask) => {
     const status = task.status === 'completed' ? 'not_started' : 'completed';
-    const { error } = await supabase.from('program_tasks').update({ status, progress: status === 'completed' ? 100 : 0, completed_at: status === 'completed' ? new Date().toISOString() : null }).eq('id', task.id);
-    if (error) onError(error.message); else onChanged();
+    const { data, error } = await supabase.from('program_tasks').update({ status, progress: status === 'completed' ? 100 : 0, completed_at: status === 'completed' ? new Date().toISOString() : null }).eq('id', task.id).select('status').single();
+    if (error) onError(error.message);
+    else {
+      if (data) celebrateMilestone('task', task.id, task.status, data.status);
+      onChanged();
+    }
   };
   return (
     <section className={`${card} space-y-2`}>

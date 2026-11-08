@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { CalendarDays, ExternalLink, KanbanSquare, X } from 'lucide-react';
 import { CustomSelect } from '../common/CustomSelect';
 import { supabase } from '../../lib/supabase';
+import { celebrateMilestone } from '../../lib/milestones';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { PanelLayout } from '../common/PanelLayout';
 import { TableSkeleton } from '../common/Feedback';
@@ -52,6 +53,7 @@ export const TasksViews: React.FC<Props> = ({ tasks, projects, loading, onChange
       if (claiming) query = query.eq('assigned_ids', '{}');
       const { data, error } = await query.select('*').single();
       if (error || !data) throw new Error(error?.message || 'The task update was not saved.');
+      if (changes.status) celebrateMilestone('task', task.id, task.status, data.status);
       onPatched?.([task.id], data as TaskRow);
       setOverrides((current) => ({ ...current, [task.id]: data as TaskRow }));
       await onChanged();

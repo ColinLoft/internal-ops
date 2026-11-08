@@ -9,7 +9,9 @@ import { assignedIds, formatTaskDate, plainTaskNotes, TaskDateField } from './ta
 const state = vi.hoisted(() => ({
   update: vi.fn(),
   save: vi.fn(),
+  celebrate: vi.fn(),
 }));
+vi.mock('../../lib/milestones', () => ({ celebrateMilestone: state.celebrate }));
 vi.mock('../../context/WorkspaceContext', () => ({
   useWorkspace: () => ({ currentUser: { id: 'me' }, users: [{ id: 'me', name: 'Me' }, { id: 'other', name: 'Teammate' }] }),
 }));
@@ -84,6 +86,29 @@ describe('shared tasks', () => {
     await drop('In progress');
     expect(column('Not started').textContent).toContain(task.title);
     expect(onError).toHaveBeenCalledWith('Permission denied');
+    expect(state.celebrate).not.toHaveBeenCalled();
+  });
+
+  it('waits for persisted status before celebrating completion, never optimistic movement', async () => {
+    let finish!: (value: unknown) => void;
+    state.save.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    await render();
+    expect(state.celebrate).not.toHaveBeenCalled();
+    await drop('Completed');
+    expect(column('Completed').textContent).toContain(task.title);
+    expect(state.celebrate).not.toHaveBeenCalled();
+    await act(async () => { finish({ data: { ...task, status: 'completed' }, error: null }); });
+    expect(state.celebrate).toHaveBeenCalledExactlyOnceWith('task', task.id, 'not_started', 'completed');
+  });
+
+  it('never celebrates a denied completion or an unconfirmed empty result', async () => {
+    await render();
+    state.save.mockResolvedValue({ data: null, error: { message: 'Permission denied' } });
+    await drop('Completed');
+    expect(state.celebrate).not.toHaveBeenCalled();
+    state.save.mockResolvedValue({ data: null, error: null });
+    await drop('Completed');
+    expect(state.celebrate).not.toHaveBeenCalled();
   });
 
   it('claims an unassigned task only when explicitly requested', async () => {

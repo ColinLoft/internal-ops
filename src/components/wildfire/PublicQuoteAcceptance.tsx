@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { celebrateMilestone } from '../../lib/milestones';
 import { control, functionError, money, primary, secondary, surface } from './model';
 type Snapshot = {
   quoteId: string; version: number; currency: string; terms: string; proposal: string;
@@ -68,6 +69,7 @@ export function PublicQuoteAcceptance({ token }: { token: string }) {
       if (data?.error) throw new Error(data.error);
       if (data?.status !== 'accepted' || !data?.deploymentId) throw new Error('Acceptance was not confirmed. Retry using this same link or contact the sender.');
       setAccepted(true);
+      celebrateMilestone('quote', details?.snapshot.quoteId || '', details?.status, data.status);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Quote acceptance failed.'); }
     finally { setSaving(false); }
   };

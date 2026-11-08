@@ -1,312 +1,105 @@
-import React, { useRef, useEffect } from 'react';
-import {
-  Phone,
-  Video,
-  Info,
-  Users as UsersIcon,
-  Lock,
-  Hash,
-  Clock,
-  MessageSquare,
-  Plus,
-  UserPlus,
-  ArrowLeft,
-  Settings,
-} from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowDown, ArrowLeft, Hash, Info, Lock, MessageSquare, Phone, Plus, Search, Settings, Users, Video, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { MessageBubble } from './MessageBubble';
 import { MessageComposer } from './MessageComposer';
+import { groupWithPrevious, messageDay } from './messageLayout';
 import { EditChannelModal } from '../modals/EditChannelModal';
 
-interface ChatFeedProps {
-  onBack?: () => void;
-}
-
-export const ChatFeed: React.FC<ChatFeedProps> = ({ onBack }) => {
+export const ChatFeed: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const {
-    activeTab,
-    activeConversationId,
-    activeChannelId,
-    conversations,
-    channels,
-    messages,
-    currentUser,
-    users,
-    sendMessage,
-    markMessagesSeen,
-    openThread,
-    toggleRightDrawer,
-    isRightDrawerOpen,
-    startCall,
-    openUserProfile,
-    setIsNewMessageOpen,
+    activeTab, activeConversationId, activeChannelId, conversations, channels, messages, currentUser, users,
+    sendMessage, markMessagesSeen, openThread, toggleRightDrawer, isRightDrawerOpen, startCall, openUserProfile, setIsNewMessageOpen,
   } = useWorkspace();
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [isEditingChannel, setIsEditingChannel] = React.useState(false);
-
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const atBottomRef = useRef(true);
+  const previousTargetRef = useRef('');
+  const [isEditingChannel, setIsEditingChannel] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [query, setQuery] = useState('');
+  const [showLatest, setShowLatest] = useState(false);
   const isChannel = activeTab === 'channels';
-  const currentConv = conversations.find((c) => c.id === activeConversationId);
-  const currentChan = channels.find((c) => c.id === activeChannelId);
-
+  const conversation = conversations.find(item => item.id === activeConversationId);
+  const channel = channels.find(item => item.id === activeChannelId);
   const targetId = isChannel ? activeChannelId : activeConversationId;
   const currentMessages = messages[targetId] || [];
-  const markMessagesSeenRef = useRef(markMessagesSeen);
-  markMessagesSeenRef.current = markMessagesSeen;
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [currentMessages.length, targetId]);
-
-  useEffect(() => {
-    const markVisibleConversationSeen = () => {
-      if (document.visibilityState === 'visible' && targetId) {
-        void markMessagesSeenRef.current(targetId);
-      }
-    };
-    markVisibleConversationSeen();
-    document.addEventListener('visibilitychange', markVisibleConversationSeen);
-    return () => document.removeEventListener('visibilitychange', markVisibleConversationSeen);
-  }, [activeTab, targetId, currentMessages.length]);
-
-  const partnerUser =
-    !isChannel && currentConv?.type === 'direct'
-      ? users.find((u) => u.id === currentConv.participants.find((id) => id !== currentUser.id))
-      : null;
-
-  // Announcement permissions check:
-  const isAnnouncementRestricted =
-    isChannel &&
-    currentChan?.type === 'announcement' &&
-    !currentChan.postingRoles.includes(currentUser.systemRole);
-
-  const handleStartAudioCall = () => {
-    if (isChannel) {
-      startCall('audio', undefined, currentChan);
-    } else {
-      startCall('audio', partnerUser);
-    }
+  const partner = !isChannel && conversation?.type === 'direct' ? users.find(user => user.id === conversation.participants.find(id => id !== currentUser.id)) : undefined;
+  const title = isChannel ? `#${channel?.name || 'Channel'}` : partner?.name || conversation?.name || 'Messages';
+  const restricted = Boolean(isChannel && channel?.type === 'announcement' && !channel.postingRoles.includes(currentUser.systemRole));
+  const visibleMessages = query.trim() ? currentMessages.filter(message => `${message.text} ${message.senderName} ${message.attachments?.map(item => item.name).join(' ') || ''}`.toLowerCase().includes(query.trim().toLowerCase())) : currentMessages;
+  const markSeenRef = useRef(markMessagesSeen);
+  markSeenRef.current = markMessagesSeen;
+  const jumpLatest = (smooth = true) => {
+    const reduce = document.documentElement.dataset.motion === 'reduced' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    bottomRef.current?.scrollIntoView({ behavior: smooth && !reduce ? 'smooth' : 'auto', block: 'end' });
+    atBottomRef.current = true; setShowLatest(false);
   };
+  useEffect(() => {
+    if (query.trim()) return;
+    const switched = previousTargetRef.current !== targetId;
+    previousTargetRef.current = targetId;
+    const last = currentMessages[currentMessages.length - 1];
+    if (switched || atBottomRef.current || last?.sendStatus === 'sending' && last.senderId === currentUser.id) jumpLatest(false);
+    else setShowLatest(true);
+  }, [currentMessages.length, targetId, query, currentUser.id]);
+  useEffect(() => { setQuery(''); setShowSearch(false); setIsEditingChannel(false); }, [targetId]);
+  useEffect(() => {
+    const seen = () => { if (document.visibilityState === 'visible' && targetId) void markSeenRef.current(targetId); };
+    seen();
+    document.addEventListener('visibilitychange', seen);
+    return () => document.removeEventListener('visibilitychange', seen);
+  }, [targetId, currentMessages.length]);
 
-  const handleStartVideoCall = () => {
-    if (isChannel) {
-      startCall('video', undefined, currentChan);
-    } else {
-      startCall('video', partnerUser);
-    }
-  };
+  if (!isChannel && !conversation) return <main data-onboarding-target="message-feed" className="flex min-w-0 flex-1 flex-col items-center justify-center bg-slate-50 px-6 text-center">
+    <MessageSquare className="mb-4 h-8 w-8 text-slate-500" />
+    <h1 className="text-lg font-semibold text-slate-900">Messages</h1>
+    <p className="mt-2 max-w-sm text-sm text-slate-500">Choose a conversation or start a new one with your team.</p>
+    <button type="button" onClick={() => setIsNewMessageOpen(true)} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-sm text-white"><Plus className="h-4 w-4" />New message</button>
+  </main>;
 
-  // If in Messages tab but no conversation is active yet
-  if (!isChannel && !currentConv) {
-    return (
-      <div data-onboarding-target="message-feed" className="flex-1 flex flex-col items-center justify-center p-8 bg-[#fafbfc] text-center">
-        <div className="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 border border-brand-100 flex items-center justify-center shadow-xs mb-4">
-          <MessageSquare className="w-7 h-7" />
-        </div>
-        <h3 className="text-base font-semibold text-slate-900 tracking-tight">Your Messages</h3>
-        <p className="text-xs text-slate-500 max-w-sm mt-1 mb-6 leading-relaxed">
-          Connect with team members, coordinate operations, hold audio/video calls, and share files.
-        </p>
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => setIsNewMessageOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-xs font-medium shadow-xs transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Start a Conversation</span>
-          </button>
-        </div>
+  return <main data-onboarding-target={isChannel ? 'channel-feed' : 'message-feed'} className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-white">
+    <header className="flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-4 py-2 sm:px-5">
+      <div className="flex min-w-0 items-center gap-2">
+        {onBack && <button type="button" aria-label="Back to conversations" onClick={onBack} className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-100 md:hidden"><ArrowLeft className="h-4 w-4" /></button>}
+        {isChannel ? channel?.imageUrl ? <img src={channel.imageUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-cover" /> : channel?.isPrivate ? <Lock className="h-4 w-4 shrink-0 text-slate-500" /> : <Hash className="h-4 w-4 shrink-0 text-slate-500" />
+          : partner ? <button type="button" aria-label={`View ${partner.name}'s profile`} onClick={() => openUserProfile(partner)} className="h-7 w-7 shrink-0 overflow-hidden rounded-lg bg-slate-100 text-xs">{partner.avatar ? <img src={partner.avatar} alt="" className="h-full w-full object-cover" /> : partner.name.slice(0, 2)}</button> : <Users className="h-4 w-4 shrink-0 text-slate-500" />}
+        <h1 className="truncate text-sm font-semibold text-slate-900">{title}</h1>
+        {partner?.status === 'online' && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-label="Online" />}
       </div>
-    );
-  }
-
-  return (
-    <div data-onboarding-target={isChannel ? 'channel-feed' : 'message-feed'} className="flex-1 flex flex-col h-full bg-[#fafbfc] relative overflow-hidden">
-      {/* Feed Top Header */}
-      <div className="h-14 px-4 md:px-6 bg-white border-b border-slate-200/70 flex items-center justify-between z-10 flex-shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
-          {onBack && (
-            <button
-              type="button"
-              onClick={onBack}
-              aria-label="Back to conversations"
-              className="-ml-1 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 md:hidden"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-          )}
-          {/* Avatar / Icon */}
-          <div className="relative flex-shrink-0">
-            {isChannel ? (
-              <div
-                className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                  currentChan?.isPrivate ? 'bg-slate-100 text-slate-600' : 'bg-brand-50 text-brand-600 border border-brand-100/60'
-                }`}
-              >
-                {currentChan?.imageUrl ? (
-                  <img src={currentChan.imageUrl} alt="" className="h-8 w-8 rounded-lg object-cover" />
-                ) : currentChan?.isPrivate ? (
-                  <Lock className="w-3.5 h-3.5" />
-                ) : (
-                  <Hash className="w-4 h-4 font-semibold" />
-                )}
-              </div>
-            ) : partnerUser ? (
-              <button
-                onClick={() => openUserProfile(partnerUser)}
-                className="relative block rounded-full overflow-hidden focus:outline-none"
-              >
-                <img
-                  src={partnerUser.avatar}
-                  alt={partnerUser.name}
-                  className="w-8 h-8 rounded-full object-cover"
-                />
-                <span
-                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                    partnerUser.status === 'online'
-                      ? 'bg-emerald-500'
-                      : 'bg-slate-400'
-                  }`}
-                />
-              </button>
-            ) : (
-              <div className="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center font-bold text-xs">
-                <UsersIcon className="w-4 h-4" />
-              </div>
-            )}
-          </div>
-
-          {/* Title & Status */}
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-slate-900 truncate">
-                {isChannel ? `#${currentChan?.name}` : partnerUser ? partnerUser.name : currentConv?.name}
-              </h3>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-normal">
-              {isChannel ? (
-                <span>
-                  {currentChan?.members.length ?? 0} member{(currentChan?.members.length ?? 0) === 1 ? '' : 's'} • {currentChan?.description}
-                </span>
-              ) : partnerUser ? (
-                <>
-                  <span className="truncate">{partnerUser.role}</span>
-                  <span>•</span>
-                  {partnerUser.status === 'online' ? (
-                    <span className="text-emerald-600 font-medium flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Online
-                    </span>
-                  ) : (
-                    <span className="text-slate-400 flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {partnerUser.lastSeen ? `Offline · Last seen ${partnerUser.lastSeen}` : 'Offline'}
-                    </span>
-                  )}
-                </>
-              ) : (
-                <span>{currentConv?.description || 'Group conversation'}</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Header Actions */}
-        <div className="flex items-center gap-1">
-          {/* Audio Call */}
-          <button
-            onClick={handleStartAudioCall}
-            className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-            title="Start Audio Call"
-          >
-            <Phone className="w-4 h-4" />
-          </button>
-
-          {/* Video Call */}
-          <button
-            onClick={handleStartVideoCall}
-            className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-            title="Start Video Call with Screen Sharing"
-          >
-            <Video className="w-4 h-4" />
-          </button>
-
-          {isChannel && currentChan && (currentChan.createdBy === currentUser.id || currentUser.systemRole === 'admin' || currentUser.systemRole === 'coordinator') && (
-            <button
-              type="button"
-              onClick={() => setIsEditingChannel(true)}
-              aria-label="Edit channel"
-              className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-              title="Edit channel"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-          )}
-
-          {/* Right Drawer Info Toggle */}
-          <button
-            onClick={toggleRightDrawer}
-            className={`p-2 rounded-lg transition-colors ${
-              isRightDrawerOpen
-                ? 'bg-brand-50 text-brand-600 font-medium'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-            }`}
-            title="Toggle Details & Files Drawer"
-          >
-            <Info className="w-4 h-4" />
-          </button>
-        </div>
+      <div className="flex shrink-0 items-center gap-0.5">
+        <button type="button" aria-label="Start audio call" title="Start audio call" onClick={() => startCall('audio', partner, isChannel ? channel : undefined)} className="flex h-8 w-8 items-center justify-center rounded text-slate-500 hover:bg-slate-100"><Phone className="h-4 w-4" /></button>
+        <button type="button" aria-label="Start video call" title="Start video call" onClick={() => startCall('video', partner, isChannel ? channel : undefined)} className="flex h-8 w-8 items-center justify-center rounded text-slate-500 hover:bg-slate-100"><Video className="h-4 w-4" /></button>
+        <button type="button" aria-label="Search conversation" aria-expanded={showSearch} onClick={() => { setShowSearch(value => !value); setQuery(''); }} className="flex h-8 w-8 items-center justify-center rounded text-slate-500 hover:bg-slate-100"><Search className="h-4 w-4" /></button>
+        {isChannel && channel && (channel.createdBy === currentUser.id || ['admin', 'coordinator'].includes(currentUser.systemRole)) && <button type="button" aria-label="Edit channel" onClick={() => setIsEditingChannel(true)} className="flex h-8 w-8 items-center justify-center rounded text-slate-500 hover:bg-slate-100"><Settings className="h-4 w-4" /></button>}
+        <button type="button" aria-label="Conversation details and files" aria-expanded={isRightDrawerOpen} onClick={toggleRightDrawer} className={`flex h-8 w-8 items-center justify-center rounded hover:bg-slate-100 ${isRightDrawerOpen ? 'text-brand-400' : 'text-slate-500'}`}><Info className="h-4 w-4" /></button>
       </div>
-
-      {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 [scrollbar-width:none]">
-        {currentMessages.length === 0 ? (
-          /* Polished Starter Prompt */
-          <div className="text-center py-16 px-4 max-w-md mx-auto">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-brand-50 border border-brand-100/70 text-brand-600 mb-3 shadow-xs">
-              {isChannel ? (
-                <Hash className="w-6 h-6" />
-              ) : (
-                <UsersIcon className="w-6 h-6" />
-              )}
-            </div>
-
-            <h4 className="text-base font-semibold text-slate-900 tracking-tight">
-              {isChannel
-                ? `Welcome to #${currentChan?.name}!`
-                : `Beginning of conversation with ${partnerUser?.name || currentConv?.name}`}
-            </h4>
-
-            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
-              {isChannel
-                ? currentChan?.description || 'Send the first message to get the discussion started.'
-                : 'Send a message, upload project files, or start a voice or video call.'}
-            </p>
-          </div>
-        ) : (
-          currentMessages.map((msg) => (
-            <MessageBubble
-              key={msg.id}
-              message={msg}
-              isCurrentUser={msg.senderId === currentUser.id}
-              onOpenThread={openThread}
-            />
-          ))
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Bottom Composer */}
-      <div className="p-4 pt-2">
-        <MessageComposer
-          onSendMessage={sendMessage}
-          placeholder={`Message ${isChannel ? '#' + currentChan?.name : partnerUser?.name || currentConv?.name}...`}
-          isAnnouncementRestricted={isAnnouncementRestricted}
-        />
-      </div>
-      {isEditingChannel && currentChan && <EditChannelModal key={currentChan.id} channel={currentChan} onClose={() => setIsEditingChannel(false)} />}
+    </header>
+    {showSearch && <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-4 py-2 sm:px-5">
+      <Search className="h-4 w-4 shrink-0 text-slate-500" /><input autoFocus aria-label="Search messages in this conversation" placeholder="Search this conversation" value={query} onChange={event => setQuery(event.target.value)} className="min-w-0 flex-1 rounded bg-slate-100 px-2 py-1.5 text-sm text-slate-800" />
+      <span className="text-xs text-slate-500">{visibleMessages.length}</span><button type="button" aria-label="Close search" onClick={() => { setShowSearch(false); setQuery(''); }} className="p-1 text-slate-500"><X className="h-4 w-4" /></button>
+    </div>}
+    <div ref={scrollRef} role="region" aria-label={`${title} message history`} className="min-h-0 flex-1 overflow-y-auto py-2" onScroll={() => {
+      const area = scrollRef.current;
+      if (!area) return;
+      atBottomRef.current = area.scrollHeight - area.scrollTop - area.clientHeight < 80;
+      if (atBottomRef.current) setShowLatest(false);
+    }}>
+      {!visibleMessages.length ? <div className="px-5 py-8"><h2 className="text-base font-semibold text-slate-900">{query.trim() ? 'No matching messages' : `Start the conversation${isChannel ? ` in ${title}` : ''}`}</h2><p className="mt-2 text-sm text-slate-500">{query.trim() ? 'Try another name, phrase, or attachment name.' : channel?.description || 'Send a message, share a file, or start a call.'}</p></div>
+        : visibleMessages.map((message, index) => {
+          const day = messageDay(message);
+          const previous = visibleMessages[index - 1];
+          return <React.Fragment key={message.id}>
+            {day && day !== (previous && messageDay(previous)) && <div className="my-3 flex items-center gap-3 px-4 sm:px-5"><span className="h-px flex-1 bg-slate-200" /><time dateTime={message.createdAt} className="rounded-full border border-slate-200 px-3 py-1 text-[11px] font-medium text-slate-500">{day}</time><span className="h-px flex-1 bg-slate-200" /></div>}
+            <MessageBubble message={message} isCurrentUser={message.senderId === currentUser.id} grouped={!query.trim() && groupWithPrevious(message, previous)} onOpenThread={openThread} />
+          </React.Fragment>;
+        })}
+      <div ref={bottomRef} />
     </div>
-  );
+    {showLatest && !query.trim() && <button type="button" onClick={() => jumpLatest()} className="absolute bottom-40 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-slate-100 px-3 py-2 text-xs text-slate-800 shadow-elevated"><ArrowDown className="h-3.5 w-3.5" />Jump to latest</button>}
+    <div className="shrink-0 px-4 pb-3 pt-1 sm:px-5">
+      <MessageComposer key={targetId} onSendMessage={sendMessage} placeholder={`Message ${title}`} isAnnouncementRestricted={restricted} />
+    </div>
+    {isEditingChannel && channel && <EditChannelModal key={channel.id} channel={channel} onClose={() => setIsEditingChannel(false)} />}
+  </main>;
 };

@@ -2,14 +2,15 @@
 import React, { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-const mock = vi.hoisted(() => ({ rows: {} as Record<string, unknown[]>, rpc: vi.fn(), invoke: vi.fn(), update: vi.fn() }));
+const mock = vi.hoisted(() => ({ rows: {} as Record<string, unknown[]>, rpc: vi.fn(), invoke: vi.fn(), update: vi.fn(), save: vi.fn(), celebrate: vi.fn() }));
+vi.mock('../../lib/milestones', () => ({ celebrateMilestone: mock.celebrate }));
 vi.mock('../../context/WorkspaceContext', () => ({ useWorkspace: () => ({ currentUser: { id: 'staff' }, users: [] }) }));
 vi.mock('../../hooks/useLiveRefresh', () => ({ useLiveRefresh(load: () => Promise<void>) { useEffect(() => { void load(); }, [load]); } }));
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     rpc: mock.rpc, functions: { invoke: mock.invoke },
     from: (table: string) => {
-      const chain = { select: () => chain, order: () => chain, limit: () => chain, eq: () => chain, update: (value: unknown) => { mock.update(table, value); return chain; }, then: (resolve: (value: unknown) => void) => Promise.resolve({ data: mock.rows[table] ?? [], error: null }).then(resolve) };
+      const chain = { select: () => chain, single: mock.save, order: () => chain, limit: () => chain, eq: () => chain, update: (value: unknown) => { mock.update(table, value); return chain; }, then: (resolve: (value: unknown) => void) => Promise.resolve({ data: mock.rows[table] ?? [], error: null }).then(resolve) };
       return chain;
     },
   },
@@ -77,5 +78,25 @@ describe('quote and deployment controls', () => {
     await click('View accepted quote and proposal');
     expect(onQuote).toHaveBeenCalledWith('accepted-quote');
     expect([...container.querySelectorAll('button')].some(button => /create deployment/i.test(button.textContent || ''))).toBe(false);
+  });
+  it.each([true, false])('celebrates deployment completion only with confirmed persistence (success=%s)', async (success) => {
+    mock.rows.wildfire_deployments = [{ id: 'deployment', quote_id: 'accepted-quote', organization_id: 'company', property_id: 'site', status: 'handoff', scheduled_at: null, completed_at: null, notes: '' }];
+    let finish!: (result: unknown) => void;
+    mock.save.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    await act(async () => root.render(<Deployments properties={[]} organizations={[]} canEdit onQuote={vi.fn()} />));
+    expect(mock.celebrate).not.toHaveBeenCalled();
+    const stage = container.querySelectorAll('select')[1];
+    await act(async () => {
+      stage.value = 'completed';
+      stage.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(mock.update).toHaveBeenCalledWith('wildfire_deployments', expect.objectContaining({ status: 'completed', completed_at: expect.any(String) }));
+    expect(mock.celebrate).not.toHaveBeenCalled();
+    await act(async () => { finish(success ? { data: { status: 'completed' }, error: null } : { data: null, error: { message: 'Permission denied' } }); });
+    if (success) expect(mock.celebrate).toHaveBeenCalledExactlyOnceWith('deployment', 'deployment', 'handoff', 'completed');
+    else {
+      expect(mock.celebrate).not.toHaveBeenCalled();
+      expect(container.querySelector('[role=alert]')?.textContent).toContain('Permission denied');
+    }
   });
 });

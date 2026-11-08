@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
+import { celebrateMilestone } from '../../lib/milestones';
 import { AttachmentsPanel, ChecklistPanel, CommentsPanel, LinksPanel, TimePanel, card, field, formatMinutes, logActivity } from '../work/EntityPanels';
 import { AssignedField, assignedIds, TaskDateField } from './taskFields';
 import { RichNotes } from '../work/RichNotes';
@@ -72,11 +73,15 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
   useLiveRefresh(load, ['program_tasks', 'program_task_dependencies', 'entity_time_entries']);
 
   const patch = async (values: Partial<Task> & { completed_at?: string | null }, activity?: string) => {
+    const previousStatus = task?.status;
     setTask((current) => (current ? { ...current, ...values } : current));
     const { data, error: updateError } = await supabase.from('program_tasks').update({ ...values, updated_at: new Date().toISOString() }).eq('id', taskId).select('*').single();
     if (updateError) { setError(updateError.message); void load(); return; }
     setError('');
-    if (data) setTask(data as Task);
+    if (data) {
+      setTask(data as Task);
+      if (values.status) celebrateMilestone('task', taskId, previousStatus, data.status);
+    }
     if (activity) void logActivity('task', taskId, activity);
   };
 
@@ -92,7 +97,9 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
   const toggleSub = async (sub: Lite) => {
     const status = sub.status === 'completed' ? 'not_started' : 'completed';
     setSubtasks((current) => current.map((row) => (row.id === sub.id ? { ...row, status } : row)));
-    await supabase.from('program_tasks').update({ status, progress: status === 'completed' ? 100 : 0 }).eq('id', sub.id);
+    const { data, error: updateError } = await supabase.from('program_tasks').update({ status, progress: status === 'completed' ? 100 : 0 }).eq('id', sub.id).select('status').single();
+    if (updateError) { setError(updateError.message); void load(); return; }
+    if (data) celebrateMilestone('task', sub.id, sub.status, data.status);
   };
   const addDep = async () => {
     if (!dep) return;

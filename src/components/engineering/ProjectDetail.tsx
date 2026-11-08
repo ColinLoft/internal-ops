@@ -2,6 +2,7 @@ import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useState } from 'react';
 import { ArrowLeft, Download, FileUp, Plus, Send, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { celebrateMilestone } from '../../lib/milestones';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
   type EngEntry, type EngFile, type EngProject, type EngReview, type ReviewType, ENTRY_KINDS, FILE_KINDS, Modal, PROJECT_STATUS, REVIEW_TYPES,
@@ -72,8 +73,9 @@ export const ProjectDetail: React.FC<{ projectId: string }> = ({ projectId }) =>
 
   const patch = async (values: Partial<EngProject>, note?: string) => {
     if (!project) return;
-    const { error: updateError } = await supabase.from('eng_projects').update({ ...values, updated_at: new Date().toISOString() }).eq('id', project.id);
+    const { data, error: updateError } = await supabase.from('eng_projects').update({ ...values, updated_at: new Date().toISOString() }).eq('id', project.id).select('status').single();
     if (updateError) { setError(updateError.message); return; }
+    if (values.status && data) celebrateMilestone('project', project.id, project.status, data.status);
     if (note) await supabase.from('eng_project_entries').insert({ project_id: project.id, author_id: currentUser.id, kind: 'update', body: note });
     await load();
   };
@@ -198,8 +200,12 @@ const TasksTab: React.FC<{ projectId: string; tasks: TaskRow[]; onChanged: () =>
   };
   const toggle = async (task: TaskRow) => {
     const completed = task.status !== 'completed';
-    const { error } = await supabase.from('program_tasks').update({ status: completed ? 'completed' : 'not_started', progress: completed ? 100 : 0, updated_at: new Date().toISOString() }).eq('id', task.id);
-    if (error) onError(error.message); else onChanged();
+    const { data, error } = await supabase.from('program_tasks').update({ status: completed ? 'completed' : 'not_started', progress: completed ? 100 : 0, updated_at: new Date().toISOString() }).eq('id', task.id).select('status').single();
+    if (error) onError(error.message);
+    else {
+      if (data) celebrateMilestone('task', task.id, task.status, data.status);
+      onChanged();
+    }
   };
   const person = (task: TaskRow) => users.filter((user) => assignedIds(task).includes(user.id)).map((user) => user.name).join(', ') || 'Unassigned';
   const statusLabel: Record<string, string> = { not_started: 'Not started', in_progress: 'In progress', blocked: 'Blocked', completed: 'Done' };

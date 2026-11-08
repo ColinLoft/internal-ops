@@ -3,7 +3,6 @@ import {
   Search,
   Plus,
   Pin,
-  CheckCheck,
   Users as UsersIcon,
   Hash,
   Lock,
@@ -76,24 +75,28 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
     return (
       <div
         key={conv.id}
+        role="button"
+        tabIndex={0}
+        aria-label={`Open ${partner?.name || conv.name}`}
+        aria-current={isActive ? 'true' : undefined}
+        onKeyDown={event => {
+          if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return;
+          event.preventDefault(); setActiveConversationId(conv.id); setActiveTab('messages'); onSelect?.();
+        }}
         onClick={() => {
           setActiveConversationId(conv.id);
           setActiveTab('messages');
           onSelect?.();
         }}
-        className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer transition-all duration-150 ${
+        className={`group relative flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
           isActive
-            ? 'bg-brand-50/90 text-slate-900 ring-1 ring-brand-200/60'
+            ? 'bg-slate-100 text-slate-900'
             : 'hover:bg-slate-100/70 text-slate-700'
         }`}
       >
         {/* Avatar with Status Bubble */}
         <div className="relative flex-shrink-0">
-          <img
-            src={conv.avatar || (partner?.avatar ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150')}
-            alt={conv.name}
-            className="w-9 h-9 rounded-full object-cover"
-          />
+          {conv.avatar || partner?.avatar ? <img src={conv.avatar || partner?.avatar} alt="" className="h-7 w-7 rounded-md object-cover" /> : <span className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-xs font-medium text-slate-600">{(partner?.name || conv.name).slice(0, 2).toUpperCase()}</span>}
           {conv.type === 'direct' && (
             <span
               className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
@@ -118,10 +121,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
                 isActive ? 'text-brand-900 font-semibold' : 'text-slate-900'
               }`}
             >
-              {conv.name}
+              {partner?.name || conv.name}
             </h4>
             <span className="text-[11px] text-slate-400 font-normal whitespace-nowrap ml-1">
-              {conv.lastMessage?.timestamp || 'Just now'}
+              {conv.lastMessage?.timestamp || ''}
             </span>
           </div>
 
@@ -139,9 +142,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
                 <span className="min-w-[18px] h-[18px] px-1 bg-brand-600 text-white text-[11px] font-semibold rounded-full flex items-center justify-center">
                   {conv.unreadCount}
                 </span>
-              ) : (
-                <CheckCheck className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-500" />
-              )}
+              ) : null}
             </div>
           </div>
         </div>
@@ -153,7 +154,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
             togglePinConversation(conv.id);
           }}
           className={`absolute top-2 right-2 p-1 rounded-md text-slate-400 hover:text-brand-600 hover:bg-white transition-opacity ${
-            conv.isPinned ? 'opacity-100 text-brand-600' : 'opacity-0 group-hover:opacity-100'
+            conv.isPinned ? 'opacity-100 text-brand-600' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
           }`}
           title={conv.isPinned ? 'Unpin' : 'Pin conversation'}
         >
@@ -175,7 +176,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
           onSelect?.();
         }}
         className={`group flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-          isActive ? 'bg-brand-50/90 text-brand-900 font-medium ring-1 ring-brand-200/50' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+          isActive ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
         }`}
       >
         <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${isActive ? 'text-brand-700 bg-brand-100/60' : 'text-slate-400 group-hover:text-slate-600'}`}>
@@ -188,13 +189,12 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
   };
 
   return (
-    <div data-onboarding-target="conversation-list" className="w-full md:w-80 h-full bg-white border-r border-slate-200/70 flex flex-col flex-shrink-0">
+    <div data-onboarding-target="conversation-list" className="w-full md:w-60 h-full bg-slate-50 border-r border-slate-200/70 flex flex-col flex-shrink-0">
       {/* Top Header */}
-      <div className="p-3.5 pb-2 border-b border-slate-100">
+      <div className="p-3 pb-2">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-base font-semibold text-slate-900 tracking-tight">Messages</h2>
-            <p className="text-[11px] text-slate-500 font-normal">Channels and direct messages</p>
           </div>
           <button
             type="button"
@@ -215,6 +215,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search people, channels, or messages..."
+            aria-label="Search conversations and channels"
             className="w-full pl-8 pr-3 py-1.5 bg-slate-100/70 focus:bg-white text-xs text-slate-800 placeholder:text-slate-400 rounded-lg border border-transparent focus:border-slate-300 focus:ring-2 focus:ring-slate-100 outline-none transition-all"
           />
         </div>
@@ -223,11 +224,11 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
 
       <div className="flex-1 overflow-y-auto px-2.5 py-2 [scrollbar-width:none]">
         <div className="mb-3">
-          <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Channels</p>
+          <h3 className="mb-1.5 px-2 text-xs font-medium text-slate-500">Channels</h3>
           <div className="space-y-0.5">{visibleChannels.map(renderChannelItem)}</div>
         </div>
         <div className="mb-1.5 flex items-center justify-between px-2 pt-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Direct messages</p>
+          <h3 className="text-xs font-medium text-slate-500">Direct messages</h3>
           <button type="button" onClick={() => setIsNewMessageOpen(true)} className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors" title="Start direct message">
             <Plus className="h-3.5 w-3.5" />
           </button>

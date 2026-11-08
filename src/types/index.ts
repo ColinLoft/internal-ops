@@ -143,6 +143,7 @@ export interface Message {
   senderRole?: string;
   text: string;
   timestamp: string;
+  createdAt?: string;
   seenBy: string[]; // user IDs who read it
   reactions: Reaction[];
   attachments?: Attachment[];

@@ -36,6 +36,7 @@ import { PendingDocumentPrompt } from './components/organization/PolicySigning';
 import { WildfirePage } from './components/wildfire/WildfirePage';
 import { SystemsPage } from './components/systems';
 import { isKnownWorkspacePath } from './lib/workspaceRoutes';
+import { MotionEffects } from './components/common/MotionEffects';
 
 const PublicChatPage = lazy(async () => ({
   default: (await import('./components/support/PublicChatPage')).PublicChatPage,
@@ -242,7 +243,7 @@ const WorkspaceShell: React.FC = () => {
 export function App() {
   return (
     <WorkspaceProvider>
-      <WorkspaceShell />
+      <MotionEffects><WorkspaceShell /></MotionEffects>
     </WorkspaceProvider>
   );
 }

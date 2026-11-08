@@ -2,7 +2,8 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-const mock = vi.hoisted(() => ({ invoke: vi.fn() }));
+const mock = vi.hoisted(() => ({ invoke: vi.fn(), celebrate: vi.fn() }));
+vi.mock('../../lib/milestones', () => ({ celebrateMilestone: mock.celebrate }));
 vi.mock('../../lib/supabase', () => ({ supabase: { functions: { invoke: mock.invoke } } }));
 import { PublicQuoteAcceptance } from './PublicQuoteAcceptance';
 const snapshot = { quoteId: 'quote', version: 1, currency: 'USD', subtotal: 200, discount: 0, tax: 20, total: 220, terms: 'Delivery terms', proposal: 'Two cameras', lines: [{ description: 'Camera', quantity: 2, unit_price: 100, line_total: 200 }], prospect: { name: 'Prospect outside CRM' }, property: { label: 'Vineyard', address: 'Test address' } };
@@ -19,6 +20,7 @@ describe('public quote acceptance', () => {
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     mock.invoke.mockReset();
+    mock.celebrate.mockReset();
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({ fillStyle: '', fillRect: vi.fn(), strokeStyle: '', lineWidth: 0, lineCap: '', beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(), stroke: vi.fn() }) as unknown as CanvasRenderingContext2D);
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,testsignature');
     container = document.createElement('div'); document.body.append(container); root = createRoot(container);
@@ -48,6 +50,7 @@ describe('public quote acceptance', () => {
     await render('accepted');
     expect(container.querySelector('form')).toBeNull();
     expect(container.textContent).toContain('Your signed acceptance is recorded.');
+    expect(mock.celebrate).not.toHaveBeenCalled();
   });
   it('submits explicit consent and a drawn signature and requires a confirmed deployment', async () => {
     await render();
@@ -62,6 +65,24 @@ describe('public quote acceptance', () => {
     expect(mock.invoke).toHaveBeenLastCalledWith('wildfire-quotes', { body: { action: 'accept', token: 'capability-token', name: 'Customer name', email: 'customer@example.com', signaturePng: 'data:image/png;base64,testsignature', acknowledged: true } });
     expect(container.querySelector('form')).toBeNull();
     expect(container.textContent).toContain('Your signed acceptance is recorded.');
+    expect(mock.celebrate).toHaveBeenCalledExactlyOnceWith('quote', 'quote', 'sent', 'accepted');
+  });
+  it.each([
+    { data: { status: 'accepted' }, error: null },
+    { data: { error: 'Acceptance failed.' }, error: null },
+    { data: null, error: { message: 'Network unavailable' } },
+  ])('never celebrates incomplete or failed acceptance responses', async (response) => {
+    await render();
+    await fill('input[autocomplete=name]', 'Customer name');
+    await fill('input[type=email]', 'customer@example.com');
+    await act(async () => {
+      container.querySelector('canvas')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      container.querySelector<HTMLInputElement>('input[type=checkbox]')!.click();
+    });
+    mock.invoke.mockResolvedValue(response);
+    await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+    expect(container.querySelector('[role=alert]')).not.toBeNull();
+    expect(mock.celebrate).not.toHaveBeenCalled();
   });
   it('rejects error-shaped success responses and invalid snapshots', async () => {
     mock.invoke.mockResolvedValue({ data: { error: 'This quote expired.' }, error: null });

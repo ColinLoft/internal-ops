@@ -168,7 +168,7 @@ export const SettingsPage: React.FC = () => {
                   ))}
                 </div>
                 <div className="mt-4 divide-y divide-slate-100">
-                  <Toggle label="Reduce motion" description="Turn off animations and transitions." checked={draft.reduceMotion} onChange={(value) => update('reduceMotion', value)} />
+                  <Toggle label="Reduce motion" description="Turn off motion and milestone celebrations. Your device's reduced-motion preference is always respected." checked={draft.reduceMotion} onChange={(value) => update('reduceMotion', value)} />
                 </div>
               </section>
             )}

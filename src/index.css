@@ -3,6 +3,9 @@
 @tailwind utilities;
 
 :root {
+  --motion-quick: 140ms;
+  --motion-enter: 180ms;
+  --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --brand-50: 239 246 255;
   --brand-100: 224 238 255;
   --brand-200: 191 219 254;
@@ -14,6 +17,90 @@
   --brand-800: 25 72 173;
   --brand-900: 21 59 141;
   --brand-950: 16 43 102;
+}
+
+@layer base {
+  button, a, summary, select, input, textarea, [role='button'], [role='tab'] {
+    transition-property: color, background-color, border-color, opacity, box-shadow;
+    transition-duration: var(--motion-quick);
+    transition-timing-function: ease;
+  }
+}
+
+@keyframes flown-overlay-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes flown-panel-enter {
+  from { opacity: 0; translate: 0 6px; }
+  to { opacity: 1; translate: 0 0; }
+}
+[role='dialog'], [role='menu'], [role='listbox'] {
+  animation: flown-panel-enter var(--motion-enter) var(--motion-ease) both;
+}
+[aria-modal='true'] {
+  animation-name: flown-overlay-enter;
+}
+
+.flown-milestone {
+  position: fixed;
+  left: 50%;
+  bottom: max(5rem, calc(env(safe-area-inset-bottom) + 4rem));
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 14px 20px;
+  border-radius: 12px;
+  background: #1c1c1c;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+  animation: flown-milestone-enter 1800ms var(--motion-ease) both;
+}
+.flown-milestone > svg { color: rgb(var(--brand-400)); }
+.flown-confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  overflow: hidden;
+  pointer-events: none;
+}
+.flown-confetti i {
+  position: absolute;
+  bottom: 8vh;
+  width: 6px;
+  height: 12px;
+  border-radius: 1px;
+  background: rgb(var(--brand-400));
+  animation: flown-confetti-flight 1500ms linear var(--confetti-delay) both;
+}
+.flown-confetti-left { left: 2vw; }
+.flown-confetti-right { right: 2vw; }
+.flown-confetti i:nth-child(3n) { background: #e0e0e0; }
+.flown-confetti i:nth-child(5n) { background: #67d8e4; width: 5px; height: 8px; }
+.flown-confetti i:nth-child(4n) { width: 8px; height: 5px; }
+@keyframes flown-milestone-enter {
+  0% { opacity: 0; translate: 0 8px; }
+  14%, 78% { opacity: 1; translate: 0 0; }
+  100% { opacity: 0; translate: 0 -4px; }
+}
+@keyframes flown-confetti-flight {
+  0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(0) scale(0.6); animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+  12% { opacity: 1; }
+  48% { opacity: 1; transform: translate3d(calc(var(--confetti-x) * 0.7), var(--confetti-peak), 0) rotate(calc(var(--confetti-spin) * 0.45)) scale(1); animation-timing-function: ease-in; }
+  76% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate3d(var(--confetti-x), var(--confetti-end), 0) rotate(var(--confetti-spin)) scale(0.8); }
+}
+
+html[data-motion='reduced'] .flown-milestone,
+html[data-motion='reduced'] .flown-confetti { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .flown-milestone, .flown-confetti { display: none; }
 }
 
 @layer base {
@@ -58,7 +145,7 @@ html[data-theme='dark'] [role='tab']:focus-visible {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-property: color, background-color, border-color, opacity, box-shadow !important;
-    transition-duration: 120ms !important;
+    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
 }
@@ -328,7 +415,7 @@ html[data-theme='dark'] #root [class*='hover:bg-brand-50']:hover {
 #root [role='separator'][aria-orientation='vertical']:focus-visible { outline: none; }
 
 /* Neutral borders and consistent interaction transitions. */
-#root button, #root a, #root input, #root select, #root textarea { transition-property: color, background-color, border-color, box-shadow, opacity; transition-duration: 150ms; }
+#root button, #root a, #root input, #root select, #root textarea { transition-property: color, background-color, border-color, box-shadow, opacity; transition-duration: var(--motion-quick); }
 #root button:active:not(:disabled) { opacity: 0.9; }
 #root .text-xs { font-size: 0.8125rem; line-height: 1.5; }
 @media (min-width: 768px) {

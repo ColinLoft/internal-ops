@@ -282,6 +282,7 @@ const mapSupabaseMessage = async (row: Record<string, unknown>, existing?: Messa
     senderAvatar: typeof row.sender_avatar === 'string' ? row.sender_avatar : '',
     senderRole: typeof row.sender_role === 'string' ? row.sender_role : undefined,
     text: typeof row.text === 'string' ? row.text : '',
+    createdAt: typeof row.created_at === 'string' ? row.created_at : undefined,
     timestamp: typeof row.timestamp === 'string' && row.timestamp
       ? row.timestamp
       : new Date(createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
@@ -1512,6 +1513,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       senderAvatar: currentUser.avatar,
       senderRole: currentUser.role,
       text: text.trim(),
+      createdAt: new Date().toISOString(),
       timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
       seenBy: [currentUser.id],
       reactions: [],
@@ -1730,6 +1732,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       senderAvatar: currentUser.avatar,
       senderRole: currentUser.role,
       text: text.trim(),
+      createdAt: new Date().toISOString(),
       timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
       seenBy: [currentUser.id],
       reactions: [],
@@ -1780,6 +1783,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       senderAvatar: currentUser.avatar,
       senderRole: currentUser.role,
       text: text.trim(),
+      createdAt: new Date().toISOString(),
       timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
       seenBy: [currentUser.id],
       reactions: [],

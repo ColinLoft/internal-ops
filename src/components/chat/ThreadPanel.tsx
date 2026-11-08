@@ -3,6 +3,7 @@ import { X, MessageSquare, CornerDownRight } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { MessageBubble } from './MessageBubble';
 import { MessageComposer } from './MessageComposer';
+import { groupWithPrevious } from './messageLayout';
 
 export const ThreadPanel: React.FC = () => {
   const {
@@ -25,13 +26,13 @@ export const ThreadPanel: React.FC = () => {
   const replies = (activeThreadMessageId && threadReplies[activeThreadMessageId]) || [];
 
   useEffect(() => {
-    repliesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    repliesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
   }, [replies.length]);
 
   if (!activeThreadMessageId || !parentMessage) return null;
 
   return (
-    <div className="fixed inset-0 z-50 w-full md:static md:z-20 md:w-96 h-full bg-white border-l border-slate-200/70 flex flex-col shadow-subtle flex-shrink-0 animate-in slide-in-from-right duration-200">
+    <div className="fixed inset-0 z-50 w-full lg:static lg:z-20 lg:w-96 h-full bg-white border-l border-slate-200/70 flex flex-col flex-shrink-0">
       {/* Thread Header */}
       <div className="h-14 px-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/40">
         <div className="flex items-center gap-2">
@@ -39,7 +40,7 @@ export const ThreadPanel: React.FC = () => {
             <MessageSquare className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-xs font-semibold text-slate-900">Thread Discussion</h3>
+            <h3 className="text-sm font-semibold text-slate-900">Thread</h3>
             <p className="text-[11px] text-slate-500 font-normal">
               {replies.length} repl{replies.length === 1 ? 'y' : 'ies'}
             </p>
@@ -47,6 +48,7 @@ export const ThreadPanel: React.FC = () => {
         </div>
 
         <button
+          aria-label="Close thread"
           onClick={closeThread}
           className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
         >
@@ -55,10 +57,10 @@ export const ThreadPanel: React.FC = () => {
       </div>
 
       {/* Thread Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 [scrollbar-width:none]">
+      <div className="flex-1 overflow-y-auto py-3">
         {/* Original Parent Message */}
-        <div className="p-2.5 bg-slate-50/70 rounded-xl border border-slate-200/60">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+        <div>
+          <div className="px-3 text-xs font-medium text-slate-500 mb-1 flex items-center gap-1">
             <CornerDownRight className="w-3 h-3 text-brand-500" /> Original Post
           </div>
           <MessageBubble
@@ -71,19 +73,20 @@ export const ThreadPanel: React.FC = () => {
         {/* Divider */}
         <div className="flex items-center gap-2 py-1">
           <div className="h-px bg-slate-200 flex-1" />
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+          <span className="text-xs font-medium text-slate-500">
             {replies.length > 0 ? 'Replies' : 'No replies yet'}
           </span>
           <div className="h-px bg-slate-200 flex-1" />
         </div>
 
         {/* Replies List */}
-        {replies.map((reply) => (
+        {replies.map((reply, index) => (
           <MessageBubble
             key={reply.id}
             message={reply}
             isCurrentUser={reply.senderId === currentUser.id}
             isThreadReply={true}
+            grouped={groupWithPrevious(reply, replies[index - 1])}
           />
         ))}
 
@@ -93,6 +96,7 @@ export const ThreadPanel: React.FC = () => {
       {/* Reply Composer */}
       <div className="p-3 border-t border-slate-100 bg-white">
         <MessageComposer
+          key={activeThreadMessageId}
           onSendMessage={(text, atts) => sendThreadReply(activeThreadMessageId, text, atts)}
           placeholder="Reply in thread..."
         />

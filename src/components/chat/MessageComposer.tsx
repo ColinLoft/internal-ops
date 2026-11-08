@@ -9,14 +9,38 @@ import {
   Send,
   X,
   FileText,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Link,
+  List,
+  ListOrdered,
+  Quote,
+  Code,
+  SquareCode,
+  AtSign,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Attachment } from '../../types';
+import { formatSelection, type MessageFormat } from './messageLayout';
+import { MessageText } from './MessageText';
 
 interface MessageComposerProps {
   onSendMessage: (text: string, attachments?: Attachment[]) => void | Promise<void>;
   placeholder?: string;
   isAnnouncementRestricted?: boolean;
+}
+interface VoiceRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: Event & { results: SpeechRecognitionResultList }) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
 }
 
 export const MessageComposer: React.FC<MessageComposerProps> = ({
@@ -36,10 +60,42 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMentionMenu, setShowMentionMenu] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
+  const [preview, setPreview] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
+  const mentionRange = useRef({ start: 0, end: 0 });
+  const recognitionRef = useRef<VoiceRecognition | null>(null);
+  const formatting: { format: MessageFormat; label: string; icon: typeof Bold }[] = [
+    { format: 'bold', label: 'Bold', icon: Bold }, { format: 'italic', label: 'Italic', icon: Italic },
+    { format: 'underline', label: 'Underline', icon: Underline }, { format: 'strike', label: 'Strikethrough', icon: Strikethrough },
+    { format: 'link', label: 'Insert link', icon: Link }, { format: 'numbered', label: 'Numbered list', icon: ListOrdered },
+    { format: 'bullets', label: 'Bulleted list', icon: List }, { format: 'quote', label: 'Quote', icon: Quote },
+    { format: 'code', label: 'Inline code', icon: Code }, { format: 'codeBlock', label: 'Code block', icon: SquareCode },
+  ];
+  const applyFormat = (format: MessageFormat) => {
+    const area = textareaRef.current;
+    if (!area) return;
+    const result = formatSelection(text, area.selectionStart, area.selectionEnd, format);
+    setText(result.text);
+    window.requestAnimationFrame(() => { area.focus(); area.setSelectionRange(result.start, result.end); });
+  };
+  const insertText = (value: string) => {
+    const area = textareaRef.current;
+    const start = area?.selectionStart ?? text.length;
+    const end = area?.selectionEnd ?? text.length;
+    setText(text.slice(0, start) + value + text.slice(end));
+    setPreview(false);
+    window.requestAnimationFrame(() => { textareaRef.current?.focus(); textareaRef.current?.setSelectionRange(start + value.length, start + value.length); });
+  };
+  useEffect(() => {
+    const area = textareaRef.current;
+    if (!area) return;
+    area.style.height = 'auto';
+    area.style.height = `${Math.min(128, Math.max(44, area.scrollHeight))}px`;
+  }, [text, preview]);
+  useEffect(() => () => { recognitionRef.current?.abort(); }, []);
 
   // Common reactions
   const emojiCategories = [
@@ -50,31 +106,32 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   // Speech-to-text / voice dictation
   const handleToggleVoiceDictation = () => {
     if (isRecording) {
+      recognitionRef.current?.stop();
       setIsRecording(false);
       return;
     }
 
-    const SpeechRecognition =
-      (window as unknown as { SpeechRecognition: typeof SpeechRecognition }).SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition: typeof SpeechRecognition }).webkitSpeechRecognition;
+    const voiceWindow = window as Window & { SpeechRecognition?: new () => VoiceRecognition; webkitSpeechRecognition?: new () => VoiceRecognition };
+    const SpeechRecognition = voiceWindow.SpeechRecognition || voiceWindow.webkitSpeechRecognition;
 
     if (SpeechRecognition) {
       try {
         const recognition = new SpeechRecognition();
+        recognitionRef.current = recognition;
         recognition.continuous = false;
         recognition.interimResults = false;
         recognition.lang = 'en-US';
 
         setIsRecording(true);
 
-        recognition.onresult = (event: Event) => {
-          const resultEvent = event as Event & { results: SpeechRecognitionResultList };
-          const transcript = resultEvent.results[0][0].transcript;
+        recognition.onresult = event => {
+          const transcript = event.results[0][0].transcript;
           setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
           setIsRecording(false);
         };
 
         recognition.onerror = () => {
+          setSendError('Voice dictation failed. Check microphone permissions and try again.');
           setIsRecording(false);
         };
 
@@ -139,22 +196,24 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     const val = e.target.value;
     setText(val);
 
-    const lastWord = val.split(/\s+/).pop() || '';
-    if (lastWord.startsWith('@')) {
+    const cursor = e.target.selectionStart;
+    const match = val.slice(0, cursor).match(/(?:^|\s)@([^\s@]*)$/);
+    if (match) {
+      mentionRange.current = { start: cursor - match[1].length - 1, end: cursor };
       setShowMentionMenu(true);
-      setMentionQuery(lastWord.slice(1).toLowerCase());
+      setMentionQuery(match[1].toLowerCase());
     } else {
       setShowMentionMenu(false);
     }
   };
 
   const handleSelectMention = (name: string) => {
-    const words = text.split(/\s+/);
-    words.pop(); // remove incomplete mention
-    const newText = words.length > 0 ? `${words.join(' ')} @${name} ` : `@${name} `;
-    setText(newText);
+    const { start, end } = mentionRange.current;
+    const replacement = `@${name} `;
+    setText(text.slice(0, start) + replacement + text.slice(end));
     setShowMentionMenu(false);
-    textareaRef.current?.focus();
+    setPreview(false);
+    window.requestAnimationFrame(() => { textareaRef.current?.focus(); textareaRef.current?.setSelectionRange(start + replacement.length, start + replacement.length); });
   };
 
   const handleSend = () => {
@@ -173,13 +232,18 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     setAttachments([]);
     setShowEmojiPicker(false);
     setShowMentionMenu(false);
+    setPreview(false);
     void Promise.resolve(sendResult).catch((error: unknown) => {
       setSendError(error instanceof Error ? error.message : 'Message was not saved. Please try again.');
     });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.nativeEvent.isComposing) return;
+    if ((e.metaKey || e.ctrlKey) && ['b', 'i', 'u', 'k'].includes(e.key.toLowerCase())) {
+      e.preventDefault();
+      applyFormat(({ b: 'bold', i: 'italic', u: 'underline', k: 'link' } as const)[e.key.toLowerCase() as 'b' | 'i' | 'u' | 'k']);
+    } else if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -205,12 +269,16 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   }
 
   return (
-    <div className="relative bg-white border border-slate-200/90 rounded-xl shadow-subtle p-2 transition-all focus-within:border-brand-500/80 focus-within:ring-2 focus-within:ring-brand-500/15">
+    <div className="relative rounded-lg border border-slate-600 bg-white p-1.5 focus-within:border-slate-400">
       {sendError && (
         <p role="alert" className="mb-2 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">
           Message was not saved: {sendError}
         </p>
       )}
+      <div role="toolbar" aria-label="Message formatting" className="mb-1 flex min-w-0 flex-wrap items-center gap-0.5">
+        {formatting.map(({ format, label, icon: Icon }) => <button key={format} type="button" aria-label={label} title={label} disabled={preview} onMouseDown={event => event.preventDefault()} onClick={() => applyFormat(format)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40"><Icon className="h-4 w-4" /></button>)}
+        <button type="button" aria-pressed={preview} onClick={() => setPreview(value => !value)} className="ml-auto shrink-0 rounded px-2 py-1 text-xs text-slate-500 hover:bg-slate-100">{preview ? 'Edit' : 'Preview'}</button>
+      </div>
       {/* Attachment Preview Chips */}
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-2 p-1.5 bg-slate-50 rounded-lg border border-slate-200/60">
@@ -226,6 +294,8 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
               )}
               <span className="max-w-[150px] truncate">{att.name}</span>
               <button
+                type="button"
+                aria-label={`Remove ${att.name}`}
                 onClick={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))}
                 className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600"
               >
@@ -276,19 +346,27 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
       )}
 
       {/* Main Textarea */}
-      <textarea
+      {preview ? <div aria-label="Message preview" className="min-h-11 px-2 py-1">{text ? <MessageText text={text} /> : <p className="text-sm text-slate-400">Nothing to preview yet.</p>}</div> : <textarea
         ref={textareaRef}
         value={text}
         onChange={handleTextChange}
         onKeyDown={handleKeyDown}
         rows={1}
         placeholder={placeholder}
+        aria-label={placeholder}
         className="w-full px-2 py-1 text-sm text-slate-900 placeholder:text-slate-400 bg-transparent resize-none outline-none leading-relaxed min-h-[36px] max-h-32"
-      />
+      />}
 
       {/* Bottom Tool bar buttons */}
-      <div className="flex items-center justify-between pt-1 border-t border-slate-100 mt-1">
+      <div className="flex items-center justify-between gap-2 pt-1">
         <div className="flex items-center gap-0.5 text-slate-400">
+          <button type="button" onClick={() => {
+            const start = textareaRef.current?.selectionStart ?? text.length;
+            const prefix = start > 0 && !/\s/.test(text[start - 1]) ? ' @' : '@';
+            insertText(prefix);
+            mentionRange.current = { start: start + prefix.length - 1, end: start + prefix.length };
+            setShowMentionMenu(true); setMentionQuery('');
+          }} aria-label="Mention someone" title="Mention someone" className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><AtSign className="h-4 w-4" /></button>
           {/* Voice dictation mic button */}
           <button
             onClick={handleToggleVoiceDictation}
@@ -298,6 +376,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
                 : 'hover:text-slate-700 hover:bg-slate-100'
             }`}
             title="Speech-to-Text / Voice Dictation"
+            aria-label={isRecording ? 'Stop voice dictation' : 'Start voice dictation'}
           >
             {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </button>
@@ -316,6 +395,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             onClick={() => fileInputRef.current?.click()}
             className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
             title="Attach Files or Images"
+            aria-label="Attach files or images"
           >
             <Paperclip className="w-4 h-4" />
           </button>
@@ -326,6 +406,8 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
               className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
               title="Insert Emoji"
+              aria-label="Insert emoji"
+              aria-expanded={showEmojiPicker}
             >
               <Smile className="w-4 h-4" />
             </button>
@@ -335,8 +417,9 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
                 {emojiCategories.map((em) => (
                   <button
                     key={em}
+                    aria-label={`Insert ${em}`}
                     onClick={() => {
-                      setText((prev) => prev + em);
+                      insertText(em);
                       setShowEmojiPicker(false);
                       textareaRef.current?.focus();
                     }}
@@ -354,6 +437,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             onClick={handleShareLocation}
             className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
             title="Share Organization Site / Location"
+            aria-label="Share location"
           >
             <MapPin className="w-4 h-4" />
           </button>
@@ -363,6 +447,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             onClick={() => setIsCreatePollOpen(true)}
             className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
             title="Create Custom Poll"
+            aria-label="Create poll"
           >
             <Vote className="w-4 h-4" />
           </button>
@@ -372,9 +457,10 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         <button
           onClick={handleSend}
           disabled={!text.trim() && attachments.length === 0}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:hover:bg-brand-600 text-white rounded-lg text-xs font-medium shadow-xs transition-all active:scale-98"
+          aria-label="Send message"
+          className="flex h-8 items-center gap-1.5 rounded-md bg-brand-600 px-2.5 text-xs font-medium text-white hover:bg-brand-500 disabled:bg-transparent disabled:text-slate-400"
         >
-          <span>Send</span>
+          <span className="hidden sm:inline">Send</span>
           <Send className="w-3.5 h-3.5" />
         </button>
       </div>
