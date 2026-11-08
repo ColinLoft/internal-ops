@@ -20,6 +20,7 @@ import { supabase } from '../../lib/supabase';
 import { EmptyState } from '../common/Feedback';
 import { CustomSelect } from '../common/CustomSelect';
 import { FormQuestionField, visibleFormQuestions } from './FormQuestionField';
+import { createCompanyForm } from './formsPersistence';
 import {
   createFormQuestion,
   csvCell,
@@ -303,15 +304,10 @@ export const FormsPage: React.FC = () => {
 
   const createForm = async () => {
     setError('');
-    const title = 'Untitled form';
-    const content = { title, description: '', questions: [], settings: { acceptingResponses: true } };
     const { data, error: createError } = await (async () => {
       try {
-        const result = await supabase.from('company_forms')
-          .insert({ owner_id: currentUser.id, name: title, content })
-          .select('id,owner_id,name,content,updated_at')
-          .single();
-        return { data: result.data as FormRecord | null, error: result.error };
+        const result = await createCompanyForm(currentUser.id);
+        return { data: result as FormRecord, error: null };
       } catch (cause) {
         return { data: null, error: { message: cause instanceof Error ? cause.message : 'The server request failed.' } };
       }

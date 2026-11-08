@@ -1,6 +1,6 @@
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Bot, Building2, Flag, Lock, Mail, Plus, Search, Send, UserRound, X } from 'lucide-react';
+import { ArrowLeft, Bot, Building2, Lock, Mail, Plus, Search, Send, UserRound, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAppAccess } from '../../lib/useAppAccess';
@@ -22,10 +22,6 @@ type Ticket = {
   organization_name: string | null;
   due_at: string | null;
   resolution: string | null;
-  internal_only: boolean;
-  developer_flag: boolean;
-  diagnostic_data: Record<string, unknown>;
-  screenshot_path: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -67,7 +63,7 @@ const priorityStyle: Record<Priority, string> = {
 const statusLabel = (status: Status) => statuses.find((item) => item.id === status)?.label ?? status;
 const categoryLabel = (category: string) => categories.find((item) => item.id === category)?.label ?? category;
 const formatDate = (value: string | null) => (value ? new Date(value).toLocaleDateString() : '—');
-const ticketColumns = 'id,ticket_number,subject,description,category,priority,status,requester_id,assignee_id,organization_name,due_at,resolution,internal_only,developer_flag,diagnostic_data,screenshot_path,created_at,updated_at';
+const ticketColumns = 'id,ticket_number,subject,description,category,priority,status,requester_id,assignee_id,organization_name,due_at,resolution,created_at,updated_at';
 
 export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMessages }) => {
   const { currentUser, users } = useWorkspace();
@@ -87,8 +83,6 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
   const [replyInternal, setReplyInternal] = useState(false);
   const [aiBusy, setAiBusy] = useState<'suggest' | 'summarize' | ''>('');
   const [aiSummary, setAiSummary] = useState<string[]>([]);
-  const [screenshotUrl, setScreenshotUrl] = useState('');
-  const [screenshotError, setScreenshotError] = useState('');
 
   const userName = useCallback((id: string | null) => users.find((user) => user.id === id)?.name ?? (id ? 'Unknown user' : 'Unassigned'), [users]);
 
@@ -117,18 +111,6 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
     if (selectedId) void loadComments(selectedId);
   }, [selectedId, loadComments]);
 
-  useEffect(() => {
-    let active = true;
-    setScreenshotUrl('');
-    setScreenshotError('');
-    if (!selected?.screenshot_path) return () => { active = false; };
-    void supabase.storage.from('bug-report-screenshots').createSignedUrl(selected.screenshot_path, 300).then(({ data, error: signedUrlError }) => {
-      if (!active) return;
-      if (signedUrlError) setScreenshotError(signedUrlError.message);
-      else setScreenshotUrl(data.signedUrl);
-    });
-    return () => { active = false; };
-  }, [selected?.screenshot_path]);
 
   const counts = useMemo(() => {
     const result: Record<string, number> = { active: 0 };
@@ -267,7 +249,7 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
               {visible.map((ticket) => (
                 <li key={ticket.id}>
                   <button type="button" onClick={() => setSelectedId(ticket.id)} className="grid w-full gap-2 px-4 py-3 text-left hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-500 md:grid-cols-[minmax(220px,2fr)_minmax(120px,1fr)_100px_125px_115px] md:items-center md:gap-3">
-                    <span className="min-w-0"><span className="flex flex-wrap items-center gap-2"><span className="font-semibold text-slate-900">{ticket.subject}</span><span className="text-xs text-slate-400">FL-{ticket.ticket_number}</span>{ticket.developer_flag && <span className="inline-flex items-center gap-1 rounded bg-rose-50 px-1.5 py-0.5 text-xs font-semibold text-rose-800"><Flag className="h-3 w-3" />Internal · Developer</span>}</span><span className="mt-1 block truncate text-xs text-slate-500">{categoryLabel(ticket.category)} · {statusLabel(ticket.status)}{ticket.organization_name ? ` · ${ticket.organization_name}` : ''}</span></span>
+                    <span className="min-w-0"><span className="flex flex-wrap items-center gap-2"><span className="font-semibold text-slate-900">{ticket.subject}</span><span className="text-xs text-slate-400">FL-{ticket.ticket_number}</span></span><span className="mt-1 block truncate text-xs text-slate-500">{categoryLabel(ticket.category)} · {statusLabel(ticket.status)}{ticket.organization_name ? ` · ${ticket.organization_name}` : ''}</span></span>
                     <span className="flex items-center gap-2 text-sm text-slate-700"><UserRound className="h-4 w-4 text-slate-400" />{userName(ticket.requester_id)}</span>
                     <span className={`text-xs font-semibold capitalize ${ticket.priority === 'urgent' ? 'text-rose-600' : ticket.priority === 'high' ? 'text-amber-600' : 'text-slate-600'}`}>{ticket.priority}{overdue(ticket) ? ' · overdue' : ''}</span>
                     <span className="text-sm text-slate-600">{userName(ticket.assignee_id)}</span>
@@ -287,26 +269,10 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
             <section className="flex min-h-[500px] min-w-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white">
               <header className="border-b border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0"><p className="flex flex-wrap items-center gap-2 text-xs text-slate-500"><span>FL-{selected.ticket_number} · {categoryLabel(selected.category)}</span>{selected.internal_only && <span className="inline-flex items-center gap-1 rounded bg-rose-50 px-1.5 py-0.5 font-semibold text-rose-800"><Lock className="h-3 w-3" />Internal</span>}{selected.developer_flag && <span className="inline-flex items-center gap-1 rounded bg-rose-50 px-1.5 py-0.5 font-semibold text-rose-800"><Flag className="h-3 w-3" />Developer queue</span>}</p><h2 className="mt-1 text-lg font-semibold text-slate-900">{selected.subject}</h2></div>
+                  <div className="min-w-0"><p className="text-xs text-slate-500">FL-{selected.ticket_number} · {categoryLabel(selected.category)}</p><h2 className="mt-1 text-lg font-semibold text-slate-900">{selected.subject}</h2></div>
                   <span className={`rounded px-2 py-1 text-xs font-semibold capitalize ${priorityStyle[selected.priority]}`}>{selected.priority}</span>
                 </div>
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{selected.description || 'No description provided.'}</p>
-                {selected.screenshot_path && (
-                  <div className="mt-4 border-t border-slate-100 pt-3">
-                    <h3 className="text-xs font-semibold text-slate-700">Attached screenshot</h3>
-                    {screenshotUrl ? <a href={screenshotUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-sm font-medium text-brand-700 hover:underline">Open private screenshot</a> : <p role={screenshotError ? 'alert' : 'status'} className={`mt-2 text-xs ${screenshotError ? 'text-rose-700' : 'text-slate-500'}`}>{screenshotError || 'Loading secure attachment…'}</p>}
-                  </div>
-                )}
-                {Object.keys(selected.diagnostic_data || {}).length > 0 && (
-                  <details className="mt-4 border-t border-slate-100 pt-3">
-                    <summary className="cursor-pointer text-xs font-semibold text-slate-700">Consented browser and connection diagnostics</summary>
-                    <dl className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
-                      {Object.entries(selected.diagnostic_data).map(([key, value]) => (
-                        <div key={key} className="min-w-0"><dt className="font-medium capitalize text-slate-600">{key.replace(/([A-Z])/g, ' $1')}</dt><dd className="mt-0.5 break-words text-slate-800">{typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}</dd></div>
-                      ))}
-                    </dl>
-                  </details>
-                )}
               </header>
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                 <h3 className="text-sm font-semibold text-slate-800">Messages &amp; internal notes</h3>

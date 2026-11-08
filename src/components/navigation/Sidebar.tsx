@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, FolderKanban, Code2, UsersRound, Building2, Settings, ChevronsUpDown, Bug, LogOut, Flame, Network, Bell,
+  House, Lightbulb, MessageSquare, Calendar as CalendarIcon, FolderKanban, Code2, UsersRound, Building2, Settings, ChevronsUpDown, LogOut, Flame, Network, Bell,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAllAppAccess } from '../../lib/useAppAccess';
@@ -25,7 +25,7 @@ const appDropdowns: NavItem[] = [
   { id: 'engineering', label: 'Products', icon: Code2 },
   { id: 'customers', label: 'Customers', icon: UsersRound },
   { id: 'company', label: 'Company', icon: Building2 },
-  { id: 'wildfire', label: 'Wildfire Solutions', icon: Flame },
+  { id: 'wildfire', label: 'Wildfire', icon: Flame },
 ];
 
 const accessKey: Partial<Record<Tab, string>> = { customers: 'customers', admin: 'systems', wildfire: 'wildfire' };
@@ -33,10 +33,9 @@ const accessKey: Partial<Record<Tab, string>> = { customers: 'customers', admin:
 interface SidebarProps {
   isMobileOpen?: boolean;
   onOpenMobile?: () => void;
-  onOpenBugReport: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenMobile, onOpenBugReport }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenMobile }) => {
   const { activeTab, setActiveTab, conversations, currentUser, logout, unreadNotificationCount } = useWorkspace();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('flown-sidebar-groups') || '{}'); } catch { return {}; } });
   const access = useAllAppAccess();
@@ -213,10 +212,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenMo
           </button>
           {notificationsOpen && <div className="absolute bottom-full left-0 pb-2 md:bottom-0 md:left-full md:pb-0 md:pl-2"><NotificationCenter onClose={() => setNotificationsOpen(false)} /></div>}
         </div>
-        <button type="button" data-onboarding-target="bug-report-button" title="Bug report" onClick={onOpenBugReport} className={row(false)}>
-          <Bug className="h-[17px] w-[17px] shrink-0 text-white/80" />
-          Bug report
-        </button>
         <button type="button" title="Settings" onClick={() => setActiveTab('settings')} className={row(activeTab === 'settings')}>
           <Settings className="h-[17px] w-[17px] shrink-0 text-white/80" />
           Settings

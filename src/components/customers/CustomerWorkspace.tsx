@@ -189,7 +189,7 @@ export const CustomerWorkspace: React.FC<Props> = ({ orgs, contacts, items, sele
       <p className="text-xs text-slate-400">Owner: {userName(org.owner_id)} · Added {fmt(org.created_at)}</p>
 
       {wildfireAccess >= 1 && <section>
-        <div className="mb-1.5 flex items-center justify-between gap-2"><h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400"><Flame className="h-3.5 w-3.5" />Wildfire Solutions</h4><button type="button" onClick={() => go('/wildfire/overview')} className="text-xs font-semibold text-brand-700 hover:underline">Open workspace</button></div>
+        <div className="mb-1.5 flex items-center justify-between gap-2"><h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400"><Flame className="h-3.5 w-3.5" />Wildfire</h4><button type="button" onClick={() => go('/wildfire/opportunities')} className="text-xs font-semibold text-brand-700 hover:underline">Open workspace</button></div>
         {wildfireLoading ? <p className="text-xs text-slate-500">Loading linked records…</p> : wildfireError ? <p role="alert" className="text-xs text-rose-700">{wildfireError}</p> : (
           <div className="space-y-2">
             <div className="rounded-lg border border-slate-200 bg-white p-2.5">

@@ -61,7 +61,7 @@ describe('permanent desktop navigation rail', () => {
     container = document.createElement('div');
     document.body.append(container);
     root = createRoot(container);
-    await act(async () => root.render(<Sidebar onOpenBugReport={vi.fn()} />));
+    await act(async () => root.render(<Sidebar />));
   });
   afterEach(async () => {
     await act(async () => root.unmount());
@@ -78,6 +78,8 @@ describe('permanent desktop navigation rail', () => {
     expect(container.querySelector('[aria-label="Close navigation"]')).toBeNull();
     expect(container.textContent).not.toContain('Quick Add');
     expect(container.textContent).not.toContain('Workspace assistant');
+    expect(container.querySelector('[data-onboarding-target="bug-report-button"]')).toBeNull();
+    expect(container.textContent).not.toContain('Bug report');
   });
 
   it('stays visible after Escape, leaving, navigation, and finishing onboarding', async () => {
@@ -94,7 +96,7 @@ describe('permanent desktop navigation rail', () => {
 
   it('opens the mobile menu for the global search shortcut only on phones', async () => {
     const onOpenMobile = vi.fn();
-    await act(async () => root.render(<Sidebar onOpenMobile={onOpenMobile} onOpenBugReport={vi.fn()} />));
+    await act(async () => root.render(<Sidebar onOpenMobile={onOpenMobile} />));
     vi.stubGlobal('innerWidth', 1440);
     await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true })));
     expect(onOpenMobile).not.toHaveBeenCalled();
@@ -136,12 +138,12 @@ describe('permanent desktop navigation rail', () => {
 
   it('retains the mobile drawer and hides its notifications when closed', async () => {
     vi.stubGlobal('innerWidth', 390);
-    await act(async () => root.render(<Sidebar isMobileOpen onOpenBugReport={vi.fn()} />));
+    await act(async () => root.render(<Sidebar isMobileOpen />));
     expect(rail().classList.contains('visible')).toBe(true);
     expect(rail().classList.contains('translate-x-0')).toBe(true);
     await act(async () => notifications().click());
     expect(container.querySelector('[role="dialog"]')).not.toBeNull();
-    await act(async () => root.render(<Sidebar onOpenBugReport={vi.fn()} />));
+    await act(async () => root.render(<Sidebar />));
     expect(rail().classList.contains('invisible')).toBe(true);
     expect(rail().classList.contains('md:visible')).toBe(true);
     expect(container.querySelector('[role="dialog"]')).toBeNull();

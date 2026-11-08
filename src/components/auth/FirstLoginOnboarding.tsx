@@ -6,7 +6,6 @@ import {
   BarChart3,
   Bell,
   Building2,
-  Bug,
   CalendarDays,
   Check,
   Code2,
@@ -78,7 +77,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     title: 'Company-wide work',
-    description: 'Company brings shareable Forms, Automation, ideas, marketing, grants and grant resources, and Website content together.',
+    description: 'Company brings shareable Forms, ideas, marketing, grants and grant resources, and Website content together.',
     tab: 'company',
     target: 'company-workspace',
     icon: Lightbulb,
@@ -121,13 +120,6 @@ const TOUR_STEPS: TourStep[] = [
     description: 'Notifications lives near the bottom of the navigation rail. Open it to review updates, jump to a conversation or channel, and mark notifications as read.',
     target: 'notifications-button',
     icon: Bell,
-    action: 'Learn about bug reports',
-  },
-  {
-    title: 'Send a developer bug report',
-    description: 'Choose Bug report at the bottom of the navigation rail when something breaks. Add steps, an error code, and a screenshot. Reports are flagged internal for developers. Browser and IP diagnostics are included only if you consent.',
-    target: 'bug-report-button',
-    icon: Bug,
     action: 'Finish tour',
   },
 ];
@@ -293,9 +285,6 @@ export const FirstLoginOnboarding: React.FC = () => {
     setTourIndex(nextIndex);
     if (tourSteps[nextIndex]?.target === 'notifications-button') {
       window.dispatchEvent(new Event('flown-onboarding-target-notifications'));
-    }
-    if (nextIndex === tourSteps.length - 1) {
-      window.dispatchEvent(new Event('flown-onboarding-target-bug-report'));
     }
     const tab = tourSteps[nextIndex]?.tab;
     if (tab) setActiveTab(tab);

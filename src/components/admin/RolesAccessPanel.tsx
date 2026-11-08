@@ -22,7 +22,7 @@ const apps = [
   { id: 'finance', label: 'Grants' },
   { id: 'legal', label: 'Contracts & policies' },
   { id: 'systems', label: 'Systems' },
-  { id: 'wildfire', label: 'Wildfire Solutions' },
+  { id: 'wildfire', label: 'Wildfire' },
 ];
 
 export const RolesAccessPanel: React.FC = () => {

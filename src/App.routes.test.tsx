@@ -4,9 +4,10 @@ import { act } from 'react-dom/test-utils';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+const session = vi.hoisted(() => ({ isAuthenticated: false, isAuthLoading: true }));
 vi.mock('./context/WorkspaceContext', () => ({
   WorkspaceProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  useWorkspace: () => ({ isAuthenticated: false, isAuthLoading: true, activeTab: 'home' }),
+  useWorkspace: () => ({ ...session, activeTab: 'home' }),
 }));
 vi.mock('./hooks/useOverlayA11y', () => ({ useOverlayA11y: () => undefined }));
 vi.mock('./components/forms/PublicFormPage', () => ({
@@ -15,10 +16,17 @@ vi.mock('./components/forms/PublicFormPage', () => ({
 vi.mock('./components/customers/PublicContractSigning', () => ({
   PublicContractSigning: ({ token }: { token: string }) => <main>Public signature: {token}</main>,
 }));
+vi.mock('./components/wildfire/PublicQuoteAcceptance', () => ({
+  PublicQuoteAcceptance: ({ token }: { token: string }) => <main>Public quote: {token}</main>,
+}));
 
 import { App } from './App';
 
-afterEach(() => window.history.replaceState({}, '', '/'));
+afterEach(() => {
+  window.history.replaceState({}, '', '/');
+  session.isAuthenticated = false;
+  session.isAuthLoading = true;
+});
 
 describe('public workspace routes', () => {
   async function renderAt(path: string) {
@@ -47,12 +55,28 @@ describe('public workspace routes', () => {
     expect(view.container.textContent).toBe('Public signature: random-signing-token');
     await view.cleanup();
   });
+  it('opens public quote acceptance before loading or authenticating staff', async () => {
+    const view = await renderAt('/wildfire-quote?token=public-quote-token');
+    expect(view.container.textContent).toBe('Public quote: public-quote-token');
+    await view.cleanup();
+  });
 
   it('redirects legacy form IDs to private migrated forms, not public responders', async () => {
     const view = await renderAt('/forms/legacy-id');
     expect(window.location.pathname).toBe('/company/forms');
     expect(window.location.search).toBe('?form=legacy-id');
     expect(view.container.textContent).not.toContain('Public form');
+    await view.cleanup();
+  });
+
+  it('shows a normal 404 for the retired Automation route with no bug-report action', async () => {
+    session.isAuthenticated = true;
+    session.isAuthLoading = false;
+    const view = await renderAt('/company/automation');
+    expect(view.container.textContent).toContain('404');
+    expect(view.container.textContent).toContain('Go to Home');
+    expect(view.container.textContent).not.toMatch(/bug|report|shared email rules/i);
+    expect(view.container.querySelectorAll('button')).toHaveLength(2);
     await view.cleanup();
   });
 });

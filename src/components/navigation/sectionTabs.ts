@@ -1,7 +1,7 @@
 import {
   CheckSquare, Headset, House, ContactRound, Building2, BookOpen, BarChart3, Users, ShieldCheck,
   Landmark, Target, FolderKanban, Code2, Cog, Cable, Network,
-  FileText, MapPin, Package, ClipboardList, Truck, Siren, FileCheck2,
+  FileText, MapPin, Package, ClipboardList, Truck, Siren,
   Calendar as CalendarIcon, Lightbulb, type LucideIcon,
 } from 'lucide-react';
 
@@ -49,7 +49,6 @@ export const getSectionTabs = (activeTab: string, _routePath: string): SectionTa
       return [
         tab('Ideas', 'Ideas', Lightbulb, '/company/ideas', ['/company']),
         tab('Forms', 'Forms', ClipboardList, '/company/forms'),
-        tab('Automation', 'Automation', Cog, '/company/automation'),
         tab('Grants', 'Grants', Landmark, '/company/grants', undefined, 'finance'),
         tab('Find Grants', 'Find', Target, '/company/prospects', undefined, 'finance'),
         tab('Grant Resources', 'Library', BookOpen, '/company/resources', undefined, 'finance'),
@@ -66,12 +65,9 @@ export const getSectionTabs = (activeTab: string, _routePath: string): SectionTa
       ];
     case 'wildfire':
       return [
-        tab('Overview', 'Overview', House, '/wildfire/overview'),
-        tab('Opportunities', 'Opportunities', Target, '/wildfire/opportunities'),
+        tab('Opportunities', 'Opportunities', Target, '/wildfire/opportunities', ['/wildfire', '/wildfire/overview']),
         tab('Site planner', 'Planner', MapPin, '/wildfire/site-planner'),
-        tab('Quotes & pricing', 'Quotes', FileText, '/wildfire/quotes'),
-        tab('Proposals', 'Proposals', FileCheck2, '/wildfire/proposals'),
-        tab('Site surveys', 'Surveys', ClipboardList, '/wildfire/surveys'),
+        tab('Quotes & proposals', 'Quotes', FileText, '/wildfire/quotes', ['/wildfire/proposals']),
         tab('Deployments', 'Deployments', Truck, '/wildfire/deployments'),
         tab('Product catalog', 'Catalog', Package, '/wildfire/catalog'),
         tab('Customer requests', 'Requests', Headset, '/wildfire/requests'),

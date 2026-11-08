@@ -4,7 +4,6 @@ import { FinancePage } from '../finance/FinancePage';
 import { ContentCalendar } from './ContentCalendar';
 import { WebsitePage } from './WebsitePage';
 import { IdeasPage } from './IdeasPage';
-import { AutomationPage } from './AutomationPage';
 import { FormsPage } from '../forms/FormsPage';
 
 const segmentOf = (pathname: string) => pathname.split('/')[2] || 'ideas';
@@ -24,7 +23,6 @@ export const CompanyPage: React.FC = () => {
 
   switch (segment) {
     case 'forms': return <FormsPage />;
-    case 'automation': return <AutomationPage />;
     case 'website':
     case 'policies': return <AccessGate app="legal" name="Website"><WebsitePage /></AccessGate>;
     case 'calendar': return (

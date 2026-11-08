@@ -29,12 +29,11 @@ import { CustomerPage } from './components/customers/CustomerPage';
 import { CompanyPage } from './components/company/CompanyPage';
 import { HomePage } from './components/home/HomePage';
 import { NotFoundPage } from './components/NotFoundPage';
-import { BugReportDialog } from './components/bug-report/BugReportDialog';
 import { InsightsPage } from './components/insights/InsightsPage';
 import { ProgramsPage } from './components/programs/ProgramsPage';
 import { EngineeringPage } from './components/engineering/EngineeringPage';
 import { PendingDocumentPrompt } from './components/organization/PolicySigning';
-import { WildfireSolutionsPage } from './components/wildfire/WildfireSolutionsPage';
+import { WildfirePage } from './components/wildfire/WildfirePage';
 import { SystemsPage } from './components/systems';
 import { isKnownWorkspacePath } from './lib/workspaceRoutes';
 
@@ -46,6 +45,9 @@ const PublicFormPage = lazy(async () => ({
 }));
 const PublicContractSigning = lazy(async () => ({
   default: (await import('./components/customers/PublicContractSigning')).PublicContractSigning,
+}));
+const PublicQuoteAcceptance = lazy(async () => ({
+  default: (await import('./components/wildfire/PublicQuoteAcceptance')).PublicQuoteAcceptance,
 }));
 const CallOverlay = lazy(async () => ({
   default: (await import('./components/call/CallOverlay')).CallOverlay,
@@ -73,8 +75,6 @@ const WorkspaceShell: React.FC = () => {
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [mobileChatPane, setMobileChatPane] = useState<'list' | 'feed'>('list');
-  const [bugReportOpen, setBugReportOpen] = useState(false);
-  const [bugReportSeed, setBugReportSeed] = useState<{ subject: string; details: string } | null>(null);
 
   useEffect(() => {
     setIsNavOpen(false);
@@ -88,13 +88,11 @@ const WorkspaceShell: React.FC = () => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsNavOpen(false); };
     window.addEventListener('popstate', closeNav);
     window.addEventListener('keydown', onKey);
-    window.addEventListener('flown-onboarding-target-bug-report', openNavForTour);
     window.addEventListener('flown-onboarding-target-notifications', openNavForTour);
     window.addEventListener('flown-onboarding-tour-finished', finishTour);
     return () => {
       window.removeEventListener('popstate', closeNav);
       window.removeEventListener('keydown', onKey);
-      window.removeEventListener('flown-onboarding-target-bug-report', openNavForTour);
       window.removeEventListener('flown-onboarding-target-notifications', openNavForTour);
       window.removeEventListener('flown-onboarding-tour-finished', finishTour);
     };
@@ -115,6 +113,9 @@ const WorkspaceShell: React.FC = () => {
   if (/^\/contract-signature\/?$/.test(routePath)) {
     return <Suspense fallback={<div role="status" className="p-6">Loading document...</div>}><PublicContractSigning token={new URLSearchParams(window.location.search).get('token') || ''} /></Suspense>;
   }
+  if (/^\/wildfire-quote\/?$/.test(routePath)) {
+    return <Suspense fallback={<div role="status" className="p-6">Loading quote...</div>}><PublicQuoteAcceptance token={new URLSearchParams(window.location.search).get('token') || ''} /></Suspense>;
+  }
 
   if (/^\/contact\/?$/.test(routePath)) {
     return <Suspense fallback={null}><PublicChatPage /></Suspense>;
@@ -131,28 +132,18 @@ const WorkspaceShell: React.FC = () => {
 
   if (!isKnownWorkspacePath(routePath) && !isRetiredWorkspacePath(routePath)) {
     return (
-      <>
         <NotFoundPage
           onGoHome={() => {
             window.history.pushState({}, '', '/home');
             window.dispatchEvent(new PopStateEvent('popstate'));
           }}
-          onReportBug={() => {
-            setBugReportSeed({
-              subject: `Broken page: ${window.location.pathname}`,
-              details: `I reached a page that returned 404: ${window.location.pathname}`,
-            });
-            setBugReportOpen(true);
-          }}
         />
-        {bugReportOpen && <BugReportDialog initialSubject={bugReportSeed?.subject} initialDetails={bugReportSeed?.details} onClose={() => setBugReportOpen(false)} />}
-      </>
     );
   }
 
   return (
     <div className="flex h-dvh min-h-dvh w-screen overflow-hidden bg-[#fafbfc]">
-      <Sidebar isMobileOpen={isNavOpen} onOpenMobile={() => setIsNavOpen(true)} onOpenBugReport={() => { setBugReportSeed(null); setBugReportOpen(true); }} />
+      <Sidebar isMobileOpen={isNavOpen} onOpenMobile={() => setIsNavOpen(true)} />
       {isNavOpen && (
         <button
           type="button"
@@ -176,7 +167,7 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'settings' && <SettingsPage />}
           {activeTab === 'systems' && <SystemsPage />}
           {activeTab === 'engineering' && <EngineeringPage />}
-          {activeTab === 'wildfire' && <WildfireSolutionsPage />}
+          {activeTab === 'wildfire' && <WildfirePage />}
           {activeTab === 'messages' && (
             <>
               {/* Combined channels and direct messages sidebar */}
@@ -216,7 +207,6 @@ const WorkspaceShell: React.FC = () => {
       </div>
 
       <ShortcutsHelp />
-      {bugReportOpen && <BugReportDialog initialSubject={bugReportSeed?.subject} initialDetails={bugReportSeed?.details} onClose={() => setBugReportOpen(false)} />}
       <MobileTabBar isMenuOpen={isNavOpen} onToggleMenu={() => setIsNavOpen((open) => !open)} />
 
       {/* Floating In-App Voice & Video Call Overlay */}

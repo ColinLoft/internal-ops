@@ -13,7 +13,7 @@ export const RetiredWorkspacePage: React.FC = () => {
       <h1 className="text-xl font-semibold text-slate-900">{email ? 'Personal email stays with your provider' : 'Documents stay with your document tools'}</h1>
       <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
         {email
-          ? 'The personal-email workspace has been retired. Shared operational email remains available for customer support and automation.'
+          ? 'The personal-email workspace has been retired. Shared operational email remains available for customer support.'
           : 'Drive, Docs, Sheets, and Slides have been retired. Upload documents directly to the work they belong to. Contracts use PDFs, and Forms is now under Company.'}
       </p>
       <p className="mt-3 text-sm text-slate-600">Existing stored records have not been deleted.</p>

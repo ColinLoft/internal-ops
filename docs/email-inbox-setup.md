@@ -1,6 +1,6 @@
 # Email inbox setup: step-by-step
 
-> **Archived guide:** The personal-email inbox and its composer have been retired. Do not use the personal-account connection or frontend instructions below for a new deployment. Shared operational email is retained for support and automation; see [Workspace integrations](./workspace-integrations.md) for the current scope.
+> **Archived guide:** The personal-email inbox and its composer have been retired. Do not use the personal-account connection or frontend instructions below for a new deployment. Shared operational email is retained for support; Company Automation is retired. See [Workspace integrations](./workspace-integrations.md) for the current scope.
 
 This guide walks through setting up the workspace email inbox with Microsoft 365. First connect a personal mailbox, then configure optional push notifications and AI if you need them.
 

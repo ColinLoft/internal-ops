@@ -1,12 +1,11 @@
 import React from 'react';
-import { ArrowLeft, ArrowRight, Bug, Compass } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Compass } from 'lucide-react';
 
 type NotFoundPageProps = {
   onGoHome: () => void;
-  onReportBug: () => void;
 };
 
-export const NotFoundPage: React.FC<NotFoundPageProps> = ({ onGoHome, onReportBug }) => (
+export const NotFoundPage: React.FC<NotFoundPageProps> = ({ onGoHome }) => (
   <main className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-slate-100 via-brand-50 to-brand-100 px-6 py-12">
     <section className="w-full max-w-lg rounded-3xl border border-white/80 bg-white/85 p-8 text-center shadow-xl shadow-brand-900/10 backdrop-blur-xl sm:p-12">
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-600 to-brand-500 text-white shadow-lg shadow-brand-600/20">
@@ -16,7 +15,7 @@ export const NotFoundPage: React.FC<NotFoundPageProps> = ({ onGoHome, onReportBu
       <h1 className="mt-3 text-5xl font-bold tracking-tight text-slate-900">404</h1>
       <h2 className="mt-3 text-xl font-bold text-slate-800">This page took a wrong turn.</h2>
       <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-slate-500">
-        The page you are looking for does not exist or may have moved. Return to Communications to keep working.
+        The page you are looking for does not exist or may have moved. Return to Home to keep working.
       </p>
       <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
         <button type="button" onClick={() => window.history.back()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:border-brand-200 hover:text-brand-700">
@@ -26,9 +25,6 @@ export const NotFoundPage: React.FC<NotFoundPageProps> = ({ onGoHome, onReportBu
           Go to Home <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
-      <button type="button" onClick={onReportBug} className="mt-5 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900">
-        <Bug className="h-4 w-4" aria-hidden="true" /> Report this broken page
-      </button>
     </section>
   </main>
 );
