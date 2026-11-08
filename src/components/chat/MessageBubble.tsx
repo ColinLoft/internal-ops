@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CheckCheck, Download, FileText, MapPin, MessageSquare, MoreHorizontal, Phone, SmilePlus } from 'lucide-react';
+import { Ban, CheckCheck, Download, FileText, MapPin, MessageSquare, MoreHorizontal, Phone, SmilePlus, Trash2 } from 'lucide-react';
 import type { Message } from '../../types';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { MessageText, messageLink } from './MessageText';
@@ -13,8 +13,10 @@ interface MessageBubbleProps {
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCurrentUser, onOpenThread, isThreadReply = false, grouped = false }) => {
-  const { users, currentUser, activeTab, openUserProfile, toggleReaction, votePoll, retryMessage } = useWorkspace();
+  const { users, currentUser, activeTab, openUserProfile, toggleReaction, votePoll, retryMessage, deleteMessage } = useWorkspace();
   const [showReactions, setShowReactions] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const canDelete = isCurrentUser && !message.isDeleted && !message.isCallRecord && message.sendStatus !== 'sending' && message.sendStatus !== 'failed';
   const [showActions, setShowActions] = useState(false);
   const reactionRef = useRef<HTMLDivElement>(null);
   const sender = users.find(user => user.id === message.senderId) || {
@@ -22,12 +24,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCurrent
     department: 'Outreach', phone: '', email: '', status: 'offline' as const, systemRole: 'member' as const,
   };
   useEffect(() => {
-    if (!showReactions && !showActions) return;
-    const outside = (event: MouseEvent) => { if (!reactionRef.current?.contains(event.target as Node)) { setShowReactions(false); setShowActions(false); } };
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setShowReactions(false); setShowActions(false); } };
+    if (!showReactions && !showActions && !confirmDelete) return;
+    const close = () => { setShowReactions(false); setShowActions(false); setConfirmDelete(false); };
+    const outside = (event: MouseEvent) => { if (!reactionRef.current?.contains(event.target as Node)) close(); };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') close(); };
     document.addEventListener('mousedown', outside); document.addEventListener('keydown', escape);
     return () => { document.removeEventListener('mousedown', outside); document.removeEventListener('keydown', escape); };
-  }, [showReactions, showActions]);
+  }, [showReactions, showActions, confirmDelete]);
   const seenNames = users.filter(user => message.seenBy.includes(user.id) && user.id !== currentUser.id).map(user => user.name).slice(0, 2).join(', ');
   const seen = isCurrentUser && activeTab !== 'channels' && message.seenBy.some(id => id !== currentUser.id) && message.sendStatus !== 'sending' && message.sendStatus !== 'failed';
   const receipt = seen ? <span title={seenNames ? `Seen by ${seenNames}` : 'Seen'} aria-label={seenNames ? `Seen by ${seenNames}` : 'Seen'} className="message-receipt inline-flex shrink-0 align-middle"><CheckCheck className="h-3 w-3" /></span> : null;
@@ -43,7 +46,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCurrent
         <span className="shrink-0 text-[11px] text-slate-400">{message.timestamp}</span>
         {receipt}
       </div>}
-      {message.isCallRecord ? <div className="flex items-center gap-2 py-1 text-sm text-slate-600"><Phone className="h-4 w-4" /><span>Call ended{message.callDuration ? ` · ${message.callDuration}` : ''}</span></div>
+      {message.isDeleted ? <p className="flex items-center gap-1.5 py-0.5 text-sm italic text-slate-500"><Ban className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />This message was deleted</p>
+        : message.isCallRecord ? <div className="flex items-center gap-2 py-1 text-sm text-slate-600"><Phone className="h-4 w-4" /><span>Call ended{message.callDuration ? ` · ${message.callDuration}` : ''}</span></div>
         : message.poll ? <section aria-label="Staff poll" className="my-1 w-full max-w-md rounded-lg border border-slate-200 bg-white p-3">
           <h3 className="mb-3 text-sm font-semibold text-slate-900">{message.poll.question}</h3>
           <div className="space-y-2">{message.poll.options.map(option => {
@@ -55,7 +59,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCurrent
             </button>;
           })}</div><p className="mt-2 text-xs text-slate-500">{message.poll.totalVotes} {message.poll.totalVotes === 1 ? 'vote' : 'votes'}{message.poll.isClosed ? ' · Poll closed' : ''}</p>
         </section> : message.text && <div className="flex items-end gap-2"><div className="min-w-0"><MessageText text={message.text} /></div>{grouped && receipt}</div>}
-      {message.attachments?.map(attachment => {
+      {!message.isDeleted && message.attachments?.map(attachment => {
         const url = /^(blob:|data:image\/)/.test(attachment.url) ? attachment.url : messageLink(attachment.url);
         if (!url) return <p key={attachment.id} role="status" className="mt-2 text-xs text-slate-500">{attachment.name} · Attachment unavailable</p>;
         if (attachment.type === 'image') return <a key={attachment.id} href={url} target="_blank" rel="noreferrer" className="mt-2 block w-fit max-w-full overflow-hidden rounded-lg border border-slate-200"><img src={url} alt={attachment.name} className="max-h-64 max-w-full object-contain sm:max-w-md" loading="lazy" /></a>;
@@ -66,8 +70,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCurrent
           {attachment.type === 'file' && <Download className="h-4 w-4 shrink-0" />}
         </a>;
       })}
-      {grouped && !message.text && receipt}
-      {message.reactions?.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{message.reactions.map(reaction => <button type="button" key={reaction.emoji} aria-label={`${reaction.emoji}, ${reaction.users.length} reactions`} aria-pressed={reaction.users.includes(currentUser.id)} onClick={() => toggleReaction(message.id, reaction.emoji, message.parentId)} className={`flex min-h-7 items-center gap-1 rounded-md border px-2 text-xs ${reaction.users.includes(currentUser.id) ? 'border-brand-500/50 bg-brand-500/10 text-brand-400' : 'border-slate-200 bg-white text-slate-600'}`}><span>{reaction.emoji}</span><span>{reaction.users.length}</span></button>)}</div>}
+      {grouped && !message.text && !message.isDeleted && receipt}
+      {!message.isDeleted && message.reactions?.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{message.reactions.map(reaction => <button type="button" key={reaction.emoji} aria-label={`${reaction.emoji}, ${reaction.users.length} reactions`} aria-pressed={reaction.users.includes(currentUser.id)} onClick={() => toggleReaction(message.id, reaction.emoji, message.parentId)} className={`flex min-h-7 items-center gap-1 rounded-md border px-2 text-xs ${reaction.users.includes(currentUser.id) ? 'border-brand-500/50 bg-brand-500/10 text-brand-400' : 'border-slate-200 bg-white text-slate-600'}`}><span>{reaction.emoji}</span><span>{reaction.users.length}</span></button>)}</div>}
       {!isThreadReply && (message.threadCount || 0) > 0 && onOpenThread && <button type="button" onClick={() => onOpenThread(message.id)} className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-brand-400 hover:underline"><MessageSquare className="h-3.5 w-3.5" />{message.threadCount} {message.threadCount === 1 ? 'reply' : 'replies'}{message.lastThreadReplyAt ? ` · ${message.lastThreadReplyAt}` : ''}</button>}
       {isCurrentUser && (message.sendStatus === 'failed' || message.sendStatus === 'sending') && <div className="flex items-center gap-1 text-[11px] text-slate-400">
         {message.sendStatus === 'failed' ? <button type="button" onClick={() => void retryMessage(message.id)} className="py-1 font-medium text-rose-600 hover:underline">Not sent · Retry</button>
@@ -75,13 +79,22 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCurrent
           : null}
       </div>}
     </div>
-    <div ref={reactionRef} className="absolute right-4 top-0 z-10">
+    {!message.isDeleted && <div ref={reactionRef} className="absolute right-4 top-0 z-10">
       <button type="button" aria-label={`More actions for ${sender.name}'s message`} aria-expanded={showActions} onClick={() => setShowActions(value => !value)} className="ml-auto flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-slate-100 md:hidden"><MoreHorizontal className="h-4 w-4" /></button>
       <div className={`${showActions ? 'flex' : 'hidden md:flex'} items-center gap-0.5 rounded-md border border-slate-200 bg-white p-0.5 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 ${showReactions || showActions ? 'opacity-100' : 'md:opacity-0'}`}>
         <button type="button" aria-label={`React to ${sender.name}'s message`} aria-expanded={showReactions} onClick={() => setShowReactions(value => !value)} className="flex h-7 w-7 items-center justify-center rounded text-slate-500 hover:bg-slate-100"><SmilePlus className="h-4 w-4" /></button>
         {!isThreadReply && onOpenThread && <button type="button" aria-label="Reply in thread" onClick={() => onOpenThread(message.id)} className="flex h-7 w-7 items-center justify-center rounded text-slate-500 hover:bg-slate-100"><MessageSquare className="h-4 w-4" /></button>}
+        {canDelete && <button type="button" aria-label="Delete message" aria-expanded={confirmDelete} onClick={() => { setConfirmDelete(value => !value); setShowReactions(false); }} className="flex h-7 w-7 items-center justify-center rounded text-slate-500 hover:bg-rose-500/10 hover:text-rose-400"><Trash2 className="h-4 w-4" /></button>}
       </div>
+      {confirmDelete && <div role="dialog" aria-label="Delete message" className="absolute right-0 top-full mt-1 w-56 rounded-lg border border-slate-200 bg-white p-3 shadow-elevated">
+        <p className="text-sm font-medium text-slate-900">Delete this message?</p>
+        <p className="mt-1 text-xs text-slate-500">Everyone will see that it was deleted.</p>
+        <div className="mt-3 flex justify-end gap-2">
+          <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button type="button" autoFocus onClick={() => { setConfirmDelete(false); setShowActions(false); void deleteMessage(message); }} className="rounded-md bg-rose-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-rose-500">Delete</button>
+        </div>
+      </div>}
       {showReactions && <div role="group" aria-label="Choose reaction" className="absolute right-0 top-full mt-1 flex gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-elevated">{['👍', '❤️', '🎉', '🔥', '🙌', '💡'].map(emoji => <button key={emoji} type="button" aria-label={`React ${emoji}`} onClick={() => { toggleReaction(message.id, emoji, message.parentId); setShowReactions(false); setShowActions(false); }} className="h-8 w-8 rounded hover:bg-slate-100">{emoji}</button>)}</div>}
-    </div>
+    </div>}
   </article>;
 };

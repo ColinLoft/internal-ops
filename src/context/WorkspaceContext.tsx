@@ -111,6 +111,7 @@ interface WorkspaceContextType {
   postChannelMessage: (channelId: string, text: string, attachments?: Attachment[]) => Promise<void>;
   sendThreadReply: (parentId: string, text: string, attachments?: Attachment[]) => Promise<void>;
   votePoll: (messageId: string, optionId: string, parentId?: string) => void;
+  deleteMessage: (message: Message) => Promise<void>;
   toggleReaction: (messageId: string, emoji: string, parentId?: string) => void;
   togglePinConversation: (id: string) => void;
   togglePinChannel: (id: string) => void;
@@ -334,6 +335,7 @@ const mapSupabaseMessage = async (row: Record<string, unknown>, existing?: Messa
     callDuration: typeof row.call_duration === 'string' ? row.call_duration : undefined,
     parentId: typeof row.parent_id === 'string' ? row.parent_id : undefined,
     sendStatus: 'sent',
+    isDeleted: Boolean(row.deleted_at),
   };
 };
 
@@ -404,8 +406,14 @@ const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
     notifyCalendar: preferences.notifyCalendar !== false,
     notifyAnnouncements: preferences.notifyAnnouncements !== false,
     desktopNotifications: preferences.desktopNotifications === true,
+    pinnedConversations: stringList(preferences.pinnedConversations),
+    pinnedChannels: stringList(preferences.pinnedChannels),
   };
 };
+
+const stringList = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string').slice(0, 200) : [];
+
+const withPins = <T extends { id: string; isPinned?: boolean }>(items: T[], pinned: string[]) => items.map((item) => ({ ...item, isPinned: pinned.includes(item.id) }));
 
 const loadSupabaseProfiles = async (authUser: SupabaseAuthUser) => {
   const { data: existingProfile, error: profileError } = await supabase
@@ -568,7 +576,7 @@ const loadSupabaseWorkspaceData = async (userIds: string[]) => {
       name: meta?.name || (isGroup ? 'Group Chat' : ''),
       participants,
       unreadCount: 0,
-      lastMessage: last ? { text: last.text, timestamp: last.timestamp, senderId: last.senderId } : undefined,
+      lastMessage: last ? { text: last.isDeleted ? 'Message deleted' : last.text, timestamp: last.timestamp, senderId: last.senderId } : undefined,
     };
   });
 
@@ -1030,11 +1038,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           setUsers(profileData.users);
           setCurrentUser(profileData.currentUser);
           setWorkspaceSettings(profileData.settings);
-          setChannels(workspaceData.channels);
+          setChannels(withPins(workspaceData.channels, profileData.settings.pinnedChannels));
           setMessages(workspaceData.messages);
           setThreadReplies(workspaceData.threadReplies);
           if (workspaceData.calendarEvents) setCalendarEvents(workspaceData.calendarEvents);
-          setConversations(workspaceData.conversations.map((conversation) => hydrateConversation(conversation, profileData.currentUser.id, profileData.users)));
+          setConversations(withPins(workspaceData.conversations.map((conversation) => hydrateConversation(conversation, profileData.currentUser.id, profileData.users)), profileData.settings.pinnedConversations));
           setIsAuthenticated(true);
           setRequiresPasswordSetup(needsPasswordSetup(session.user));
           setRequiresOnboarding(needsOnboarding(session.user));
@@ -1099,11 +1107,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       setUsers(profileData.users);
       setCurrentUser(profileData.currentUser);
       setWorkspaceSettings(profileData.settings);
-      setChannels(workspaceData.channels);
+      setChannels(withPins(workspaceData.channels, profileData.settings.pinnedChannels));
       setMessages(workspaceData.messages);
       setThreadReplies(workspaceData.threadReplies);
       if (workspaceData.calendarEvents) setCalendarEvents(workspaceData.calendarEvents);
-      setConversations(workspaceData.conversations.map((conversation) => hydrateConversation(conversation, profileData.currentUser.id, profileData.users)));
+      setConversations(withPins(workspaceData.conversations.map((conversation) => hydrateConversation(conversation, profileData.currentUser.id, profileData.users)), profileData.settings.pinnedConversations));
       resetAppAccessCache();
       setIsAuthenticated(true);
       setRequiresPasswordSetup(needsPasswordSetup(data.user));
@@ -1302,7 +1310,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   const saveWorkspaceSettings = async (requested: WorkspaceSettings) => {
-    const settings: WorkspaceSettings = { ...requested, theme: 'dark', accentColor: DEFAULT_WORKSPACE_SETTINGS.accentColor };
+    const settings: WorkspaceSettings = {
+      ...requested,
+      theme: 'dark',
+      accentColor: DEFAULT_WORKSPACE_SETTINGS.accentColor,
+      pinnedConversations: notificationSettingsRef.current.pinnedConversations,
+      pinnedChannels: notificationSettingsRef.current.pinnedChannels,
+    };
     const { data, error } = await supabase
       .from('profiles')
       .update({ preferences: settings })
@@ -1608,6 +1622,28 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         .then(({ error }) => { if (error) console.error('Unable to mark notifications read:', error); });
     }
   };
+  const openConversationId = activeTab === 'channels' ? activeChannelId : activeTab === 'messages' ? activeConversationId : '';
+  const [isPageVisible, setIsPageVisible] = useState(() => typeof document === 'undefined' || document.visibilityState === 'visible');
+  useEffect(() => {
+    const onVisibility = () => setIsPageVisible(document.visibilityState === 'visible');
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
+  // Viewing a conversation reads its message and mention notifications.
+  useEffect(() => {
+    if (!openConversationId || !isPageVisible) return;
+    const matches = notifications.filter((n) => !n.isRead && n.targetId === openConversationId && (n.type === 'message' || n.type === 'mention'));
+    if (!matches.length) return;
+    const ids = new Set(matches.map((n) => n.id));
+    setNotifications((previous) => previous.map((n) => ids.has(n.id) ? { ...n, isRead: true } : n));
+    const persistedIds = matches.filter((n) => n.persisted).map((n) => n.id);
+    if (persistedIds.length) {
+      void supabase.from('user_notifications').update({ read_at: new Date().toISOString() }).in('id', persistedIds)
+        .then(({ error }) => { if (error) console.error('Unable to mark conversation notifications read:', error); });
+    }
+  }, [openConversationId, isPageVisible, notifications]);
+
   const addNotification = (notification: Omit<NotificationItem, 'id' | 'timestamp' | 'isRead'>) => {
     setNotifications((previous) => [{
       ...notification,
@@ -2059,6 +2095,35 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   };
 
+  const deleteMessage = async (message: Message) => {
+    if (message.senderId !== currentUser.id) return;
+    const previous: Partial<Message> = { text: message.text, attachments: message.attachments, poll: message.poll, reactions: message.reactions, isDeleted: message.isDeleted };
+    patchStoredMessage(message.id, message.conversationId, message.parentId, { text: '', attachments: [], poll: undefined, reactions: [], isDeleted: true });
+    if (!message.parentId) {
+      setConversations((previous) => previous.map((conversation) => conversation.id === message.conversationId
+        && conversation.lastMessage?.senderId === message.senderId && conversation.lastMessage.timestamp === message.timestamp
+        ? { ...conversation, lastMessage: { ...conversation.lastMessage, text: 'Message deleted' } }
+        : conversation));
+    }
+    const { error } = await supabase.rpc('delete_own_message', { p_message_id: message.id });
+    if (error) {
+      patchStoredMessage(message.id, message.conversationId, message.parentId, previous);
+      reportBackendIssue(`The message could not be deleted: ${error.message}`);
+      return;
+    }
+    const storedFiles = (message.attachments || []).filter((attachment) => attachment.storagePath);
+    for (const attachment of storedFiles) {
+      void supabase.storage.from(attachment.storageBucket || 'channel-attachments').remove([attachment.storagePath as string]);
+    }
+    void recordSystemActivity({
+      eventType: 'message_deleted',
+      summary: 'Deleted one of their messages.',
+      targetType: channels.some((channel) => channel.id === message.conversationId) ? 'channel' : 'conversation',
+      targetId: message.conversationId,
+      targetName: channels.find((channel) => channel.id === message.conversationId)?.name || conversations.find((item) => item.id === message.conversationId)?.name || 'Conversation',
+    });
+  };
+
   const toggleReaction = (messageId: string, emoji: string, parentId?: string) => {
     sounds.playReaction();
     const targetId = activeTab === 'channels' ? activeChannelId : activeConversationId;
@@ -2112,6 +2177,18 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     });
   };
 
+  const persistPin = (key: 'pinnedConversations' | 'pinnedChannels', id: string) => {
+    const current = notificationSettingsRef.current;
+    const list = current[key].includes(id) ? current[key].filter((item) => item !== id) : [...current[key], id];
+    const next = { ...current, [key]: list };
+    notificationSettingsRef.current = next;
+    setWorkspaceSettings(next);
+    setCurrentUser((user) => ({ ...user, preferences: next }));
+    void supabase.from('profiles').update({ preferences: next }).eq('id', currentUser.id).then(({ error }) => {
+      if (error) reportBackendIssue(`Your pin could not be saved: ${error.message}`);
+    });
+  };
+
   const togglePinConversation = (id: string) => {
     const conversation = conversations.find((item) => item.id === id);
     void recordSystemActivity({
@@ -2124,6 +2201,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     setConversations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, isPinned: !c.isPinned } : c))
     );
+    persistPin('pinnedConversations', id);
   };
 
   const togglePinChannel = (id: string) => {
@@ -2138,6 +2216,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     setChannels((prev) =>
       prev.map((c) => (c.id === id ? { ...c, isPinned: !c.isPinned } : c))
     );
+    persistPin('pinnedChannels', id);
   };
 
   // Create Channel
@@ -2732,6 +2811,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         postChannelMessage,
         sendThreadReply,
         votePoll,
+        deleteMessage,
         toggleReaction,
         togglePinConversation,
         togglePinChannel,

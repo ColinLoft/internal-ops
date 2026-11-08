@@ -79,6 +79,8 @@ export interface WorkspaceSettings {
   notifyCalendar: boolean;
   notifyAnnouncements: boolean;
   desktopNotifications: boolean;
+  pinnedConversations: string[];
+  pinnedChannels: string[];
 }
 
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
@@ -98,6 +100,8 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   notifyCalendar: true,
   notifyAnnouncements: true,
   desktopNotifications: false,
+  pinnedConversations: [],
+  pinnedChannels: [],
 };
 
 export interface Attachment {
@@ -156,6 +160,7 @@ export interface Message {
   poll?: Poll;
   parentId?: string; // if in a thread
   sendStatus?: 'sending' | 'sent' | 'failed';
+  isDeleted?: boolean;
 }
 
 export interface Conversation {
