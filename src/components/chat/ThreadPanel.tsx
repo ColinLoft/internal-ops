@@ -32,9 +32,9 @@ export const ThreadPanel: React.FC = () => {
   if (!activeThreadMessageId || !parentMessage) return null;
 
   return (
-    <div className="fixed inset-0 z-50 w-full lg:static lg:z-20 lg:w-96 h-full bg-white border-l border-slate-200/70 flex flex-col flex-shrink-0">
+    <div className="fixed inset-0 z-50 w-full lg:static lg:z-20 lg:w-96 h-full bg-black border-l border-slate-200/70 flex flex-col flex-shrink-0">
       {/* Thread Header */}
-      <div className="h-14 px-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/40">
+      <div className="h-14 px-4 border-b border-slate-100 flex items-center justify-between bg-black">
         <div className="flex items-center gap-2">
           <div className="p-1.5 bg-brand-50 text-brand-600 rounded-lg">
             <MessageSquare className="w-4 h-4" />
@@ -94,7 +94,7 @@ export const ThreadPanel: React.FC = () => {
       </div>
 
       {/* Reply Composer */}
-      <div className="p-3 border-t border-slate-100 bg-white">
+      <div className="p-3 border-t border-slate-100 bg-black">
         <MessageComposer
           key={activeThreadMessageId}
           onSendMessage={(text, atts) => sendThreadReply(activeThreadMessageId, text, atts)}

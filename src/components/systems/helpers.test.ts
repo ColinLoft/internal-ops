@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { monitorState, publicHttpsUrl, sampledUptime } from './helpers';
+import { monitorState, publicHttpsUrl, sampledUptime, systemHealthSummary } from './helpers';
 import type { FlownSystem, MonitorSummary } from './types';
 
 describe('systems URL validation', () => {
@@ -25,5 +25,25 @@ describe('honest sample metrics', () => {
     expect(monitorState(system, summary, now)).toBe('Endpoint down');
     expect(monitorState(system, summary, now + 16 * 60000)).toBe('Stale checks');
     expect(monitorState({ ...system, monitor_url: 'https://new.flown.org/' }, summary, now)).toBe('Awaiting checks');
+  });
+  it('summarizes inventory without treating missing or blocked checks as healthy', () => {
+    const now = Date.now();
+    const systems = [
+      { ...system, id: 'up' },
+      { ...system, id: 'down' },
+      { ...system, id: 'blocked' },
+      { ...system, id: 'stale' },
+      { ...system, id: 'awaiting' },
+      { ...system, id: 'off', monitoring_enabled: false },
+    ] as FlownSystem[];
+    const summaries = [
+      { system_id: 'up', latest_check: { endpoint_url: system.monitor_url, checked_at: new Date(now).toISOString(), outcome: 'up' } },
+      { system_id: 'down', latest_check: { endpoint_url: system.monitor_url, checked_at: new Date(now).toISOString(), outcome: 'down' } },
+      { system_id: 'blocked', latest_check: { endpoint_url: system.monitor_url, checked_at: new Date(now).toISOString(), outcome: 'blocked' } },
+      { system_id: 'stale', latest_check: { endpoint_url: system.monitor_url, checked_at: new Date(now - 16 * 60000).toISOString(), outcome: 'up' } },
+    ] as MonitorSummary[];
+    expect(systemHealthSummary(systems, summaries, now)).toEqual({
+      total: 6, operational: 1, attention: 3, awaitingChecks: 1, notMonitored: 1,
+    });
   });
 });

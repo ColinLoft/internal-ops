@@ -29,6 +29,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCurrent
     return () => { document.removeEventListener('mousedown', outside); document.removeEventListener('keydown', escape); };
   }, [showReactions, showActions]);
   const seenNames = users.filter(user => message.seenBy.includes(user.id) && user.id !== currentUser.id).map(user => user.name).slice(0, 2).join(', ');
+  const seen = isCurrentUser && activeTab !== 'channels' && message.seenBy.some(id => id !== currentUser.id) && message.sendStatus !== 'sending' && message.sendStatus !== 'failed';
+  const receipt = seen ? <span title={seenNames ? `Seen by ${seenNames}` : 'Seen'} aria-label={seenNames ? `Seen by ${seenNames}` : 'Seen'} className="message-receipt inline-flex shrink-0 align-middle"><CheckCheck className="h-3 w-3" /></span> : null;
   return <article data-message-id={message.id} data-grouped={grouped} aria-label={`${sender.name}, ${message.timestamp}`} className={`group relative flex min-w-0 gap-2.5 px-4 hover:bg-slate-100/40 sm:px-5 ${grouped ? 'py-0.5' : 'pb-1 pt-3'}`}>
     <div className="w-8 shrink-0">
       {!grouped ? <button type="button" onClick={() => openUserProfile(sender)} aria-label={`View ${sender.name}'s profile`} className="block h-8 w-8 overflow-hidden rounded-lg bg-slate-100 text-xs font-semibold text-slate-600">
@@ -39,6 +41,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCurrent
       {!grouped && <div className="mb-0.5 flex min-w-0 items-baseline gap-2 pr-8 md:pr-16">
         <button type="button" onClick={() => openUserProfile(sender)} className="truncate text-sm font-semibold text-slate-900 hover:underline">{sender.name}</button>
         <span className="shrink-0 text-[11px] text-slate-400">{message.timestamp}</span>
+        {receipt}
       </div>}
       {message.isCallRecord ? <div className="flex items-center gap-2 py-1 text-sm text-slate-600"><Phone className="h-4 w-4" /><span>Call ended{message.callDuration ? ` · ${message.callDuration}` : ''}</span></div>
         : message.poll ? <section aria-label="Staff poll" className="my-1 w-full max-w-md rounded-lg border border-slate-200 bg-white p-3">
@@ -51,7 +54,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCurrent
               <span className="relative">{option.text}</span><span className="relative ml-2 text-xs tabular-nums">{percentage}%</span>
             </button>;
           })}</div><p className="mt-2 text-xs text-slate-500">{message.poll.totalVotes} votes{message.poll.isClosed ? ' · Poll closed' : ''}</p>
-        </section> : message.text && <MessageText text={message.text} />}
+        </section> : message.text && <div className="flex items-end gap-2"><div className="min-w-0"><MessageText text={message.text} /></div>{grouped && receipt}</div>}
       {message.attachments?.map(attachment => {
         const url = /^(blob:|data:image\/)/.test(attachment.url) ? attachment.url : messageLink(attachment.url);
         if (!url) return <p key={attachment.id} role="status" className="mt-2 text-xs text-slate-500">{attachment.name} · Attachment unavailable</p>;
@@ -63,13 +66,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCurrent
           {attachment.type === 'file' && <Download className="h-4 w-4 shrink-0" />}
         </a>;
       })}
+      {grouped && !message.text && receipt}
       {message.reactions?.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{message.reactions.map(reaction => <button type="button" key={reaction.emoji} aria-label={`${reaction.emoji}, ${reaction.users.length} reactions`} aria-pressed={reaction.users.includes(currentUser.id)} onClick={() => toggleReaction(message.id, reaction.emoji, message.parentId)} className={`flex min-h-7 items-center gap-1 rounded-md border px-2 text-xs ${reaction.users.includes(currentUser.id) ? 'border-brand-500/50 bg-brand-500/10 text-brand-400' : 'border-slate-200 bg-white text-slate-600'}`}><span>{reaction.emoji}</span><span>{reaction.users.length}</span></button>)}</div>}
       {!isThreadReply && (message.threadCount || 0) > 0 && onOpenThread && <button type="button" onClick={() => onOpenThread(message.id)} className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-brand-400 hover:underline"><MessageSquare className="h-3.5 w-3.5" />{message.threadCount} {message.threadCount === 1 ? 'reply' : 'replies'}{message.lastThreadReplyAt ? ` · ${message.lastThreadReplyAt}` : ''}</button>}
-      {isCurrentUser && <div className="flex items-center gap-1 text-[11px] text-slate-400">
+      {isCurrentUser && (message.sendStatus === 'failed' || message.sendStatus === 'sending') && <div className="flex items-center gap-1 text-[11px] text-slate-400">
         {message.sendStatus === 'failed' ? <button type="button" onClick={() => void retryMessage(message.id)} className="py-1 font-medium text-rose-600 hover:underline">Not sent · Retry</button>
           : message.sendStatus === 'sending' ? <span role="status">Sending…</span>
-          : activeTab !== 'channels' && message.seenBy.some(id => id !== currentUser.id) ? <><CheckCheck className="h-3 w-3 text-brand-400" /><span>Seen by {seenNames || 'participant'}</span></>
-          : message.sendStatus === 'sent' ? <span className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">Sent</span> : null}
+          : null}
       </div>}
     </div>
     <div ref={reactionRef} className="absolute right-4 top-0 z-10">

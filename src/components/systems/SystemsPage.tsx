@@ -4,7 +4,7 @@ import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { useLiveRefresh } from '../../hooks/useLiveRefresh';
 import { CustomSelect } from '../common/CustomSelect';
 import { useConfirm } from '../common/useConfirm';
-import { localDateTime, monitorState, publicHttpsUrl, sampledUptime } from './helpers';
+import { localDateTime, monitorState, publicHttpsUrl, sampledUptime, systemHealthSummary } from './helpers';
 import type { FlownSystem, MonitorSummary, SystemCategory, SystemCheck, SystemEnvironment, SystemIncident, SystemMaintenance } from './types';
 
 const input = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500';
@@ -49,6 +49,7 @@ export const SystemsPage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [environment, setEnvironment] = useState('');
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
@@ -77,6 +78,7 @@ export const SystemsPage: React.FC = () => {
       if (checkResult.error) throw checkResult.error;
       if (run !== generation.current) return;
       setSnapshot({ systems, summaries: metrics, incidents, maintenance, owners: ownerResult.data || [], checks: checkResult.data || [] });
+      setHasLoaded(true);
       setRefreshedAt(new Date().toISOString());
       setLoadError('');
     } catch (err) {
@@ -122,11 +124,30 @@ export const SystemsPage: React.FC = () => {
   const systemIncidents = snapshot.incidents.filter(item => !selectedId || item.system_id === selectedId).sort((a, b) => b.started_at.localeCompare(a.started_at));
   const systemMaintenance = snapshot.maintenance.filter(item => !selectedId || item.system_id === selectedId).sort((a, b) => b.starts_at.localeCompare(a.starts_at));
   const systemName = (id: string) => snapshot.systems.find(item => item.id === id)?.name || 'System removed';
+  const health = systemHealthSummary(snapshot.systems, snapshot.summaries);
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50 p-4 text-slate-900 md:p-6" style={{ backgroundColor: 'var(--surface-canvas, #f8fafc)' }}>
+    <div data-systems-page className="h-full min-w-0 flex-1 overflow-y-auto bg-black p-4 text-slate-900 md:p-6" style={{ backgroundColor: '#000' }}>
+      <style>{`
+        [data-systems-page] { color: #f2f2f2; }
+        [data-systems-page] .bg-slate-50 { background-color: #000 !important; }
+        [data-systems-page] .bg-white { background-color: #151515 !important; }
+        [data-systems-page] .border-slate-200,
+        [data-systems-page] .divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: #303030 !important; }
+        [data-systems-page] .border-slate-100 { border-color: #292929 !important; }
+        [data-systems-page] .text-slate-900 { color: #f5f5f5 !important; }
+        [data-systems-page] .text-slate-700 { color: #d3d3d3 !important; }
+        [data-systems-page] .text-slate-600 { color: #aaa !important; }
+        [data-systems-page] .text-slate-500 { color: #999 !important; }
+        [data-systems-page] input,
+        [data-systems-page] textarea,
+        [data-systems-page] select { background-color: #111 !important; border-color: #414141 !important; color: #f2f2f2 !important; }
+        [data-systems-page] input::placeholder,
+        [data-systems-page] textarea::placeholder { color: #929292; }
+        [data-systems-page] .hover\\:bg-slate-50:hover { background-color: #222 !important; }
+      `}</style>
       {dialog}
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="w-full space-y-6">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
             {selectedId && !editor && <button className="mb-2 flex min-h-8 items-center gap-2 text-sm text-slate-600 hover:text-slate-900" onClick={() => setSelectedId(null)}><ArrowLeft size={16} />All systems</button>}
@@ -141,7 +162,9 @@ export const SystemsPage: React.FC = () => {
         {error && <div role="alert" className="rounded-lg border border-slate-200 bg-white p-4 text-sm">{error}</div>}
         {loadError && <div role="alert" className="rounded-lg border border-slate-200 bg-white p-4 text-sm">{loadError} <button className="ml-2 underline" onClick={() => void load()}>Retry</button></div>}
         {notice && <p role="status" className="text-sm text-slate-600">{notice}</p>}
-        {loading ? <p role="status" className="py-6 text-sm text-slate-600">Loading systems and measured check history…</p>
+        {loading && hasLoaded && <p role="status" className="text-sm text-slate-600">Refreshing systems… last successful load {date(refreshedAt)}.</p>}
+        {loading && !hasLoaded ? <p role="status" className="py-6 text-sm text-slate-600">Loading systems and measured check history…</p>
+          : loadError && !hasLoaded ? null
           : editor ? <SystemEditor editor={editor} selectedId={selectedId} systems={snapshot.systems} owners={snapshot.owners} busy={busy}
             onCancel={() => setEditor(null)}
             onDelete={() => editor.record && void remove(editor.kind === 'system' ? 'flown_systems' : editor.kind === 'incident' ? 'flown_system_incidents' : 'flown_system_maintenance', editor.record.id, editor.kind === 'system' ? (editor.record as FlownSystem).name : (editor.record as SystemIncident | SystemMaintenance).title)}
@@ -157,6 +180,18 @@ export const SystemsPage: React.FC = () => {
               }, 'Changes saved.');
             }} />
           : <>
+            {!selected && <section aria-labelledby="systems-health-heading" className="rounded-lg bg-[#151515] p-4 sm:p-5">
+              <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+                <div><h2 id="systems-health-heading" className="text-base font-semibold">Health overview</h2><p className="mt-1 text-sm text-slate-600">Based on each system’s latest endpoint check.</p></div>
+                <p className="text-sm tabular-nums text-slate-600">{health.total} {health.total === 1 ? 'system' : 'systems'} in inventory</p>
+              </div>
+              <dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4">
+                <SummaryMetric label="Operational" value={health.operational} />
+                <SummaryMetric label="Needs attention" value={health.attention} description="Down, blocked, or stale checks" />
+                <SummaryMetric label="Awaiting checks" value={health.awaitingChecks} />
+                <SummaryMetric label="Not monitored" value={health.notMonitored} />
+              </dl>
+            </section>}
             {selected ? <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-base font-semibold">Endpoint monitoring</h2>
@@ -179,58 +214,67 @@ export const SystemsPage: React.FC = () => {
                 {selected.monitor_url && <p className="break-all text-slate-600">Health endpoint: {selected.monitor_url}</p>}
                 {selectedSummary?.latest_check?.error && <p className="text-slate-600">Last check: {selectedSummary.latest_check.error}</p>}
               </div>
-            </section> : <section>
+            </section> : <section aria-labelledby="systems-inventory-heading" className="rounded-lg bg-[#151515] p-4 sm:p-5">
+              <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                <div><h2 id="systems-inventory-heading" className="text-base font-semibold">System inventory</h2><p className="mt-1 text-sm text-slate-600">Select a system for endpoint history and management.</p></div>
+                <p className="text-sm tabular-nums text-slate-600">{visible.length} of {snapshot.systems.length} shown</p>
+              </div>
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <input aria-label="Search systems" className={`${input} md:!w-72`} placeholder="Search name, owner or category" value={query} onChange={event => setQuery(event.target.value)} />
-                <div className="w-48"><CustomSelect aria-label="Filter environment" className={input} value={environment} onChange={event => setEnvironment(event.target.value)}><option value="">All environments</option>{environments.map(value => <option key={value} value={value}>{label(value)}</option>)}</CustomSelect></div>
-                <p className="ml-auto text-sm tabular-nums text-slate-600">{visible.length} of {snapshot.systems.length} systems</p>
+                <div className="w-full sm:w-48"><CustomSelect aria-label="Filter environment" className={input} value={environment} onChange={event => setEnvironment(event.target.value)}><option value="">All environments</option>{environments.map(value => <option key={value} value={value}>{label(value)}</option>)}</CustomSelect></div>
               </div>
-              <h2 className="sr-only">System inventory</h2>
-              {!visible.length ? <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-600">{snapshot.systems.length ? 'No systems match these filters.' : 'No systems registered. Add a system and its owner; monitoring starts only after a real endpoint is configured.'}</div>
+              {!visible.length ? <div className="rounded-md border border-slate-200 p-4 text-sm text-slate-600">{snapshot.systems.length ? 'No systems match these filters.' : loadError ? 'Inventory is unavailable until it can be loaded.' : 'No systems registered. Add a system and its owner; monitoring starts only after a real endpoint is configured.'}</div>
                 : <div className="divide-y divide-slate-200">
-                  <div className="hidden grid-cols-[2fr_1fr_1fr_1fr] gap-4 pb-2 text-[13px] text-slate-600 md:grid"><span>System / owner</span><span>Environment / category</span><span>Latest state</span><span className="text-right">30-day sampled uptime</span></div>
+                  <div className="hidden grid-cols-[2fr_1fr_1fr_1fr] gap-4 pb-2 text-xs text-slate-600 md:grid"><span>System / owner</span><span>Environment / category</span><span>Latest check</span><span className="text-right">30-day sampled uptime</span></div>
                   {visible.map(system => {
                     const summary = snapshot.summaries.find(item => item.system_id === system.id);
                     const uptime = sampledUptime(summary);
-                    return <button key={system.id} onClick={() => setSelectedId(system.id)} className="grid w-full grid-cols-2 items-center gap-3 py-4 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 md:grid-cols-[2fr_1fr_1fr_1fr]">
-                      <span className="min-w-0"><span className="block break-words font-medium">{system.name}</span><span className="block text-xs text-slate-600">{snapshot.owners.find(owner => owner.id === system.owner_id)?.name || 'Unassigned owner'}</span></span>
-                      <span className="text-right tabular-nums md:order-last">{uptime === null ? '—' : `${uptime.toFixed(2)}%`}<span className="block text-xs text-slate-600">{Number(summary?.sample_count || 0)} checks</span></span>
-                      <span className="text-[13px] text-slate-600">{label(system.environment)} · {label(system.category)}</span>
+                    return <button key={system.id} onClick={() => setSelectedId(system.id)} className="grid w-full grid-cols-2 items-center gap-x-3 gap-y-1 py-4 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 md:grid-cols-[2fr_1fr_1fr_1fr]">
+                      <span className="min-w-0"><span className="block break-words font-medium text-white">{system.name}</span><span className="block text-xs text-slate-600">{snapshot.owners.find(owner => owner.id === system.owner_id)?.name || 'Unassigned owner'}</span></span>
+                      <span className="text-right tabular-nums md:order-last">{uptime === null ? '—' : `${uptime.toFixed(2)}%`}<span className="block text-xs text-slate-600">{Number(summary?.sample_count || 0).toLocaleString()} checks</span></span>
+                      <span className="text-xs text-slate-600">{label(system.environment)} · {label(system.category)}</span>
                       <span className="text-right text-sm md:text-left">{monitorState(system, summary)}</span>
                     </button>;
                   })}
                 </div>}
             </section>}
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid items-start gap-6 lg:grid-cols-2">
               <section className="rounded-lg border border-slate-200 bg-white p-4">
                 <SectionTitle title="Incidents" count={systemIncidents.filter(item => item.status !== 'resolved').length} noun="open" onAdd={() => setEditor({ kind: 'incident' })} disabled={busy || !snapshot.systems.length} />
                 {!systemIncidents.length && <p className="mt-4 text-sm text-slate-600">No incidents recorded.</p>}
-                {systemIncidents.slice(0, 6).map(item => <div key={item.id} className="mt-4 text-sm">
+                {systemIncidents.slice(0, 3).map(item => <div key={item.id} className="mt-4 border-t border-slate-200 pt-4 text-sm">
                   <div className="flex items-start justify-between gap-3"><p className="font-medium">{item.title}</p><span className="shrink-0 text-xs">{label(item.status)}</span></div>
                   <p className="mt-1 text-xs text-slate-600">{systemName(item.system_id)} · {label(item.severity)} · {date(item.started_at)}</p>
-                  {item.notes && <p className="mt-1 whitespace-pre-wrap text-slate-600">{item.notes}</p>}
+                  {item.notes && <details className="mt-2 text-xs text-slate-600"><summary className="min-h-8 cursor-pointer">Incident notes</summary><p className="whitespace-pre-wrap pb-1">{item.notes}</p></details>}
                   {item.resolved_at && <p className="mt-1 text-xs text-slate-600">Resolved {date(item.resolved_at)}</p>}
                   <div className="mt-2 flex gap-3"><button className="min-h-8 underline" disabled={busy} onClick={() => setEditor({ kind: 'incident', record: item })}>Edit / update</button><button className="min-h-8 text-slate-600 underline" disabled={busy} onClick={() => void remove('flown_system_incidents', item.id, item.title)}>Delete</button></div>
                 </div>)}
-                {systemIncidents.length > 6 && <details className="mt-4 text-sm"><summary className="cursor-pointer">Show {systemIncidents.length - 6} older incidents</summary>{systemIncidents.slice(6).map(item => <button key={item.id} className="mt-3 block min-h-8 text-left underline" onClick={() => setEditor({ kind: 'incident', record: item })}>{item.title} · {label(item.status)} · {date(item.started_at)}</button>)}</details>}
+                {systemIncidents.length > 3 && <details className="mt-4 text-sm"><summary className="min-h-10 cursor-pointer pt-2 text-slate-600">Show {systemIncidents.length - 3} older incidents</summary>{systemIncidents.slice(3).map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 py-3">
+                  <span>{item.title} · {label(item.status)} · {date(item.started_at)}</span><span className="flex gap-3"><button className="min-h-8 underline" disabled={busy} onClick={() => setEditor({ kind: 'incident', record: item })}>Edit / update</button><button className="min-h-8 underline" disabled={busy} onClick={() => void remove('flown_system_incidents', item.id, item.title)}>Delete</button></span>
+                </div>)}</details>}
               </section>
               <section className="rounded-lg border border-slate-200 bg-white p-4">
                 <SectionTitle title="Maintenance" count={systemMaintenance.filter(item => ['scheduled','in_progress'].includes(item.status)).length} noun="planned / running" onAdd={() => setEditor({ kind: 'maintenance' })} disabled={busy || !snapshot.systems.length} />
                 {!systemMaintenance.length && <p className="mt-4 text-sm text-slate-600">No maintenance windows scheduled.</p>}
-                {systemMaintenance.slice(0, 6).map(item => <div key={item.id} className="mt-4 text-sm">
+                {systemMaintenance.slice(0, 3).map(item => <div key={item.id} className="mt-4 border-t border-slate-200 pt-4 text-sm">
                   <div className="flex items-start justify-between gap-3"><p className="font-medium">{item.title}</p><span className="shrink-0 text-xs">{label(item.status)}</span></div>
                   <p className="mt-1 text-xs text-slate-600">{systemName(item.system_id)} · {date(item.starts_at)} – {date(item.ends_at)}</p>
-                  {item.notes && <p className="mt-1 whitespace-pre-wrap text-slate-600">{item.notes}</p>}
+                  {item.notes && <details className="mt-2 text-xs text-slate-600"><summary className="min-h-8 cursor-pointer">Maintenance notes</summary><p className="whitespace-pre-wrap pb-1">{item.notes}</p></details>}
                   <div className="mt-2 flex gap-3"><button className="min-h-8 underline" disabled={busy} onClick={() => setEditor({ kind: 'maintenance', record: item })}>Edit / update</button><button className="min-h-8 text-slate-600 underline" disabled={busy} onClick={() => void remove('flown_system_maintenance', item.id, item.title)}>Delete</button></div>
                 </div>)}
-                {systemMaintenance.length > 6 && <details className="mt-4 text-sm"><summary className="cursor-pointer">Show {systemMaintenance.length - 6} older windows</summary>{systemMaintenance.slice(6).map(item => <button key={item.id} className="mt-3 block min-h-8 text-left underline" onClick={() => setEditor({ kind: 'maintenance', record: item })}>{item.title} · {label(item.status)} · {date(item.starts_at)}</button>)}</details>}
+                {systemMaintenance.length > 3 && <details className="mt-4 text-sm"><summary className="min-h-10 cursor-pointer pt-2 text-slate-600">Show {systemMaintenance.length - 3} older windows</summary>{systemMaintenance.slice(3).map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 py-3">
+                  <span>{item.title} · {label(item.status)} · {date(item.starts_at)}</span><span className="flex gap-3"><button className="min-h-8 underline" disabled={busy} onClick={() => setEditor({ kind: 'maintenance', record: item })}>Edit / update</button><button className="min-h-8 underline" disabled={busy} onClick={() => void remove('flown_system_maintenance', item.id, item.title)}>Delete</button></span>
+                </div>)}</details>}
               </section>
             </div>
             {selected && <section className="rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="text-base font-semibold">Check history</h2>
-              <p className="mt-1 text-xs text-slate-600">Latest 60 observations across endpoints. The 30-day aggregate above includes all observations of the current endpoint.</p>
-              {!snapshot.checks.length ? <p className="mt-4 text-sm text-slate-600">No observations yet. Deploy and schedule the monitor, or run a check.</p>
-                : <div className="mt-3 max-h-80 overflow-auto"><table className="w-full text-sm"><thead className="text-left text-xs text-slate-600"><tr><th className="py-2 font-normal">Checked / endpoint</th><th className="font-normal">Result</th><th className="text-right font-normal">Latency</th></tr></thead><tbody>{snapshot.checks.map(check => <tr key={check.id} className="border-t border-slate-200"><td className="py-3 pr-3"><span>{date(check.checked_at)}</span><span className="block break-all text-xs text-slate-600">{check.endpoint_url} · {check.trigger_source}</span></td><td className="pr-3">{label(check.outcome)}{check.http_status ? ` · ${check.http_status}` : ''}{check.error && <span className="block text-xs text-slate-600">{check.error}</span>}</td><td className="text-right tabular-nums">{check.latency_ms === null ? '—' : `${check.latency_ms} ms`}</td></tr>)}</tbody></table></div>}
+              <details className="mt-2">
+                <summary className="min-h-10 cursor-pointer pt-2 text-sm text-slate-600">{snapshot.checks.length ? `Show latest ${snapshot.checks.length} observations` : 'No observations yet'}</summary>
+                <p className="mt-1 text-xs text-slate-600">The 30-day aggregate above includes all observations of the current endpoint.</p>
+                {!snapshot.checks.length ? <p className="mt-3 text-sm text-slate-600">Deploy and schedule the monitor, or run a check.</p>
+                  : <div className="mt-3 max-h-80 overflow-auto"><table className="w-full text-sm"><thead className="text-left text-xs text-slate-600"><tr><th className="py-2 font-normal">Checked / endpoint</th><th className="font-normal">Result</th><th className="text-right font-normal">Latency</th></tr></thead><tbody>{snapshot.checks.map(check => <tr key={check.id} className="border-t border-slate-200"><td className="py-3 pr-3"><span>{date(check.checked_at)}</span><span className="block break-all text-xs text-slate-600">{check.endpoint_url} · {check.trigger_source}</span></td><td className="pr-3">{label(check.outcome)}{check.http_status ? ` · ${check.http_status}` : ''}{check.error && <span className="block text-xs text-slate-600">{check.error}</span>}</td><td className="text-right tabular-nums">{check.latency_ms === null ? '—' : `${check.latency_ms} ms`}</td></tr>)}</tbody></table></div>}
+              </details>
               <button className="mt-4 min-h-10 text-sm text-slate-600 underline" disabled={busy} onClick={() => void remove('flown_systems', selected.id, selected.name)}>Delete system and history</button>
             </section>}
             <p className="text-[13px] text-slate-600">Inventory refreshed {date(refreshedAt)}. Endpoint checks run server-side, independently of this page. States become stale after 15 minutes without an observation.</p>
@@ -242,6 +286,9 @@ export const SystemsPage: React.FC = () => {
 
 function Metric({ title, value, small }: { title: string; value: string; small?: boolean }) {
   return <div><dt className="text-xs text-slate-600">{title}</dt><dd className={`mt-1 tabular-nums ${small ? 'text-sm' : 'text-xl'}`}>{value}</dd></div>;
+}
+function SummaryMetric({ label: title, value, description }: { label: string; value: number; description?: string }) {
+  return <div><dt className="text-sm text-slate-600">{title}</dt><dd className="mt-1 text-2xl font-semibold tabular-nums text-white">{value.toLocaleString()}</dd>{description && <dd className="mt-1 text-xs text-slate-600">{description}</dd>}</div>;
 }
 function SectionTitle({ title, count, noun, onAdd, disabled }: { title: string; count: number; noun: string; onAdd: () => void; disabled: boolean }) {
   return <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-base font-semibold">{title}</h2><p className="text-xs tabular-nums text-slate-600">{count} {noun}</p></div><button className={button} onClick={onAdd} disabled={disabled}><Plus size={16} />Add</button></div>;

@@ -1,277 +1,52 @@
-import React, { useState } from 'react';
-import {
-  X,
-  Bell,
-  Copy,
-  Check,
-  Image as ImageIcon,
-  FileText,
-  Download,
-  Users,
-  Phone,
-  MessageSquare,
-  UserPlus,
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Download, FileText, Pin, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { messageLink } from './MessageText';
 
 export const RightDrawer: React.FC = () => {
-  const {
-    isRightDrawerOpen,
-    toggleRightDrawer,
-    activeTab,
-    activeConversationId,
-    activeChannelId,
-    conversations,
-    channels,
-    messages,
-    users,
-    currentUser,
-    createConversation,
-    startCall,
-    openUserProfile,
-  } = useWorkspace();
-
-  const [activeTabSub, setActiveTabSub] = useState<'media' | 'files'>('media');
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [notificationsMuted, setNotificationsMuted] = useState(false);
-
+  const { isRightDrawerOpen, toggleRightDrawer, activeTab, activeConversationId, activeChannelId, conversations, channels, messages, users, currentUser, togglePinConversation, openUserProfile } = useWorkspace();
+  const [section, setSection] = useState<'media' | 'files'>('media');
+  useEffect(() => {
+    if (!isRightDrawerOpen) return;
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') toggleRightDrawer(); };
+    document.addEventListener('keydown', escape);
+    return () => document.removeEventListener('keydown', escape);
+  }, [isRightDrawerOpen, toggleRightDrawer]);
   if (!isRightDrawerOpen) return null;
-
   const isChannel = activeTab === 'channels';
-  const currentConv = conversations.find((c) => c.id === activeConversationId);
-  const currentChan = channels.find((c) => c.id === activeChannelId);
-
-  const targetId = isChannel ? activeChannelId : activeConversationId;
-  const currentMessages = messages[targetId] || [];
-
-  const title = isChannel ? `#${currentChan?.name}` : currentConv?.name;
-  const description = isChannel ? currentChan?.description : currentConv?.description;
-
-  // Dynamically extract attachments from actual messages in this chat/channel
-  const allAttachments = currentMessages.flatMap((m) => m.attachments || []);
-  const sharedMedia = allAttachments.filter((a) => a.type === 'image');
-  const sharedFiles = allAttachments.filter((a) => a.type === 'file' || a.type === 'location');
-
-  const channelMembers = users.filter((u) =>
-    isChannel
-      ? currentChan?.members.includes(u.id) || !currentChan?.isPrivate
-      : currentConv?.participants.includes(u.id)
-  );
-
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/invite/${isChannel ? currentChan?.name : currentConv?.id}`);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 w-full md:static md:z-20 md:w-80 h-full bg-white border-l border-slate-200/70 flex flex-col shadow-subtle flex-shrink-0 animate-in slide-in-from-right duration-200">
-      {/* Header */}
-      <div className="h-14 px-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/40">
-        <h3 className="text-xs font-semibold text-slate-900">
-          {isChannel ? 'Channel Details' : 'Conversation Info'}
-        </h3>
-        <button
-          onClick={toggleRightDrawer}
-          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Info Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 [scrollbar-width:none]">
-        {/* Profile Card Header */}
-        <div className="text-center pb-2">
-          <div className="w-16 h-16 mx-auto rounded-2xl overflow-hidden shadow-xs border border-slate-100 mb-2.5">
-            <img
-              src={
-                isChannel
-                  ? 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=200&auto=format&fit=crop&q=80'
-                  : currentConv?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'
-              }
-              alt="Avatar"
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <h4 className="text-sm font-bold text-slate-900">{title}</h4>
-          <p className="text-xs text-slate-500 mt-1 px-2 leading-relaxed">{description}</p>
+  const conversation = conversations.find(item => item.id === activeConversationId);
+  const channel = channels.find(item => item.id === activeChannelId);
+  const partner = conversation?.type === 'direct' ? users.find(user => user.id === conversation.participants.find(id => id !== currentUser.id)) : undefined;
+  const title = isChannel ? channel?.name : partner?.name || conversation?.name;
+  const attachments = (messages[isChannel ? activeChannelId : activeConversationId] || []).flatMap(message => message.attachments || []);
+  const media = attachments.filter(item => item.type === 'image');
+  const files = attachments.filter(item => item.type !== 'image');
+  const members = users.filter(user => isChannel ? !channel?.isPrivate || channel.members.includes(user.id) : conversation?.participants.includes(user.id));
+  const urlFor = (url: string) => url.startsWith('blob:') ? url : messageLink(url);
+  return <aside role="dialog" aria-label={`${title || 'Conversation'} settings`} className="fixed inset-0 z-50 flex h-full w-full shrink-0 flex-col bg-black lg:static lg:z-20 lg:w-80 lg:border-l lg:border-slate-200">
+    <header className="flex min-h-12 items-center justify-between border-b border-slate-200 px-4 py-2">
+      <h2 className="text-sm font-semibold text-slate-900">Conversation settings</h2>
+      <button type="button" aria-label="Close conversation settings" onClick={toggleRightDrawer} className="rounded p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+    </header>
+    <div className="flex-1 space-y-6 overflow-y-auto p-4">
+      <div><h3 className="text-base font-semibold text-slate-900">{title}</h3>{(isChannel ? channel?.description : conversation?.description) && <p className="mt-2 text-sm text-slate-500">{isChannel ? channel?.description : conversation?.description}</p>}</div>
+      {!isChannel && conversation && <button type="button" aria-pressed={conversation.isPinned} onClick={() => togglePinConversation(conversation.id)} className="flex w-full items-center gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700"><Pin className={`h-4 w-4 ${conversation.isPinned ? 'fill-current text-brand-400' : ''}`} />{conversation.isPinned ? 'Unpin conversation' : 'Pin conversation'}</button>}
+      <section><h3 className="mb-2 text-sm font-medium text-slate-900">People · {members.length}</h3><div className="space-y-1">{members.map(user => <button type="button" key={user.id} onClick={() => openUserProfile(user)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-slate-100">
+        {user.avatar ? <img src={user.avatar} alt="" className="h-7 w-7 rounded-md object-cover" /> : <span className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-xs text-slate-500">{user.name.slice(0, 2)}</span>}
+        <span className="min-w-0"><span className="block truncate text-sm text-slate-900">{user.name}</span><span className="block truncate text-xs text-slate-500">{user.role}</span></span>
+      </button>)}</div></section>
+      <section>
+        <div role="tablist" aria-label="Shared attachments" className="mb-3 flex gap-1 rounded-lg bg-slate-50 p-1">{(['media', 'files'] as const).map(tab => <button key={tab} type="button" role="tab" aria-selected={section === tab} onClick={() => setSection(tab)} className={`flex-1 rounded px-2 py-1.5 text-xs ${section === tab ? 'bg-slate-100 text-slate-900' : 'text-slate-500'}`}>{tab === 'media' ? `Media (${media.length})` : `Files (${files.length})`}</button>)}</div>
+        <div role="tabpanel" aria-label={section === 'media' ? 'Shared media' : 'Shared files'}>
+          {!(section === 'media' ? media : files).length ? <p className="py-4 text-center text-xs text-slate-500">No {section} shared yet.</p> : <div className={section === 'media' ? 'grid grid-cols-2 gap-2' : 'space-y-2'}>{(section === 'media' ? media : files).map(item => {
+            const url = urlFor(item.url);
+            if (!url) return <p key={item.id} className="text-xs text-slate-500">{item.name} · Unavailable</p>;
+            if (item.type === 'image') return <a key={item.id} href={url} target="_blank" rel="noreferrer"><img src={url} alt={item.name} className="aspect-square w-full rounded-lg object-cover" /></a>;
+            if (item.type === 'audio') return <div key={item.id}><p className="mb-1 truncate text-xs text-slate-500">{item.name}</p><audio controls preload="none" src={url} aria-label={item.name} className="w-full" /></div>;
+            return <a key={item.id} href={url} target="_blank" rel="noreferrer" download={item.type === 'file' ? item.name : undefined} className="flex items-center gap-2 rounded-lg bg-slate-50 p-3 text-slate-700"><FileText className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate text-xs">{item.name}</span><Download className="h-3.5 w-3.5 shrink-0" /></a>;
+          })}</div>}
         </div>
-
-        {/* Action toggles: Invitation link & notifications */}
-        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-600">Invite Link</span>
-            <button
-              onClick={handleCopyLink}
-              className="flex items-center gap-1 text-xs font-bold text-brand-600 hover:text-brand-700 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-2xs"
-            >
-              {copiedLink ? <Check className="w-3 h-3 text-brand-500" /> : <Copy className="w-3 h-3" />}
-              <span>{copiedLink ? 'Copied' : 'Copy'}</span>
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
-            <div className="flex items-center gap-2">
-              <Bell className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-xs font-semibold text-slate-600">Notifications</span>
-            </div>
-            <button
-              onClick={() => setNotificationsMuted(!notificationsMuted)}
-              className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors ${
-                notificationsMuted ? 'bg-slate-300' : 'bg-brand-600'
-              }`}
-            >
-              <div
-                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                  notificationsMuted ? 'translate-x-0' : 'translate-x-4'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
-        {/* Dynamic Media & Files Tabs */}
-        <div>
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl mb-3">
-            <button
-              onClick={() => setActiveTabSub('media')}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                activeTabSub === 'media'
-                  ? 'bg-white text-slate-900 shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Media ({sharedMedia.length})
-            </button>
-            <button
-              onClick={() => setActiveTabSub('files')}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                activeTabSub === 'files'
-                  ? 'bg-white text-slate-900 shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Files ({sharedFiles.length})
-            </button>
-          </div>
-
-          {activeTabSub === 'media' ? (
-            sharedMedia.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2">
-                {sharedMedia.map((att, i) => (
-                  <div key={i} className="aspect-square rounded-xl overflow-hidden shadow-2xs hover:scale-105 transition-transform">
-                    <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
-                <ImageIcon className="w-6 h-6 mx-auto mb-1 text-slate-300" />
-                <span>No media shared yet</span>
-              </div>
-            )
-          ) : (
-            sharedFiles.length > 0 ? (
-              <div className="space-y-1.5">
-                {sharedFiles.map((file, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between p-2 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <FileText className="w-4 h-4 text-brand-600 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-slate-800 truncate">{file.name}</p>
-                        <p className="text-xs text-slate-400">{file.size}</p>
-                      </div>
-                    </div>
-                    <a
-                      href={file.url}
-                      download={file.name}
-                      className="p-1 text-slate-400 hover:text-slate-700"
-                      title="Download"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
-                <FileText className="w-6 h-6 mx-auto mb-1 text-slate-300" />
-                <span>No files uploaded yet</span>
-              </div>
-            )
-          )}
-        </div>
-
-        {/* Member Roster */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-slate-500" />
-              Members ({channelMembers.length})
-            </span>
-          </div>
-
-          <div className="space-y-1.5">
-            {channelMembers.map((member) => (
-              <div
-                key={member.id}
-                onClick={() => openUserProfile(member)}
-                className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="relative flex-shrink-0">
-                    <img
-                      src={member.avatar}
-                      alt={member.name}
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
-                    <span
-                      className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                        member.status === 'online'
-                          ? 'bg-emerald-500'
-                          : 'bg-slate-400'
-                      }`}
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-800 truncate">{member.name}</p>
-                    <p className="text-xs text-slate-400 truncate">{member.role}</p>
-                  </div>
-                </div>
-
-                {member.id !== currentUser.id && (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        createConversation([member.id]);
-                      }}
-                      className="p-1 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600 transition-colors"
-                      title="Direct Message"
-                    >
-                      <MessageSquare className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        startCall('audio', member);
-                      }}
-                      className="p-1 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600 transition-colors"
-                      title="Voice Call"
-                    >
-                      <Phone className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
-  );
+  </aside>;
 };

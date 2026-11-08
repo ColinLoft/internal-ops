@@ -124,7 +124,7 @@ const WorkspaceShell: React.FC = () => {
 
   // If not authenticated, render the Auth Portal
   if (isAuthLoading) {
-    return <div className="min-h-screen bg-gradient-to-br from-slate-100 via-brand-50/70 to-brand-50/90" aria-label="Loading session" />;
+    return <div className="min-h-screen bg-black" aria-label="Loading session" />;
   }
 
   if (!isAuthenticated) {
@@ -143,7 +143,7 @@ const WorkspaceShell: React.FC = () => {
   }
 
   return (
-    <div className="flex h-dvh min-h-dvh w-screen overflow-hidden bg-[#fafbfc]">
+    <div className="flex h-dvh min-h-dvh w-screen overflow-hidden bg-black">
       <Sidebar isMobileOpen={isNavOpen} onOpenMobile={() => setIsNavOpen(true)} />
       {isNavOpen && (
         <button
@@ -157,8 +157,8 @@ const WorkspaceShell: React.FC = () => {
       {/* 2. Main Workspace Layout */}
       <div className="mb-[calc(3.5rem+env(safe-area-inset-bottom))] flex min-w-0 flex-1 flex-col overflow-hidden md:mb-0">
         {/* Workspace Body */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#fafbfc]">
-          <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-black">
+          <div data-workspace-content className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
           {isRetiredWorkspacePath(routePath) ? <RetiredWorkspacePage /> : <>
           {activeTab === 'home' && <HomePage />}
           {activeTab === 'customers' && <AccessGate app="customers" name="Customers"><CustomerPage /></AccessGate>}
@@ -220,7 +220,7 @@ const WorkspaceShell: React.FC = () => {
       {/* Modals & Dialogs */}
       <ProfileModal />
       <EditProfileModal />
-      <CreateChannelModal />
+      <CreateChannelModal onCreated={() => setMobileChatPane('feed')} />
       <CreatePollModal />
       <NewMessageModal />
       <AddEventModal />

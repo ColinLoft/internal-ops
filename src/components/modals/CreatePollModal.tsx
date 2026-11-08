@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Vote, Plus, Trash2 } from 'lucide-react';
+import { X, ListChecks, Plus, Trash2 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Poll } from '../../types';
 
@@ -76,10 +76,10 @@ export const CreatePollModal: React.FC = () => {
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-brand-50 text-brand-600">
-              <Vote className="w-5 h-5" />
+              <ListChecks className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-900">Create Staff Poll</h3>
+              <h3 className="font-bold text-base text-slate-900">Create a poll</h3>
               <p className="text-xs text-slate-500 font-medium">Gather feedback and votes from teammates</p>
             </div>
           </div>
@@ -166,7 +166,7 @@ export const CreatePollModal: React.FC = () => {
               disabled={isSaving}
               className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-md shadow-brand-500/25 transition-all"
             >
-              <Vote className="w-4 h-4" />
+              <ListChecks className="w-4 h-4" />
               <span>{isSaving ? 'Saving…' : 'Post Poll'}</span>
             </button>
           </div>

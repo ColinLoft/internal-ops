@@ -28,6 +28,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
     messages,
     togglePinConversation,
     setIsNewMessageOpen,
+    setIsCreateChannelOpen,
   } = useWorkspace();
 
   const [search, setSearch] = useState('');
@@ -143,23 +144,18 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
                   {conv.unreadCount}
                 </span>
               ) : null}
+              <button
+                type="button"
+                aria-label={conv.isPinned ? `Unpin ${partner?.name || conv.name}` : `Pin ${partner?.name || conv.name}`}
+                onClick={event => { event.stopPropagation(); togglePinConversation(conv.id); }}
+                className={`flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-brand-400 ${conv.isPinned ? 'text-brand-400' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+              >
+                <Pin className={`h-3 w-3 ${conv.isPinned ? 'fill-current' : ''}`} />
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Pin action button on hover */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            togglePinConversation(conv.id);
-          }}
-          className={`absolute top-2 right-2 p-1 rounded-md text-slate-400 hover:text-brand-600 hover:bg-white transition-opacity ${
-            conv.isPinned ? 'opacity-100 text-brand-600' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
-          }`}
-          title={conv.isPinned ? 'Unpin' : 'Pin conversation'}
-        >
-          <Pin className={`w-3 h-3 ${conv.isPinned ? 'fill-brand-600' : ''}`} />
-        </button>
       </div>
     );
   };
@@ -189,7 +185,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
   };
 
   return (
-    <div data-onboarding-target="conversation-list" className="w-full md:w-60 h-full bg-slate-50 border-r border-slate-200/70 flex flex-col flex-shrink-0">
+    <div data-onboarding-target="conversation-list" className="w-full md:w-60 h-full bg-black border-r border-slate-200/70 flex flex-col flex-shrink-0">
       {/* Top Header */}
       <div className="p-3 pb-2">
         <div className="flex items-center justify-between mb-3">
@@ -198,10 +194,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
           </div>
           <button
             type="button"
-            onClick={() => setIsNewMessageOpen(true)}
+            onClick={() => setIsCreateChannelOpen(true)}
             className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
-            title="Start a message or choose a channel"
-            aria-label="Start a message or choose a channel"
+            title="Create a channel"
+            aria-label="Create a channel"
           >
             <Plus className="w-4 h-4" />
           </button>

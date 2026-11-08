@@ -235,6 +235,20 @@ html[data-theme='dark'] #root [class~='bg-slate-100/50'] {
   background-color: var(--surface-raised);
 }
 
+/* Page canvases stay black; nested cards retain their raised surface tokens. */
+html[data-theme='dark'] #root main,
+html[data-theme='dark'] #root [data-workspace-content] > :is(div, main, section),
+html[data-theme='dark'] #root [data-workspace-content] > :is(div, main, section) > header,
+html[data-theme='dark'] #root main > header,
+html[data-theme='dark'] #root [data-onboarding-target='conversation-list'],
+html[data-theme='dark'] #root [data-onboarding-target='message-feed'],
+html[data-theme='dark'] #root [data-onboarding-target='channel-feed'] {
+  background-color: var(--surface-canvas);
+  background-image: none;
+}
+
+.message-receipt { color: #505050; }
+
 html[data-theme='dark'] #root [class~='bg-brand-50'],
 html[data-theme='dark'] #root [class~='bg-brand-50/80'],
 html[data-theme='dark'] #root [class~='bg-brand-50/70'],

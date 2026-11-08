@@ -17,6 +17,18 @@ export function sampledUptime(summary?: MonitorSummary): number | null {
   return count > 0 ? Number(summary?.up_count || 0) / count * 100 : null;
 }
 
+export function systemHealthSummary(systems: FlownSystem[], summaries: MonitorSummary[], now = Date.now()) {
+  const counts = { total: systems.length, operational: 0, attention: 0, awaitingChecks: 0, notMonitored: 0 };
+  systems.forEach((system) => {
+    const state = monitorState(system, summaries.find((summary) => summary.system_id === system.id), now);
+    if (state === 'Operational') counts.operational += 1;
+    else if (['Endpoint down', 'Check blocked', 'Stale checks'].includes(state)) counts.attention += 1;
+    else if (state === 'Awaiting checks') counts.awaitingChecks += 1;
+    else counts.notMonitored += 1;
+  });
+  return counts;
+}
+
 export function monitorState(system: FlownSystem, summary?: MonitorSummary, now = Date.now()): string {
   if (!system.monitoring_enabled || !system.monitor_url) return 'Not monitored';
   const latest = summary?.latest_check;

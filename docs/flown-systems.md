@@ -5,6 +5,64 @@
 from the existing Supabase client. The app shell owns `/systems` routing and its
 legacy administration settings route.
 
+## Inventory overview and browser fixtures
+
+The inventory view starts with **Health overview** and **System inventory**.
+The overview counts each registered system once in one of four states:
+Operational, Needs attention, Awaiting checks, or Not monitored. “Needs
+attention” means the newest matching-endpoint check is down or blocked, or is
+older than 15 minutes. Missing observations are awaiting checks, never healthy.
+The inventory can be searched and filtered by environment; selecting a row opens
+endpoint monitoring details. Incident and maintenance lists start compact, with
+notes and older records available through disclosure controls. The selected
+system’s check history is also collapsed initially. Existing management actions
+remain available: **Add system**, **Refresh**, **Run check**, **Edit system**,
+**Open system**, add/edit/delete incident and maintenance, and **Delete system
+and history**.
+
+The screen uses neither `useWorkspace` nor `useAppAccess`; it authenticates
+directly through Supabase and checks `profiles.account_status` for active staff.
+A direct component fixture does not need those providers. `SystemsPage.test.tsx`
+shows a usable mock: resolve `auth.getUser()` to `{ data: { user: { id } },
+error: null }`, mock the profile `maybeSingle()` result, mock `rpc()` for monitor
+summaries, and provide fluent table query chains. Also mock
+`useLiveRefresh(load)` to call `load` from an effect so the screen renders
+deterministically without a realtime subscription.
+
+For an inventory fixture, return `FlownSystem` objects with every rendered
+identity field: `id`, `name`, `description`, `owner_id`, `category`,
+`environment`, `url`, `monitor_url`, `monitoring_enabled`, `created_at`, and
+`updated_at`. Use valid category values (`application`, `website`,
+`infrastructure`, `integration`, `other`) and environment values (`production`,
+`staging`, `development`, `other`). The profile mock also responds to
+`profiles.select('id, name, account_status').order('name').limit(1000)` with
+owner rows such as `{ id, name, account_status: 'active' }`.
+
+The summary RPC is `flown_system_monitor_summary`; its rows have
+`system_id`, `sample_count`, `up_count`, `blocked_count`, `avg_latency_ms`, and
+`latest_check`. The last field is either `null` or a full matching
+`SystemCheck`: `id`, `system_id`, `checked_at`, `endpoint_url`, `outcome`
+(`up`/`down`/`blocked`), `http_status`, `latency_ms`, `error`, and
+`trigger_source` (`manual`/`scheduled`). For clear browser states, fixture one
+recent `up` check matching `monitor_url`, one recent `down` or `blocked` check,
+one enabled system with no summary, one stale check, and one disabled system.
+Return `{ data: summaryRows, error: null }` from the RPC’s `.order('system_id')
+.range(offset, offset + 499)` chain. An empty `latest_check` is not a successful
+check.
+
+Incidents use `flown_system_incidents` rows with `id`, `system_id`, `title`,
+`notes`, `severity`, `status`, `started_at`, and `resolved_at`. Maintenance uses
+`flown_system_maintenance` rows with `id`, `system_id`, `title`, `notes`,
+`starts_at`, `ends_at`, and `status`. To verify progressive detail, seed more
+than three of either and include notes; expand **Show N older incidents/windows**,
+the notes disclosure, and **Show latest N observations** in the selected
+system. Selecting a system triggers the latest-check query against
+`flown_system_checks`, filtered by `system_id`, newest `checked_at` first, at
+most 60 rows. The minimum mock chain needs `select`, `eq`, `order`, and `limit`.
+For add/edit browser actions, mock `insert(values)` or `update(values).eq(id)`,
+then `select('id').single()` with `{ data: { id }, error: null }`. Deletion uses
+`delete().eq('id', id).select('id')` and requires a returned id row.
+
 ## Database and authorization
 
 For the SQL editor, run the entire [Flown Ops update bundle](../supabase/flown_ops_update_all.sql)
@@ -38,8 +96,8 @@ are normalized without changing account permissions.
 
 There is no top bar, Quick Add menu, or sitewide AI assistant. On desktop,
 the 224px navigation rail stays visible beside the page, with no open/close
-controls or hover behavior. Mobile users keep the bottom Menu drawer.
-Notifications is near the bottom of the rail, alongside Bug report and Settings.
+controls or hover behavior. Mobile users keep the bottom Menu drawer. Notifications is near the bottom of
+the rail, alongside Settings.
 Support and grant AI integrations are unchanged. No SQL update is needed for
 these navigation changes.
 

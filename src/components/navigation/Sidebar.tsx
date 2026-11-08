@@ -136,10 +136,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenMo
           type="button"
           onClick={() => { setActiveTab('home'); goTo('/home'); }}
           title="Flown home"
-          className="flex h-10 min-w-0 flex-1 items-center justify-start px-2 rounded-lg hover:bg-white/10 transition-colors"
+          className="flex h-14 min-w-0 flex-1 items-center justify-start rounded-lg hover:bg-white/10 transition-colors"
         >
-          <img src="/flown-logo.png" alt="Flown" className="h-10 w-auto max-w-full object-contain brightness-0 invert opacity-95" />
-          <span className="ml-2 text-xs font-semibold text-brand-300">Ops</span>
+          <img src="/flown-logo.png" alt="Flown" className="h-14 w-full max-w-full object-contain object-left brightness-0 invert opacity-95" />
         </button>
       </div>
 
@@ -219,7 +218,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenMo
         <div className="pt-1">
           <div data-onboarding-target="profile-summary" className="flex items-center gap-2.5 rounded-xl border border-white/20 bg-white/10 p-2 transition-colors">
             <span title={`${currentUser.name} (${currentUser.role})`} className="relative block shrink-0 rounded-full">
-              <img src={currentUser.avatar} alt={currentUser.name} className="h-8 w-8 rounded-full border border-white/40 object-cover" />
+              {currentUser.avatar ? <img src={currentUser.avatar} alt={currentUser.name} className="h-8 w-8 rounded-full border border-white/40 object-cover" /> : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-white" aria-label={currentUser.name}>{currentUser.name.slice(0, 2).toUpperCase()}</span>}
               <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#2569F5] ${statusColor}`} />
             </span>
                 <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-white">{currentUser.name}</span><span className="block truncate text-[11px] text-white/75">{currentUser.role}</span></span>

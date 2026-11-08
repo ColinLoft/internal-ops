@@ -80,6 +80,9 @@ describe('permanent desktop navigation rail', () => {
     expect(container.textContent).not.toContain('Workspace assistant');
     expect(container.querySelector('[data-onboarding-target="bug-report-button"]')).toBeNull();
     expect(container.textContent).not.toContain('Bug report');
+    const logo = container.querySelector('img[alt="Flown"]')!;
+    expect(logo.classList.contains('h-14')).toBe(true);
+    expect(logo.parentElement?.textContent).not.toContain('Ops');
   });
 
   it('stays visible after Escape, leaving, navigation, and finishing onboarding', async () => {

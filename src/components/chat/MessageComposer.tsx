@@ -4,8 +4,7 @@ import {
   MicOff,
   Paperclip,
   Smile,
-  MapPin,
-  Vote,
+  ListChecks,
   Send,
   X,
   FileText,
@@ -24,23 +23,12 @@ import {
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Attachment } from '../../types';
 import { formatSelection, type MessageFormat } from './messageLayout';
-import { MessageText } from './MessageText';
+import { AnimatePresence, motion } from 'framer-motion';
 
 interface MessageComposerProps {
   onSendMessage: (text: string, attachments?: Attachment[]) => void | Promise<void>;
   placeholder?: string;
   isAnnouncementRestricted?: boolean;
-}
-interface VoiceRecognition {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: Event & { results: SpeechRecognitionResultList }) => void) | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
 }
 
 export const MessageComposer: React.FC<MessageComposerProps> = ({
@@ -60,13 +48,18 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMentionMenu, setShowMentionMenu] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
-  const [preview, setPreview] = useState(false);
+  const [showFormatting, setShowFormatting] = useState(true);
+  const [startingRecording, setStartingRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
   const mentionRange = useRef({ start: 0, end: 0 });
-  const recognitionRef = useRef<VoiceRecognition | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const mountedRef = useRef(true);
+  const draftUrlsRef = useRef(new Set<string>());
   const formatting: { format: MessageFormat; label: string; icon: typeof Bold }[] = [
     { format: 'bold', label: 'Bold', icon: Bold }, { format: 'italic', label: 'Italic', icon: Italic },
     { format: 'underline', label: 'Underline', icon: Underline }, { format: 'strike', label: 'Strikethrough', icon: Strikethrough },
@@ -86,7 +79,6 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     const start = area?.selectionStart ?? text.length;
     const end = area?.selectionEnd ?? text.length;
     setText(text.slice(0, start) + value + text.slice(end));
-    setPreview(false);
     window.requestAnimationFrame(() => { textareaRef.current?.focus(); textareaRef.current?.setSelectionRange(start + value.length, start + value.length); });
   };
   useEffect(() => {
@@ -94,82 +86,85 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     if (!area) return;
     area.style.height = 'auto';
     area.style.height = `${Math.min(128, Math.max(44, area.scrollHeight))}px`;
-  }, [text, preview]);
-  useEffect(() => () => { recognitionRef.current?.abort(); }, []);
+  }, [text]);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      const recorder = recorderRef.current;
+      if (recorder) { recorder.onstop = null; recorder.ondataavailable = null; if (recorder.state !== 'inactive') recorder.stop(); }
+      streamRef.current?.getTracks().forEach(track => track.stop());
+      draftUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, []);
+  useEffect(() => {
+    if (!isRecording) return;
+    const timer = window.setInterval(() => setRecordingSeconds(seconds => seconds + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [isRecording]);
+  useEffect(() => {
+    if (isRecording && recordingSeconds >= 120) recorderRef.current?.stop();
+  }, [isRecording, recordingSeconds]);
 
   // Common reactions
   const emojiCategories = [
     '😊', '👍', '❤️', '🎉', '🔥', '🙌', '✨', '🌟', 
-    '🤝', '💡', '📋', '📢', '🍁', '🌱', '🕊️', '💼'
+    '🤝', '💡', '📋', '📢', '🍁', '🌱', '🕊️', '💼',
+    '😀', '😄', '😁', '😂', '🥹', '😍', '😎', '🤔',
+    '😅', '😭', '😮', '😴', '👋', '👏', '👌', '✅',
+    '💙', '💚', '💜', '🤍', '💪', '🙏', '👀', '🚀',
+    '✈️', '🛠️', '📅', '📌', '🎯', '🏆', '⭐', '⚡',
+    '☕', '🎂', '🥳', '🤩', '🫡', '🙃', '😬', '🤞',
   ];
 
-  // Speech-to-text / voice dictation
-  const handleToggleVoiceDictation = () => {
+  const handleToggleRecording = async () => {
     if (isRecording) {
-      recognitionRef.current?.stop();
-      setIsRecording(false);
+      recorderRef.current?.stop();
       return;
     }
-
-    const voiceWindow = window as Window & { SpeechRecognition?: new () => VoiceRecognition; webkitSpeechRecognition?: new () => VoiceRecognition };
-    const SpeechRecognition = voiceWindow.SpeechRecognition || voiceWindow.webkitSpeechRecognition;
-
-    if (SpeechRecognition) {
-      try {
-        const recognition = new SpeechRecognition();
-        recognitionRef.current = recognition;
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
-
-        setIsRecording(true);
-
-        recognition.onresult = event => {
-          const transcript = event.results[0][0].transcript;
-          setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
-          setIsRecording(false);
-        };
-
-        recognition.onerror = () => {
-          setSendError('Voice dictation failed. Check microphone permissions and try again.');
-          setIsRecording(false);
-        };
-
-        recognition.onend = () => {
-          setIsRecording(false);
-        };
-
-        recognition.start();
-      } catch {
-        setSendError('Voice dictation could not start. Check microphone permissions and try again.');
+    if (startingRecording) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setSendError('Audio recording is not supported by this browser.');
+      return;
+    }
+    setStartingRecording(true); setSendError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mountedRef.current) { stream.getTracks().forEach(track => track.stop()); return; }
+      streamRef.current = stream;
+      const mimeType = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus'].find(type => MediaRecorder.isTypeSupported(type));
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recorderRef.current = recorder;
+      const chunks: Blob[] = [];
+      let failed = false;
+      recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
+      recorder.onerror = () => {
+        failed = true;
+        setSendError('Recording failed. Check your microphone and try again.');
+        if (recorder.state !== 'inactive') recorder.stop();
+        stream.getTracks().forEach(track => track.stop());
         setIsRecording(false);
-      }
-    } else {
-      setSendError('Voice dictation is not supported by this browser.');
-    }
-  };
-
-  const handleShareLocation = () => {
-    if (!navigator.geolocation) {
-      setSendError('Location sharing is not supported by this browser.');
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        const latitude = Number(coords.latitude.toFixed(6));
-        const longitude = Number(coords.longitude.toFixed(6));
-        setAttachments((prev) => [...prev, {
-          id: `loc-${Date.now()}`,
-          name: 'Shared location',
-          type: 'location',
-          size: 'GPS coordinates',
-          url: `https://maps.google.com/?q=${latitude},${longitude}`,
-          locationData: { label: `${latitude}, ${longitude}`, latitude, longitude },
-        }]);
-      },
-      () => setSendError('Location could not be shared. Allow location access and try again.'),
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        streamRef.current = null; recorderRef.current = null;
+        if (!mountedRef.current) return;
+        setIsRecording(false);
+        if (failed) return;
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+        if (!blob.size) { setSendError('No audio was recorded. Try again.'); return; }
+        const extension = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm';
+        const url = URL.createObjectURL(blob);
+        draftUrlsRef.current.add(url);
+        setAttachments(previous => [...previous, { id: `audio-${Date.now()}`, name: `Voice message.${extension}`, type: 'audio', size: `${(blob.size / 1024).toFixed(1)} KB`, url }]);
+      };
+      recorder.start();
+      setRecordingSeconds(0); setIsRecording(true);
+    } catch (error) {
+      streamRef.current?.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+      if (mountedRef.current) setSendError(error instanceof Error ? `Could not record audio: ${error.message}` : 'Could not record audio. Allow microphone access and try again.');
+    } finally { if (mountedRef.current) setStartingRecording(false); }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,9 +177,10 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         id: `att-${Date.now()}-${Math.random()}`,
         name: file.name,
         size: `${(file.size / 1024).toFixed(1)} KB`,
-        type: isImg ? 'image' : 'file',
+        type: isImg ? 'image' : file.type.startsWith('audio/') ? 'audio' : 'file',
         url: URL.createObjectURL(file),
       };
+      draftUrlsRef.current.add(newAtt.url);
       setAttachments((prev) => [...prev, newAtt]);
     });
 
@@ -212,12 +208,12 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     const replacement = `@${name} `;
     setText(text.slice(0, start) + replacement + text.slice(end));
     setShowMentionMenu(false);
-    setPreview(false);
     window.requestAnimationFrame(() => { textareaRef.current?.focus(); textareaRef.current?.setSelectionRange(start + replacement.length, start + replacement.length); });
   };
 
   const handleSend = () => {
     if (isAnnouncementRestricted) return;
+    if (isRecording || startingRecording) { setSendError('Stop recording before sending your message.'); return; }
     if (!text.trim() && attachments.length === 0) return;
 
     setSendError('');
@@ -228,11 +224,11 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
       setSendError(error instanceof Error ? error.message : 'Message was not saved. Please try again.');
       return;
     }
+    attachments.forEach(attachment => draftUrlsRef.current.delete(attachment.url));
     setText('');
     setAttachments([]);
     setShowEmojiPicker(false);
     setShowMentionMenu(false);
-    setPreview(false);
     void Promise.resolve(sendResult).catch((error: unknown) => {
       setSendError(error instanceof Error ? error.message : 'Message was not saved. Please try again.');
     });
@@ -257,7 +253,9 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setShowEmojiPicker(false); setShowMentionMenu(false); } };
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('mousedown', handleClickOutside); document.removeEventListener('keydown', escape); };
   }, []);
 
   if (isAnnouncementRestricted) {
@@ -272,13 +270,14 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     <div className="relative rounded-lg border border-slate-600 bg-white p-1.5 focus-within:border-slate-400">
       {sendError && (
         <p role="alert" className="mb-2 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">
-          Message was not saved: {sendError}
+          {sendError}
         </p>
       )}
-      <div role="toolbar" aria-label="Message formatting" className="mb-1 flex min-w-0 flex-wrap items-center gap-0.5">
-        {formatting.map(({ format, label, icon: Icon }) => <button key={format} type="button" aria-label={label} title={label} disabled={preview} onMouseDown={event => event.preventDefault()} onClick={() => applyFormat(format)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40"><Icon className="h-4 w-4" /></button>)}
-        <button type="button" aria-pressed={preview} onClick={() => setPreview(value => !value)} className="ml-auto shrink-0 rounded px-2 py-1 text-xs text-slate-500 hover:bg-slate-100">{preview ? 'Edit' : 'Preview'}</button>
-      </div>
+      <AnimatePresence initial={false}>
+        {showFormatting && <motion.div role="toolbar" aria-label="Message formatting" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.14 }} className="mb-1 flex min-w-0 flex-wrap items-center gap-0.5">
+          {formatting.map(({ format, label, icon: Icon }) => <button key={format} type="button" aria-label={label} title={label} onMouseDown={event => event.preventDefault()} onClick={() => applyFormat(format)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-900"><Icon className="h-4 w-4" /></button>)}
+        </motion.div>}
+      </AnimatePresence>
       {/* Attachment Preview Chips */}
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-2 p-1.5 bg-slate-50 rounded-lg border border-slate-200/60">
@@ -287,16 +286,12 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
               key={att.id}
               className="flex items-center gap-1.5 px-2 py-0.5 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-800 shadow-2xs"
             >
-              {att.type === 'location' ? (
-                <MapPin className="w-3.5 h-3.5 text-rose-500" />
-              ) : (
-                <FileText className="w-3.5 h-3.5 text-brand-600" />
-              )}
+              {att.type === 'audio' ? <Mic className="h-3.5 w-3.5 text-brand-600" /> : <FileText className="w-3.5 h-3.5 text-brand-600" />}
               <span className="max-w-[150px] truncate">{att.name}</span>
               <button
                 type="button"
                 aria-label={`Remove ${att.name}`}
-                onClick={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))}
+                onClick={() => { if (draftUrlsRef.current.delete(att.url)) URL.revokeObjectURL(att.url); setAttachments((prev) => prev.filter((a) => a.id !== att.id)); }}
                 className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600"
               >
                 <X className="w-3 h-3" />
@@ -346,7 +341,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
       )}
 
       {/* Main Textarea */}
-      {preview ? <div aria-label="Message preview" className="min-h-11 px-2 py-1">{text ? <MessageText text={text} /> : <p className="text-sm text-slate-400">Nothing to preview yet.</p>}</div> : <textarea
+      <textarea
         ref={textareaRef}
         value={text}
         onChange={handleTextChange}
@@ -355,11 +350,13 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         placeholder={placeholder}
         aria-label={placeholder}
         className="w-full px-2 py-1 text-sm text-slate-900 placeholder:text-slate-400 bg-transparent resize-none outline-none leading-relaxed min-h-[36px] max-h-32"
-      />}
+      />
+      {isRecording && <p role="status" className="px-2 py-1 text-xs text-rose-600">Recording · {Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, '0')} · Stop to attach (2 min max)</p>}
 
       {/* Bottom Tool bar buttons */}
       <div className="flex items-center justify-between gap-2 pt-1">
-        <div className="flex items-center gap-0.5 text-slate-400">
+        <div className="flex min-w-0 flex-wrap items-center gap-0.5 text-slate-400">
+          <button type="button" aria-label={showFormatting ? 'Hide formatting' : 'Show formatting'} aria-expanded={showFormatting} onClick={() => setShowFormatting(value => !value)} title="Formatting" className={`flex h-7 w-7 items-center justify-center rounded hover:bg-slate-100 ${showFormatting ? 'text-slate-700' : 'text-slate-400'}`}><span aria-hidden="true" className="text-base underline underline-offset-4">A</span></button>
           <button type="button" onClick={() => {
             const start = textareaRef.current?.selectionStart ?? text.length;
             const prefix = start > 0 && !/\s/.test(text[start - 1]) ? ' @' : '@';
@@ -369,14 +366,16 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           }} aria-label="Mention someone" title="Mention someone" className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><AtSign className="h-4 w-4" /></button>
           {/* Voice dictation mic button */}
           <button
-            onClick={handleToggleVoiceDictation}
-            className={`p-1.5 rounded-lg transition-all ${
+            type="button"
+            disabled={startingRecording}
+            onClick={() => void handleToggleRecording()}
+            className={`p-1.5 rounded-lg transition-colors ${
               isRecording
                 ? 'bg-rose-500 text-white animate-pulse'
                 : 'hover:text-slate-700 hover:bg-slate-100'
             }`}
-            title="Speech-to-Text / Voice Dictation"
-            aria-label={isRecording ? 'Stop voice dictation' : 'Start voice dictation'}
+            title={isRecording ? 'Stop recording' : 'Record a voice message'}
+            aria-label={isRecording ? 'Stop recording' : 'Record a voice message'}
           >
             {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </button>
@@ -401,7 +400,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           </button>
 
           {/* Emoji Popover Toggle */}
-          <div className="relative" ref={emojiRef}>
+          <div ref={emojiRef}>
             <button
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
               className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
@@ -413,7 +412,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             </button>
 
             {showEmojiPicker && (
-              <div className="absolute bottom-full left-0 mb-2 p-2 bg-white rounded-xl shadow-elevated border border-slate-200 z-50 grid grid-cols-4 gap-1 w-48 max-w-[calc(100vw-2rem)] animate-in fade-in zoom-in-95 duration-150">
+              <div role="group" aria-label="Emoji picker" className="absolute bottom-full left-0 mb-2 max-h-64 overflow-y-auto p-2 bg-white rounded-xl shadow-elevated border border-slate-200 z-50 grid grid-cols-6 gap-1 w-60 max-w-[calc(100vw-2rem)]">
                 {emojiCategories.map((em) => (
                   <button
                     key={em}
@@ -432,35 +431,25 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             )}
           </div>
 
-          {/* Share location */}
-          <button
-            onClick={handleShareLocation}
-            className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-            title="Share Organization Site / Location"
-            aria-label="Share location"
-          >
-            <MapPin className="w-4 h-4" />
-          </button>
-
           {/* Create Poll */}
           <button
             onClick={() => setIsCreatePollOpen(true)}
-            className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            className="inline-flex items-center gap-1 p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
             title="Create Custom Poll"
             aria-label="Create poll"
           >
-            <Vote className="w-4 h-4" />
+            <ListChecks className="w-4 h-4" /><span className="text-xs">Poll</span>
           </button>
         </div>
 
         {/* Send Button */}
         <button
           onClick={handleSend}
-          disabled={!text.trim() && attachments.length === 0}
+          disabled={isRecording || startingRecording || !text.trim() && attachments.length === 0}
           aria-label="Send message"
-          className="flex h-8 items-center gap-1.5 rounded-md bg-brand-600 px-2.5 text-xs font-medium text-white hover:bg-brand-500 disabled:bg-transparent disabled:text-slate-400"
+          className="flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-brand-600 px-3 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
         >
-          <span className="hidden sm:inline">Send</span>
+          <span>Send</span>
           <Send className="w-3.5 h-3.5" />
         </button>
       </div>

@@ -2,10 +2,11 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FlownSystem } from './types';
+import type { FlownSystem, MonitorSummary } from './types';
 
 const mock = vi.hoisted(() => ({
   systems: [] as FlownSystem[],
+  summaries: [] as MonitorSummary[],
   active: true,
   save: vi.fn(),
   load: undefined as undefined | (() => Promise<void>),
@@ -21,7 +22,7 @@ vi.mock('../../lib/supabase', () => ({
   supabase: {
     auth: { getUser: async () => ({ data: { user: { id: 'staff-test' } }, error: null }) },
     rpc: () => {
-      const response = { data: [], error: null };
+      const response = { data: mock.summaries, error: null };
       return { order: () => ({ range: async () => response }) };
     },
     from: (table: string) => {
@@ -55,13 +56,18 @@ const click = async (text: string) => {
 };
 describe('systems staff workspace', () => {
   beforeEach(() => {
-    mock.systems = []; mock.active = true; mock.save.mockClear();
+    mock.systems = []; mock.summaries = []; mock.active = true; mock.save.mockClear();
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     container = document.createElement('div'); document.body.append(container); root = createRoot(container);
   });
   afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
   it('renders the honest empty state and persists newly registered inventory', async () => {
     await act(async () => root.render(<SystemsPage />));
+    expect(container.textContent).toContain('Health overview');
+    expect(container.textContent).toContain('System inventory');
+    expect(container.querySelector('[data-systems-page]')?.className).toContain('flex-1');
+    expect(container.querySelector('[data-systems-page] > div')?.className).toContain('w-full');
+    expect(container.querySelector('.grid.items-start.gap-6') !== null).toBe(true);
     expect(container.textContent).toContain('No systems registered');
     expect(container.textContent).not.toContain('100.00%');
     await click('Add system');
@@ -82,5 +88,25 @@ describe('systems staff workspace', () => {
     await act(async () => root.render(<SystemsPage />));
     expect(container.textContent).toContain('active staff only');
     expect(container.textContent).not.toContain('Hidden test inventory');
+  });
+  it('summarizes measured health states without counting unobserved systems as healthy', async () => {
+    mock.systems = [
+      { id: 'up', name: 'Healthy', description: '', owner_id: null, category: 'application', environment: 'production', url: '', monitoring_enabled: true, monitor_url: 'https://status.flown.org/up' },
+      { id: 'down', name: 'Down', description: '', owner_id: null, category: 'website', environment: 'production', url: '', monitoring_enabled: true, monitor_url: 'https://status.flown.org/down' },
+      { id: 'waiting', name: 'Waiting', description: '', owner_id: null, category: 'integration', environment: 'staging', url: '', monitoring_enabled: true, monitor_url: 'https://status.flown.org/waiting' },
+      { id: 'off', name: 'Not monitored', description: '', owner_id: null, category: 'other', environment: 'development', url: '', monitoring_enabled: false, monitor_url: '' },
+    ] as FlownSystem[];
+    const checkedAt = new Date().toISOString();
+    mock.summaries = [
+      { system_id: 'up', latest_check: { endpoint_url: 'https://status.flown.org/up', checked_at: checkedAt, outcome: 'up' } },
+      { system_id: 'down', latest_check: { endpoint_url: 'https://status.flown.org/down', checked_at: checkedAt, outcome: 'down' } },
+    ] as MonitorSummary[];
+
+    await act(async () => root.render(<SystemsPage />));
+
+    expect(container.textContent).toContain('Operational1');
+    expect(container.textContent).toContain('Needs attention1');
+    expect(container.textContent).toContain('Awaiting checks1');
+    expect(container.textContent).toContain('Not monitored1');
   });
 });

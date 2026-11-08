@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Camera, Hash, Lock, Megaphone, Trash2, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Channel, UserRole } from '../../types';
@@ -17,7 +17,13 @@ export const ChannelMemberPicker: React.FC<{ selected: string[]; lockedId?: stri
       {users.map((user) => (
         <label key={user.id} className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl px-2 hover:bg-white md:min-h-0 md:py-1.5">
           <input type="checkbox" checked={selected.includes(user.id) || user.id === lockedId} disabled={user.id === lockedId} onChange={() => toggle(user.id)} />
-          <img src={user.avatar} alt="" className="h-6 w-6 rounded-full object-cover" />
+          {user.avatar ? (
+            <img src={user.avatar} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
+          ) : (
+            <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700">
+              {user.name.trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0)).join('').toUpperCase()}
+            </span>
+          )}
           <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">{user.name}</span>
         </label>
       ))}
@@ -40,6 +46,12 @@ export const EditChannelModal: React.FC<Props> = ({ channel, onClose }) => {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const ownerId = channel.createdBy || currentUser.id;
+  const canEdit = channel.createdBy === currentUser.id || ['admin', 'coordinator'].includes(currentUser.systemRole);
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !saving && !uploading) onClose(); };
+    document.addEventListener('keydown', escape);
+    return () => document.removeEventListener('keydown', escape);
+  }, [onClose, saving, uploading]);
 
   const pickImage = async (file?: File) => {
     if (!file) return;
@@ -47,12 +59,12 @@ export const EditChannelModal: React.FC<Props> = ({ channel, onClose }) => {
     if (file.size > 2_000_000) { setError('Channel images must be under 2 MB.'); return; }
     setUploading(true);
     setError('');
-    try { setImageUrl(await uploadAvatarToSupabase(file, `channel-${channel.id}`)); } finally { setUploading(false); }
+    try { setImageUrl(await uploadAvatarToSupabase(file, `channel-${channel.id}`)); } catch (err) { setError(err instanceof Error ? err.message : 'Could not upload the channel image.'); } finally { setUploading(false); }
   };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (saving || uploading) return;
+    if (saving || uploading || !canEdit) return;
     const postingRoles: UserRole[] = type === 'announcement' || leadersOnly ? ['admin', 'coordinator'] : ['admin', 'coordinator', 'member'];
     setSaving(true);
     setError('');
@@ -67,20 +79,23 @@ export const EditChannelModal: React.FC<Props> = ({ channel, onClose }) => {
   };
 
   const remove = async () => {
+    if (!canEdit) return;
     if (!await confirm({ title: `Delete #${channel.name}?`, message: 'All messages in this channel will also be deleted. This cannot be undone.', confirmLabel: 'Delete channel' })) return;
     setSaving(true);
     try { await deleteChannel(channel.id); onClose(); } catch (err) { setError(err instanceof Error ? err.message : 'Could not delete the channel.'); setSaving(false); }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-2 backdrop-blur-sm md:p-4">
+    <div role="dialog" aria-modal="true" aria-labelledby="channel-settings-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-2 md:p-4">
       <div className="max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto rounded-3xl border border-slate-200/80 bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-6 py-4">
-          <h3 className="text-base font-bold text-slate-900">Edit channel</h3>
+          <h3 id="channel-settings-title" className="text-base font-bold text-slate-900">Channel settings</h3>
           <button type="button" onClick={onClose} aria-label="Close" className="-m-1.5 rounded-full p-2.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-600 md:m-0 md:p-1"><X className="h-5 w-5" /></button>
         </div>
         <form onSubmit={submit} className="space-y-4 p-6">
           {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
+          {!canEdit && <p className="text-xs text-slate-500">Only the channel creator or workspace managers can change these settings.</p>}
+          <fieldset disabled={!canEdit || saving} className="space-y-4">
           <div className="flex items-center gap-4">
             <button type="button" onClick={() => fileRef.current?.click()} aria-label="Change channel image" className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-brand-100 text-brand-700">
               {imageUrl ? <img src={imageUrl} alt="" className="h-full w-full object-cover" /> : isPrivate ? <Lock className="h-6 w-6" /> : <Hash className="h-6 w-6" />}
@@ -117,11 +132,12 @@ export const EditChannelModal: React.FC<Props> = ({ channel, onClose }) => {
               <ChannelMemberPicker selected={members} lockedId={ownerId} onChange={setMembers} />
             </div>
           )}
+          </fieldset>
           <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-            <button type="button" onClick={() => void remove()} disabled={saving} className="min-h-11 rounded-xl px-3 text-xs font-semibold text-rose-600 hover:bg-rose-50 md:min-h-0 md:py-2">Delete channel</button>
+            {canEdit && <button type="button" onClick={() => void remove()} disabled={saving} className="min-h-11 rounded-xl px-3 text-xs font-semibold text-rose-600 hover:bg-rose-50 md:min-h-0 md:py-2">Delete channel</button>}
             <div className="flex gap-2">
-              <button type="button" onClick={onClose} className="min-h-11 rounded-xl px-4 text-xs font-semibold text-slate-600 hover:bg-slate-100 md:min-h-0 md:py-2">Cancel</button>
-              <button type="submit" disabled={saving || uploading} className="min-h-11 rounded-xl bg-brand-600 px-4 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-60 md:min-h-0 md:py-2">{saving ? 'Saving…' : 'Save changes'}</button>
+              <button type="button" onClick={onClose} className="min-h-11 rounded-xl px-4 text-xs font-semibold text-slate-600 hover:bg-slate-100 md:min-h-0 md:py-2">{canEdit ? 'Cancel' : 'Close'}</button>
+              {canEdit && <button type="submit" disabled={saving || uploading} className="min-h-11 rounded-xl bg-brand-600 px-4 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-60 md:min-h-0 md:py-2">{saving ? 'Saving…' : 'Save changes'}</button>}
             </div>
             {confirmDialog}
           </div>
