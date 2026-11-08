@@ -215,7 +215,7 @@ export interface CalendarEvent {
   color?: string;
 }
 
-export type NotificationType = 'message' | 'mention' | 'announcement' | 'call' | 'calendar' | 'organization';
+export type NotificationType = 'message' | 'mention' | 'announcement' | 'call' | 'calendar' | 'organization' | 'task' | 'system';
 
 export interface NotificationItem {
   id: string;
@@ -224,8 +224,11 @@ export interface NotificationItem {
   description: string;
   timestamp: string;
   isRead: boolean;
-  linkTab: 'messages' | 'channels' | 'calendar';
+  linkTab: 'messages' | 'channels' | 'calendar' | 'programs';
   targetId?: string; // conversation or channel id
+  linkPath?: string;
+  createdAt?: string;
+  persisted?: boolean;
 }
 
 export interface CallSession {

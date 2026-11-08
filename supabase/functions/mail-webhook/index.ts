@@ -1,3 +1,4 @@
+import { serveWithCors } from '../_shared/cors.ts';
 import { createRemoteJWKSet, jwtVerify } from 'https://esm.sh/jose@5.9.6';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -39,7 +40,7 @@ const triggerSync = async (
   }
 };
 
-Deno.serve(async (request: Request) => {
+serveWithCors(async (request: Request) => {
   const validationToken = new URL(request.url).searchParams.get('validationToken');
   if ((request.method === 'GET' || request.method === 'POST') && validationToken) {
     return response(validationToken, 200, 'text/plain');

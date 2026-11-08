@@ -1,9 +1,10 @@
+import { serveWithCors } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { clientsFor, bytesToBase64Url, emailCorsHeaders, jsonResponse } from '../_shared/email.ts';
 import { decodePngSignature, sha256Hex } from '../_shared/pdf-signing.ts';
 import { quoteToken, validateSignaturePng, validateSigner } from '../_shared/wildfire.ts';
 
-Deno.serve(async (request: Request) => {
+serveWithCors(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: emailCorsHeaders });
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405);
   try {

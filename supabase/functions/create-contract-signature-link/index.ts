@@ -1,3 +1,4 @@
+import { serveWithCors } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sha256Hex } from '../_shared/pdf-signing.ts';
 
@@ -13,7 +14,7 @@ const json = (body: Record<string, unknown>, status = 200) =>
 const bytesToBase64Url = (value: Uint8Array) =>
   btoa(String.fromCharCode(...value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-Deno.serve(async (request: Request) => {
+serveWithCors(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
 

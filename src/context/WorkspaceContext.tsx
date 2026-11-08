@@ -38,6 +38,10 @@ interface WorkspaceContextType {
   isAuthLoading: boolean;
   requiresPasswordSetup: boolean;
   requiresOnboarding: boolean;
+  backendIssue: string;
+  reportBackendIssue: (message: string) => void;
+  dismissBackendIssue: () => void;
+  deferPasswordSetup: () => void;
   currentUser: User;
   workspaceSettings: WorkspaceSettings;
   users: User[];
@@ -193,7 +197,6 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
   if (segment === 'engineering') return 'engineering';
   if (segment === 'wildfire') return 'wildfire';
   if (segment === 'help') return 'customers';
-  if (segment === 'help') return 'customers';
   if (segment === 'insights') return 'insights';
   if (segment === 'programs') return 'programs';
   if (segment === 'messages') return 'messages';
@@ -202,6 +205,7 @@ const tabFromPath = (pathname: string): WorkspaceTab | null => {
   if (segment === 'email' || segment === 'inbox') return 'home';
   if (segment === 'admin') return 'settings';
   if (segment === 'systems') return 'systems';
+  if (segment === 'notifications') return 'home';
   if (segment === 'settings') return 'settings';
   if (segment === 'drive' || segment === 'docs' || segment === 'slides' || segment === 'sheets') return 'home';
   if (segment === 'forms') return 'company';
@@ -225,6 +229,38 @@ const pathForTab = (tab: WorkspaceTab) => ({
   systems: '/systems',
 }[tab]);
 
+const ONBOARDED_KEY = 'flown-onboarding-complete:';
+const PASSWORD_SET_KEY = 'flown-password-set:';
+const PASSWORD_DEFERRED_KEY = 'flown-password-deferred:';
+type AuthUserFlags = { id: string; app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> };
+const readFlag = (storage: Storage | undefined, key: string) => {
+  try { return storage?.getItem(key) === '1'; } catch { return false; }
+};
+const writeFlag = (storage: Storage | undefined, key: string) => {
+  try { storage?.setItem(key, '1'); } catch { /* storage unavailable */ }
+};
+const browserStorage = (kind: 'local' | 'session') => (typeof window === 'undefined' ? undefined : kind === 'local' ? window.localStorage : window.sessionStorage);
+// Server metadata is authoritative; the local flags stop the modals from respawning when the server write lags or fails.
+const needsOnboarding = (user: AuthUserFlags) =>
+  user.user_metadata?.onboarding_completed !== true && !readFlag(browserStorage('local'), `${ONBOARDED_KEY}${user.id}`);
+const needsPasswordSetup = (user: AuthUserFlags) =>
+  user.app_metadata?.password_reset_required === true
+  && !readFlag(browserStorage('local'), `${PASSWORD_SET_KEY}${user.id}`)
+  && !readFlag(browserStorage('session'), `${PASSWORD_DEFERRED_KEY}${user.id}`);
+
+const formatRelativeNotificationTime = (iso: string) => {
+  const time = new Date(iso).getTime();
+  if (Number.isNaN(time)) return '';
+  const minutes = Math.round((Date.now() - time) / 60_000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
 const getFunctionError = async (error: unknown): Promise<Error> => {
   if (error instanceof Error && 'context' in error && error.context instanceof Response) {
     const responseBody: unknown = await error.context.clone().json().catch(() => null);
@@ -233,7 +269,11 @@ const getFunctionError = async (error: unknown): Promise<Error> => {
       return new Error(responseBody.error);
     }
   }
-  return error instanceof Error ? error : new Error('The Supabase function request failed.');
+  const message = error instanceof Error ? error.message : '';
+  if (/failed to (fetch|send a request)|networkerror|load failed/i.test(message)) {
+    return new Error('Flown Ops could not reach its server. Check your connection and try again; if it keeps happening, the server functions may need redeploying.');
+  }
+  return error instanceof Error ? error : new Error('The server request failed.');
 };
 
 const PRESENCE_TIMEOUT_MS = 4 * 60 * 1000;
@@ -316,8 +356,9 @@ const mapSupabaseProfile = (row: Record<string, any>, currentUserId: string): Us
     id: row.id,
     name: row.name || row.email,
     email: row.email,
-    role: row.role || '',
-    department: row.department || '',
+    // Flown Ops uses only two roles; job titles and departments are retired.
+    role: row.system_role === 'admin' || row.system_role === 'coordinator' ? 'Admin' : 'Member',
+    department: '',
     phone: row.phone || '',
     avatar: row.avatar_url || '',
     ...derivePresence(row),
@@ -539,6 +580,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [requiresPasswordSetup, setRequiresPasswordSetup] = useState(false);
   const [requiresOnboarding, setRequiresOnboarding] = useState(false);
+  const [backendIssue, setBackendIssue] = useState('');
+  const reportBackendIssue = (message: string) => setBackendIssue(message);
 
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(false);
 
@@ -662,6 +705,66 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       setSystemActivityLogs((previous) => [logEntry, ...previous].slice(0, 500));
     }
   };
+
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser.id) return;
+    let active = true;
+    type NotificationRow = {
+      id: string; type: string; title: string; body: string | null; link_tab: string | null;
+      link_path: string | null; target_id: string | null; read_at: string | null; created_at: string;
+    };
+    const linkTabs = ['messages', 'channels', 'calendar', 'programs'] as const;
+    const toItem = (row: NotificationRow): NotificationItem => ({
+      id: row.id,
+      type: (['message', 'mention', 'calendar', 'announcement', 'task', 'system'].includes(row.type) ? row.type : 'system') as NotificationItem['type'],
+      title: row.title,
+      description: row.body || '',
+      timestamp: formatRelativeNotificationTime(row.created_at),
+      createdAt: row.created_at,
+      isRead: Boolean(row.read_at),
+      linkTab: (linkTabs as readonly string[]).includes(row.link_tab || '') ? row.link_tab as NotificationItem['linkTab'] : 'messages',
+      linkPath: row.link_path || undefined,
+      targetId: row.target_id || undefined,
+      persisted: true,
+    });
+
+    void supabase
+      .from('user_notifications')
+      .select('id,type,title,body,link_tab,link_path,target_id,read_at,created_at')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(100)
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          console.error('Unable to load notifications:', error);
+          return;
+        }
+        const loaded = (data as NotificationRow[] || []).map(toItem);
+        setNotifications((previous) => [
+          ...loaded,
+          ...previous.filter((n) => !n.persisted && !loaded.some((item) => item.id === n.id)),
+        ]);
+      });
+
+    const channel = supabase
+      .channel(`user-notifications-${currentUser.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${currentUser.id}` }, (payload) => {
+        const item = toItem(payload.new as NotificationRow);
+        setNotifications((previous) => previous.some((n) => n.id === item.id) ? previous : [item, ...previous]);
+        sounds.playNotification();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${currentUser.id}` }, (payload) => {
+        const item = toItem(payload.new as NotificationRow);
+        setNotifications((previous) => previous.map((n) => n.id === item.id ? item : n));
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [currentUser.id, isAuthenticated]);
 
   useEffect(() => {
     if (!currentUser.id) return;
@@ -904,8 +1007,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           if (workspaceData.calendarEvents) setCalendarEvents(workspaceData.calendarEvents);
           setConversations(workspaceData.conversations.map((conversation) => hydrateConversation(conversation, profileData.currentUser.id, profileData.users)));
           setIsAuthenticated(true);
-          setRequiresPasswordSetup(session.user.app_metadata?.password_reset_required === true);
-          setRequiresOnboarding(session.user.user_metadata?.onboarding_completed !== true);
+          setRequiresPasswordSetup(needsPasswordSetup(session.user));
+          setRequiresOnboarding(needsOnboarding(session.user));
         }
       } catch (error) {
         console.error('Unable to load Supabase workspace data:', error);
@@ -974,8 +1077,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       setConversations(workspaceData.conversations.map((conversation) => hydrateConversation(conversation, profileData.currentUser.id, profileData.users)));
       resetAppAccessCache();
       setIsAuthenticated(true);
-      setRequiresPasswordSetup(data.user.app_metadata?.password_reset_required === true);
-      setRequiresOnboarding(data.user.user_metadata?.onboarding_completed !== true);
+      setRequiresPasswordSetup(needsPasswordSetup(data.user));
+      setRequiresOnboarding(needsOnboarding(data.user));
       await recordSystemActivity({
         eventType: 'user_signed_in',
         summary: 'Signed in to the workspace.',
@@ -1036,24 +1139,19 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     const url = new URL(window.location.href);
     url.searchParams.delete('invite');
     window.history.replaceState({}, '', url);
+    writeFlag(browserStorage('local'), `${PASSWORD_SET_KEY}${currentUser.id}`);
+    setRequiresPasswordSetup(false);
 
     const { error: resetFlagError } = await supabase.functions.invoke('admin-manage-user', {
       body: { action: 'complete-password-reset' },
     });
     if (resetFlagError) {
       const functionError = await getFunctionError(resetFlagError);
-      return { success: false, message: `Password updated, but the temporary-password requirement could not be cleared: ${functionError.message}` };
+      reportBackendIssue(`Your password was saved, but the server could not clear the temporary-password flag (${functionError.message}).`);
+    } else {
+      await supabase.auth.refreshSession().catch(() => undefined);
     }
 
-    const { data: refreshedSession, error: refreshError } = await supabase.auth.refreshSession();
-    if (refreshError) {
-      return { success: false, message: `Password was updated, but the sign-in session could not be refreshed: ${refreshError.message}` };
-    }
-    if (refreshedSession.user?.app_metadata?.password_reset_required === true) {
-      return { success: false, message: 'Password was updated, but the temporary-password flag is still active. Please try again.' };
-    }
-
-    setRequiresPasswordSetup(false);
     await recordSystemActivity({
       eventType: 'password_changed',
       summary: 'Changed their sign-in password.',
@@ -1064,17 +1162,23 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     return { success: true };
   };
 
+  const deferPasswordSetup = () => {
+    writeFlag(browserStorage('session'), `${PASSWORD_DEFERRED_KEY}${currentUser.id}`);
+    setRequiresPasswordSetup(false);
+  };
+
   const completeOnboarding = async () => {
-    const { error } = await supabase.functions.invoke('admin-manage-user', {
+    writeFlag(browserStorage('local'), `${ONBOARDED_KEY}${currentUser.id}`);
+    setRequiresOnboarding(false);
+
+    const { error: metadataError } = await supabase.auth.updateUser({ data: { onboarding_completed: true } });
+    const { error: functionError } = await supabase.functions.invoke('admin-manage-user', {
       body: { action: 'complete-onboarding' },
     });
-    if (error) throw await getFunctionError(error);
-    const { data, error: refreshError } = await supabase.auth.refreshSession();
-    if (refreshError) throw refreshError;
-    if (data.user?.user_metadata?.onboarding_completed !== true) {
-      throw new Error('Your profile was saved, but onboarding status could not be confirmed. Please try again.');
+    if (metadataError && functionError) {
+      const detail = (await getFunctionError(functionError)).message;
+      reportBackendIssue(`Your profile was saved, but onboarding status could not be stored on the server (${detail}). It is remembered on this device.`);
     }
-    setRequiresOnboarding(false);
     await recordSystemActivity({
       eventType: 'onboarding_completed',
       summary: 'Completed first-time profile setup and workspace tour.',
@@ -1457,13 +1561,23 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const unreadNotificationCount = visibleNotifications.filter((n) => !n.isRead).length;
 
   const markNotificationRead = (id: string) => {
+    const target = notifications.find((n) => n.id === id);
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
     );
+    if (target?.persisted && !target.isRead) {
+      void supabase.from('user_notifications').update({ read_at: new Date().toISOString() }).eq('id', id)
+        .then(({ error }) => { if (error) console.error('Unable to mark notification read:', error); });
+    }
   };
 
   const markAllNotificationsRead = () => {
+    const unreadIds = notifications.filter((n) => n.persisted && !n.isRead).map((n) => n.id);
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    if (unreadIds.length) {
+      void supabase.from('user_notifications').update({ read_at: new Date().toISOString() }).in('id', unreadIds)
+        .then(({ error }) => { if (error) console.error('Unable to mark notifications read:', error); });
+    }
   };
   const addNotification = (notification: Omit<NotificationItem, 'id' | 'timestamp' | 'isRead'>) => {
     setNotifications((previous) => [{
@@ -1565,25 +1679,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       );
     }
 
-    if (text.includes('@everyone') || text.includes('@channel')) {
-      setTimeout(() => {
-        sounds.playNotification();
-        setNotifications((prev) => [
-          {
-            id: `notif-${Date.now()}`,
-            type: 'mention',
-            title: `Mention in ${activeTab === 'channels' ? '#' + (channels.find((c) => c.id === targetId)?.name || 'channel') : 'group'}`,
-            description: `${currentUser.name} pinged the channel`,
-            timestamp: 'Just now',
-            isRead: false,
-            linkTab: activeTab === 'channels' ? 'channels' : 'messages',
-            targetId,
-          },
-          ...prev,
-        ]);
-      }, 500);
-    }
-
     try {
       const persistedAttachments = await persistAttachments(targetId, newMsg.id, attachments);
       setMessages((previous) => ({
@@ -1616,7 +1711,9 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       }));
       void recordSystemActivity({
         eventType: poll ? 'poll_created' : 'message_sent',
-        summary: `${poll ? 'Created a poll' : 'Sent a message'} in ${isChannelMessage ? `#${messageTarget?.name || 'channel'}` : messageTarget?.name || 'a conversation'}.`,
+        summary: isChannelMessage
+          ? `${poll ? 'Created a poll' : 'Sent a message'} in #${messageTarget?.name || 'channel'}.`
+          : `${poll ? 'Sent a poll' : 'Sent a message'} to ${messageTarget?.name || 'a conversation'}.`,
         targetType: isChannelMessage ? 'channel' : 'conversation',
         targetId,
         targetName: messageTarget?.name || 'Conversation',
@@ -1839,7 +1936,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       }));
       void recordSystemActivity({
         eventType: 'thread_reply_sent',
-        summary: `Replied in a thread in ${activeTab === 'channels' ? `#${threadTarget?.name || 'channel'}` : threadTarget?.name || 'a conversation'}.`,
+        summary: activeTab === 'channels' ? `Replied in a thread in #${threadTarget?.name || 'channel'}.` : `Replied in a thread with ${threadTarget?.name || 'a conversation'}.`,
         targetType: activeTab === 'channels' ? 'channel' : 'conversation',
         targetId,
         targetName: threadTarget?.name || 'Conversation',
@@ -2248,21 +2345,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     setCalendarEvents((prev) => [...created, ...prev]);
     sounds.playNotification();
-    if (event.scope === 'team') {
-      setNotifications((prev) => [
-        {
-          id: `notif-team-${stamp}`,
-          type: 'calendar',
-          title: `New event: ${event.title}`,
-          description: `${currentUser.name} scheduled an event on ${event.date} at ${event.startTime}`,
-          timestamp: 'Just now',
-          isRead: false,
-          linkTab: 'calendar',
-          targetId: created[0].id,
-        },
-        ...prev,
-      ]);
-    }
     void recordSystemActivity({
       eventType: 'calendar_event_created',
       summary: event.scope === 'team' ? `Scheduled a shared calendar event: ${event.title}.` : 'Added a personal calendar event.',
@@ -2549,6 +2631,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         isAuthLoading,
         requiresPasswordSetup,
         requiresOnboarding,
+        backendIssue,
+        reportBackendIssue,
+        dismissBackendIssue: () => setBackendIssue(''),
+        deferPasswordSetup,
         currentUser,
         workspaceSettings,
         users,

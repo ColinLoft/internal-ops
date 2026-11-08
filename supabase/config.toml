@@ -1,0 +1,62 @@
+# Every Edge Function authenticates its caller (or validates a capability token / shared secret)
+# itself, so the gateway JWT check is disabled. The gateway check rejected browser CORS preflights.
+
+[functions.admin-manage-user]
+verify_jwt = false
+
+[functions.create-contract-signature-link]
+verify_jwt = false
+
+[functions.grant-ai]
+verify_jwt = false
+
+[functions.invite-user]
+verify_jwt = false
+
+[functions.livekit-token]
+verify_jwt = false
+
+[functions.mail-admin]
+verify_jwt = false
+
+[functions.mail-ai]
+verify_jwt = false
+
+[functions.mail-api]
+verify_jwt = false
+
+[functions.mail-connect]
+verify_jwt = false
+
+[functions.mail-maintenance]
+verify_jwt = false
+
+[functions.mail-sync]
+verify_jwt = false
+
+[functions.mail-webhook]
+verify_jwt = false
+
+[functions.sign-contract-public]
+verify_jwt = false
+
+[functions.sign-organization-document]
+verify_jwt = false
+
+[functions.support-ai]
+verify_jwt = false
+
+[functions.support-public]
+verify_jwt = false
+
+[functions.systems-monitor]
+verify_jwt = false
+
+[functions.wildfire-prospect-ai]
+verify_jwt = false
+
+[functions.wildfire-quotes]
+verify_jwt = false
+
+[functions.workspace-ai]
+verify_jwt = false

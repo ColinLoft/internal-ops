@@ -17,13 +17,11 @@ import {
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { PROFILE_BANNERS, SystemActivityLog, User, UserRole } from '../../types';
 import { EmailAdminPanel } from './EmailAdminPanel';
-import { RolesAccessPanel } from './RolesAccessPanel';
-import { DepartmentsPositionsPanel } from './DepartmentsPositionsPanel';
 import { useConfirm } from '../common/useConfirm';
 
 const roleLabels: Record<UserRole, string> = {
   admin: 'Admin',
-  coordinator: 'Coordinator',
+  coordinator: 'Admin',
   member: 'Member',
 };
 
@@ -63,7 +61,7 @@ export const AdminPage: React.FC = () => {
     const normalizedQuery = query.trim().toLowerCase();
     return [...users]
       .filter((user) => user.accountStatus !== 'removed')
-      .filter((user) => !normalizedQuery || `${user.name} ${user.email} ${user.role} ${user.department} ${roleLabels[user.systemRole]}`
+      .filter((user) => !normalizedQuery || `${user.name} ${user.email} ${roleLabels[user.systemRole]}`
         .toLowerCase()
         .includes(normalizedQuery))
       .sort((left, right) => left.name.localeCompare(right.name));
@@ -141,8 +139,8 @@ export const AdminPage: React.FC = () => {
     try {
       await updateStaffUser(editingUser.id, {
         name: String(formData.get('name')).trim(),
-        role: String(formData.get('role')).trim(),
-        department: String(formData.get('department')).trim(),
+        role: editingUser.role,
+        department: '',
         phone: String(formData.get('phone')).trim(),
         avatar: String(formData.get('avatar')).trim(),
         bio: String(formData.get('bio')).trim(),
@@ -202,8 +200,9 @@ export const AdminPage: React.FC = () => {
         </header>
 
         {error && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
+          <div role="alert" className="flex items-start justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <span>{error}</span>
+            <button type="button" onClick={() => setError('')} aria-label="Dismiss error" className="shrink-0 rounded p-0.5 hover:bg-rose-100"><X className="h-4 w-4" /></button>
           </div>
         )}
 
@@ -242,7 +241,6 @@ export const AdminPage: React.FC = () => {
                       }`}>{user.accountStatus === 'suspended' ? 'Suspended' : roleLabels[user.systemRole]}</span>
                     </div>
                     <p className="truncate text-xs text-slate-500">{user.email}</p>
-                    <p className="truncate text-xs text-slate-400">{user.role} · {user.department}</p>
                     {user.accountStatus === 'suspended' && (
                       <p className="mt-1 text-xs font-medium text-brand-700">
                         {user.suspendedUntil
@@ -318,10 +316,6 @@ export const AdminPage: React.FC = () => {
             </div>
           </section>
 
-          <RolesAccessPanel />
-
-          <DepartmentsPositionsPanel />
-
           <EmailAdminPanel />
 
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -374,7 +368,7 @@ export const AdminPage: React.FC = () => {
             </div>
             {(activityError || systemActivityLogError) && (
               <p role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-xs text-rose-700">
-                Could not load or save persistent activity logs. Apply the system activity log migration in Supabase, then refresh. {activityError || systemActivityLogError}
+                Activity history is unavailable right now. Refresh the page to try again.
               </p>
             )}
             <div className="max-h-[34rem] divide-y divide-slate-100 overflow-y-auto">
@@ -407,13 +401,10 @@ export const AdminPage: React.FC = () => {
             </div>
             <div className="grid gap-4 p-5 sm:grid-cols-2">
               <Field label="Name" name="name" defaultValue={editingUser.name} required />
-              <Field label="Job title" name="role" defaultValue={editingUser.role} />
-              <Field label="Department" name="department" defaultValue={editingUser.department} />
               <Field label="Phone" name="phone" defaultValue={editingUser.phone} />
               <Field label="Avatar URL" name="avatar" defaultValue={editingUser.avatar} />
-              <SelectField label="Workspace role" name="systemRole" defaultValue={editingUser.systemRole} options={[
+              <SelectField label="Workspace role" name="systemRole" defaultValue={editingUser.systemRole === 'coordinator' ? 'admin' : editingUser.systemRole} options={[
                 ['member', 'Member'],
-                ['coordinator', 'Coordinator'],
                 ['admin', 'Admin'],
               ]} />
               <Field label="Location" name="location" defaultValue={editingUser.location || ''} />
@@ -477,27 +468,35 @@ export const AdminPage: React.FC = () => {
   );
 };
 
-const ActivityRow: React.FC<{ entry: SystemActivityLog }> = ({ entry }) => (
-  <article className="flex flex-col gap-1.5 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
-    <div className="min-w-0">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-brand-700">
-          {entry.event_type.replace(/_/g, ' ')}
-        </span>
-        <span className="text-xs font-semibold text-slate-700">{entry.actor_name}</span>
-        {entry.target_name && (
-          <span className="text-xs text-slate-500">
-            {entry.target_type === 'user' ? `→ ${entry.target_name}` : `· ${entry.target_name}`}
+const activityLabel = (eventType: string) => {
+  const text = eventType.replace(/_/g, ' ').trim();
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
+
+const ActivityRow: React.FC<{ entry: SystemActivityLog }> = ({ entry }) => {
+  const showTarget = entry.target_name && !(entry.target_type === 'user' && entry.target_id && entry.target_id === entry.actor_id);
+  return (
+    <article className="flex flex-col gap-1.5 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700">
+            {activityLabel(entry.event_type)}
           </span>
-        )}
+          <span className="text-xs font-semibold text-slate-700">{entry.actor_name}</span>
+          {showTarget && (
+            <span className="min-w-0 break-words text-xs text-slate-500">
+              {entry.target_type === 'user' ? `to ${entry.target_name}` : `· ${entry.target_name}`}
+            </span>
+          )}
+        </div>
+        <p className="mt-1 break-words text-sm text-slate-700">{entry.summary}</p>
       </div>
-      <p className="mt-1 text-sm text-slate-700">{entry.summary}</p>
-    </div>
-    <time dateTime={entry.created_at} className="shrink-0 text-xs text-slate-400">
-      {new Date(entry.created_at).toLocaleString()}
-    </time>
-  </article>
-);
+      <time dateTime={entry.created_at} className="shrink-0 text-xs text-slate-400">
+        {new Date(entry.created_at).toLocaleString()}
+      </time>
+    </article>
+  );
+};
 
 const Field: React.FC<{
   label: string;

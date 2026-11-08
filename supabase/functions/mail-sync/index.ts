@@ -1,7 +1,8 @@
+import { serveWithCors } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { clientsFor, emailCorsHeaders, hasMailboxAccess, jsonResponse, recordEmailActivity, syncMailbox, timingSafeEqual } from '../_shared/email.ts';
 
-Deno.serve(async (request: Request) => {
+serveWithCors(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: emailCorsHeaders });
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405);
 

@@ -1,3 +1,4 @@
+import { serveWithCors } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { probeEndpoint } from './probe.ts';
 
@@ -18,7 +19,7 @@ const secretEquals = async (a: string, b: string) => {
   return difference === 0;
 };
 
-Deno.serve(async request => {
+serveWithCors(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers });
   if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
   try {

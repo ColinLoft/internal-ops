@@ -76,7 +76,7 @@ export const ChatFeed: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       atBottomRef.current = area.scrollHeight - area.scrollTop - area.clientHeight < 80;
       if (atBottomRef.current) setShowLatest(false);
     }}>
-      {!currentMessages.length ? <div className="px-5 py-8"><h2 className="text-base font-semibold text-slate-900">{`Start the conversation${isChannel ? ` in ${title}` : ''}`}</h2><p className="mt-2 text-sm text-slate-500">{channel?.description || 'Send a message, share a file, or start a call.'}</p></div>
+      {!currentMessages.length ? <div className="px-5 py-8"><h2 className="text-base font-semibold text-slate-900">{`Start the conversation${isChannel ? ` in ${title}` : ''}`}</h2><p className="mt-2 text-sm text-slate-500">{(isChannel ? channel?.description : undefined) || 'Send a message, share a file, or start a call.'}</p></div>
         : currentMessages.map((message, index) => {
           const day = messageDay(message);
           const previous = currentMessages[index - 1];

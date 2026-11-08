@@ -164,7 +164,7 @@ export const UpcomingDates: React.FC<{ grants: Grant[] }> = ({ grants }) => {
     void supabase.from('grant_prospects').select('name,deadline,status').in('status', ['new', 'reviewing', 'pursuing']).not('deadline', 'is', null).then(({ data }) => setProspects(data || []));
   }, []);
   const items: { date: string; label: string; kind: string; path: string }[] = [];
-  prospects.forEach((row) => row.deadline && items.push({ date: row.deadline, label: row.name, kind: 'Application deadline', path: '/company/prospects' }));
+  prospects.forEach((row) => row.deadline && items.push({ date: row.deadline, label: row.name, kind: 'Application deadline', path: '/company/find-grants' }));
   reports.forEach((row) => row.due_date && items.push({ date: row.due_date, label: `${row.title} — ${grants.find((g) => g.id === row.grant_id)?.name || ''}`, kind: 'Report due', path: `/company/grants/${row.grant_id}` }));
   grants.forEach((g) => {
     if (g.decision_due_at && g.stage === 'applied') items.push({ date: g.decision_due_at, label: g.name, kind: 'Decision expected', path: `/company/grants/${g.id}` });

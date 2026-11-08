@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, Clock3, Eye, EyeOff, Gr
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { EmptyState, ProvenanceBadge, Skeleton } from '../common/Feedback';
+import { parseTaskDate } from '../programs/taskFields';
 
 type MyTask = { id: string; title: string; status: string; priority: string; due_date: string | null; source: 'program' | 'operations' };
 type Activity = { id: string; entity_type: string; entity_id: string; action: string; detail: string | null; created_by: string | null; created_at: string };
@@ -149,7 +150,7 @@ export const HomePage: React.FC = () => {
           <span className={`h-4 w-[3px] shrink-0 rounded-full ${priorityBar[task.priority] || 'bg-slate-200'}`} title={`${task.priority} priority`} />
           <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">{task.title}</span>
           <span className={`shrink-0 rounded px-1.5 py-px text-[10px] font-semibold capitalize ${statusPill[task.status] || statusPill.not_started}`}>{task.status.replace(/_/g, ' ')}</span>
-          <span className={`w-12 shrink-0 text-right text-[11px] tabular-nums ${task.due_date && task.due_date < today ? 'font-semibold text-rose-600' : 'text-slate-500'}`}>{task.due_date ? new Date(`${task.due_date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}</span>
+          <span className={`w-12 shrink-0 text-right text-[11px] tabular-nums ${task.due_date && task.due_date < today ? 'font-semibold text-rose-600' : 'text-slate-500'}`}>{parseTaskDate(task.due_date)?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) || '—'}</span>
         </button>
       )) : <EmptyState icon={Target} text="No tasks are assigned to you." action="Open tasks" onClick={goTasks} />;
       case 'events': return upcoming.length ? upcoming.slice(0, 4).map((event) => (
@@ -161,7 +162,7 @@ export const HomePage: React.FC = () => {
       case 'deadlines': return allDeadlines.length ? allDeadlines.map((item) => {
         const late = item.date < today;
         const soon = !late && item.date <= weekEnd;
-        const date = new Date(`${item.date}T12:00:00`);
+        const date = parseTaskDate(item.date) || new Date();
         return (
           <button key={item.id} type="button" onClick={() => setActiveTab(item.tab)} className={row}>
             <span className={`flex w-10 shrink-0 flex-col items-center rounded-md py-0.5 text-[9px] font-bold uppercase leading-tight ${late ? 'bg-rose-50 text-rose-600' : soon ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'}`}><span className="text-sm leading-none">{date.getDate()}</span>{date.toLocaleDateString(undefined, { month: 'short' })}</span>

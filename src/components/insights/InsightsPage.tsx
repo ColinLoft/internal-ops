@@ -14,6 +14,7 @@ type Row = {
   amount_requested?: number | string | null;
   amount_awarded?: number | string | null;
   last_seen_at?: string | null;
+  account_status?: string | null;
   [key: string]: unknown;
 };
 type Metric = { area: string; label: string; value: number | string; detail?: string; sources: string[] };
@@ -38,7 +39,7 @@ const sources: Record<string, Source> = {
   messages: { table: 'messages', columns: 'id,created_at' },
   events: { table: 'calendar_events', columns: 'id,created_at' },
   audit: { table: 'system_activity_logs', columns: 'id,event_type,created_at' },
-  profiles: { table: 'profiles', columns: 'id,department,last_seen_at' },
+  profiles: { table: 'profiles', columns: 'id,department,last_seen_at,account_status' },
 };
 
 async function loadRows(table: string, columns: string): Promise<Row[]> {
@@ -87,7 +88,9 @@ export const InsightsPage: React.FC = () => {
     const totalTasks = rows('tasks').length;
     const awardedStages = grantStage(['awarded', 'reporting', 'closed']);
     const decidedStages = grantStage(['awarded', 'reporting', 'closed', 'declined']);
-    const online = rows('profiles').filter((profile) => profile.last_seen_at && Date.now() - new Date(profile.last_seen_at).getTime() < 4 * 60000).length;
+    const staff = rows('profiles').filter((profile) => (profile.account_status ?? 'active') === 'active');
+    const declined = grantStage(['declined']).length;
+    const online = staff.filter((profile) => profile.last_seen_at && Date.now() - new Date(profile.last_seen_at).getTime() < 4 * 60000).length;
     return [
       { area: 'Work', label: 'Engineering projects', value: rows('projects').length, detail: `${rows('projects').filter((project) => project.status === 'active').length} active`, sources: ['projects'] },
       { area: 'Work', label: 'Projects past target date', value: rows('projects').filter((project) => project.target_date && String(project.target_date) < today && !['completed', 'archived'].includes(String(project.status))).length, sources: ['projects'] },
@@ -98,7 +101,7 @@ export const InsightsPage: React.FC = () => {
       { area: 'Grants', label: 'Grants tracked', value: grants.length, detail: `${rows('prospects').length} possible grants researched`, sources: ['grants', 'prospects'] },
       { area: 'Grants', label: 'Pending decisions', value: money(sumOf(grantStage(['applied', 'under_review']), 'amount_requested')), detail: `${grantStage(['applied', 'under_review']).length} applications`, sources: ['grants'] },
       { area: 'Grants', label: 'Awarded', value: money(sumOf(awardedStages, 'amount_awarded')), detail: `${awardedStages.length} grants`, sources: ['grants'] },
-      { area: 'Grants', label: 'Win rate', value: decidedStages.length ? `${percentage(awardedStages.length, decidedStages.length)}%` : '—', detail: `${grantStage(['declined']).length} declined`, sources: ['grants'] },
+      { area: 'Grants', label: 'Win rate', value: decidedStages.length && declined ? `${percentage(awardedStages.length, decidedStages.length)}%` : 'N/A', detail: declined ? `${declined} declined` : `${awardedStages.length} awarded, no declines recorded`, sources: ['grants'] },
       { area: 'Customers', label: 'Contacts added', value: rows('contacts').length, sources: ['contacts'] },
       { area: 'Customers', label: 'Organizations added', value: rows('orgs').length, sources: ['orgs'] },
       { area: 'Customers', label: 'Interactions logged', value: rows('interactions').length, sources: ['interactions'] },
@@ -111,7 +114,7 @@ export const InsightsPage: React.FC = () => {
       { area: 'Activity', label: 'Messages sent', value: rows('messages').length, sources: ['messages'] },
       { area: 'Activity', label: 'Calendar events created', value: rows('events').length, sources: ['events'] },
       { area: 'Activity', label: 'Audit log events', value: rows('audit').length, sources: ['audit'] },
-      { area: 'People', label: 'Staff', value: rows('profiles').length, detail: `${online} online now`, sources: ['profiles'] },
+      { area: 'People', label: 'Staff', value: staff.length, detail: `${online} online now`, sources: ['profiles'] },
     ];
   }, [data]);
 

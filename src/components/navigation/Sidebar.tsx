@@ -19,7 +19,7 @@ const overviewItems: NavItem[] = [
   { id: 'programs', label: 'Tasks', icon: FolderKanban },
   { id: 'calendar', label: 'Calendar', icon: CalendarIcon },
   { id: 'insights', label: 'Insights', icon: Lightbulb },
-  { id: 'systems', label: 'Systems', icon: Network },
+  { id: 'systems', label: 'Flown Systems', icon: Network },
 ];
 const appDropdowns: NavItem[] = [
   { id: 'engineering', label: 'Products', icon: Code2 },
@@ -144,15 +144,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenMo
 
       <div className="px-3 pb-2"><GlobalSearch onRequestOpen={openForSearch} /></div>
 
-      <nav className="flex-1 overflow-y-auto px-2.5 py-1 [scrollbar-width:none]">
+      <nav className="flex-1 overflow-y-auto px-2.5 py-1 [scrollbar-color:rgba(255,255,255,0.18)_transparent] [scrollbar-width:thin]">
         {(() => {
           const rowClass = (active: boolean) => `group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-all duration-150 ${active ? 'bg-white/20 font-semibold text-white shadow-xs' : 'font-medium text-white/85 hover:bg-white/10 hover:text-white'}`;
           const bar = <span className="rail-active-bar absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-white" />;
           const section = (id: string, title: string, forceOpen: boolean, children: React.ReactNode) => {
             const open = forceOpen || openGroups[id] === true || (openGroups[id] === undefined && id === 'overview');
             return (
-              <div key={id} className="pb-1">
-                <button type="button" aria-expanded={open} onClick={() => setOpenGroups((current) => ({ ...current, [id]: !open }))} className="flex w-full items-center justify-between px-2.5 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wider text-white/70 hover:text-white transition-colors">
+              <div key={id} id={`rail-group-${id}`} className="pb-1">
+                <button type="button" aria-expanded={open} onClick={() => {
+                  setOpenGroups((current) => ({ ...current, [id]: !open }));
+                  // Bring a newly opened group's pages into view so they are not hidden below the fold.
+                  if (!open) window.requestAnimationFrame(() => document.getElementById(`rail-group-${id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+                }} className="flex w-full items-center justify-between px-2.5 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wider text-white/70 hover:text-white transition-colors">
                   {title}
                   <ChevronsUpDown className="h-3 w-3 opacity-75" />
                 </button>

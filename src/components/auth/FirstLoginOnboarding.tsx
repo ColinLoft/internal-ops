@@ -136,15 +136,11 @@ export const FirstLoginOnboarding: React.FC = () => {
   const [documentIndex, setDocumentIndex] = useState(0);
   const [tourIndex, setTourIndex] = useState(0);
   const [name, setName] = useState(currentUser.name);
-  const [role, setRole] = useState(currentUser.role === 'Staff Specialist' ? '' : currentUser.role);
-  const [department, setDepartment] = useState(currentUser.department === 'Operations' ? '' : currentUser.department);
   const [phone, setPhone] = useState(currentUser.phone);
   const [location, setLocation] = useState(currentUser.location || '');
   const [bio, setBio] = useState(currentUser.bio || '');
   const [avatar, setAvatar] = useState(currentUser.avatar);
   const [banner, setBanner] = useState<ProfileBanner>(currentUser.banner || 'ocean');
-  const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
-  const [roleOptions, setRoleOptions] = useState<{ title: string; department: string | null }[]>([]);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -203,27 +199,9 @@ export const FirstLoginOnboarding: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    let active = true;
-    void Promise.all([
-      supabase.from('organization_departments').select('name').order('name'),
-      supabase.from('organization_positions').select('title,department:organization_departments(name)').neq('status', 'archived').order('title'),
-    ]).then(([departments, positions]) => {
-      if (!active) return;
-      setDepartmentOptions(((departments.data || []) as { name: string }[]).map((item) => item.name));
-      setRoleOptions(((positions.data || []) as unknown as { title: string; department: { name: string } | { name: string }[] | null }[]).map((item) => ({
-        title: item.title,
-        department: (Array.isArray(item.department) ? item.department[0]?.name : item.department?.name) || null,
-      })));
-    });
-    return () => { active = false; };
-  }, []);
-
-  const visibleRoles = roleOptions.filter((option) => !department || !option.department || option.department === department);
-
   const saveProfileAndStartTour = async () => {
-    if (!name.trim() || !role.trim() || !department.trim() || !phone.trim() || !location.trim() || !avatar) {
-      setError('Please complete every profile field except the bio, including uploading a profile photo.');
+    if (!name.trim() || !avatar) {
+      setError('Add your name and a profile photo to continue.');
       return;
     }
     setSaving(true);
@@ -231,8 +209,8 @@ export const FirstLoginOnboarding: React.FC = () => {
     try {
       await saveCurrentProfile({
         name: name.trim(),
-        role: role.trim(),
-        department: department.trim(),
+        role: currentUser.role,
+        department: currentUser.department,
         phone: phone.trim(),
         location: location.trim(),
         bio: bio.trim(),
@@ -381,10 +359,8 @@ export const FirstLoginOnboarding: React.FC = () => {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <OnboardingField label="Full name" value={name} onChange={setName} required />
-                {departmentOptions.length ? <OnboardingSelect label="Department" value={department} options={departmentOptions} onChange={(value) => { setDepartment(value); if (role && !roleOptions.some((option) => option.title === role && (!option.department || option.department === value))) setRole(''); }} /> : <OnboardingField label="Department" value={department} onChange={setDepartment} required />}
-                {roleOptions.length ? <OnboardingSelect label="Role" value={role} options={Array.from(new Set(visibleRoles.map((option) => option.title)))} onChange={setRole} /> : <OnboardingField label="Job title" value={role} onChange={setRole} required />}
-                <OnboardingField label="Phone number" value={phone} onChange={setPhone} required />
-                <OnboardingField label="Location / office" value={location} onChange={setLocation} required />
+                <OnboardingField label="Phone number" value={phone} onChange={setPhone} />
+                <OnboardingField label="Location / office" value={location} onChange={setLocation} />
                 <label className="text-xs font-semibold text-slate-600">
                   Profile banner <span className="text-rose-500">*</span>
                   <CustomSelect
@@ -495,21 +471,6 @@ export const FirstLoginOnboarding: React.FC = () => {
   );
 };
 
-const OnboardingSelect: React.FC<{ label: string; value: string; options: string[]; onChange: (value: string) => void }> = ({ label, value, options, onChange }) => (
-  <label className="text-xs font-semibold text-slate-600">
-    {label} <span className="text-rose-500">*</span>
-    <CustomSelect
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      required
-      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base md:text-sm font-normal text-slate-800 outline-none focus:border-brand-500"
-    >
-      <option value="">Select {label.toLowerCase()}</option>
-      {Array.from(new Set([...options, ...(value ? [value] : [])])).map((option) => <option key={option} value={option}>{option}</option>)}
-    </CustomSelect>
-  </label>
-);
-
 const OnboardingField: React.FC<{
   label: string;
   value: string;
@@ -517,7 +478,7 @@ const OnboardingField: React.FC<{
   required?: boolean;
 }> = ({ label, value, onChange, required }) => (
   <label className="text-xs font-semibold text-slate-600">
-    {label}
+    {label} {required ? <span className="text-rose-500">*</span> : <span className="font-normal text-slate-400">(optional)</span>}
     <input
       value={value}
       onChange={(event) => onChange(event.target.value)}

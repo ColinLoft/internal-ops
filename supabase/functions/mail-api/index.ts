@@ -1,3 +1,4 @@
+import { serveWithCors } from '../_shared/cors.ts';
 import {
   bytesToBase64Url,
   clientsFor,
@@ -132,7 +133,7 @@ const getMessageAttachments = async (
   return results;
 };
 
-Deno.serve(async (request: Request) => {
+serveWithCors(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: emailCorsHeaders });
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405);
 

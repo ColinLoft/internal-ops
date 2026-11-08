@@ -1,5 +1,5 @@
 import {
-  CheckSquare, Headset, House, ContactRound, Building2, BookOpen, BarChart3, Users, ShieldCheck,
+  CheckSquare, Headset, House, ContactRound, Building2, BookOpen, BarChart3, ShieldCheck,
   Landmark, Target, FolderKanban, Code2, Cog, Cable, Network,
   FileText, MapPin, Package, ClipboardList, Truck, Siren,
   Calendar as CalendarIcon, Lightbulb, type LucideIcon,
@@ -35,7 +35,6 @@ export const getSectionTabs = (activeTab: string, _routePath: string): SectionTa
         tab('Executive Overview', 'Overview', House, '/insights'),
         tab('Projects & Tasks', 'Work', FolderKanban, '/insights/programs'),
         tab('Financial Reports', 'Financial', Landmark, '/insights/financial'),
-        tab('Departments', 'Depts', Users, '/insights/projects'),
         tab('Activity & Usage', 'Activity', BarChart3, '/insights/custom'),
       ];
     case 'customers':
@@ -50,9 +49,9 @@ export const getSectionTabs = (activeTab: string, _routePath: string): SectionTa
         tab('Ideas', 'Ideas', Lightbulb, '/company/ideas', ['/company']),
         tab('Forms', 'Forms', ClipboardList, '/company/forms'),
         tab('Grants', 'Grants', Landmark, '/company/grants', undefined, 'finance'),
-        tab('Find Grants', 'Find', Target, '/company/prospects', undefined, 'finance'),
+        tab('Find Grants', 'Find', Target, '/company/find-grants', ['/company/prospects'], 'finance'),
         tab('Grant Resources', 'Library', BookOpen, '/company/resources', undefined, 'finance'),
-        tab('Marketing', 'Marketing', CalendarIcon, '/company/calendar', undefined, 'gtm'),
+        tab('Marketing', 'Marketing', CalendarIcon, '/company/marketing', ['/company/calendar'], 'gtm'),
         tab('Website', 'Website', ShieldCheck, '/company/website', ['/company/policies'], 'legal'),
       ];
     case 'engineering':
@@ -60,7 +59,7 @@ export const getSectionTabs = (activeTab: string, _routePath: string): SectionTa
         tab('Software', 'Software', Code2, '/engineering/software'),
         tab('Mechanical', 'Mechanical', Cog, '/engineering/mechanical'),
         tab('Electrical', 'Electrical', Cable, '/engineering/electrical'),
-        tab('Systems', 'Systems', Network, '/engineering/systems'),
+        tab('Systems engineering', 'Sys eng', Network, '/engineering/systems'),
         tab('Review', 'Review', ShieldCheck, '/engineering/review'),
       ];
     case 'wildfire':

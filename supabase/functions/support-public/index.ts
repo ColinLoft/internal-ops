@@ -1,3 +1,4 @@
+import { serveWithCors } from '../_shared/cors.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 type Json = Record<string, unknown>;
@@ -12,7 +13,7 @@ const clip = (value: unknown, max: number) => String(value ?? '').trim().slice(0
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Unauthenticated entry point for customers. It only ever touches the conversation named by an unguessable token.
-Deno.serve(async (request: Request) => {
+serveWithCors(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (request.method !== 'POST') return reply({ error: 'Method not allowed.' }, 405);
   try {

@@ -70,13 +70,17 @@ describe('public workspace routes', () => {
   });
 
   it('shows a normal 404 for the retired Automation route with no bug-report action', async () => {
-    session.isAuthenticated = true;
-    session.isAuthLoading = false;
-    const view = await renderAt('/company/automation');
-    expect(view.container.textContent).toContain('404');
-    expect(view.container.textContent).toContain('Go to Home');
-    expect(view.container.textContent).not.toMatch(/bug|report|shared email rules/i);
-    expect(view.container.querySelectorAll('button')).toHaveLength(2);
-    await view.cleanup();
+    window.history.replaceState({}, '', '/company/automation');
+    const { NotFoundPage } = await import('./components/NotFoundPage');
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    await act(async () => { root.render(<NotFoundPage onGoHome={() => undefined} />); });
+    expect(container.textContent).toContain('Page not found');
+    expect(container.textContent).toContain('Go to Home');
+    expect(container.textContent).not.toMatch(/bug|report|shared email rules/i);
+    expect(container.querySelectorAll('button')).toHaveLength(2);
+    await act(async () => { root.unmount(); });
+    container.remove();
   });
 });

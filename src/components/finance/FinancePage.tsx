@@ -20,6 +20,7 @@ export const FinancePage: React.FC = () => {
   useEffect(() => { void supabase.rpc('grant_run_automations'); }, []);
   switch (route.view) {
     case 'grants': return route.id ? <GrantDetail key={route.id} grantId={route.id} /> : <GrantsPage />;
+    case 'find-grants':
     case 'prospects': return <ProspectsPage />;
     case 'resources': return <ResourcesPage />;
     default: return <GrantsPage />;

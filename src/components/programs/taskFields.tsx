@@ -4,9 +4,18 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 export const assignedIds = (task: { assigned_ids?: string[]; assignee_id: string | null }) =>
   task.assigned_ids ?? (task.assignee_id ? [task.assignee_id] : []);
 
-export const formatTaskDate = (value: string | null) => value
-  ? new Date(`${value}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  : 'No due date';
+// Accepts date-only values ("2026-11-12") and full timestamps; returns null for anything unparseable.
+export const parseTaskDate = (value: string | null | undefined): Date | null => {
+  if (!value) return null;
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  const date = dateOnly ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]), 12) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+export const formatTaskDate = (value: string | null | undefined) => {
+  const date = parseTaskDate(value);
+  return date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date';
+};
 
 export const plainTaskNotes = (value: string | null | undefined) => {
   if (!value || !/<\/?[a-z][^>]*>/i.test(value)) return value || '';

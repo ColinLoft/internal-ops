@@ -29,6 +29,7 @@ import { CustomerPage } from './components/customers/CustomerPage';
 import { CompanyPage } from './components/company/CompanyPage';
 import { HomePage } from './components/home/HomePage';
 import { NotFoundPage } from './components/NotFoundPage';
+import { NotificationsPage } from './components/notifications/NotificationsPage';
 import { InsightsPage } from './components/insights/InsightsPage';
 import { ProgramsPage } from './components/programs/ProgramsPage';
 import { EngineeringPage } from './components/engineering/EngineeringPage';
@@ -37,6 +38,7 @@ import { WildfirePage } from './components/wildfire/WildfirePage';
 import { SystemsPage } from './components/systems';
 import { isKnownWorkspacePath } from './lib/workspaceRoutes';
 import { MotionEffects } from './components/common/MotionEffects';
+import { BackendStatusBanner } from './components/common/BackendStatusBanner';
 
 const PublicChatPage = lazy(async () => ({
   default: (await import('./components/support/PublicChatPage')).PublicChatPage,
@@ -131,16 +133,8 @@ const WorkspaceShell: React.FC = () => {
     return <AuthScreen />;
   }
 
-  if (!isKnownWorkspacePath(routePath) && !isRetiredWorkspacePath(routePath)) {
-    return (
-        <NotFoundPage
-          onGoHome={() => {
-            window.history.pushState({}, '', '/home');
-            window.dispatchEvent(new PopStateEvent('popstate'));
-          }}
-        />
-    );
-  }
+  const isUnknownPath = !isKnownWorkspacePath(routePath) && !isRetiredWorkspacePath(routePath);
+  const isNotificationsPath = /^\/notifications\/?$/.test(routePath);
 
   return (
     <div className="flex h-dvh min-h-dvh w-screen overflow-hidden bg-black">
@@ -158,8 +152,16 @@ const WorkspaceShell: React.FC = () => {
       <div className="mb-[calc(3.5rem+env(safe-area-inset-bottom))] flex min-w-0 flex-1 flex-col overflow-hidden md:mb-0">
         {/* Workspace Body */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-black">
+          <BackendStatusBanner />
           <div data-workspace-content className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
-          {isRetiredWorkspacePath(routePath) ? <RetiredWorkspacePage /> : <>
+          {isUnknownPath ? (
+            <NotFoundPage
+              onGoHome={() => {
+                window.history.pushState({}, '', '/home');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }}
+            />
+          ) : isNotificationsPath ? <NotificationsPage /> : isRetiredWorkspacePath(routePath) ? <RetiredWorkspacePage /> : <>
           {activeTab === 'home' && <HomePage />}
           {activeTab === 'customers' && <AccessGate app="customers" name="Customers"><CustomerPage /></AccessGate>}
           {activeTab === 'company' && <CompanyPage />}

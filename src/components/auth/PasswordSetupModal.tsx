@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { KeyRound, Lock, ShieldCheck } from 'lucide-react';
+import { KeyRound, Lock, ShieldCheck, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
 export const PasswordSetupModal: React.FC = () => {
-  const { setPassword } = useWorkspace();
+  const { setPassword, deferPasswordSetup } = useWorkspace();
   const [password, setPasswordValue] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -34,12 +34,15 @@ export const PasswordSetupModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+      <form onSubmit={handleSubmit} aria-labelledby="password-setup-title" className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+        <button type="button" onClick={deferPasswordSetup} aria-label="Close and set password later" className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+          <X className="h-4 w-4" />
+        </button>
         <div className="text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
             <KeyRound className="h-6 w-6" />
           </div>
-          <h2 className="text-lg font-bold text-slate-900">Set your password</h2>
+          <h2 id="password-setup-title" className="text-lg font-bold text-slate-900">Set your password</h2>
           <p className="mt-1 text-xs text-slate-500">Choose a password for future sign-ins.</p>
         </div>
 
@@ -78,6 +81,9 @@ export const PasswordSetupModal: React.FC = () => {
         >
           {saving ? <ShieldCheck className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
           {saving ? 'Saving...' : 'Save password'}
+        </button>
+        <button type="button" onClick={deferPasswordSetup} className="w-full text-center text-xs font-semibold text-slate-500 hover:text-slate-800">
+          Not now, remind me next sign-in
         </button>
       </form>
     </div>

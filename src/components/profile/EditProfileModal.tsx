@@ -13,8 +13,6 @@ export const EditProfileModal: React.FC = () => {
   } = useWorkspace();
 
   const [name, setName] = useState(currentUser.name);
-  const [role, setRole] = useState(currentUser.role);
-  const [department, setDepartment] = useState(currentUser.department);
   const [phone, setPhone] = useState(currentUser.phone);
   const [email, setEmail] = useState(currentUser.email);
   const [avatar, setAvatar] = useState(currentUser.avatar);
@@ -31,8 +29,6 @@ export const EditProfileModal: React.FC = () => {
   useEffect(() => {
     if (!isProfileSettingsOpen) return;
     setName(currentUser.name);
-    setRole(currentUser.role);
-    setDepartment(currentUser.department);
     setPhone(currentUser.phone);
     setEmail(currentUser.email);
     setAvatar(currentUser.avatar);
@@ -70,8 +66,8 @@ export const EditProfileModal: React.FC = () => {
     try {
       await saveCurrentProfile({
         name: name.trim() || currentUser.name,
-        role: role.trim() || currentUser.role,
-        department: department.trim() || currentUser.department,
+        role: currentUser.role,
+        department: currentUser.department,
         phone: phone.trim() || currentUser.phone,
         email: email.trim() || currentUser.email,
         avatar,
@@ -157,10 +153,10 @@ export const EditProfileModal: React.FC = () => {
           </div>
           {uploadError && <p role="alert" className="text-xs text-rose-600">{uploadError}</p>}
 
-          {/* Name & Role */}
+          {/* Name & Phone */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Full name</label>
               <input
                 type="text"
                 value={name}
@@ -170,36 +166,11 @@ export const EditProfileModal: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Job Role</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Phone number <span className="font-normal text-slate-400">(optional)</span></label>
               <input
-                type="text"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                required
-                className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Department & Phone */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Department</label>
-              <input
-                type="text"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                required
-                className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
-              <input
-                type="text"
+                type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                required
                 className="w-full px-3 py-2 text-base md:text-sm bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-brand-500 outline-none transition-all"
               />
             </div>
@@ -230,7 +201,7 @@ export const EditProfileModal: React.FC = () => {
             <p className="text-right text-xs text-slate-400 mt-1">{bio.length}/500</p>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Location / office</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Location / office <span className="font-normal text-slate-400">(optional)</span></label>
             <input
               type="text"
               value={location}
@@ -258,8 +229,7 @@ export const EditProfileModal: React.FC = () => {
                     }`} />
                   </div>
                   <h4 className="text-sm font-bold text-slate-900 break-words">{name || 'Your name'}</h4>
-                  <p className="text-xs text-slate-600 mt-0.5">{role || 'Your role'}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{department || 'Your department'}</p>
+                  <p className="text-xs text-slate-600 mt-0.5">{currentUser.role}</p>
                   {location.trim() && <p className="mt-2 text-xs text-slate-500">{location}</p>}
                   {bio.trim() && <p className="mt-2 text-xs text-slate-600 break-words">{bio}</p>}
                   <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-500 break-all">

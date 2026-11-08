@@ -16,6 +16,12 @@ export const CompanyPage: React.FC = () => {
     return () => window.removeEventListener('popstate', sync);
   }, []);
   useEffect(() => {
+    const renamed: Record<string, string> = { prospects: '/company/find-grants', calendar: '/company/marketing' };
+    if (!renamed[segment]) return;
+    window.history.replaceState({}, '', renamed[segment]);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, [segment]);
+  useEffect(() => {
     if (segment !== 'contracts') return;
     window.history.replaceState({}, '', '/customers/contracts');
     window.dispatchEvent(new PopStateEvent('popstate'));
@@ -25,15 +31,17 @@ export const CompanyPage: React.FC = () => {
     case 'forms': return <FormsPage />;
     case 'website':
     case 'policies': return <AccessGate app="legal" name="Website"><WebsitePage /></AccessGate>;
+    case 'marketing':
     case 'calendar': return (
       <AccessGate app="gtm" name="Marketing">
-        <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
+        <main className="min-w-0 flex-1 overflow-y-auto bg-black">
           <header className="border-b border-slate-200 bg-white px-5 py-5 sm:px-8"><h1 className="text-xl font-bold text-slate-900">Marketing</h1><p className="mt-1 text-xs text-slate-500">Plan campaigns, create and review social content, schedule posts, and track published results.</p></header>
           <div className="mx-auto max-w-7xl p-5 sm:p-8"><ContentCalendar /></div>
         </main>
       </AccessGate>
     );
     case 'grants':
+    case 'find-grants':
     case 'prospects':
     case 'resources': return <AccessGate app="finance" name="Grants"><FinancePage /></AccessGate>;
     default: return <IdeasPage />;

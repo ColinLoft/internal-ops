@@ -59,7 +59,7 @@ export const EditChannelModal: React.FC<Props> = ({ channel, onClose }) => {
     if (file.size > 2_000_000) { setError('Channel images must be under 2 MB.'); return; }
     setUploading(true);
     setError('');
-    try { setImageUrl(await uploadAvatarToSupabase(file, `channel-${channel.id}`)); } catch (err) { setError(err instanceof Error ? err.message : 'Could not upload the channel image.'); } finally { setUploading(false); }
+    try { setImageUrl(await uploadAvatarToSupabase(file, currentUser.id, `channel-${channel.id}`)); } catch (err) { setError(err instanceof Error ? err.message : 'Could not upload the channel image.'); } finally { setUploading(false); }
   };
 
   const submit = async (event: React.FormEvent) => {

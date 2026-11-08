@@ -1,3 +1,4 @@
+import { serveWithCors } from '../_shared/cors.ts';
 import { clientsFor, emailCorsHeaders, jsonResponse } from '../_shared/email.ts';
 
 type Json = Record<string, unknown>;
@@ -58,7 +59,7 @@ const isHttpsUrl = (value: unknown): value is string => {
   catch { return false; }
 };
 
-Deno.serve(async (request: Request) => {
+serveWithCors(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: emailCorsHeaders });
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405);
   try {

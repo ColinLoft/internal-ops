@@ -19,3 +19,18 @@ Already-published links may contain the former origin. Retain a redirect from
 the old domain while those links are still in use, preserving paths, queries and
 hashes (including public bearer tokens). Newly generated links use the new origin.
 Hosting, DNS, Supabase Auth settings and secrets are not changed by a code build.
+
+## Edge Function CORS
+
+Every function in `supabase/functions` is wrapped with `serveWithCors` from `_shared/cors.ts`. It answers the browser's `OPTIONS` preflight and echoes the request origin only when it is allowed. `supabase/config.toml` sets `verify_jwt = false`; each function checks the caller's JWT itself.
+
+Allowed origins come from function secrets:
+
+```bash
+supabase secrets set --project-ref rquiihdtxelqkgnzisek \
+  SITE_URL=https://ops.flown.org \
+  ALLOWED_ORIGINS=https://ops.flown.org,http://localhost:5173
+supabase functions deploy --project-ref rquiihdtxelqkgnzisek --use-api
+```
+
+If the domain changes, update both secrets, redeploy the functions and update the Supabase Auth Site URL and redirect URLs.

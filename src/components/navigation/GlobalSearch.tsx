@@ -10,7 +10,7 @@ export const GlobalSearch: React.FC<{ className?: string; onRequestOpen?: () => 
   } = useWorkspace();
   const query = searchQuery.trim().toLowerCase();
   const recordHits = useRecordSearch(searchQuery);
-  const searchResults = query
+  const allResults = query
     ? [
         ...channels
           .filter((channel) => `${channel.name} ${channel.description}`.toLowerCase().includes(query))
@@ -67,7 +67,7 @@ export const GlobalSearch: React.FC<{ className?: string; onRequestOpen?: () => 
             id: `user-${user.id}`,
             type: 'Person' as const,
             title: user.name,
-            detail: `${user.role} · ${user.department}`,
+            detail: `${user.role} · ${user.email}`,
             onSelect: () => openUserProfile(user),
           })),
         ...calendarEvents
@@ -79,18 +79,37 @@ export const GlobalSearch: React.FC<{ className?: string; onRequestOpen?: () => 
             detail: `${event.date}${event.location ? ` · ${event.location}` : ''}`,
             onSelect: () => setActiveTab('calendar'),
           })),
-        ...recordHits.map((hit) => ({
-          id: hit.id,
-          type: hit.type,
-          title: hit.title,
-          detail: hit.detail,
-          onSelect: () => {
-            window.history.pushState({}, '', hit.path);
-            window.dispatchEvent(new PopStateEvent('popstate'));
-          },
-        })),
-      ].slice(0, 12)
+        ...recordHits
+          .filter((hit) => !(hit.type === 'Message' && Object.values(messages).some((list) => list.some((message) => message.id === hit.recordId))))
+          .map((hit) => ({
+            id: hit.id,
+            type: hit.type,
+            title: hit.title,
+            detail: hit.detail,
+            onSelect: () => {
+              if (hit.conversationId) {
+                if (channels.some((channel) => channel.id === hit.conversationId)) {
+                  setActiveTab('channels');
+                  setActiveChannelId(hit.conversationId);
+                } else {
+                  setActiveTab('messages');
+                  setActiveConversationId(hit.conversationId);
+                }
+                return;
+              }
+              window.history.pushState({}, '', hit.path);
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            },
+          })),
+      ]
     : [];
+  // Cap each result type so one busy source (usually messages) cannot hide tasks, events or records.
+  const perType = new Map<string, number>();
+  const searchResults = allResults.filter((result) => {
+    const count = perType.get(result.type) ?? 0;
+    perType.set(result.type, count + 1);
+    return count < 4;
+  }).slice(0, 16);
 
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {

@@ -16,43 +16,26 @@ export const supabase = createClient(
   },
 );
 
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+
 /**
- * Upload an avatar image file to Supabase Storage ('avatars' bucket)
- * Returns the public URL, with intelligent fallback to Base64 data URL
+ * Upload an image to the public 'avatars' bucket under the signed-in user's folder and return its URL.
+ * Throws a readable error instead of saving oversized data URLs into the profile.
  */
-export const uploadAvatarToSupabase = async (file: File, userId: string): Promise<string> => {
-  try {
-    const fileExt = file.name.split('.').pop() || 'png';
-    const fileName = `${userId}-${Date.now()}.${fileExt}`;
-    const filePath = `avatars/${fileName}`;
+export const uploadAvatarToSupabase = async (file: File, userId: string, label = 'avatar'): Promise<string> => {
+  if (!file.type.startsWith('image/')) throw new Error('Choose an image file (PNG, JPG, WebP or GIF).');
+  if (file.size > AVATAR_MAX_BYTES) throw new Error('That image is larger than 5 MB. Choose a smaller photo.');
+  const fileExt = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
+  const filePath = `${userId}/${label}-${Date.now()}.${fileExt}`;
 
-    // Upload to Supabase Storage bucket 'avatars'
-    const { error } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true,
-      });
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, file, { cacheControl: '3600', upsert: true, contentType: file.type });
+  if (error) throw new Error(`The photo could not be uploaded: ${error.message}`);
 
-    if (error) {
-      console.warn('Supabase storage upload error, falling back to local Base64:', error.message);
-      return await fileToBase64(file);
-    }
-
-    // Get public URL from Supabase
-    const { data: publicUrlData } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath);
-
-    if (publicUrlData && publicUrlData.publicUrl) {
-      return publicUrlData.publicUrl;
-    }
-
-    return await fileToBase64(file);
-  } catch (err) {
-    console.warn('Storage operation exception, using Base64 preview:', err);
-    return await fileToBase64(file);
-  }
+  const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+  if (!data?.publicUrl) throw new Error('The photo uploaded, but its link could not be created.');
+  return data.publicUrl;
 };
 
 /**

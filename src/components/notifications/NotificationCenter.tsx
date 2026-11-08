@@ -1,47 +1,21 @@
 import React from 'react';
-import {
-  Bell,
-  CheckCheck,
-  Megaphone,
-  AtSign,
-  Calendar,
-  MessageSquare,
-  X,
-} from 'lucide-react';
+import { Bell, CheckCheck, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { notificationIcon } from './NotificationsPage';
+import { useOpenNotification } from './useOpenNotification';
 
 export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const {
-    notifications,
-    markNotificationRead,
-    markAllNotificationsRead,
-    setActiveTab,
-    setActiveChannelId,
-    setActiveConversationId,
-  } = useWorkspace();
+  const { notifications, markAllNotificationsRead } = useWorkspace();
+  const openNotification = useOpenNotification();
 
   const handleNotificationClick = (notif: typeof notifications[0]) => {
-    markNotificationRead(notif.id);
-    setActiveTab(notif.linkTab);
-    if (notif.linkTab === 'channels' && notif.targetId) {
-      setActiveChannelId(notif.targetId);
-    } else if (notif.linkTab === 'messages' && notif.targetId) {
-      setActiveConversationId(notif.targetId);
-    }
+    openNotification(notif);
     onClose();
   };
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'announcement':
-        return <Megaphone className="w-4 h-4 text-brand-600" />;
-      case 'mention':
-        return <AtSign className="w-4 h-4 text-brand-600" />;
-      case 'calendar':
-        return <Calendar className="w-4 h-4 text-brand-600" />;
-      default:
-        return <MessageSquare className="w-4 h-4 text-brand-600" />;
-    }
+  const getIcon = (type: typeof notifications[0]['type']) => {
+    const Icon = notificationIcon(type);
+    return <Icon className="w-4 h-4 text-brand-600" />;
   };
 
   return (
@@ -74,7 +48,7 @@ export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose 
       {/* Notifications List */}
       <div className="max-h-[max(4rem,calc(100dvh-16rem))] md:max-h-[min(24rem,max(4rem,calc(100dvh-14rem)))] overflow-y-auto divide-y divide-slate-100">
         {notifications.length > 0 ? (
-          notifications.map((n) => (
+          notifications.slice(0, 20).map((n) => (
             <button
               type="button"
               key={n.id}
@@ -106,6 +80,17 @@ export const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose 
           <div className="p-6 text-center text-xs text-slate-400">No notifications</div>
         )}
       </div>
+      <button
+        type="button"
+        onClick={() => {
+          window.history.pushState({}, '', '/notifications');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+          onClose();
+        }}
+        className="block w-full border-t border-slate-100 p-3 text-center text-xs font-semibold text-brand-600 hover:bg-slate-50"
+      >
+        View all notifications
+      </button>
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import { serveWithCors } from '../_shared/cors.ts';
 import { clientsFor, emailCorsHeaders, hasMailboxAccess, jsonResponse, recordEmailActivity } from '../_shared/email.ts';
 
 type AssistantAction = {
@@ -35,7 +36,7 @@ const parseAssistantResponse = (value: string): { message: string; action: Assis
   }
 };
 
-Deno.serve(async (request: Request) => {
+serveWithCors(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: emailCorsHeaders });
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405);
 

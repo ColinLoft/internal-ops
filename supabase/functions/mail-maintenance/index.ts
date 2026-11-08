@@ -1,3 +1,4 @@
+import { serveWithCors } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { bytesToBase64Url, getAccessToken, recordEmailActivity, timingSafeEqual } from '../_shared/email.ts';
 
@@ -167,7 +168,7 @@ const processScheduledSends = async (adminClient: ReturnType<typeof createClient
   return { sentIds, failures };
 };
 
-Deno.serve(async (request: Request) => {
+serveWithCors(async (request: Request) => {
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405);
   const expectedSecret = Deno.env.get('MAIL_MAINTENANCE_SECRET');
   if (!expectedSecret || !timingSafeEqual(request.headers.get('x-mail-maintenance-secret'), expectedSecret)) {

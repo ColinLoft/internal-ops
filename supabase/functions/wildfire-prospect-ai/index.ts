@@ -1,7 +1,8 @@
+import { serveWithCors } from '../_shared/cors.ts';
 import { clientsFor, emailCorsHeaders, jsonResponse } from '../_shared/email.ts';
 import { publicSearchQuery, validateProspects, webUrl, type ProspectSource } from '../_shared/wildfire.ts';
 
-Deno.serve(async (request: Request) => {
+serveWithCors(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: emailCorsHeaders });
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405);
   try {
