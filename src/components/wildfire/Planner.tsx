@@ -35,6 +35,7 @@ export function Planner({ opportunities, properties, plans, placements, products
   const plan = plans.find(item => item.id === planId && item.property_id === property?.id) ?? relevantPlans[0] ?? null;
   const visiblePlacements = useMemo(() => placements.filter(item => item.site_plan_id === plan?.id), [placements, plan?.id]);
   const editable = canEdit && plan?.status === 'draft';
+  const linkedOpportunity = opportunities.find(item => item.id === (plan?.opportunity_id ?? property?.opportunity_id));
   const mutate = async (action: () => Promise<void>) => {
     setBusy(true); setError('');
     try { await action(); }
@@ -44,17 +45,16 @@ export function Planner({ opportunities, properties, plans, placements, products
   const createSite = async (event: React.FormEvent) => {
     event.preventDefault();
     await mutate(async () => {
-      if (!opportunityId) throw new Error('Choose an outreach opportunity first. It does not need to be in the CRM.');
       const resolved = mode === 'coordinates' ? { position: parseCoordinates(location), address: '' } : await geocodeAddress(location);
       const opportunity = opportunities.find(item => item.id === opportunityId);
       const { data, error: createError } = await supabase.from('wildfire_properties').insert({
-        opportunity_id: opportunityId, organization_id: opportunity?.organization_id ?? null,
+        opportunity_id: opportunityId || null, organization_id: opportunity?.organization_id ?? null,
         label: siteName.trim(), address: resolved.address, latitude: resolved.position.lat, longitude: resolved.position.lng,
         created_by: currentUser.id, owner_id: currentUser.id,
       }).select('id').single();
       if (createError || !data) throw new Error(createError?.message || 'The site was not saved.');
       setPropertyId(data.id);
-      const { data: newPlanId, error: planError } = await supabase.rpc('wildfire_create_site_plan', { p_property_id: data.id, p_opportunity_id: opportunityId, p_name: 'Site design' });
+      const { data: newPlanId, error: planError } = await supabase.rpc('wildfire_create_site_plan', { p_property_id: data.id, p_opportunity_id: opportunityId || null, p_name: 'Site design' });
       if (planError) {
         await onRefresh();
         throw new Error(`Site saved, but the design could not be created: ${planError.message}. Use New design to retry.`);
@@ -96,7 +96,7 @@ export function Planner({ opportunities, properties, plans, placements, products
     {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
     <section className={surface}>
       <div className="grid gap-3 md:grid-cols-3">
-        <label className="text-sm text-slate-700">Opportunity<select className={control} value={opportunityId} onChange={event => { setOpportunityId(event.target.value); setPropertyId(''); setPlanId(''); setPoint(null); setBoundaryPoints([]); }}><option value="">All opportunities</option>{opportunities.map(item => <option key={item.id} value={item.id}>{item.prospect_name || item.name}</option>)}</select></label>
+        <label className="text-sm text-slate-700">Opportunity (optional)<select className={control} value={opportunityId} onChange={event => { setOpportunityId(event.target.value); setPropertyId(''); setPlanId(''); setPoint(null); setBoundaryPoints([]); }}><option value="">All sites</option>{opportunities.map(item => <option key={item.id} value={item.id}>{item.prospect_name || item.name}</option>)}</select></label>
         <label className="text-sm text-slate-700">Site<select className={control} value={property?.id ?? ''} onChange={event => { setPropertyId(event.target.value); setPlanId(''); setPoint(null); setBoundaryPoints([]); }}>{!relevantProperties.length && <option value="">No sites yet</option>}{relevantProperties.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
         <label className="text-sm text-slate-700">Design<select className={control} value={plan?.id ?? ''} onChange={event => { setPlanId(event.target.value); setPoint(null); setBoundaryPoints([]); }}>{!relevantPlans.length && <option value="">No designs yet</option>}{relevantPlans.map(item => <option key={item.id} value={item.id}>{item.name} · v{item.version}</option>)}</select></label>
       </div>
@@ -110,12 +110,21 @@ export function Planner({ opportunities, properties, plans, placements, products
     </section>
     {property && <section className={surface}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="text-lg font-semibold text-slate-900">{property.label}</h2><p className="text-sm text-slate-500">{property.address || `${property.latitude}, ${property.longitude}`}</p></div>
+        <div><h2 className="text-lg font-semibold text-slate-900">{property.label}</h2><p className="text-sm text-slate-500">{property.address || `${property.latitude}, ${property.longitude}`}</p>{plan && <p className="mt-1 text-xs text-slate-500">{linkedOpportunity ? `For ${linkedOpportunity.prospect_name || linkedOpportunity.name}` : 'Not linked to a prospect yet'}</p>}</div>
         <div className="flex flex-wrap gap-2">{canEdit && <button type="button" disabled={busy} className={secondary} onClick={newVersion}>New design version</button>}{plan && canEdit && <button type="button" disabled={busy} className={primary} onClick={() => void mutate(async () => {
+          if (!plan.opportunity_id) {
+            if (!opportunityId) throw new Error('Choose the prospect this quote is for in the Opportunity menu above, then create the quote.');
+            const { error: linkError } = await supabase.rpc('wildfire_link_site_plan', { p_site_plan_id: plan.id, p_opportunity_id: opportunityId });
+            if (linkError) throw new Error(linkError.message);
+          }
           const { data, error: quoteError } = await supabase.rpc('wildfire_create_quote_from_plan', { p_site_plan_id: plan.id });
           if (quoteError) throw new Error(quoteError.message);
           onQuote(data);
-        })}>Create quote from this plan</button>}</div>
+        })}>Create quote from this plan</button>}{plan && canEdit && !plan.opportunity_id && opportunityId && <button type="button" disabled={busy} className={secondary} onClick={() => void mutate(async () => {
+          const { error: linkError } = await supabase.rpc('wildfire_link_site_plan', { p_site_plan_id: plan.id, p_opportunity_id: opportunityId });
+          if (linkError) throw new Error(linkError.message);
+          await onRefresh();
+        })}>Link to selected prospect</button>}</div>
       </div>
       {property.latitude !== null && property.longitude !== null && plan ? <>
         {editable && <div className="mb-3 flex flex-wrap items-center gap-2">

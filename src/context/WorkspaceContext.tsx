@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import type { User as SupabaseAuthUser } from '@supabase/supabase-js';
 import {
   User,
@@ -221,7 +221,7 @@ const pathForTab = (tab: WorkspaceTab) => ({
   settings: '/settings',
   insights: '/insights',
   programs: '/programs/tasks',
-  wildfire: '/wildfire/overview',
+  wildfire: '/wildfire/opportunities',
   messages: '/messages',
   channels: '/channels',
   calendar: '/calendar',
@@ -403,6 +403,7 @@ const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
     notifyMentions: preferences.notifyMentions !== false,
     notifyCalendar: preferences.notifyCalendar !== false,
     notifyAnnouncements: preferences.notifyAnnouncements !== false,
+    desktopNotifications: preferences.desktopNotifications === true,
   };
 };
 
@@ -706,9 +707,37 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   };
 
+  const notificationSettingsRef = useRef(workspaceSettings);
+  notificationSettingsRef.current = workspaceSettings;
+
   useEffect(() => {
     if (!isAuthenticated || !currentUser.id) return;
     let active = true;
+    const alertForNotification = (item: NotificationItem, type: string) => {
+      const settings = notificationSettingsRef.current;
+      const enabled = type === 'mention' ? settings.notifyMentions
+        : type === 'message' ? settings.notifyMessages
+          : type === 'calendar' ? settings.notifyCalendar
+            : type === 'announcement' ? settings.notifyAnnouncements
+              : true;
+      if (!enabled) return;
+      sounds.playNotification();
+      if (!settings.desktopNotifications || typeof window === 'undefined' || !('Notification' in window)) return;
+      if (window.Notification.permission !== 'granted' || document.visibilityState === 'visible') return;
+      try {
+        const desktop = new window.Notification(item.title, { body: item.description, tag: item.id, icon: '/brand-icon.png' });
+        desktop.onclick = () => {
+          window.focus();
+          if (item.linkPath) {
+            window.history.pushState({}, '', item.linkPath);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }
+          desktop.close();
+        };
+      } catch (error) {
+        console.warn('Desktop notification failed:', error);
+      }
+    };
     type NotificationRow = {
       id: string; type: string; title: string; body: string | null; link_tab: string | null;
       link_path: string | null; target_id: string | null; read_at: string | null; created_at: string;
@@ -752,7 +781,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${currentUser.id}` }, (payload) => {
         const item = toItem(payload.new as NotificationRow);
         setNotifications((previous) => previous.some((n) => n.id === item.id) ? previous : [item, ...previous]);
-        sounds.playNotification();
+        alertForNotification(item, (payload.new as NotificationRow).type);
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${currentUser.id}` }, (payload) => {
         const item = toItem(payload.new as NotificationRow);
@@ -2000,17 +2029,33 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         return msg;
       });
 
+    const targetId = activeTab === 'channels' ? activeChannelId : activeConversationId;
+    const previousPoll = (parentId ? threadReplies[parentId] : messages[targetId])?.find((msg) => msg.id === messageId)?.poll;
     if (parentId) {
       setThreadReplies((prev) => ({
         ...prev,
         [parentId]: updatePollInList(prev[parentId] || []),
       }));
     } else {
-      const targetId = activeTab === 'channels' ? activeChannelId : activeConversationId;
       setMessages((prev) => ({
         ...prev,
         [targetId]: updatePollInList(prev[targetId] || []),
       }));
+    }
+
+    void supabase.rpc('vote_message_poll', { p_message_id: messageId, p_option_id: optionId }).then(({ data, error }) => {
+      const poll = error ? previousPoll : (data as Poll | null) ?? previousPoll;
+      if (error) reportBackendIssue(`Your poll vote was not saved: ${error.message}`);
+      patchStoredMessage(messageId, targetId, parentId, { poll });
+    });
+  };
+
+  const patchStoredMessage = (messageId: string, targetId: string, parentId: string | undefined, patch: Partial<Message>) => {
+    const apply = (list: Message[]) => list.map((msg) => (msg.id === messageId ? { ...msg, ...patch } : msg));
+    if (parentId) {
+      setThreadReplies((prev) => ({ ...prev, [parentId]: apply(prev[parentId] || []) }));
+    } else {
+      setMessages((prev) => ({ ...prev, [targetId]: apply(prev[targetId] || []) }));
     }
   };
 
@@ -2031,19 +2076,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     const updateReactionInList = (list: Message[]) =>
       list.map((msg) => {
         if (msg.id === messageId) {
-          const reactions = [...(msg.reactions || [])];
-          const existing = reactions.find((r) => r.emoji === emoji);
-
-          if (existing) {
-            const hasReacted = existing.users.includes(currentUser.id);
-            if (hasReacted) {
-              existing.users = existing.users.filter((u) => u !== currentUser.id);
-            } else {
-              existing.users.push(currentUser.id);
-            }
-          } else {
-            reactions.push({ emoji, users: [currentUser.id] });
-          }
+          const current = msg.reactions || [];
+          const reactions = current.some((r) => r.emoji === emoji)
+            ? current.map((r) => (r.emoji !== emoji ? r : {
+              ...r,
+              users: r.users.includes(currentUser.id) ? r.users.filter((u) => u !== currentUser.id) : [...r.users, currentUser.id],
+            }))
+            : [...current, { emoji, users: [currentUser.id] }];
 
           return {
             ...msg,
@@ -2053,18 +2092,24 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         return msg;
       });
 
+    const previousReactions = (parentId ? threadReplies[parentId] : messages[targetId])?.find((msg) => msg.id === messageId)?.reactions;
     if (parentId) {
       setThreadReplies((prev) => ({
         ...prev,
         [parentId]: updateReactionInList(prev[parentId] || []),
       }));
     } else {
-      const targetId = activeTab === 'channels' ? activeChannelId : activeConversationId;
       setMessages((prev) => ({
         ...prev,
         [targetId]: updateReactionInList(prev[targetId] || []),
       }));
     }
+
+    void supabase.rpc('toggle_message_reaction', { p_message_id: messageId, p_emoji: emoji }).then(({ data, error }) => {
+      if (error) reportBackendIssue(`Your reaction was not saved: ${error.message}`);
+      const reactions = error || !Array.isArray(data) ? previousReactions : data as Message['reactions'];
+      patchStoredMessage(messageId, targetId, parentId, { reactions });
+    });
   };
 
   const togglePinConversation = (id: string) => {

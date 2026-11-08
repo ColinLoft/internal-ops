@@ -78,6 +78,7 @@ export interface WorkspaceSettings {
   notifyMentions: boolean;
   notifyCalendar: boolean;
   notifyAnnouncements: boolean;
+  desktopNotifications: boolean;
 }
 
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
@@ -96,6 +97,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   notifyMentions: true,
   notifyCalendar: true,
   notifyAnnouncements: true,
+  desktopNotifications: false,
 };
 
 export interface Attachment {

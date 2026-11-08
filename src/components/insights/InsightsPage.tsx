@@ -39,7 +39,7 @@ const sources: Record<string, Source> = {
   messages: { table: 'messages', columns: 'id,created_at' },
   events: { table: 'calendar_events', columns: 'id,created_at' },
   audit: { table: 'system_activity_logs', columns: 'id,event_type,created_at' },
-  profiles: { table: 'profiles', columns: 'id,department,last_seen_at,account_status' },
+  profiles: { table: 'profiles', columns: 'id,email,department,last_seen_at,account_status' },
 };
 
 async function loadRows(table: string, columns: string): Promise<Row[]> {
@@ -88,7 +88,7 @@ export const InsightsPage: React.FC = () => {
     const totalTasks = rows('tasks').length;
     const awardedStages = grantStage(['awarded', 'reporting', 'closed']);
     const decidedStages = grantStage(['awarded', 'reporting', 'closed', 'declined']);
-    const staff = rows('profiles').filter((profile) => (profile.account_status ?? 'active') === 'active');
+    const staff = rows('profiles').filter((profile) => (profile.account_status ?? 'active') === 'active' && typeof profile.email === 'string' && profile.email.includes('@'));
     const declined = grantStage(['declined']).length;
     const online = staff.filter((profile) => profile.last_seen_at && Date.now() - new Date(profile.last_seen_at).getTime() < 4 * 60000).length;
     return [

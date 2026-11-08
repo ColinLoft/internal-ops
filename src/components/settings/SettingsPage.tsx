@@ -47,6 +47,15 @@ export const SettingsPage: React.FC = () => {
 
   const update = <K extends keyof WorkspaceSettings>(key: K, value: WorkspaceSettings[K]) => { setSaved(false); setDraft((previous) => ({ ...previous, [key]: value })); };
   const dirty = JSON.stringify(draft) !== JSON.stringify(workspaceSettings);
+  const [desktopPermission, setDesktopPermission] = useState<NotificationPermission | 'unsupported'>(() => typeof window !== 'undefined' && 'Notification' in window ? window.Notification.permission : 'unsupported');
+  const setDesktopAlerts = async (value: boolean) => {
+    if (value && desktopPermission !== 'unsupported' && window.Notification.permission === 'default') {
+      const permission = await window.Notification.requestPermission();
+      setDesktopPermission(permission);
+      if (permission !== 'granted') return;
+    }
+    update('desktopNotifications', value);
+  };
 
   const save = async () => {
     setSaving(true); setSaveError('');
@@ -177,6 +186,7 @@ export const SettingsPage: React.FC = () => {
               <section className={`${card} divide-y divide-slate-100`}>
                 <h2 className="pb-3 text-lg font-bold text-slate-900">Notifications</h2>
                 <Toggle label="Notification sounds" description="Play a subtle sound when notifications arrive." checked={soundEnabled} onChange={() => toggleSound()} />
+                <Toggle label="Desktop alerts" description={desktopPermission === 'denied' ? 'Your browser is blocking notifications for this site. Allow them in the browser site settings.' : 'Show a system notification for new messages and mentions while Flown Ops is in the background.'} checked={draft.desktopNotifications && desktopPermission !== 'denied'} onChange={(value) => void setDesktopAlerts(value)} />
                 <Toggle label="Messages" description="Show notifications for new direct and group messages." checked={draft.notifyMessages} onChange={(value) => update('notifyMessages', value)} />
                 <Toggle label="Mentions" description="Show notifications when someone mentions you." checked={draft.notifyMentions} onChange={(value) => update('notifyMentions', value)} />
                 <Toggle label="Calendar" description="Show reminders and invitations from the calendar." checked={draft.notifyCalendar} onChange={(value) => update('notifyCalendar', value)} />

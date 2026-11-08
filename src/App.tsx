@@ -36,7 +36,7 @@ import { EngineeringPage } from './components/engineering/EngineeringPage';
 import { PendingDocumentPrompt } from './components/organization/PolicySigning';
 import { WildfirePage } from './components/wildfire/WildfirePage';
 import { SystemsPage } from './components/systems';
-import { isKnownWorkspacePath } from './lib/workspaceRoutes';
+import { isKnownWorkspacePath, legacyWorkspaceRedirect } from './lib/workspaceRoutes';
 import { MotionEffects } from './components/common/MotionEffects';
 import { BackendStatusBanner } from './components/common/BackendStatusBanner';
 
@@ -102,9 +102,9 @@ const WorkspaceShell: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const legacyForm = routePath.match(/^\/forms(?:\/([^/]+))?\/?$/);
-    if (!legacyForm) return;
-    window.history.replaceState({}, '', `/company/forms${legacyForm[1] ? `?form=${encodeURIComponent(legacyForm[1])}` : ''}`);
+    const target = legacyWorkspaceRedirect(routePath, window.location.search);
+    if (!target) return;
+    window.history.replaceState({}, '', target);
     window.dispatchEvent(new PopStateEvent('popstate'));
   }, [routePath]);
 
@@ -133,7 +133,7 @@ const WorkspaceShell: React.FC = () => {
     return <AuthScreen />;
   }
 
-  const isUnknownPath = !isKnownWorkspacePath(routePath) && !isRetiredWorkspacePath(routePath);
+  const isUnknownPath = !isKnownWorkspacePath(routePath) && !isRetiredWorkspacePath(routePath) && !legacyWorkspaceRedirect(routePath);
   const isNotificationsPath = /^\/notifications\/?$/.test(routePath);
 
   return (

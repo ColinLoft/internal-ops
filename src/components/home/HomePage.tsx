@@ -6,7 +6,23 @@ import { EmptyState, ProvenanceBadge, Skeleton } from '../common/Feedback';
 import { parseTaskDate } from '../programs/taskFields';
 
 type MyTask = { id: string; title: string; status: string; priority: string; due_date: string | null; source: 'program' | 'operations' };
-type Activity = { id: string; entity_type: string; entity_id: string; action: string; detail: string | null; created_by: string | null; created_at: string };
+type Activity = { id: string; entity_type: string; entity_id: string; action: string; detail: string | null; created_by: string | null; created_at: string; name?: string; path?: string };
+const ACTIVITY_SOURCES: Record<string, { table: string; column: string; label: (row: Record<string, unknown>) => string; path: (id: string, row: Record<string, unknown>) => string }> = {
+  task: { table: 'program_tasks', column: 'id,title', label: (row) => String(row.title || 'Task'), path: (id) => `/programs/task/${id}` },
+  grant: { table: 'grants', column: 'id,name', label: (row) => String(row.name || 'Grant'), path: (id) => `/company/grants/${id}` },
+  project: { table: 'eng_projects', column: 'id,name,discipline', label: (row) => String(row.name || 'Project'), path: (id, row) => `/engineering/${String(row.discipline || 'software')}/${id}` },
+  ticket: { table: 'support_tickets', column: 'id,subject,ticket_number', label: (row) => `FL-${row.ticket_number ?? '?'} ${String(row.subject || 'Ticket')}`, path: (id) => `/help?ticket=${id}` },
+};
+const withActivityNames = async (items: Activity[]): Promise<Activity[]> => {
+  const names = new Map<string, { name: string; path: string }>();
+  await Promise.all(Object.entries(ACTIVITY_SOURCES).map(async ([type, source]) => {
+    const ids = [...new Set(items.filter((item) => item.entity_type === type).map((item) => item.entity_id))];
+    if (!ids.length) return;
+    const { data } = await supabase.from(source.table).select(source.column).in('id', ids);
+    ((data || []) as unknown as Record<string, unknown>[]).forEach((row) => names.set(`${type}:${row.id}`, { name: source.label(row), path: source.path(String(row.id), row) }));
+  }));
+  return items.map((item) => ({ ...item, ...names.get(`${item.entity_type}:${item.entity_id}`) }));
+};
 type Deadline = { id: string; title: string; date: string; kind: string; tab: 'programs' | 'company' };
 
 const WIDGETS = [
@@ -84,7 +100,8 @@ export const HomePage: React.FC = () => {
         ...((programs.data || []) as Omit<MyTask, 'source'>[]).map((task) => ({ ...task, source: 'program' as const })),
         ...((operations.data || []) as Omit<MyTask, 'source'>[]).map((task) => ({ ...task, source: 'operations' as const })),
       ].sort((a, b) => (a.due_date || '9999').localeCompare(b.due_date || '9999')));
-      setActivity((feed.data || []) as Activity[]);
+      setActivity(await withActivityNames((feed.data || []) as Activity[]));
+      if (!active) return;
       setDeadlines(((reports.data || []) as { id: string; title: string; due_date: string }[]).map((report) => ({ id: report.id, title: report.title, date: report.due_date, kind: 'Grants · Report', tab: 'company' as const })));
       setOpenSupport(support.error ? null : support.count ?? 0);
       setLoading(false);
@@ -178,12 +195,12 @@ export const HomePage: React.FC = () => {
         </button>
       )) : <EmptyState compact icon={CheckCircle2} text="All caught up." />;
       case 'activity': return activity.length ? activity.map((item) => (
-        <div key={item.id} className="flex items-start gap-2.5 px-1.5 py-1.5">
+        <button key={item.id} type="button" onClick={() => { if (!item.path) return; window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); }} className="flex w-full items-start gap-2.5 rounded-lg px-1.5 py-1.5 text-left hover:bg-slate-50">
           <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{userName(item.created_by).slice(0, 1)}</span>
-          <span className="min-w-0 flex-1 text-xs text-slate-600"><b className="font-semibold text-slate-800">{userName(item.created_by)}</b> {item.action.toLowerCase()} <span className="capitalize text-slate-400">· {item.entity_type}</span>{item.detail ? <span className="block truncate text-[11px] text-slate-400">{item.detail}</span> : null}</span>
+          <span className="min-w-0 flex-1 text-xs text-slate-600"><b className="font-semibold text-slate-800">{userName(item.created_by)}</b> {item.action.toLowerCase()} <span className="font-semibold text-slate-800">{item.name || `a ${item.entity_type}`}</span>{item.detail ? <span className="block truncate text-[11px] text-slate-400">{item.detail}</span> : null}</span>
           <span className="shrink-0 text-[11px] text-slate-400">{relative(item.created_at)}</span>
-        </div>
-      )) : <EmptyState icon={History} text="Activity from projects, tasks and grants shows up here." />;
+        </button>
+      )) : <EmptyState icon={History} text="Activity from projects, tasks, grants and tickets shows up here." />;
       case 'next': return nextActions.length ? nextActions.map((item) => (
         <div key={item.id} className="flex items-center gap-2 rounded-lg border border-slate-100 px-2 py-1.5">
           <span className="min-w-0 flex-1 text-xs text-slate-700">{item.text}</span>

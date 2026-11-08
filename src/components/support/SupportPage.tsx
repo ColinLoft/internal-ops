@@ -70,7 +70,7 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
   const { canEdit: isAgent } = useAppAccess('support');
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('ticket'));
   const [statusFilter, setStatusFilter] = useState<'active' | Status>('active');
   const [scope, setScope] = useState<'all' | 'mine' | 'assigned'>('all');
   const [query, setQuery] = useState('');
@@ -307,7 +307,6 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
                 {users.find((user) => user.id === selected.requester_id)?.email && <a className="mt-1 flex items-center gap-1.5 break-all text-sm text-brand-700" href={`mailto:${users.find((user) => user.id === selected.requester_id)?.email}`}><Mail className="h-4 w-4 shrink-0" />{users.find((user) => user.id === selected.requester_id)?.email}</a>}
                 <p className="mt-2 flex items-center gap-1.5 text-sm text-slate-600"><Building2 className="h-4 w-4 shrink-0 text-slate-400" />{selected.organization_name || 'Company not provided'}</p>
                 {users.find((user) => user.id === selected.requester_id)?.role && <p className="mt-1 text-sm text-slate-600">{users.find((user) => user.id === selected.requester_id)?.role}</p>}
-                {users.find((user) => user.id === selected.requester_id)?.department && <p className="mt-0.5 text-sm text-slate-500">{users.find((user) => user.id === selected.requester_id)?.department}</p>}
                 {users.find((user) => user.id === selected.requester_id)?.phone && <p className="mt-1 text-sm text-slate-600">{users.find((user) => user.id === selected.requester_id)?.phone}</p>}
               </section>
               <section className="space-y-3 border-t border-slate-100 pt-4">
@@ -316,6 +315,7 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
                 <Field label="Severity"><CustomSelect disabled={!canManage} value={selected.priority} onChange={(event) => void updateTicket({ priority: event.target.value as Priority })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm capitalize disabled:bg-slate-50">{priorities.map((item) => <option key={item} value={item}>{item}</option>)}</CustomSelect></Field>
                 <Field label="Category"><CustomSelect disabled={!canManage} value={selected.category} onChange={(event) => void updateTicket({ category: event.target.value })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm disabled:bg-slate-50">{categories.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</CustomSelect></Field>
                 <Field label="Assigned to"><CustomSelect disabled={!isAgent} value={selected.assignee_id ?? ''} onChange={(event) => void updateTicket({ assignee_id: event.target.value || null })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm disabled:bg-slate-50"><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect></Field>
+                {isAgent && selected.assignee_id !== currentUser.id && <button type="button" onClick={() => void updateTicket({ assignee_id: currentUser.id, ...(selected.status === 'new' ? { status: 'open' as Status } : {}) })} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"><UserRound className="h-3.5 w-3.5" />Assign to me</button>}
                 <Field label="Response deadline"><input disabled={!canManage} type="date" value={selected.due_at ? selected.due_at.slice(0, 10) : ''} onChange={(event) => void updateTicket({ due_at: event.target.value ? new Date(`${event.target.value}T23:59:59`).toISOString() : null })} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm disabled:bg-slate-50" /></Field>
                 <p className="text-xs text-slate-500">Opened {formatDate(selected.created_at)}</p>
               </section>

@@ -53,7 +53,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCurrent
               <span className="absolute inset-y-0 left-0 bg-brand-500/10" style={{ width: `${percentage}%` }} />
               <span className="relative">{option.text}</span><span className="relative ml-2 text-xs tabular-nums">{percentage}%</span>
             </button>;
-          })}</div><p className="mt-2 text-xs text-slate-500">{message.poll.totalVotes} votes{message.poll.isClosed ? ' · Poll closed' : ''}</p>
+          })}</div><p className="mt-2 text-xs text-slate-500">{message.poll.totalVotes} {message.poll.totalVotes === 1 ? 'vote' : 'votes'}{message.poll.isClosed ? ' · Poll closed' : ''}</p>
         </section> : message.text && <div className="flex items-end gap-2"><div className="min-w-0"><MessageText text={message.text} /></div>{grouped && receipt}</div>}
       {message.attachments?.map(attachment => {
         const url = /^(blob:|data:image\/)/.test(attachment.url) ? attachment.url : messageLink(attachment.url);
