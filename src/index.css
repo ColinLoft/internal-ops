@@ -42,7 +42,7 @@
 
 @media (max-width: 767px) {
   [data-workspace-content] {
-    --workspace-page-padding: 16px;
+    --workspace-page-padding: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
     --workspace-panel-padding: 16px;
     --workspace-control-height: 44px;
   }
@@ -638,5 +638,4 @@ html[data-theme='dark'] #root .shadow-lg {
   [role='dialog'] { max-height: calc(100dvh - 1rem); overflow-y: auto; }
   main, [role='tabpanel'] { overscroll-behavior: contain; }
   .overflow-x-auto { -webkit-overflow-scrolling: touch; }
-  #root header > div { padding-left: max(0.75rem, env(safe-area-inset-left)); padding-right: max(0.75rem, env(safe-area-inset-right)); }
 }

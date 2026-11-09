@@ -5,6 +5,8 @@ export const isKnownWorkspacePath = (pathname: string) =>
 // Old or moved URLs that should land on their current page instead of a 404.
 export const legacyWorkspaceRedirect = (pathname: string, search = ''): string | null => {
   const path = pathname.replace(/\/+$/, '') || '/';
+  if (path === '/company/ideas' || path === '/company') return `/company/forms${search}`;
+  if (['/customers', '/customers/contacts', '/customers/companies'].includes(path)) return `/customers/organizations${search}`;
   const legacyForm = path.match(/^\/forms(?:\/([^/]+))?$/);
   if (legacyForm) return `/company/forms${legacyForm[1] ? `?form=${encodeURIComponent(legacyForm[1])}` : ''}`;
   if (path === '/tasks' || path === '/programs') return `/programs/tasks${search}`;

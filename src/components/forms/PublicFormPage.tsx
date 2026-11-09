@@ -6,11 +6,12 @@ import { supabase } from '../../lib/supabase';
 import { FormQuestionField, visibleFormQuestions } from './FormQuestionField';
 import { readFormSchema, validateFormAnswers } from './formsModel';
 import type { FormAnswers, FormSchema } from './formsModel';
+import { FormBrand } from './FormBrand';
 
 type PublicFormPageProps = { token: string };
 type SharedForm = { publicationId: string; scope: 'staff' | 'public'; accepting: boolean; schema: FormSchema };
 
-const panelClass = 'rounded-lg border border-slate-200 bg-white p-4 sm:p-5';
+const panelClass = 'rounded-xl bg-white p-5 sm:p-6';
 const inputClass = 'min-h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15';
 
 const explainError = (message: string) => {
@@ -105,7 +106,8 @@ export const PublicFormPage: React.FC<PublicFormPageProps> = ({ token }) => {
 
   return (
     <main className="min-h-full flex-1 overflow-y-auto bg-[#f7f9fc] px-4 py-8 sm:px-6">
-      <div className="mx-auto max-w-2xl space-y-4">
+      <div className="mx-auto max-w-2xl space-y-5">
+        <FormBrand />
         {isLoading ? <div className={`${panelClass} py-12 text-center text-sm text-slate-600`}><Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />Loading form…</div>
           : error && !sharedForm ? <div role="alert" className={`${panelClass} text-sm text-rose-800`}>{userFacingError(error)}</div>
             : submitted ? <section role="status" className={`${panelClass} py-10 text-center`}>
@@ -136,13 +138,16 @@ export const PublicFormPage: React.FC<PublicFormPageProps> = ({ token }) => {
                     </section>)}
 
                   {sharedForm.scope === 'public' && (
-                    <section className={`${panelClass} grid gap-3 sm:grid-cols-2`}>
+                    <details className={panelClass}>
+                      <summary className="cursor-pointer text-sm font-medium text-slate-700">Contact details (optional)</summary>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <label className="block text-sm font-medium text-slate-800">Name (optional)<input maxLength={120} value={respondentName} onChange={(event) => setRespondentName(event.target.value)} className={`${inputClass} mt-2`} /></label>
                       <label className="block text-sm font-medium text-slate-800">Email (optional)<input type="email" maxLength={254} value={respondentEmail} onChange={(event) => setRespondentEmail(event.target.value)} className={`${inputClass} mt-2`} /></label>
-                    </section>
+                      </div>
+                    </details>
                   )}
                   {error && <p role="alert" className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{userFacingError(error)}</p>}
-                  {sharedForm.accepting && <button type="submit" disabled={isSubmitting} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60">
+                  {sharedForm.accepting && <button type="submit" disabled={isSubmitting} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60">
                     {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{isSubmitting ? 'Submitting…' : 'Submit response'}
                   </button>}
                 </form>

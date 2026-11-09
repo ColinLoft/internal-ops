@@ -46,6 +46,12 @@ verify_jwt = false
 [functions.support-ai]
 verify_jwt = false
 
+[functions.support-send]
+verify_jwt = false
+
+[functions.support-inbound]
+verify_jwt = false
+
 [functions.support-public]
 verify_jwt = false
 

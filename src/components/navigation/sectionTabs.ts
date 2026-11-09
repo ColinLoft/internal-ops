@@ -1,8 +1,8 @@
 import {
-  CheckSquare, Headset, House, ContactRound, Building2, BookOpen, BarChart3, ShieldCheck,
+  CheckSquare, Headset, House, Building2, BookOpen, BarChart3, ShieldCheck,
   Landmark, Target, FolderKanban, Code2, Cog, Cable, Network,
   FileText, MapPin, Package, ClipboardList, Truck, Siren,
-  Calendar as CalendarIcon, Lightbulb, type LucideIcon,
+  Calendar as CalendarIcon, type LucideIcon,
 } from 'lucide-react';
 
 export interface SectionTab {
@@ -39,15 +39,13 @@ export const getSectionTabs = (activeTab: string, _routePath: string): SectionTa
       ];
     case 'customers':
       return [
-        tab('Companies', 'Companies', Building2, '/customers/organizations', ['/customers/companies']),
-        tab('Contacts', 'Contacts', ContactRound, '/customers/contacts', ['/customers']),
+        tab('Companies', 'Companies', Building2, '/customers/organizations', ['/customers/companies', '/customers/contacts', '/customers']),
         tab('Contracts', 'Contracts', FileText, '/customers/contracts'),
         tab('Support', 'Support', Headset, '/customers/support', ['/help']),
       ];
     case 'company':
       return [
-        tab('Ideas', 'Ideas', Lightbulb, '/company/ideas', ['/company']),
-        tab('Forms', 'Forms', ClipboardList, '/company/forms'),
+        tab('Forms', 'Forms', ClipboardList, '/company/forms', ['/company', '/company/ideas']),
         tab('Grants', 'Grants', Landmark, '/company/grants', undefined, 'finance'),
         tab('Find Grants', 'Find', Target, '/company/find-grants', ['/company/prospects'], 'finance'),
         tab('Grant Resources', 'Library', BookOpen, '/company/resources', undefined, 'finance'),

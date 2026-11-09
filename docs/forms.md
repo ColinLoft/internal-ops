@@ -16,6 +16,8 @@ The route integration belongs to the application shell. Forms components do not 
 
 ## Editing and publishing
 
+The builder shows the title, field type, choices, and Required toggle first. Help text, validation bounds, and conditional visibility are under each question's expandable settings. On smaller screens, a form chooser replaces the library sidebar. Preview and every shared form (including loading, error, and completion states) carry the Flown logo and a link to [flown.org](https://flown.org). Optional respondent contact details are expandable. Branding is presentation-only: published schemas, permissions, and existing answers are unchanged.
+
 Draft title, description, questions, validation, ordering, and conditional visibility are stored in the standalone form's `content` JSON. New forms are owned by the creating staff account. Existing forms and their collaborator grants are copied into standalone tables once. Database row-level security remains authoritative for reading and editing; the UI also presents shared forms as read-only unless the current user owns the form or has an editor grant.
 
 Creation verifies the Supabase Auth user before inserting and rejects an expired or mismatched profile/session. The follow-up migration authorizes active owners directly in the SELECT policy: the previous stable `can_view_company_form(id)` self-query could not see the newly inserted row during `INSERT ... RETURNING`. Active staff remains required; owner-only creation, immutable ownership, and collaborator editing permissions are not relaxed.

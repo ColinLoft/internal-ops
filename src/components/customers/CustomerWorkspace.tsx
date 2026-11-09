@@ -1,298 +1,169 @@
-import { userFacingError } from '../../lib/userFacingError';
-import { CustomSelect } from "../common/CustomSelect";
 import React, { useEffect, useMemo, useState } from 'react';
-import { Building2, CalendarPlus, CheckCircle2, Clock3, Headset, ListTodo, Mail, MessageSquare, Phone, Plus, Search, StickyNote, Trash2, X, Flame } from 'lucide-react';
+import { ArrowLeft, Building2, CheckCircle2, Mail, Plus, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { useWorkspace } from '../../context/WorkspaceContext';
-import { PanelLayout } from '../common/PanelLayout';
-import { EmptyState, ProvenanceBadge } from '../common/Feedback';
-import { useConfirm } from '../common/useConfirm';
 import { useAppAccess } from '../../lib/useAppAccess';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { userFacingError } from '../../lib/userFacingError';
+import { navigate } from '../../lib/navigate';
 
-export type CrmOrg = { id: string; name: string; category: string; website: string | null; notes: string | null; owner_id: string | null; created_at: string; stage?: string };
-export type CrmContact = { id: string; organization_id: string | null; name: string; role_title: string | null; email: string | null; phone: string | null };
-export type CrmInteraction = { id: string; organization_id: string | null; contact_id: string | null; kind: string; subject: string; body: string | null; occurred_at: string; follow_up_at: string | null; follow_up_done: boolean };
-type Conversation = { id: string; subject: string; status: string; last_message_at: string; last_message_preview: string | null; summary: unknown };
-type WildfireProfileData = { properties: { id: string; label: string; city: string; region: string }[]; opportunities: { id: string; name: string; stage: string; estimated_value: number | null }[] };
-
-export const STAGES: [string, string, string][] = [
-  ['lead', 'Lead', 'bg-slate-100 text-slate-600'],
-  ['qualified', 'Qualified', 'bg-brand-50 text-brand-700'],
-  ['active', 'Active', 'bg-emerald-50 text-emerald-700'],
-  ['at_risk', 'At risk', 'bg-amber-50 text-amber-700'],
-  ['inactive', 'Inactive', 'bg-slate-100 text-slate-400'],
-];
-const stageStyle = (stage?: string) => STAGES.find((item) => item[0] === stage)?.[2] ?? STAGES[0][2];
-const stageLabel = (stage?: string) => STAGES.find((item) => item[0] === stage)?.[1] ?? 'Lead';
-const label = (value: string) => value.replace('_', ' ').replace(/^\w/, (char) => char.toUpperCase());
-const fmt = (value: string) => new Date(value).toLocaleDateString();
-const daysSince = (value: string) => Math.floor((Date.now() - new Date(value).getTime()) / 86400000);
-
-const go = (path: string) => { window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); };
-
-interface Props {
-  orgs: CrmOrg[];
-  contacts: CrmContact[];
-  items: CrmInteraction[];
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-  canEdit: boolean;
-  canManage: boolean;
-  userName: (id: string | null) => string;
-  onAdd: (kind: 'org' | 'contact' | 'interaction', orgId?: string) => void;
-  onMutate: (operation: PromiseLike<{ error: { message: string } | null }>) => Promise<void>;
-}
-
-export const CustomerWorkspace: React.FC<Props> = ({ orgs, contacts, items, selectedId, onSelect, canEdit, canManage, userName, onAdd, onMutate }) => {
-  const { currentUser, setActiveTab } = useWorkspace();
-  const { level: wildfireAccess } = useAppAccess('wildfire');
-  const { confirm, dialog } = useConfirm();
-  const [query, setQuery] = useState('');
-  const [stage, setStage] = useState('all');
-  const [relationshipType, setRelationshipType] = useState<'all' | 'customer' | 'funder'>('all');
-  const [note, setNote] = useState('');
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [dismissed, setDismissed] = useState<string[]>([]);
-  const [wildfireData, setWildfireData] = useState<WildfireProfileData>({ properties: [], opportunities: [] });
-  const [wildfireError, setWildfireError] = useState('');
-  const [wildfireLoading, setWildfireLoading] = useState(false);
-
-  const org = orgs.find((item) => item.id === selectedId) || null;
-  const orgContacts = useMemo(() => contacts.filter((contact) => contact.organization_id === org?.id), [contacts, org?.id]);
-  const orgItems = useMemo(() => items.filter((item) => item.organization_id === org?.id), [items, org?.id]);
-  const primary = orgContacts.find((contact) => contact.email || contact.phone) || orgContacts[0];
-
-  useEffect(() => {
-    setConversations([]);
-    setDismissed([]);
-    if (!org) return;
-    let active = true;
-    const escaped = org.name.replace(/[\\%_]/g, (char) => `\\${char}`);
-    const emails = orgContacts.map((contact) => contact.email).filter((email): email is string => Boolean(email));
-    void (async () => {
-      const [byOrg, byEmail] = await Promise.all([
-        supabase.from('support_customers').select('id').ilike('organization', escaped),
-        emails.length ? supabase.from('support_customers').select('id').in('email', emails) : Promise.resolve({ data: [] as { id: string }[] }),
-      ]);
-      const ids = [...new Set([...(byOrg.data || []), ...(byEmail.data || [])].map((row) => row.id))];
-      if (!ids.length) return;
-      const { data } = await supabase.from('support_conversations').select('id,subject,status,last_message_at,last_message_preview,summary').in('customer_id', ids).order('last_message_at', { ascending: false }).limit(10);
-      if (active && data) setConversations(data as Conversation[]);
-    })();
-    return () => { active = false; };
-  }, [org, orgContacts]);
-
-  useEffect(() => {
-    setWildfireData({ properties: [], opportunities: [] });
-    setWildfireError('');
-    if (!org || wildfireAccess < 1) return;
-    let active = true;
-    setWildfireLoading(true);
-    void Promise.all([
-      supabase.from('wildfire_properties').select('id,label,city,region').eq('organization_id', org.id).order('label'),
-      supabase.from('wildfire_opportunities').select('id,name,stage,estimated_value').eq('organization_id', org.id).order('updated_at', { ascending: false }).limit(5),
-    ]).then(([propertyResult, opportunityResult]) => {
-      if (!active) return;
-      const failure = propertyResult.error || opportunityResult.error;
-      if (failure) setWildfireError(`Wildfire records could not be loaded: ${failure.message}`);
-      else setWildfireData({
-        properties: propertyResult.data || [],
-        opportunities: opportunityResult.data || [],
-      });
-      setWildfireLoading(false);
-    });
-    return () => { active = false; };
-  }, [org?.id, wildfireAccess]);
-
-  const needle = query.trim().toLowerCase();
-  const visible = orgs.filter((item) => (stage === 'all' || (item.stage ?? 'lead') === stage)
-    && (relationshipType === 'all' || item.category === relationshipType)
-    && (!needle || `${item.name} ${item.website || ''}`.toLowerCase().includes(needle)));
-
-  const timeline = useMemo(() => [
-    ...orgItems.map((item) => ({ key: item.id, at: item.occurred_at, kind: item.kind, title: item.subject, body: item.body, interaction: item })),
-    ...conversations.map((item) => ({ key: `c-${item.id}`, at: item.last_message_at, kind: 'conversation', title: item.subject, body: item.last_message_preview, interaction: null })),
-  ].sort((a, b) => b.at.localeCompare(a.at)), [orgItems, conversations]);
-
-  const lastTouch = timeline[0]?.at;
-  const openFollowUps = orgItems.filter((item) => item.follow_up_at && !item.follow_up_done);
-  const overdueFollowUps = openFollowUps.filter((item) => new Date(item.follow_up_at as string) < new Date());
-
-  const suggestions = useMemo(() => {
-    if (!org) return [];
-    const list: { id: string; text: string; action: string; run: () => void }[] = [];
-    if (overdueFollowUps.length) list.push({ id: 'overdue', text: `${overdueFollowUps.length} follow-up${overdueFollowUps.length > 1 ? 's are' : ' is'} overdue.`, action: 'Create task', run: () => go(`/programs/tasks?newTask=${encodeURIComponent(`Follow up with ${org.name}`)}`) });
-    if (!lastTouch || daysSince(lastTouch) > 30) list.push({ id: 'stale', text: lastTouch ? `No contact in ${daysSince(lastTouch)} days.` : 'No activity logged yet.', action: 'Log a call', run: () => onAdd('interaction', org.id) });
-    if (!orgContacts.length) list.push({ id: 'contact', text: 'No contacts on file for this organization.', action: 'Add contact', run: () => onAdd('contact', org.id) });
-    if ((org.stage ?? 'lead') === 'lead' && orgItems.length >= 3) list.push({ id: 'stage', text: 'Several touchpoints logged. Ready to qualify?', action: 'Mark qualified', run: () => void onMutate(supabase.from('crm_organizations').update({ stage: 'qualified' }).eq('id', org.id)) });
-    return list.filter((item) => !dismissed.includes(item.id));
-  }, [org, overdueFollowUps.length, lastTouch, orgContacts.length, orgItems.length, dismissed, onAdd, onMutate]);
-
-  const addNote = async () => {
-    if (!org || !note.trim()) return;
-    const text = note.trim();
-    await onMutate(supabase.from('crm_interactions').insert({ organization_id: org.id, kind: 'note', subject: text.split('\n')[0].slice(0, 80), body: text, owner_id: currentUser.id }));
-    setNote('');
-  };
-
-  const removeInteraction = async (id: string) => {
-    if (await confirm({ title: 'Delete this entry?', message: 'It will be removed from the customer history.' })) await onMutate(supabase.from('crm_interactions').delete().eq('id', id));
-  };
-
-  const list = (
-    <section className="flex h-full w-full flex-col bg-white/70">
-      <div className="space-y-2 border-b border-slate-200 p-3">
-        <div className="flex items-center justify-between"><h2 className="text-sm font-semibold text-slate-800">Companies <span className="text-slate-400">{visible.length}</span></h2>{canEdit && <button type="button" onClick={() => onAdd('org')} className="flex items-center gap-1 rounded-lg bg-brand-600 px-2 py-1 text-xs font-semibold text-white hover:bg-brand-700"><Plus className="h-3.5 w-3.5" />New</button>}</div>
-        <div className="relative"><Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search customers…" aria-label="Search customers" className="w-full rounded-lg border border-slate-200 py-1.5 pl-8 pr-2 text-xs outline-none focus:border-brand-400" /></div>
-        <div className="flex gap-1" aria-label="Company type">
-          {([['all', 'All types'], ['customer', 'Customers'], ['funder', 'Funders']] as const).map(([id, name]) => <button key={id} type="button" onClick={() => setRelationshipType(id)} aria-pressed={relationshipType === id} className={`rounded-md px-2 py-1 text-xs font-medium ${relationshipType === id ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>{name}</button>)}
-        </div>
-        <div className="flex flex-wrap gap-1">{[['all', 'All'], ...STAGES.map((item) => [item[0], item[1]])].map(([id, name]) => <button key={id} type="button" onClick={() => setStage(id)} className={`rounded-md px-2 py-0.5 text-xs font-medium ${stage === id ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>{name}</button>)}</div>
-      </div>
-      <ul className="flex-1 divide-y divide-slate-100 overflow-y-auto">
-        {visible.length === 0 && <li className="p-3"><EmptyState icon={Building2} text="No customers match." action={canEdit ? 'Add a customer' : undefined} onClick={() => onAdd('org')} /></li>}
-        {visible.map((item) => (
-          <li key={item.id}>
-            <button type="button" onClick={() => onSelect(item.id)} className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-brand-50/60 ${item.id === selectedId ? 'bg-brand-50' : ''}`}>
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-xs font-bold text-brand-700">{item.name.slice(0, 2).toUpperCase()}</span>
-              <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-800">{item.name}</span><span className="block truncate text-[11px] text-slate-400">{label(item.category)}</span></span>
-              <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${stageStyle(item.stage)}`}>{stageLabel(item.stage)}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-
-  const details = org ? (
-    <aside className="h-full w-full space-y-4 overflow-y-auto bg-white/70 p-4">
-      <div className="flex items-start gap-3">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-sm font-bold text-brand-700">{org.name.slice(0, 2).toUpperCase()}</span>
-        <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-900">{org.name}</p><p className="truncate text-xs text-slate-500">{label(org.category)}{org.website ? ` · ${org.website}` : ''}</p></div>
-        <button type="button" onClick={() => onSelect(null)} aria-label="Close customer" className="rounded p-1 text-slate-400 hover:bg-slate-100 lg:hidden"><X className="h-4 w-4" /></button>
-      </div>
-      <div className="grid grid-cols-5 gap-1.5">
-        {([
-          ['Call', Phone, primary?.phone ? () => { window.location.href = `tel:${primary.phone}`; } : undefined],
-          ['Email', Mail, primary?.email ? () => { window.location.href = `mailto:${primary.email}`; } : undefined],
-          ['Message', MessageSquare, () => go('/customers/support')],
-          ['Task', ListTodo, () => go(`/programs/tasks?newTask=${encodeURIComponent(`${org.name}: `)}`)],
-          ['Schedule', CalendarPlus, () => setActiveTab('calendar')],
-        ] as const).map(([name, Icon, action]) => (
-          <button key={name} type="button" disabled={!action} onClick={action} title={action ? name : `${name} (no contact details)`} className="flex flex-col items-center gap-1 rounded-lg border border-slate-200 bg-white py-2 text-[11px] font-medium text-slate-600 hover:border-brand-300 hover:text-brand-700 disabled:opacity-40"><Icon className="h-4 w-4" />{name}</button>
-        ))}
-      </div>
-      <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
-        <label className="col-span-2">Company type<CustomSelect disabled={!canEdit} value={org.category} onChange={(event) => void onMutate(supabase.from('crm_organizations').update({ category: event.target.value }).eq('id', org.id))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs"><option value="customer">Customer</option><option value="funder">Funder</option></CustomSelect></label>
-        <label>Stage<CustomSelect disabled={!canEdit} value={org.stage ?? 'lead'} onChange={(event) => void onMutate(supabase.from('crm_organizations').update({ stage: event.target.value }).eq('id', org.id))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs">{STAGES.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</CustomSelect></label>
-        <div>Relationship<p className="mt-1 rounded-lg bg-slate-50 px-2 py-1.5 font-semibold text-slate-700">{lastTouch ? (daysSince(lastTouch) <= 14 ? 'Warm' : daysSince(lastTouch) <= 45 ? 'Cooling' : 'Cold') : 'New'} <span className="font-normal text-slate-400">· {lastTouch ? `${daysSince(lastTouch)}d ago` : 'no touch'}</span></p></div>
-      </div>
-      <p className="text-xs text-slate-400">Owner: {userName(org.owner_id)} · Added {fmt(org.created_at)}</p>
-
-      {wildfireAccess >= 1 && <section>
-        <div className="mb-1.5 flex items-center justify-between gap-2"><h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400"><Flame className="h-3.5 w-3.5" />Wildfire</h4><button type="button" onClick={() => go('/wildfire/opportunities')} className="text-xs font-semibold text-brand-700 hover:underline">Open workspace</button></div>
-        {wildfireLoading ? <p className="text-xs text-slate-500">Loading linked records…</p> : wildfireError ? <p role="alert" className="text-xs text-rose-700">{userFacingError(wildfireError)}</p> : (
-          <div className="space-y-2">
-            <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-              <p className="text-xs font-semibold text-slate-700">Properties <span className="font-normal text-slate-500">{wildfireData.properties.length}</span></p>
-              {wildfireData.properties.length ? <ul className="mt-1.5 space-y-1">{wildfireData.properties.slice(0, 3).map((property) => <li key={property.id} className="text-xs text-slate-600">{property.label}{property.city ? ` · ${property.city}` : ''}{property.region ? `, ${property.region}` : ''}</li>)}</ul> : <p className="mt-1 text-xs text-slate-500">No wildfire properties linked.</p>}
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-              <p className="text-xs font-semibold text-slate-700">Recent opportunities <span className="font-normal text-slate-500">{wildfireData.opportunities.length}</span></p>
-              {wildfireData.opportunities.length ? <ul className="mt-1.5 space-y-1">{wildfireData.opportunities.slice(0, 3).map((opportunity) => <li key={opportunity.id} className="flex items-center justify-between gap-2 text-xs"><span className="truncate text-slate-700">{opportunity.name}</span><span className="shrink-0 text-slate-500">{label(opportunity.stage)}</span></li>)}</ul> : <p className="mt-1 text-xs text-slate-500">No opportunities linked.</p>}
-            </div>
-          </div>
-        )}
-      </section>}
-
-      <div>
-        <div className="mb-1.5 flex items-center justify-between"><h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Suggested next actions <ProvenanceBadge kind="automated" /></h4></div>
-        {suggestions.length ? <ul className="space-y-1.5">{suggestions.map((item) => (
-          <li key={item.id} className="rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-600">
-            <p>{item.text}</p>
-            <div className="mt-1.5 flex gap-2"><button type="button" disabled={!canEdit} onClick={() => { item.run(); setDismissed((current) => [...current, item.id]); }} className="rounded-md bg-brand-600 px-2 py-0.5 font-semibold text-white hover:bg-brand-700 disabled:opacity-50">{item.action}</button><button type="button" onClick={() => setDismissed((current) => [...current, item.id])} className="text-slate-400 hover:underline">Dismiss</button></div>
-          </li>
-        ))}</ul> : <p className="text-xs text-slate-400">Nothing needs attention.</p>}
-      </div>
-
-      <div>
-        <div className="mb-1.5 flex items-center justify-between"><h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Contacts</h4>{canEdit && <button type="button" onClick={() => onAdd('contact', org.id)} className="text-xs font-semibold text-brand-700 hover:underline">Add</button>}</div>
-        {orgContacts.length ? <ul className="space-y-1.5">{orgContacts.map((contact) => <li key={contact.id} className="rounded-lg border border-slate-100 p-2 text-xs"><p className="font-semibold text-slate-800">{contact.name}{contact.role_title ? <span className="font-normal text-slate-400"> · {contact.role_title}</span> : null}</p><p className="truncate text-slate-500">{[contact.email, contact.phone].filter(Boolean).join(' · ') || 'No contact details'}</p></li>)}</ul> : <p className="text-xs text-slate-400">No contacts yet.</p>}
-      </div>
-
-      <div>
-        <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">Conversations</h4>
-        {conversations.length ? <ul className="space-y-1.5">{conversations.slice(0, 4).map((item) => <li key={item.id}><button type="button" onClick={() => go('/customers/support')} className="w-full rounded-lg border border-slate-100 p-2 text-left text-xs hover:border-brand-200"><span className="flex items-center justify-between gap-2"><span className="truncate font-semibold text-slate-800">{item.subject}</span><span className="shrink-0 text-[11px] capitalize text-slate-400">{item.status}</span></span><span className="mt-0.5 block truncate text-slate-500">{item.last_message_preview || 'No messages'}</span></button></li>)}</ul> : <p className="text-xs text-slate-400">No linked support conversations.</p>}
-      </div>
-
-      {org.notes && <div><h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">Profile notes</h4><p className="whitespace-pre-wrap text-xs text-slate-600">{org.notes}</p></div>}
-
-      {canManage && <button type="button" onClick={async () => { if (await confirm({ title: `Delete ${org.name}?`, message: 'Its contacts and interactions will also be removed.' })) { await onMutate(supabase.from('crm_organizations').delete().eq('id', org.id)); onSelect(null); } }} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50">Delete customer</button>}
-    </aside>
-  ) : undefined;
-
-  return (
-    <div className="flex min-h-0 flex-1 overflow-hidden bg-white/40">
-      <PanelLayout storageKey="customers" leftLabel="customers" rightLabel="customer details" leftWidth={280} rightWidth={340} showSidesOnMobile={!org} left={list} right={details}>
-        {!org ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-xs text-slate-400"><Building2 className="h-7 w-7" />Select a customer to see their workspace.</div>
-        ) : (
-          <section className="flex h-full min-w-0 flex-1 flex-col">
-            <header className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white/70 px-4 py-2.5 pr-20">
-              <button type="button" onClick={() => onSelect(null)} aria-label="Back" className="rounded-md p-1 text-slate-500 hover:bg-slate-100 lg:hidden"><X className="h-4 w-4" /></button>
-              <div className="min-w-0 flex-1"><h3 className="truncate text-sm font-semibold text-slate-800">{org.name}</h3><p className="text-xs text-slate-500">{orgItems.length} interactions · {orgContacts.length} contacts · {conversations.length} conversations</p></div>
-              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${stageStyle(org.stage)}`}>{stageLabel(org.stage)}</span>
-              {canEdit && <button type="button" onClick={() => onAdd('interaction', org.id)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Plus className="h-3.5 w-3.5" />Log interaction</button>}
-            </header>
-            <div className="flex-1 space-y-2 overflow-y-auto p-4">
-              {timeline.length === 0 && <EmptyState icon={Clock3} title="No history yet" text="Notes, calls and conversations will build a timeline here." action={canEdit ? 'Log first interaction' : undefined} onClick={() => onAdd('interaction', org.id)} />}
-              {timeline.map((entry) => {
-                const interaction = entry.interaction;
-                const Icon = entry.kind === 'conversation' ? Headset : entry.kind === 'note' ? StickyNote : entry.kind === 'email' ? Mail : entry.kind === 'call' ? Phone : Clock3;
-                return (
-                  <div key={entry.key} className={`flex items-start gap-3 rounded-xl border p-3 ${entry.kind === 'note' ? 'border-amber-200 bg-amber-50/60' : 'border-slate-100 bg-white'}`}>
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600"><Icon className="h-3.5 w-3.5" /></span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-bold text-slate-800">{entry.title}</p>
-                      <p className="text-[11px] text-slate-400">{entry.kind === 'conversation' ? 'Support conversation' : entry.kind === 'note' ? 'Internal note' : label(entry.kind)} · {fmt(entry.at)}</p>
-                      {entry.body && entry.body !== entry.title && <p className="mt-1 line-clamp-4 whitespace-pre-wrap text-xs text-slate-600">{entry.body}</p>}
-                      {interaction?.follow_up_at && <p className={`mt-1 text-xs font-semibold ${!interaction.follow_up_done && new Date(interaction.follow_up_at) < new Date() ? 'text-rose-600' : 'text-slate-400'}`}>Follow-up {fmt(interaction.follow_up_at)}{interaction.follow_up_done ? ' · done' : ''}</p>}
-                    </div>
-                    {canEdit && interaction?.follow_up_at && !interaction.follow_up_done && <button type="button" title="Mark follow-up done" onClick={() => void onMutate(supabase.from('crm_interactions').update({ follow_up_done: true }).eq('id', interaction.id))} className="text-emerald-600"><CheckCircle2 className="h-4 w-4" /></button>}
-                    {canManage && interaction && <button type="button" title="Delete" onClick={() => void removeInteraction(interaction.id)} className="text-slate-300 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>}
-                  </div>
-                );
-              })}
-            </div>
-            {canEdit && (
-              <footer className="border-t border-slate-200 bg-amber-50/50 p-3">
-                <div className="flex gap-2">
-                  <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} aria-label="Internal note" placeholder="Add an internal note (only your team sees this)…" onKeyDown={(event) => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) void addNote(); }} className="w-full resize-none rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs outline-none focus:border-amber-400" />
-                  <button type="button" disabled={!note.trim()} onClick={() => void addNote()} className="self-end rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-50">Add note</button>
-                </div>
-              </footer>
-            )}
-          </section>
-        )}
-      </PanelLayout>
-      {dialog}
-    </div>
-  );
+export type CrmOrg = { id: string; name: string; category: string; website: string | null; notes: string | null; owner_id: string | null; created_at: string; stage?: string; industry?: string | null; address?: string | null; phone?: string | null };
+export type CrmContact = { id: string; organization_id: string | null; name: string; role_title: string | null; email: string | null; phone: string | null; notes?: string | null; owner_id?: string | null };
+export type CrmInteraction = { id: string; organization_id: string | null; contact_id: string | null; kind: string; subject: string; body: string | null; occurred_at: string; follow_up_at: string | null; follow_up_done: boolean; owner_id?: string | null };
+export type CrmDeal = { id: string; organization_id: string; name: string; amount: number | null; currency: string; stage: string; expected_close: string | null; notes: string | null; owner_id: string | null; created_at: string };
+type Kind = 'org' | 'contact' | 'interaction' | 'deal';
+type RecordRow = CrmOrg | CrmContact | CrmInteraction | CrmDeal;
+type LinkedRecord = { id: string; title: string; status: string; path: string; at?: string; preview?: string | null };
+const fmt = (date: string) => new Date(date).toLocaleDateString();
+const button = 'workspace-control inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50';
+const panel = 'workspace-panel rounded-xl border border-slate-200 bg-white';
+const label = (value: string) => value.replace(/_/g, ' ');
+const websiteUrl = (value: string) => {
+  try { const url = new URL(value.includes('://') ? value : `https://${value}`); return ['http:', 'https:'].includes(url.protocol) ? url.href : null; }
+  catch { return null; }
 };
 
-export const CustomerPipeline: React.FC<{ orgs: CrmOrg[]; canEdit: boolean; onOpen: (id: string) => void; onMove: (id: string, stage: string) => void }> = ({ orgs, canEdit, onOpen, onMove }) => (
-  <div className="grid flex-1 gap-3 overflow-auto p-4 md:grid-cols-3 xl:grid-cols-5">
-    {STAGES.map(([id, name]) => {
-      const column = orgs.filter((item) => (item.stage ?? 'lead') === id);
-      return (
-        <div key={id} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { const orgId = event.dataTransfer.getData('text/plain'); if (canEdit && orgId) onMove(orgId, id); }} className="min-h-40 rounded-xl border border-slate-200 bg-slate-50/70 p-2">
-          <p className="mb-2 flex items-center justify-between px-1 text-xs font-bold text-slate-600">{name}<span className="text-slate-400">{column.length}</span></p>
-          <div className="space-y-1.5">
-            {column.map((item) => <button key={item.id} type="button" draggable={canEdit} onDragStart={(event) => event.dataTransfer.setData('text/plain', item.id)} onClick={() => onOpen(item.id)} className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-left hover:border-brand-300"><span className="block truncate text-xs font-semibold text-slate-800">{item.name}</span><span className="text-[11px] text-slate-400">{label(item.category)}</span></button>)}
-            {column.length === 0 && <p className="px-1 py-3 text-center text-[11px] text-slate-400">Drop customers here</p>}
+interface Props {
+  orgs: CrmOrg[]; contacts: CrmContact[]; items: CrmInteraction[]; deals: CrmDeal[];
+  selectedId: string | null; focusedContactId?: string | null; onSelect: (id: string | null) => void; canEdit: boolean; canManage: boolean;
+  onAdd: (kind: Kind, orgId?: string) => void; onEdit: (kind: Kind, row: RecordRow) => void;
+  onRemove: (kind: Kind, row: { id: string; name?: string }) => void;
+  onMutate: (operation: PromiseLike<{ error: { message: string } | null }>) => Promise<boolean>;
+}
+
+export const CustomerWorkspace: React.FC<Props> = ({ orgs, contacts, items, deals, selectedId, focusedContactId, onSelect, canEdit, canManage, onAdd, onEdit, onRemove, onMutate }) => {
+  const { currentUser, users } = useWorkspace();
+  const supportAccess = useAppAccess('support');
+  const financeAccess = useAppAccess('finance');
+  const wildfireAccess = useAppAccess('wildfire');
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState<'customer' | 'funder'>('customer');
+  const [section, setSection] = useState<'activity' | 'contacts' | 'opportunities' | 'records'>('contacts');
+  const [linked, setLinked] = useState<LinkedRecord[]>([]);
+  const [linkedError, setLinkedError] = useState('');
+  const [linkedLoading, setLinkedLoading] = useState(false);
+  const [note, setNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+  const [unlinked, setUnlinked] = useState(false);
+  const org = orgs.find((row) => row.id === selectedId);
+  const selectedCategory = org?.category;
+  const orgContacts = contacts.filter((contact) => contact.organization_id === selectedId);
+  const contactIds = new Set(orgContacts.map((contact) => contact.id));
+  const history = items.filter((item) => item.organization_id === selectedId || !!item.contact_id && contactIds.has(item.contact_id)).sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+  const openFollowUps = history.filter((item) => item.follow_up_at && !item.follow_up_done).sort((a, b) => a.follow_up_at!.localeCompare(b.follow_up_at!));
+  const companyDeals = deals.filter((deal) => deal.organization_id === selectedId);
+  const person = (id?: string | null) => users.find((user) => user.id === id)?.name || 'Unassigned';
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return orgs.filter((row) => (category === 'funder' ? row.category === 'funder' : row.category !== 'funder')
+      && (!needle || `${row.name} ${row.website || ''} ${contacts.filter((contact) => contact.organization_id === row.id).map((contact) => `${contact.name} ${contact.email || ''}`).join(' ')}`.toLowerCase().includes(needle)));
+  }, [orgs, contacts, category, query]);
+  const orphanContacts = contacts.filter((contact) => !contact.organization_id);
+
+  useEffect(() => { setNote(''); setLinked([]); setLinkedError(''); }, [selectedId]);
+  useEffect(() => {
+    if (selectedCategory) setCategory(selectedCategory === 'funder' ? 'funder' : 'customer');
+  }, [selectedCategory, selectedId]);
+  useEffect(() => {
+    if (focusedContactId) { setUnlinked(!selectedId); setSection('contacts'); }
+  }, [focusedContactId, selectedId]);
+  useEffect(() => {
+    if (!org) return;
+    let active = true;
+    setLinkedLoading(true);
+    setLinkedError('');
+    void (async () => {
+      try {
+        const records: LinkedRecord[] = [];
+        const contracts = await supabase.from('customer_contracts').select('id,name,status').eq('organization_id', org.id).order('updated_at', { ascending: false });
+        if (contracts.error) throw contracts.error;
+        records.push(...(contracts.data || []).map((row) => ({ id: `contract-${row.id}`, title: row.name, status: row.status, path: `/customers/contracts?contract=${row.id}` })));
+        if (financeAccess.canView) {
+          const grants = await supabase.from('grants').select('id,name,stage').eq('funder_org_id', org.id);
+          if (grants.error) throw grants.error;
+          records.push(...(grants.data || []).map((row) => ({ id: `grant-${row.id}`, title: row.name, status: row.stage, path: `/company/grants/${row.id}` })));
+        }
+        if (supportAccess.canView) {
+          const contactResult = orgContacts.length ? await supabase.from('support_customers').select('id').in('crm_contact_id', orgContacts.map((row) => row.id)) : { data: [], error: null };
+          if (contactResult.error) throw contactResult.error;
+          const byOrg = await supabase.from('support_customers').select('id').ilike('organization', org.name.replace(/[\\%_]/g, (char) => `\\${char}`));
+          if (byOrg.error) throw byOrg.error;
+          const ids = [...new Set([...(contactResult.data || []), ...(byOrg.data || [])].map((row) => row.id))];
+          if (ids.length) {
+            const conversations = await supabase.from('support_conversations').select('id,subject,status,last_message_at,last_message_preview').in('customer_id', ids).order('last_message_at', { ascending: false });
+            if (conversations.error) throw conversations.error;
+            records.push(...(conversations.data || []).map((row) => ({ id: `support-${row.id}`, title: row.subject, status: row.status, path: `/customers/support?conversation=${row.id}`, at: row.last_message_at, preview: row.last_message_preview })));
+          }
+        }
+        if (wildfireAccess.canView) {
+          const opportunities = await supabase.from('wildfire_opportunities').select('id,name,stage').eq('organization_id', org.id);
+          if (opportunities.error) throw opportunities.error;
+          records.push(...(opportunities.data || []).map((row) => ({ id: `wildfire-${row.id}`, title: row.name, status: row.stage, path: '/wildfire/opportunities' })));
+        }
+        if (active) setLinked(records);
+      } catch (cause) {
+        if (active) setLinkedError(userFacingError(cause, 'Linked records could not be loaded.'));
+      } finally { if (active) setLinkedLoading(false); }
+    })();
+    return () => { active = false; };
+  }, [org, contacts, financeAccess.canView, supportAccess.canView, wildfireAccess.canView]);
+
+  const selectCompany = (id: string) => {
+    onSelect(id); setUnlinked(false);
+    const company = orgs.find((entry) => entry.id === id);
+    setCategory(company?.category === 'funder' ? 'funder' : 'customer');
+  };
+  const actions = (kind: Kind, row: RecordRow) => <div className="flex shrink-0 gap-3 text-sm">
+    {canEdit && <button type="button" onClick={() => onEdit(kind, row)} className="text-brand-600 hover:underline">Edit</button>}
+    {canManage && <button type="button" onClick={() => onRemove(kind, row)} className="text-slate-500 hover:text-rose-600">Delete</button>}
+  </div>;
+  const contactCard = (contact: CrmContact) => <article key={contact.id} className={`${panel} space-y-3 ${contact.id === focusedContactId ? 'ring-2 ring-brand-500' : ''}`}>
+    <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-semibold text-slate-900">{contact.name}</h3>{contact.role_title && <p className="text-sm text-slate-500">{contact.role_title}</p>}</div>{actions('contact', contact)}</div>
+    <div className="space-y-1 text-sm text-slate-700">{contact.email && <a className="block break-all hover:underline" href={`mailto:${contact.email}`}>{contact.email}</a>}{contact.phone && <a className="block hover:underline" href={`tel:${contact.phone}`}>{contact.phone}</a>}{!contact.email && !contact.phone && <p className="text-slate-500">No contact details</p>}</div>
+    {contact.notes && <p className="whitespace-pre-wrap text-sm text-slate-500">{contact.notes}</p>}
+    <p className="text-xs text-slate-500">Owner: {person(contact.owner_id)}</p>
+    {canEdit && contact.organization_id && <button type="button" className="text-sm text-brand-600 hover:underline" onClick={() => { setSection('activity'); onAdd('interaction', contact.organization_id!); }}>Log activity</button>}
+  </article>;
+
+  return <>
+    <header className="workspace-page-header flex flex-wrap items-center justify-between gap-3 border-b border-slate-200">
+      <h1 className="text-xl font-bold text-slate-900">Companies</h1>
+      {canEdit && <button type="button" className="workspace-control inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700" onClick={() => onAdd('org')}><Plus className="h-4 w-4" />New company</button>}
+    </header>
+    <div className="flex min-h-0 flex-1 overflow-hidden">
+      <aside className={`${org || unlinked ? 'hidden lg:flex' : 'flex'} w-full shrink-0 flex-col border-r border-slate-200 lg:w-72`}>
+        <div className="space-y-3 p-4">
+          <div className="flex gap-2" role="tablist" aria-label="Company relationship">
+            {(['customer', 'funder'] as const).map((value) => <button key={value} type="button" role="tab" aria-selected={category === value} onClick={() => { setCategory(value); onSelect(null); setUnlinked(false); }} className={`${button} flex-1 ${category === value ? 'bg-slate-100 font-semibold' : ''}`}>{value === 'customer' ? 'Customers' : 'Funders'}</button>)}
           </div>
+          <label className="relative block"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Search companies and contacts" placeholder="Search companies or contacts" className="workspace-control w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm" /></label>
         </div>
-      );
-    })}
-  </div>
-);
+        <ul className="min-h-0 flex-1 overflow-y-auto">{visible.map((row) => <li key={row.id}><button type="button" aria-current={row.id === selectedId ? 'page' : undefined} onClick={() => selectCompany(row.id)} className={`w-full px-4 py-4 text-left hover:bg-slate-50 ${row.id === selectedId ? 'bg-slate-100' : ''}`}><span className="block font-medium text-slate-900">{row.name}</span><span className="mt-1 block text-xs text-slate-500">{contacts.filter((contact) => contact.organization_id === row.id).length} contacts · {person(row.owner_id)}</span></button></li>)}
+          {!visible.length && <li className="p-4 text-sm text-slate-500">No {category === 'funder' ? 'funders' : 'customers'} match.</li>}
+        </ul>
+        {orphanContacts.length > 0 && <button type="button" className="border-t border-slate-200 p-4 text-left text-sm text-slate-500 hover:bg-slate-50" onClick={() => { onSelect(null); setUnlinked(true); }}>Unlinked contacts ({orphanContacts.length})</button>}
+      </aside>
+      <section className={`${org || unlinked ? 'block' : 'hidden lg:flex'} min-w-0 flex-1 overflow-y-auto`}>
+        {unlinked ? <div className="workspace-page-body space-y-4"><button type="button" className={button} onClick={() => setUnlinked(false)}><ArrowLeft className="h-4 w-4" />Companies</button><h2 className="text-lg font-semibold">Unlinked contacts</h2><p className="text-sm text-slate-500">Edit a contact to assign their company.</p><div className="grid gap-4 xl:grid-cols-2">{orphanContacts.map(contactCard)}</div></div>
+          : !org ? <div className="m-auto p-8 text-center text-sm text-slate-500"><Building2 className="mx-auto mb-3 h-7 w-7" />Choose a company to see contacts, activity, and opportunities.</div>
+            : <div className="workspace-page-body mx-auto max-w-6xl space-y-5">
+              <button type="button" className={`${button} lg:hidden`} onClick={() => onSelect(null)}><ArrowLeft className="h-4 w-4" />Companies</button>
+              <div className="flex flex-wrap justify-between gap-3"><div><h2 className="text-xl font-semibold text-slate-900">{org.name}</h2><p className="mt-1 text-sm text-slate-500">{org.category === 'funder' ? 'Funder' : 'Customer'} · {person(org.owner_id)}{org.industry ? ` · ${org.industry}` : ''}</p></div>{actions('org', org)}</div>
+              <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">{org.website && (websiteUrl(org.website) ? <a href={websiteUrl(org.website)!} target="_blank" rel="noreferrer" className="break-all hover:underline">{org.website}</a> : <span>{org.website}</span>)}{org.phone && <a href={`tel:${org.phone}`}>{org.phone}</a>}{org.address && <p className="whitespace-pre-wrap">{org.address}</p>}</div>
+              {org.notes && <p className="whitespace-pre-wrap text-sm text-slate-600">{org.notes}</p>}
+              {openFollowUps.length > 0 && <section className={`${panel} space-y-3`}><h3 className="font-semibold text-slate-900">Upcoming follow-ups</h3>{openFollowUps.map((item) => <div key={item.id} className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium text-slate-800">{item.subject}</p><p className={`text-xs ${new Date(item.follow_up_at!) < new Date() ? 'text-rose-600' : 'text-slate-500'}`}>{fmt(item.follow_up_at!)} · {person(item.owner_id)}</p></div>{canEdit && <button type="button" title="Complete follow-up" aria-label={`Complete ${item.subject}`} className={button} onClick={() => void onMutate(supabase.from('crm_interactions').update({ follow_up_done: true }).eq('id', item.id).select('id').single())}><CheckCircle2 className="h-4 w-4" /></button>}</div>)}</section>}
+              <nav className="flex gap-1 overflow-x-auto border-b border-slate-200" aria-label="Company details">{([['contacts', 'Company contacts'], ['activity', 'Activity'], ['opportunities', org.category === 'funder' ? 'Funding opportunities' : 'Deals'], ['records', 'Linked records']] as const).map(([key, title]) => <button key={key} type="button" aria-pressed={section === key} onClick={() => setSection(key)} className={`min-h-11 shrink-0 border-b-2 px-3 text-sm font-medium ${section === key ? 'border-brand-500 text-brand-600' : 'border-transparent text-slate-500'}`}>{title}</button>)}</nav>
+              {section === 'contacts' && <section className="space-y-4"><div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Company contacts</h3>{canEdit && <button type="button" className={button} onClick={() => onAdd('contact', org.id)}><Plus className="h-4 w-4" />Add contact</button>}</div><div className="grid gap-4 xl:grid-cols-2">{orgContacts.map(contactCard)}</div>{!orgContacts.length && <p className="text-sm text-slate-500">No company contacts yet.</p>}</section>}
+              {section === 'opportunities' && <section className="space-y-4"><div className="flex items-center justify-between gap-3"><h3 className="font-semibold">{org.category === 'funder' ? 'Funding opportunities' : 'Deals'}</h3>{canEdit && <button type="button" className={button} onClick={() => onAdd('deal', org.id)}><Plus className="h-4 w-4" />Add opportunity</button>}</div>{companyDeals.map((deal) => <article key={deal.id} className={`${panel} space-y-2`}><div className="flex flex-wrap justify-between gap-3"><h4 className="font-semibold">{deal.name}</h4>{actions('deal', deal)}</div><p className="text-sm text-slate-700">{deal.amount == null ? 'Amount not set' : `${deal.currency} ${Number(deal.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} · {label(deal.stage)}{deal.expected_close ? ` · ${fmt(`${deal.expected_close}T12:00:00`)}` : ''}</p><p className="text-xs text-slate-500">Owner: {person(deal.owner_id)}</p>{deal.notes && <p className="whitespace-pre-wrap text-sm text-slate-500">{deal.notes}</p>}</article>)}{!companyDeals.length && <p className="text-sm text-slate-500">No opportunities tracked yet.</p>}</section>}
+              {section === 'activity' && <section className="space-y-4"><div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Activity</h3>{canEdit && <button type="button" className={button} onClick={() => onAdd('interaction', org.id)}><Plus className="h-4 w-4" />Log activity</button>}</div>
+                {canEdit && <form className={`${panel} flex flex-wrap gap-3`} onSubmit={async (event) => { event.preventDefault(); if (!note.trim() || savingNote) return; setSavingNote(true); try { if (await onMutate(supabase.from('crm_interactions').insert({ organization_id: org.id, kind: 'note', subject: note.trim().split('\n')[0].slice(0, 80), body: note.trim(), owner_id: currentUser.id }).select('id').single())) setNote(''); } finally { setSavingNote(false); } }}><textarea aria-label="Internal note" required rows={2} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Add a note…" className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white p-3 text-sm" /><button type="submit" disabled={!note.trim() || savingNote} className={`${button} self-end`}>{savingNote ? 'Saving…' : 'Add note'}</button></form>}
+                {history.map((item) => <article key={item.id} className={`${panel} space-y-2`}><div className="flex flex-wrap justify-between gap-2"><h4 className="font-medium text-slate-900">{item.subject}</h4>{actions('interaction', item)}</div><p className="text-xs capitalize text-slate-500">{label(item.kind)} · {fmt(item.occurred_at)} · {person(item.owner_id)}{item.contact_id ? ` · ${contacts.find((contact) => contact.id === item.contact_id)?.name || 'Contact'}` : ''}</p>{item.body && <p className="whitespace-pre-wrap text-sm text-slate-700">{item.body}</p>}</article>)}
+                {linked.filter((record) => record.at).map((record) => <button key={record.id} type="button" className={`${panel} block w-full space-y-2 text-left hover:bg-slate-50`} onClick={() => navigate(record.path)}><span className="flex items-center gap-2 font-medium"><Mail className="h-4 w-4" />{record.title}</span><span className="block text-xs text-slate-500">Support · {fmt(record.at!)} · {record.status}</span>{record.preview && <span className="block text-sm text-slate-600">{record.preview}</span>}</button>)}
+                {!history.length && !linked.some((record) => record.at) && <p className="text-sm text-slate-500">No activity yet.</p>}
+              </section>}
+              {(section === 'records' || section === 'activity') && linkedError && <p role="alert" className="text-sm text-rose-600">{linkedError}</p>}
+              {section === 'records' && <section className="space-y-3"><h3 className="font-semibold">Contracts, support, and grants</h3>{linkedLoading ? <p className="text-sm text-slate-500">Loading linked records…</p> : linked.map((record) => <button key={record.id} type="button" onClick={() => navigate(record.path)} className={`${panel} flex w-full flex-wrap justify-between gap-2 text-left hover:bg-slate-50`}><span className="text-sm font-medium">{record.title}</span><span className="text-sm capitalize text-slate-500">{label(record.status)}</span></button>)}{!linkedLoading && !linkedError && !linked.length && <p className="text-sm text-slate-500">No linked records.</p>}</section>}
+            </div>}
+      </section>
+    </div>
+  </>;
+};

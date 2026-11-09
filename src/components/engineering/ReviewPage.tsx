@@ -1,7 +1,7 @@
 import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, Download, FileSearch, UserPlus, X } from 'lucide-react';
+import { ArrowLeft, Download, UserPlus, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Dropdown } from '../common/Dropdown';
@@ -55,16 +55,15 @@ const ReviewQueue: React.FC = () => {
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
-      <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-8 sm:py-5">
-        <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600"><FileSearch className="h-5 w-5" /></span>
-          <div><h1 className="text-xl font-bold text-slate-900">Review</h1><p className="mt-0.5 text-xs text-slate-500">Work submitted for review. {awaiting ? `${awaiting} waiting for your input.` : 'Nothing is waiting for you.'}</p></div></div>
+      <header className="workspace-page-header border-b border-slate-200 bg-white">
+        <h1 className="text-xl font-bold text-slate-900">Review</h1>
       </header>
-      <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-8">
+      <div className="workspace-page-body mx-auto w-full max-w-7xl space-y-4">
         {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{userFacingError(error)}</div>}
         <ReviewTeam team={team} isAdmin={isAdmin} users={users} onChanged={load} onError={setError} />
         <div className="flex flex-wrap items-center gap-2">
           <Dropdown<Filter> value={filter} onChange={setFilter} ariaLabel="Filter reviews" className="min-w-36" options={[{ id: 'open', label: 'Open reviews' }, { id: 'decided', label: 'Decided' }, { id: 'all', label: 'All reviews' }]} />
-          <label className="inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-slate-600 md:min-h-0"><input type="checkbox" checked={mineOnly} onChange={(event) => setMineOnly(event.target.checked)} />Waiting for me</label>
+          <button type="button" aria-pressed={mineOnly} onClick={() => setMineOnly((value) => !value)} className={`workspace-control inline-flex items-center gap-2 border px-3 text-sm font-medium ${mineOnly ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}><UserPlus className="h-4 w-4" />Waiting for me{awaiting > 0 && <span className="tabular-nums">{awaiting}</span>}</button>
         </div>
         {loading ? <p className="py-10 text-center text-xs text-slate-400">Loading…</p> : (
           <div className="space-y-2">
@@ -93,18 +92,23 @@ const ReviewQueue: React.FC = () => {
 
 const ReviewTeam: React.FC<{ team: Reviewer[]; isAdmin: boolean; users: ReturnType<typeof useWorkspace>['users']; onChanged: () => void; onError: (message: string) => void }> = ({ team, isAdmin, users, onChanged, onError }) => {
   const [adding, setAdding] = useState<Discipline | null>(null);
+  const [saving, setSaving] = useState(false);
   const add = async (userId: string, discipline: Discipline) => {
-    const { error } = await supabase.from('eng_reviewers').insert({ user_id: userId, discipline });
-    if (error) onError(error.message); else { setAdding(null); onChanged(); }
+    if (saving) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('eng_reviewers').insert({ user_id: userId, discipline });
+      if (error) onError(error.message); else { setAdding(null); onChanged(); }
+    } catch (cause) { onError(userFacingError(cause)); }
+    finally { setSaving(false); }
   };
   const remove = async (member: Reviewer) => {
     const { error } = await supabase.from('eng_reviewers').delete().eq('user_id', member.user_id).eq('discipline', member.discipline);
     if (error) onError(error.message); else onChanged();
   };
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4">
+    <section className="workspace-panel rounded-2xl border border-slate-200 bg-white">
       <h2 className="text-sm font-bold text-slate-900">Review team</h2>
-      <p className="text-xs text-slate-500">People who can vote on reviews for each discipline.{isAdmin ? '' : ' Admins manage the team.'}</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {DISCIPLINES.map((item) => {
           const members = team.filter((member) => member.discipline === item.id);
@@ -117,7 +121,7 @@ const ReviewTeam: React.FC<{ team: Reviewer[]; isAdmin: boolean; users: ReturnTy
                 {!members.length && <span className="text-xs text-slate-400">No reviewers yet. Admins can vote.</span>}
               </div>
               {isAdmin && (adding === item.id ? (
-                <CustomSelect autoFocus defaultValue="" onChange={(event) => event.target.value && void add(event.target.value, item.id)} onBlur={() => setAdding(null)} className={`${inputClass} mt-2`}><option value="">Choose a person</option>{candidates.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect>
+                <div className="mt-2 space-y-2"><CustomSelect autoFocus disabled={saving} aria-label={`Add ${item.label} reviewer`} defaultValue="" onChange={(event) => event.target.value && void add(event.target.value, item.id)} className={inputClass}><option value="">Choose a person</option>{candidates.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect><button type="button" disabled={saving} onClick={() => setAdding(null)} className="text-xs text-slate-500 hover:underline">Cancel</button></div>
               ) : <button type="button" onClick={() => setAdding(item.id)} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-600"><UserPlus className="h-3.5 w-3.5" />Add reviewer</button>)}
             </div>
           );

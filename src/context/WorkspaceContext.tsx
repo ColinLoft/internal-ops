@@ -194,7 +194,7 @@ const STORAGE_PREFIX = 'flown_ops_v3_';
 const pathForTab = (tab: WorkspaceTab) => ({
   home: '/home',
   customers: '/customers/organizations',
-  company: '/company/ideas',
+  company: '/company/forms',
   engineering: '/engineering/software',
   help: '/help',
   settings: '/settings',

@@ -128,7 +128,7 @@ begin
   on conflict (system_id) do update set leased_until = excluded.leased_until
   where flown_system_monitor_leases.leased_until <= now()
   returning system_id into claimed;
-  return claimed is not null; 
+  return claimed is not null;
 end; $$;
 revoke all on function public.flown_system_claim_check(uuid) from public, anon, authenticated;
 grant execute on function public.flown_system_claim_check(uuid) to service_role;

@@ -14,6 +14,10 @@ describe('workspace simplification', () => {
     expect(paths).not.toContain('/company/automation');
     expect(paths).not.toContain('/drive');
     expect(paths).not.toContain('/email');
+    expect(paths).not.toContain('/company/ideas');
+    const customerPaths = getSectionTabs('customers', '/customers/organizations')!.map((tab) => tab.path);
+    expect(customerPaths).toContain('/customers/organizations');
+    expect(customerPaths).not.toContain('/customers/contacts');
   });
   it('rejects retired Automation deep links while preserving active Company and support routes', () => {
     for (const path of ['/company/automation', '/company/automation/', '/company/automation/rules']) {

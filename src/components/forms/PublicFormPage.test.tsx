@@ -62,6 +62,8 @@ describe('public form responder', () => {
   it('loads the immutable published schema and blocks missing required answers', async () => {
     await render();
     expect(container.textContent).toContain('Interest form');
+    expect(container.querySelector('a[aria-label="Flown website"]')?.getAttribute('href')).toBe('https://flown.org');
+    expect(container.querySelector('img[alt="Flown"]')).not.toBeNull();
     expect(container.querySelector('#email')).not.toBeNull();
 
     await act(async () => {
@@ -92,6 +94,7 @@ describe('public form responder', () => {
       p_answers: { email: 'staff@example.org', topic: 'B' },
     }));
     expect(container.textContent).toContain('Response received');
+    expect(container.querySelector('a[href="https://flown.org"]')).not.toBeNull();
   });
 
   it('shows server validation failures without losing answers', async () => {

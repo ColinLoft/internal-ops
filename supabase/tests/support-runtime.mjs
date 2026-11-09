@@ -1,0 +1,169 @@
+// PostgreSQL regression fixture for support migration/backfill, inbound threading and idempotency.
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
+const db = new PGlite();
+const readMigration = (name) => readFileSync(new URL(`../migrations/${name}`, import.meta.url), 'utf8');
+const agent = '11111111-1111-4111-8111-111111111111';
+const requester = '22222222-2222-4222-8222-222222222222';
+const secondAgent = '33333333-3333-4333-8333-333333333333';
+const receivedAt = '2026-11-08T10:00:00Z';
+
+const ingest = (overrides = {}) => ({
+  p_event_id: 'evt-1',
+  p_provider_email_id: 'email-1',
+  p_message_id: 'first@example.org',
+  p_from_email: 'avery@example.org',
+  p_from_name: 'Avery Customer',
+  p_to_addresses: ['team@flown.org'],
+  p_subject: 'Need help',
+  p_body: 'Please help me sign in.',
+  p_in_reply_to: null,
+  p_references: [],
+  p_conversation_token: null,
+  p_attachments: [],
+  p_received_at: receivedAt,
+  ...overrides,
+});
+
+try {
+  await db.exec(`
+    create role anon;
+    create role authenticated;
+    create role service_role bypassrls;
+    create schema auth;
+    grant usage on schema public, auth to anon, authenticated, service_role;
+    create function auth.uid() returns uuid language sql stable as
+      $$ select nullif(current_setting('test.uid', true), '')::uuid $$;
+    create table profiles (
+      id text primary key,
+      name text not null,
+      email text,
+      system_role text not null,
+      account_status text not null default 'active'
+    );
+    insert into profiles(id,name,email,system_role) values
+      ('${agent}','Support Agent','agent@flown.org','admin'),
+      ('${requester}','Avery Customer','avery@example.org','member'),
+      ('${secondAgent}','Other Agent','other@flown.org','coordinator');
+    create table crm_contacts(id uuid primary key default gen_random_uuid());
+  `);
+  await db.query('select set_config($1,$2,false)', ['test.uid', agent]);
+  await db.exec(readMigration('20261101220000_add_support_tickets.sql'));
+  await db.exec(readMigration('20261102170000_support_messaging.sql'));
+
+  const legacyTicket = (await db.query(`
+    insert into support_tickets(subject,description,category,priority,status,requester_id,assignee_id,organization_name)
+    values ('Legacy request','Old description','general','high','waiting','${requester}','${agent}','Example Co')
+    returning id
+  `)).rows[0].id;
+  await db.query(`
+    insert into support_ticket_comments(ticket_id,author_id,body,is_internal,created_at)
+    values ($1,$2,'A public legacy reply',false,now()+interval '1 minute'),
+           ($1,$2,'A private legacy note',true,now()+interval '2 minutes')
+  `, [legacyTicket, agent]);
+
+  const migration = readMigration('20261115130000_support_email_queue.sql');
+  await db.exec(migration);
+  await db.exec(migration);
+
+  const linked = (await db.query('select id,customer_id,status,assignee_id,ticket_id from support_conversations where ticket_id=$1', [legacyTicket])).rows;
+  assert.equal(linked.length, 1, 'legacy tickets are bridged only once');
+  assert.equal(linked[0].status, 'pending');
+  assert.equal(linked[0].assignee_id, agent);
+  const bridgedMessages = (await db.query('select sender_type,body from support_messages where conversation_id=$1 order by created_at,id', [linked[0].id])).rows;
+  assert.deepEqual(bridgedMessages.map((row) => row.body), ['Old description', 'A public legacy reply', 'A private legacy note']);
+  assert.deepEqual(bridgedMessages.map((row) => row.sender_type), ['customer', 'agent', 'note']);
+
+  await db.query("update support_conversations set status='resolved',assignee_id=$1 where id=$2", [secondAgent, linked[0].id]);
+  let legacyStatus = (await db.query('select status,assignee_id from support_tickets where id=$1', [legacyTicket])).rows[0];
+  assert.deepEqual(legacyStatus, { status: 'resolved', assignee_id: secondAgent });
+  await db.query("update support_tickets set status='open',assignee_id=null where id=$1", [legacyTicket]);
+  let conversationStatus = (await db.query('select status,assignee_id from support_conversations where id=$1', [linked[0].id])).rows[0];
+  assert.deepEqual(conversationStatus, { status: 'open', assignee_id: null });
+  assert.equal((await db.query('select count(*)::int as count from support_tickets where id=$1', [legacyTicket])).rows[0].count, 1);
+
+  const futureTicket = (await db.query(`
+    insert into support_tickets(subject,description,category,priority,status,requester_id)
+    values ('New legacy request','New ticket body','general','normal','new','${requester}')
+    returning id
+  `)).rows[0].id;
+  const futureConversation = (await db.query('select id from support_conversations where ticket_id=$1', [futureTicket])).rows[0].id;
+  assert.equal((await db.query('select count(*)::int as count from support_messages where conversation_id=$1 and body=$2', [futureConversation, 'New ticket body'])).rows[0].count, 1);
+  await db.query(`
+    insert into support_ticket_comments(ticket_id,author_id,body,is_internal)
+    values ($1,$2,'A later legacy comment',false)
+  `, [futureTicket, agent]);
+  assert.equal((await db.query('select count(*)::int as count from support_messages where conversation_id=$1 and body=$2', [futureConversation, 'A later legacy comment'])).rows[0].count, 1);
+  await db.query(`
+    insert into support_messages(conversation_id,sender_type,sender_id,channel,body)
+    values ($1,'agent',$2,'email','Reply from the new queue')
+  `, [futureConversation, secondAgent]);
+  assert.equal((await db.query('select count(*)::int as count from support_ticket_comments where ticket_id=$1 and body=$2', [futureTicket, 'Reply from the new queue'])).rows[0].count, 1);
+
+  const first = (await db.query('select support_ingest_resend_email($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) as result', [
+    ...Object.values(ingest()),
+  ])).rows[0].result;
+  assert.equal(first.duplicate, false);
+  const emailConversationId = first.conversation_id;
+  let queueRow = (await db.query('select status,assignee_id,channel from support_conversations where id=$1', [emailConversationId])).rows[0];
+  assert.deepEqual(queueRow, { status: 'open', assignee_id: null, channel: 'email' }, 'incoming emails start unassigned');
+  assert.equal((await db.query('update support_conversations set assignee_id=$1 where id=$2 and assignee_id is null returning id', [agent, emailConversationId])).rows.length, 1);
+  assert.equal((await db.query('update support_conversations set assignee_id=$1 where id=$2 and assignee_id is null returning id', [secondAgent, emailConversationId])).rows.length, 0, 'a second conditional claim cannot overwrite the first claim');
+
+  const duplicate = (await db.query('select support_ingest_resend_email($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) as result', [
+    ...Object.values(ingest({ p_event_id: 'evt-retry' })),
+  ])).rows[0].result;
+  assert.equal(duplicate.duplicate, true, 'same provider email is idempotent even under a second webhook event ID');
+
+  const token = (await db.query('select public_token from support_conversations where id=$1', [emailConversationId])).rows[0].public_token;
+  const threaded = (await db.query('select support_ingest_resend_email($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) as result', [
+    ...Object.values(ingest({
+      p_event_id: 'evt-threaded',
+      p_provider_email_id: 'email-threaded',
+      p_message_id: 'second@example.org',
+      p_subject: 'Re: Need help',
+      p_body: 'It still does not work.',
+      p_conversation_token: token,
+    })),
+  ])).rows[0].result;
+  assert.equal(threaded.conversation_id, emailConversationId, 'reply alias routes to the existing conversation');
+
+  const referenced = (await db.query('select support_ingest_resend_email($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) as result', [
+    ...Object.values(ingest({
+      p_event_id: 'evt-referenced',
+      p_provider_email_id: 'email-referenced',
+      p_message_id: 'third@example.org',
+      p_subject: 'Re: Need help',
+      p_body: 'Reply references the original email.',
+      p_in_reply_to: 'first@example.org',
+    })),
+  ])).rows[0].result;
+  assert.equal(referenced.conversation_id, emailConversationId, 'RFC message headers route an email reply');
+
+  const otherSender = (await db.query('select support_ingest_resend_email($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) as result', [
+    ...Object.values(ingest({
+      p_event_id: 'evt-other-sender',
+      p_provider_email_id: 'email-other-sender',
+      p_message_id: 'other@example.org',
+      p_from_email: 'imposter@example.org',
+      p_conversation_token: token,
+    })),
+  ])).rows[0].result;
+  assert.notEqual(otherSender.conversation_id, emailConversationId, 'a reply token cannot attach another sender to a contact thread');
+
+  assert.equal((await db.query('select count(*)::int as count from support_messages where conversation_id=$1', [emailConversationId])).rows[0].count, 3);
+  assert.equal((await db.query('select count(*)::int as count from support_email_events')).rows[0].count, 4);
+  assert.equal((await db.query('select count(*)::int as count from support_customers where lower(email)=lower($1)', ['avery@example.org'])).rows[0].count, 1);
+
+  const signature = 'support_ingest_resend_email(text,text,text,text,text,text[],text,text,text,text[],text,jsonb,timestamp with time zone)';
+  assert.equal((await db.query('select has_function_privilege($1,$2,$3) as allowed', ['anon', signature, 'execute'])).rows[0].allowed, false);
+  assert.equal((await db.query('select has_function_privilege($1,$2,$3) as allowed', ['authenticated', signature, 'execute'])).rows[0].allowed, false);
+  assert.equal((await db.query('select has_function_privilege($1,$2,$3) as allowed', ['service_role', signature, 'execute'])).rows[0].allowed, true);
+  assert.equal((await db.query("select has_table_privilege('authenticated','support_email_outbox','select') as allowed")).rows[0].allowed, false);
+
+  console.log('Support SQL passed: legacy ticket bridge, status/assignment sync, unassigned inbound, thread correlation, sender isolation, deduplication and service-only access.');
+} finally {
+  await db.close();
+}

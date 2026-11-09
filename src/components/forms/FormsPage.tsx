@@ -22,6 +22,7 @@ import { EmptyState } from '../common/Feedback';
 import { CustomSelect } from '../common/CustomSelect';
 import { FormQuestionField, visibleFormQuestions } from './FormQuestionField';
 import { createCompanyForm } from './formsPersistence';
+import { FormBrand } from './FormBrand';
 import {
   createFormQuestion,
   csvCell,
@@ -64,8 +65,8 @@ type FormResponse = {
 type FormTab = 'build' | 'preview' | 'responses' | 'share';
 
 const fieldClass = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15';
-const buttonClass = 'inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50';
-const primaryButtonClass = 'inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50';
+const buttonClass = 'workspace-control inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50';
+const primaryButtonClass = 'workspace-control inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50';
 const panelClass = 'rounded-lg border border-slate-200 bg-white p-4';
 
 const responseText = (value: unknown) => Array.isArray(value) ? value.join('; ') : value == null ? '' : String(value);
@@ -420,10 +421,9 @@ export const FormsPage: React.FC = () => {
 
   return (
     <main data-onboarding-target="company-forms" className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-[#f7f9fc]">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-5 sm:px-8">
+      <header className="workspace-page-header flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Forms</h1>
-          <p className="mt-1 text-sm text-slate-600">Create staff forms and public questionnaires. Published versions stay fixed.</p>
         </div>
         <button type="button" onClick={() => void createForm()} className={primaryButtonClass}>
           <FilePlus2 className="h-4 w-4" />New form
@@ -433,8 +433,14 @@ export const FormsPage: React.FC = () => {
       {error && <div role="alert" className="mx-5 mt-4 flex items-start justify-between gap-3 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 sm:mx-8"><span>{userFacingError(error)}</span><button type="button" onClick={() => setError('')} aria-label="Dismiss error" className="font-semibold">Dismiss</button></div>}
       {notice && <p role="status" className="mx-5 mt-3 text-sm text-emerald-800 sm:mx-8">{notice}</p>}
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 sm:p-6 lg:grid-cols-[270px_minmax(0,1fr)]">
-        <aside className={`${panelClass} flex min-h-48 flex-col p-0 lg:max-h-[calc(100vh-190px)]`}>
+      <div className="workspace-page-body grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <div className="lg:hidden">
+          <CustomSelect aria-label="Choose form" value={activeId ?? ''} disabled={isLoading || !forms.length} onChange={(event) => { setActiveId(event.target.value); setTab('build'); setError(''); setNotice(''); }} className={fieldClass}>
+            {!forms.length && <option value="">{isLoading ? 'Loading forms…' : 'No forms'}</option>}
+            {forms.map((form) => <option key={form.id} value={form.id}>{form.name}</option>)}
+          </CustomSelect>
+        </div>
+        <aside className={`${panelClass} hidden min-h-48 flex-col p-0 lg:flex lg:max-h-[calc(100vh-190px)]`}>
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
             <h2 className="text-sm font-semibold text-slate-900">Your forms</h2>
             <span className="text-xs tabular-nums text-slate-500">{forms.length}</span>
@@ -462,11 +468,11 @@ export const FormsPage: React.FC = () => {
               </ul>}
         </aside>
 
-        <section className={`${panelClass} flex min-h-[520px] min-w-0 flex-col p-0`}>
+        <section className="flex min-h-[520px] min-w-0 flex-col">
           {!activeForm || !draft
             ? <div className="flex flex-1 items-center justify-center p-8">{isLoading ? <p className="text-sm text-slate-500">Loading your workspace…</p> : <EmptyState title="Choose a form" text="Select a form or create a new one to start building." />}</div>
             : <>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 py-3">
                 <div className="min-w-0">
                   <h2 className="truncate text-base font-semibold text-slate-900">{draft.title || 'Untitled form'}</h2>
                   <p className="mt-0.5 text-xs text-slate-500">{canEdit ? isDirty ? 'Unsaved changes' : 'Draft saved' : 'View only'}</p>
@@ -476,7 +482,7 @@ export const FormsPage: React.FC = () => {
                   {canEdit && <button type="button" disabled={isPublishing || isSaving} onClick={() => void publish()} className={primaryButtonClass}>{isPublishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Publish</button>}
                 </div>
               </div>
-              <nav role="tablist" aria-label="Form workspace" className="flex overflow-x-auto border-b border-slate-200 px-3">
+              <nav role="tablist" aria-label="Form workspace" className="flex overflow-x-auto border-b border-slate-200">
                 {tabs.map(({ key, label, icon: Icon }) => (
                   <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => { setTab(key); setError(''); setNotice(''); }} className={`inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium ${tab === key ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-600 hover:text-slate-900'}`}>
                     <Icon className="h-4 w-4" />{label}{key === 'responses' && responses.length > 0 ? ` (${responses.length})` : ''}
@@ -484,7 +490,7 @@ export const FormsPage: React.FC = () => {
                 ))}
               </nav>
 
-              <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+              <div className="min-h-0 flex-1 overflow-y-auto py-4">
                 {tab === 'build' && (
                   <div className="mx-auto max-w-3xl space-y-4">
                     {!canEdit && <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">You have view-only access. Ask the owner for editor access to make changes.</p>}
@@ -515,7 +521,6 @@ export const FormsPage: React.FC = () => {
                           </div>
                           {question.type !== 'section' && (
                             <>
-                              <label className="block text-sm font-medium text-slate-800">Help text<textarea aria-label="Question help text" disabled={!canEdit} rows={2} value={question.description ?? ''} onChange={(event) => changeDraft((current) => ({ ...current, questions: current.questions.map((item) => item.id === question.id ? { ...item, description: event.target.value } : item) }))} className={`${fieldClass} mt-2 resize-y`} /></label>
                               {hasFormOptions(question.type) && (
                                 <fieldset>
                                   <legend className="mb-2 text-sm font-medium text-slate-800">Options</legend>
@@ -531,6 +536,10 @@ export const FormsPage: React.FC = () => {
                                 </fieldset>
                               )}
                               {question.type === 'scale' && <label className="block text-sm font-medium text-slate-800">Scale maximum<CustomSelect aria-label="Scale maximum" disabled={!canEdit} value={question.scaleMax ?? 5} onChange={(event) => changeDraft((current) => ({ ...current, questions: current.questions.map((item) => item.id === question.id ? { ...item, scaleMax: Number(event.target.value) } : item) }))} className={`${fieldClass} mt-2`}>{[3, 4, 5, 6, 7, 8, 9, 10].map((value) => <option key={value} value={value}>{value}</option>)}</CustomSelect></label>}
+                              <label className="flex min-h-11 items-center gap-2 text-sm text-slate-700"><input type="checkbox" disabled={!canEdit} checked={question.required} onChange={(event) => changeDraft((current) => ({ ...current, questions: current.questions.map((item) => item.id === question.id ? { ...item, required: event.target.checked } : item) }))} className="h-4 w-4 accent-brand-600" />Required</label>
+                              <details className="space-y-3">
+                              <summary className="cursor-pointer text-sm font-medium text-slate-500">Help text, validation & conditions</summary>
+                              <label className="block text-sm font-medium text-slate-800">Help text<textarea aria-label="Question help text" disabled={!canEdit} rows={2} value={question.description ?? ''} onChange={(event) => changeDraft((current) => ({ ...current, questions: current.questions.map((item) => item.id === question.id ? { ...item, description: event.target.value } : item) }))} className={`${fieldClass} mt-2 resize-y`} /></label>
                               {(question.type === 'short_text' || question.type === 'paragraph') && (
                                 <div className="grid gap-3 sm:grid-cols-2">
                                   <label className="block text-sm font-medium text-slate-800">Minimum characters<input aria-label="Minimum characters" disabled={!canEdit} type="number" min={0} max={10000} value={question.validation?.minLength ?? ''} onChange={(event) => changeDraft((current) => ({ ...current, questions: current.questions.map((item) => item.id === question.id ? { ...item, validation: { ...item.validation, minLength: event.target.value ? Number(event.target.value) : undefined } } : item) }))} className={`${fieldClass} mt-2`} /></label>
@@ -543,7 +552,6 @@ export const FormsPage: React.FC = () => {
                                   <label className="block text-sm font-medium text-slate-800">Maximum value<input aria-label="Maximum value" disabled={!canEdit} type="number" value={question.validation?.max ?? ''} onChange={(event) => changeDraft((current) => ({ ...current, questions: current.questions.map((item) => item.id === question.id ? { ...item, validation: { ...item.validation, max: event.target.value ? Number(event.target.value) : undefined } } : item) }))} className={`${fieldClass} mt-2`} /></label>
                                 </div>
                               )}
-                              <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" disabled={!canEdit} checked={question.required} onChange={(event) => changeDraft((current) => ({ ...current, questions: current.questions.map((item) => item.id === question.id ? { ...item, required: event.target.checked } : item) }))} className="h-4 w-4 accent-brand-600" />Required</label>
                               {choiceParents.length > 0 && (
                                 <fieldset className="grid gap-2 sm:grid-cols-3">
                                   <legend className="mb-2 text-sm font-medium text-slate-800">Conditional visibility</legend>
@@ -567,6 +575,7 @@ export const FormsPage: React.FC = () => {
                                   </>}
                                 </fieldset>
                               )}
+                              </details>
                             </>
                           )}
                           {question.type === 'section' && <label className="block text-sm font-medium text-slate-800">Section description<textarea aria-label="Section description" disabled={!canEdit} rows={2} value={question.description ?? ''} onChange={(event) => changeDraft((current) => ({ ...current, questions: current.questions.map((item) => item.id === question.id ? { ...item, description: event.target.value } : item) }))} className={`${fieldClass} mt-2 resize-y`} /></label>}
@@ -589,6 +598,7 @@ export const FormsPage: React.FC = () => {
 
                 {tab === 'preview' && (
                   <form className="mx-auto max-w-2xl space-y-4" onSubmit={(event) => { event.preventDefault(); submitPreview(); }}>
+                    <FormBrand />
                     <header className={`${panelClass}`}>
                       <h3 className="text-lg font-semibold text-slate-900">{draft.title || 'Untitled form'}</h3>
                       {draft.description && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{draft.description}</p>}

@@ -82,14 +82,18 @@ application dependency.
 ## Database and authorization
 
 For the SQL editor, run the entire [Flown Ops update bundle](../supabase/flown_ops_update_all.sql)
-once. It includes Systems and the live Ideas/project/task publication update in
-one transaction. It requires the existing workspace schema, including
-`profiles.account_status`. It can be rerun and does not erase existing data.
+once. It includes Systems, company CRM, contract signing, support email, and the
+live project/task publication update in one transaction. It requires the existing
+workspace schema, including `profiles.account_status` and the CRM/contracts/support
+foundation. **The current bundle permanently deletes Ideas, votes, and discussions.**
+Back up those records before running it if retention is required. Systems records
+are preserved, and no sample records are seeded.
 Do not rerun the earlier office/email integrations bundle for this update.
 
 Alternatively, use `supabase db push` to apply the source migrations, including
-`supabase/migrations/20261110150000_flown_systems.sql`. This is one additive,
-idempotent migration with no seeded systems, endpoints, incidents or metrics.
+`supabase/migrations/20261110150000_flown_systems.sql` and
+`supabase/migrations/20261114110000_multi_system_operations.sql`. These Systems
+migrations are additive and idempotent, with no seeded systems, endpoints, incidents or metrics.
 Active staff (`profiles.account_status = 'active'`) may read/create/edit/delete
 all inventory, incidents and maintenance, regardless of owner or system role.
 Check history is readable by active staff but writable only by service role.

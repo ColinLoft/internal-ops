@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, Plus, Search, Upload, Settings2, Trash2, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
-import { card, field } from '../work/EntityPanels';
+import { field } from '../work/EntityPanels';
 import { GrantImport } from './GrantImport';
 import { UpcomingDates } from './GrantExtras';
 import { GRANT_STAGES, GRANT_TYPES, Grant, SOURCES, downloadCsv, goTo, money, stageLabel, stageTone, typeLabel, typeTone } from './grantShared';
@@ -41,23 +41,29 @@ export const GrantsPage: React.FC = () => {
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
+      <header className="workspace-page-header flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white">
         <div><h1 className="text-xl font-bold text-slate-900">Grants</h1></div>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => setImporting(true)} className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 md:min-h-0 md:py-2"><Upload className="h-3.5 w-3.5" />Import</button>
-          <button type="button" onClick={exportCsv} className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 md:min-h-0 md:py-2"><Download className="h-3.5 w-3.5" />Export</button>
-          {canConfigure && <button type="button" onClick={() => setSettings(true)} className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 md:min-h-0 md:py-2"><Settings2 className="h-3.5 w-3.5" />Award checklist</button>}
+          <details className="relative">
+            <summary className="workspace-control flex cursor-pointer list-none items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm text-slate-600"><Settings2 className="h-4 w-4" />Tools</summary>
+            <div className="absolute right-0 top-full z-20 mt-2 w-52 space-y-1 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+              <button type="button" onClick={() => setImporting(true)} className="workspace-control flex w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-slate-50"><Upload className="h-4 w-4" />Import grants</button>
+              <button type="button" onClick={exportCsv} className="workspace-control flex w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-slate-50"><Download className="h-4 w-4" />Export CSV</button>
+              {canConfigure && <button type="button" onClick={() => setSettings(true)} className="workspace-control w-full rounded-lg px-3 text-left text-sm hover:bg-slate-50">Award checklist</button>}
+            </div>
+          </details>
           <button type="button" onClick={() => setCreating(true)} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white md:min-h-0 md:py-2"><Plus className="h-3.5 w-3.5" />New grant</button>
         </div>
       </header>
-      <div className="space-y-4 p-5 sm:p-8">
+      <div className="workspace-page-body mx-auto w-full max-w-7xl space-y-5">
         {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{userFacingError(error)}</p>}
-        <div className="grid gap-3 sm:grid-cols-3">{[['Open opportunities', String(totals.open)], ['Requested in pipeline', money(totals.pipeline)], ['Total awarded', money(totals.awarded)]].map(([title, value]) => <div key={title} className={card}><p className="text-xs text-slate-500">{title}</p><p className="text-xl font-bold text-slate-900">{value}</p></div>)}</div>
-        <UpcomingDates grants={grants} />
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-0 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search grants" className={`${field} pl-9`} /></div>
-          <CustomSelect value={stage} onChange={(event) => setStage(event.target.value)} aria-label="Filter by stage" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="all">All stages</option>{GRANT_STAGES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect>
+        <div className="grid grid-cols-3 gap-3 py-2">{[['Open grants', String(totals.open)], ['Requested', money(totals.pipeline)], ['Awarded', money(totals.awarded)]].map(([title, value]) => <div key={title} className="min-w-0"><p className="text-sm text-slate-500">{title}</p><p className="mt-1 break-all text-lg font-semibold tabular-nums text-slate-900 sm:text-2xl">{value}</p></div>)}</div>
+        <details><summary className="cursor-pointer text-sm font-medium text-slate-600">Upcoming deadlines & follow-ups</summary><div className="mt-3"><UpcomingDates grants={grants} /></div></details>
+        <div className="workspace-toolbar flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[180px] flex-1 sm:max-w-sm"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><input aria-label="Search grants" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search grants" className={`${field} workspace-control pl-9`} /></div>
+          <div className="w-44"><CustomSelect value={stage} onChange={(event) => setStage(event.target.value)} aria-label="Filter by stage" className="workspace-control rounded-lg border border-slate-200 bg-white px-3 text-sm"><option value="all">All stages</option>{GRANT_STAGES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect></div>
         </div>
+        <p className="text-xs text-slate-500">{shown.length} {shown.length === 1 ? 'grant' : 'grants'}</p>
         {loading ? <p className="py-10 text-center text-xs text-slate-400">Loading…</p> : shown.length ? (
           <div className="space-y-2">{shown.map((grant) => (
             <button type="button" key={grant.id} onClick={() => goTo(`/company/grants/${grant.id}`)} className="flex w-full flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-brand-400">

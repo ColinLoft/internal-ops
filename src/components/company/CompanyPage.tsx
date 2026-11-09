@@ -3,10 +3,9 @@ import { AccessGate } from '../common/AccessGate';
 import { FinancePage } from '../finance/FinancePage';
 import { ContentCalendar } from './ContentCalendar';
 import { WebsitePage } from './WebsitePage';
-import { IdeasPage } from './IdeasPage';
 import { FormsPage } from '../forms/FormsPage';
 
-const segmentOf = (pathname: string) => pathname.split('/')[2] || 'ideas';
+const segmentOf = (pathname: string) => pathname.split('/')[2] || 'forms';
 
 export const CompanyPage: React.FC = () => {
   const [segment, setSegment] = useState(() => segmentOf(window.location.pathname));
@@ -16,7 +15,7 @@ export const CompanyPage: React.FC = () => {
     return () => window.removeEventListener('popstate', sync);
   }, []);
   useEffect(() => {
-    const renamed: Record<string, string> = { prospects: '/company/find-grants', calendar: '/company/marketing' };
+    const renamed: Record<string, string> = { ideas: '/company/forms', prospects: '/company/find-grants', calendar: '/company/marketing' };
     if (!renamed[segment]) return;
     window.history.replaceState({}, '', renamed[segment]);
     window.dispatchEvent(new PopStateEvent('popstate'));
@@ -44,6 +43,6 @@ export const CompanyPage: React.FC = () => {
     case 'find-grants':
     case 'prospects':
     case 'resources': return <AccessGate app="finance" name="Grants"><FinancePage /></AccessGate>;
-    default: return <IdeasPage />;
+    default: return <FormsPage />;
   }
 };

@@ -78,7 +78,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     title: 'Company-wide work',
-    description: 'Company brings shareable Forms, ideas, marketing, grants and grant resources, and Website content together.',
+    description: 'Company brings shareable forms, marketing, grants and grant resources, and website content together.',
     tab: 'company',
     target: 'company-workspace',
     icon: Lightbulb,

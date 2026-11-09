@@ -33,6 +33,10 @@ describe('legacy workspace redirects', () => {
     expect(legacyWorkspaceRedirect('/products/hardware/p1', '?tab=notes')).toBe('/engineering/hardware/p1?tab=notes');
     expect(legacyWorkspaceRedirect('/wildfire/overview')).toBe('/wildfire/opportunities');
     expect(legacyWorkspaceRedirect('/forms/f1')).toBe('/company/forms?form=f1');
+    expect(legacyWorkspaceRedirect('/company/ideas')).toBe('/company/forms');
+    expect(legacyWorkspaceRedirect('/company')).toBe('/company/forms');
+    expect(legacyWorkspaceRedirect('/customers/contacts', '?contact=c1')).toBe('/customers/organizations?contact=c1');
+    expect(legacyWorkspaceRedirect('/customers/companies', '?company=o1')).toBe('/customers/organizations?company=o1');
   });
 
   it('leaves current routes alone', () => {

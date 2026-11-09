@@ -54,12 +54,16 @@ const OrgSummaryCard: React.FC = () => {
     const { error } = id ? await supabase.from('grant_settings').update({ org_summary: text }).eq('id', id) : await supabase.from('grant_settings').insert({ org_summary: text });
     if (error) setMsg(userFacingError(error)); else { setSaved(text); setMsg('Saved. The AI and grant applications can now use this summary.'); }
   };
+  const copySummary = async () => {
+    try { await navigator.clipboard.writeText(text); setMsg('Copied.'); }
+    catch (cause) { setMsg(userFacingError(cause, 'The summary could not be copied.')); }
+  };
   return (
     <section className={`${card} space-y-2`}>
       <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Building2 className="h-4 w-4 text-brand-600" />Organization summary</h2>
-      <p className="text-xs text-slate-500">Mission, programs, population served, budget size, location and impact. Used by AI grant research, fit scoring and drafting, and handy to paste into applications.</p>
+      <p className="text-sm text-slate-500">Your reusable mission and impact statement.</p>
       <textarea rows={6} value={text} onChange={(event) => { setText(event.target.value); setMsg(''); }} placeholder="Flown's mission, programs, and impact…" className={field} />
-      <div className="flex items-center gap-3"><button type="button" disabled={text === saved} onClick={() => void save()} className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Save summary</button><button type="button" onClick={() => void navigator.clipboard.writeText(text)} className="text-xs font-semibold text-slate-500">Copy</button>{msg && <span role="status" className="text-xs text-slate-500">{msg}</span>}</div>
+      <div className="flex items-center gap-3"><button type="button" disabled={text === saved} onClick={() => void save()} className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Save summary</button><button type="button" onClick={() => void copySummary()} className="text-xs font-semibold text-slate-500">Copy</button>{msg && <span role="status" className="text-xs text-slate-500">{msg}</span>}</div>
     </section>
   );
 };
@@ -67,6 +71,7 @@ const OrgSummaryCard: React.FC = () => {
 export const ResourcesPage: React.FC = () => {
   const { currentUser } = useWorkspace();
   const [rows, setRows] = useState<Resource[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
@@ -76,27 +81,32 @@ export const ResourcesPage: React.FC = () => {
   const load = useCallback(async () => {
     const { data, error: loadError } = await supabase.from('grant_resources').select('*').order('category').order('title');
     if (loadError) setError(`Resources could not be loaded: ${loadError.message}. Run the latest database migration.`); else { setError(''); setRows((data || []) as Resource[]); }
+    setLoading(false);
   }, []);
   useEffect(() => { void load(); }, [load]);
   const shown = useMemo(() => rows.filter((row) => (category === 'all' || row.category === category) && `${row.title} ${row.summary || ''} ${row.audience || ''} ${row.body || ''} ${row.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase())), [rows, category, query]);
-  const copy = async (row: Resource) => { await navigator.clipboard.writeText(row.body || row.url || ''); setCopied(row.id); setTimeout(() => setCopied(''), 1500); };
+  const copy = async (row: Resource) => {
+    try { await navigator.clipboard.writeText(row.body || row.url || ''); setCopied(row.id); setTimeout(() => setCopied(''), 1500); }
+    catch (cause) { setError(userFacingError(cause, 'This resource could not be copied.')); }
+  };
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
-        <div><h1 className="text-xl font-bold text-slate-900">Grant Resources</h1></div>
+      <header className="workspace-page-header flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white">
+        <div><h1 className="text-xl font-bold text-slate-900">Grant resources</h1></div>
         <button type="button" onClick={() => setEditing('new')} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white md:min-h-0 md:py-2"><Plus className="h-3.5 w-3.5" />Add resource</button>
       </header>
-      <div className="space-y-4 p-5 sm:p-8">
-        <OrgSummaryCard />
+      <div className="workspace-page-body mx-auto w-full max-w-7xl space-y-5">
+        <details><summary className="cursor-pointer text-sm font-medium text-slate-600">Organization summary</summary><div className="mt-3"><OrgSummaryCard /></div></details>
         {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{userFacingError(error)}</p>}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-0 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search resources" className={`${field} pl-9`} /></div>
-          <CustomSelect value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Category" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="all">All categories</option>{CATEGORIES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect>
+        <div className="workspace-toolbar flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[180px] flex-1 sm:max-w-sm"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><input aria-label="Search resources" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search resources" className={`${field} workspace-control pl-9`} /></div>
+          <div className="w-52"><CustomSelect value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Resource category" className="workspace-control rounded-lg border border-slate-200 bg-white px-3 text-sm"><option value="all">All categories</option>{CATEGORIES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect></div>
         </div>
+        {loading && <p role="status" className="text-sm text-slate-500">Loading resources…</p>}
         {shown.length ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{shown.map((row) => (
           <article key={row.id} className={card}>
-            <p className="text-xs font-semibold uppercase text-brand-600">{CATEGORIES.find(([value]) => value === row.category)?.[1]}</p>
+            <p className="text-xs font-medium text-slate-500">{CATEGORIES.find(([value]) => value === row.category)?.[1]}</p>
             <h3 className="text-sm font-bold text-slate-900">{row.title}</h3>
             {row.summary && <p className="mt-1 text-xs text-slate-500">{row.summary}</p>}
             {row.body && <details className="mt-2"><summary className="cursor-pointer text-xs font-semibold text-slate-600">Read resource</summary><div className="mt-2 max-h-80 overflow-y-auto">{<ResourceMarkup value={row.body} />}</div></details>}
@@ -108,7 +118,7 @@ export const ResourcesPage: React.FC = () => {
               <button type="button" onClick={() => setEditing(row)} className="ml-auto text-slate-500 hover:text-brand-600">Edit</button>
             </div>
           </article>
-        ))}</div> : <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-500">No resources yet. Save your mission statement, organizational history, standard budget language and favorite funder directories here.</div>}
+        ))}</div> : !loading && !error && <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">{rows.length ? 'No resources match.' : 'No resources yet.'}</div>}
       </div>
       {editing && <ResourceModal resource={editing === 'new' ? null : editing} userId={currentUser.id} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void load(); }} />}
     </main>
