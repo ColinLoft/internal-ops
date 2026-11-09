@@ -17,6 +17,7 @@ export const legacyWorkspaceRedirect = (pathname: string, search = ''): string |
   const legacyProduct = path.match(/^\/products\/(.+)$/);
   if (legacyProduct) return `/engineering/${legacyProduct[1]}${search}`;
   if (path === '/wildfire' || path === '/wildfire/overview') return '/wildfire/opportunities';
+  if (path === '/wildfire/requests') return `/customers/support${search}`;
   return null;
 };
 export type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'admin' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs' | 'wildfire' | 'systems';

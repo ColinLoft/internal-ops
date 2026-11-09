@@ -1,56 +1,76 @@
-# Support queue
+# Support and Outlook
 
-The Support screen is a single queue over `support_conversations`, `support_messages`, and `support_customers`. New email and website requests stay unassigned until a support agent claims them. Agents can reassign a request, move it between Open, Waiting, and Resolved, and reply by email from the conversation.
+Support is one queue. The separate Wildfire **Customer requests** page is removed; its old URL redirects to Support. Existing tickets, conversations, contacts, private notes and messages remain intact.
 
-On smaller screens, the conversation and reply composer share one scrollable column. Contact/account details and reassignment are available under **Contact & assignment**; unassigned requests also have a **Claim request** action beside their status.
+New team@flown.org inbox threads create **unassigned** tickets. Replies append to the same ticket, including replies sent directly in Outlook once that thread is linked. Agents claim/reassign tickets, set Open / Waiting / Resolved, and send replies from the ticket through team@flown.org. Website submissions still use `support-public`; their first staff email establishes an Outlook thread.
 
-Existing `support_tickets` and `support_ticket_comments` are retained. The support-email migration bridges existing tickets into conversations and copies their descriptions, replies, and private notes; future legacy ticket inserts/comments are mirrored as well. It does not delete or rewrite the original records. Assignment, status, and agent replies are synchronized for bridged tickets, so existing notification counts, reports, and links continue to work. Customer CRM links are shown when a support contact has a linked CRM contact. The `/customers/support?conversation=<id>` link opens that conversation; old `/help?ticket=<id>` links resolve through the bridge.
+Only messages received after connection (or **Enable ticket intake** for an existing connection) are imported. Junk-folder messages, self-mail, auto-replies, delivery failures and mailing-list/bulk messages do not open tickets. Ordinary internal staff mail is accepted. `grants@flown.org` automation is deferred.
 
-The existing unauthenticated `support-public` endpoint and its random conversation token remain the website-submission path. It continues to authorize public polling and replies by that token; it does not accept a caller-selected staff `user_id`.
+Attachment names and sizes are shown, but attachment files remain in Outlook and are not downloadable from Support. No mailbox DNS/MX changes are needed.
 
-## Resend configuration
+## Manual setup and rollout
 
-Resend is not configured by this change. Do not send live mail or deploy as part of implementation.
+Having shared inboxes in Microsoft is the first step; the application also needs Microsoft OAuth credentials.
 
-Configure these values as **Supabase Edge Function secrets**, never as `VITE_*` variables, client settings, checked-in files, or SQL:
+1. In Microsoft Entra, create or reuse an app registration. Add a **Web** redirect URI matching the deployed site's `/?mail_oauth=callback` URL exactly.
+2. Add Microsoft Graph **delegated** permissions: `User.Read`, `Mail.ReadWrite`, `Mail.Send`, `Mail.ReadWrite.Shared`, `Mail.Send.Shared`, plus OAuth offline access. Grant tenant consent if required. The account used to connect must have **Full Access** and **Send As** for team@flown.org in Exchange.
+3. Configure these **Supabase Edge Function secrets**, never frontend `VITE_*` variables or committed credentials:
 
-| Secret | Value |
-| --- | --- |
-| `RESEND_API_KEY` | Server-side Resend API key with permission to send and read received email |
-| `RESEND_FROM_EMAIL` | `team@flown.org` or a verified display-name form whose address is exactly `team@flown.org` |
-| `RESEND_WEBHOOK_SECRET` | The signing secret for the Resend inbound webhook (`whsec_...`) |
+   | Secret | Value |
+   | --- | --- |
+   | `MICROSOFT_MAIL_CLIENT_ID` | Entra application client ID |
+   | `MICROSOFT_MAIL_CLIENT_SECRET` | Client secret **value**, not its ID |
+   | `MICROSOFT_TENANT_ID` | Organization tenant ID |
+   | `MAIL_REDIRECT_URI` | Exact deployed callback URL from step 1 |
+   | `MAIL_TOKEN_ENCRYPTION_KEY` | Base64-encoded 32-byte key; preserve the existing key if already configured |
+   | `MAIL_MAINTENANCE_SECRET` | Random server-only secret for the scheduled worker |
+   | `SITE_URL` | Public app origin, also used for contract signing links |
 
-Supabase supplies `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to Edge Functions. `support-send` validates the caller's Supabase session and active admin/coordinator profile before using the service role. `support-inbound` validates the Resend/Svix signature and timestamp before using the service role. Both functions have gateway JWT verification disabled so webhook requests and browser preflights reach their own authorization checks.
+   Generate a new encryption key only for a new installation with `openssl rand -base64 32`. Replacing an existing key makes stored mailbox tokens unreadable.
 
-After an administrator configures Resend, register a webhook for `email.received` at:
+4. Apply the existing email/support foundation and `20261116100000_outlook_support.sql`. This migration is also in the generated [SQL Editor bundle](../supabase/flown_ops_update_all.sql). The bundle **permanently deletes Ideas**; back up first and read [rollout notes](./company-crm.md). Manual SQL does not register Supabase CLI migration history.
+5. Deploy the changed functions, replacing `YOUR_PROJECT_REF`:
 
-```text
-https://<project-ref>.supabase.co/functions/v1/support-inbound
-```
+   ```sh
+   supabase login
+   supabase functions deploy mail-connect --project-ref YOUR_PROJECT_REF
+   supabase functions deploy mail-admin --project-ref YOUR_PROJECT_REF
+   supabase functions deploy mail-maintenance --project-ref YOUR_PROJECT_REF
+   supabase functions deploy support-send --project-ref YOUR_PROJECT_REF
+   supabase functions deploy support-inbound --project-ref YOUR_PROJECT_REF
+   supabase functions deploy create-contract-signature-link --project-ref YOUR_PROJECT_REF
+   supabase functions deploy sign-contract-public --project-ref YOUR_PROJECT_REF
+   ```
 
-Set the webhook's signing secret in `RESEND_WEBHOOK_SECRET`. The webhook handler fetches the received message from Resend, extracts its plain text, and persists the event transactionally. Provider event IDs, received-email IDs, and RFC `Message-ID` values are deduplicated. Replies are matched by `In-Reply-To`/`References` and by the unguessable `team+<conversation-token>@flown.org` reply address; an alias is accepted only when its sender matches the conversation contact. New inbound conversations are unassigned.
+6. Publish the frontend. As a workspace administrator, open **Settings > Email > Connect Outlook**, then sign in with the account authorized to access the shared mailbox. Existing connections can use **Enable ticket intake**; reconnecting preserves the original intake cutoff.
+7. Schedule a server-side **POST** to `https://YOUR_PROJECT_REF.supabase.co/functions/v1/mail-maintenance` every minute, using `x-mail-maintenance-secret: <MAIL_MAINTENANCE_SECRET>`. Use Supabase Cron with `pg_net` and Vault, or your existing trusted scheduler. Keep the header value server-side; never put it in a public URL. Schedule only one copy of this worker. Without the schedule, **Sync now** works but automatic intake does not.
+8. Disable the old Resend webhook. `support-inbound` now returns HTTP 410 and never ingests mail. After all consumers are migrated, remove unused Resend secrets. Existing records and internal legacy RPC/column names containing `resend` are retained for compatibility; they do not call Resend.
 
-**Inbound MX has a mail-delivery impact. Do not change DNS as part of this work.** Resend inbound receiving requires MX configuration for the receiving domain. Changing the MX records for `flown.org` can redirect all mail for `@flown.org`, including `team@flown.org`, away from the current mail provider. Before enabling inbound, the mail/domain administrator must review the existing MX records, decide how the current mailbox will continue receiving mail, and approve a staged cutover or dedicated receiving domain. Confirm Resend's current receiving requirements in its dashboard; do not copy records from this document or overwrite existing records blindly.
+Microsoft shared delegated permissions do **not** support subscriptions to shared-mailbox folders. The worker instead uses Graph Inbox and Sent Items **delta** cursors, page-by-page checkpoints, per-folder leases, immutable message IDs and transactional deduplication. Repeated syncs do not duplicate tickets. Expired delta tokens restart reconciliation from the original connection cutoff. Messages remain in Microsoft; sync does not mark them read or move them.
 
-Inbound attachment filenames and sizes are recorded and shown in the thread, but attachment files are not copied into Support storage. The UI identifies this limitation rather than presenting them as downloadable.
+## Delivery and recovery
 
-## Delivery and failure handling
+`support-send` requires an active admin/coordinator account. Contract endpoints retain their existing contract authorization. These are server-authorized operational workflows, not a general staff mailbox composer.
 
-The browser sends replies only through `support-send`; it never contacts Resend or sees server secrets. The function records a server-side outbox entry before sending, uses a stable Resend idempotency key, and only returns success after the accepted provider message is also saved to the support thread. Definite provider rejection is shown as a failure. Timeouts, server errors, and accepted-but-unrecorded messages are marked uncertain and block further sends for that conversation until checked; the UI does not claim delivery. An administrator should reconcile uncertain outbox rows against Resend before permitting a retry.
+Every outgoing support/contract email is recorded before an Outlook draft is created and sent. Confirmed delivery keys are reused without sending twice. Definite provider rejection permits retry. Pending, timeout, server-error, and accepted-but-unrecorded states block automatic resend: an administrator must check Outlook Sent Items and `operational_email_deliveries` / `support_email_outbox` before reconciliation. A Graph 202 response means **accepted for sending**, not proof of final delivery.
 
-## Migration and regression checks
+The UI shows connection and last-sync status in Settings. Last synced advances only after both folders finish catching up; a busy worker or a bounded partial run reports that sync is still in progress. Worker failures are persisted as `email_mailboxes.support_sync_error` and returned in the maintenance response. Monitor non-200 responses, missed worker runs and stale `support_last_synced_at`; reconnect if Microsoft revokes authorization or credentials expire.
 
-Apply `supabase/migrations/20261115130000_support_email_queue.sql` through the normal reviewed migration workflow. For SQL Editor, it is also included in the generated [workspace update bundle](../supabase/flown_ops_update_all.sql). **That bundle permanently deletes Ideas data** and requires the complete workspace foundation; see [rollout notes](./company-crm.md). Do not apply both paths without reconciling CLI migration history.
+## Verification
 
-Run the browser/unit regressions:
+Use an approved test sender and recipient after deployment:
+
+- Send a new message to team; the next scheduled run should create one unassigned ticket.
+- Reply from the ticket; verify the sender is team and the reply remains in the same Outlook thread.
+- Reply by email and directly in Outlook; sync repeatedly and confirm one copy of each message.
+- Confirm pre-connection messages and unrelated sent contract invitations do not become tickets.
+- Send a contract invitation and complete both signatures; confirm the final-copy email.
+
+Local tests do not send real email:
 
 ```sh
-npx vitest run src/components/support/SupportPage.test.tsx src/components/support/supportApi.test.ts src/components/support/supportEmail.test.ts
+npm test
+node supabase/tests/support-runtime.mjs
 ```
 
-The SQL runtime regression uses optional PGlite and does not add a product dependency:
-
-```sh
-npm install --prefix .support-runtime-deps --no-save --package-lock=false @electric-sql/pglite
-PGLITE_MODULE="file://$PWD/.support-runtime-deps/node_modules/@electric-sql/pglite/dist/index.js" node supabase/tests/support-runtime.mjs
-```
+The SQL runtime uses optional `@electric-sql/pglite` (`PGLITE_MODULE` can point at an external installation).

@@ -1,4 +1,4 @@
-import { createClient, type User } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, type SupabaseClient, type User } from 'https://esm.sh/@supabase/supabase-js@2';
 
 export const emailCorsHeaders = {
   'Access-Control-Allow-Origin': Deno.env.get('SITE_URL') ? new URL(Deno.env.get('SITE_URL')!).origin : '*',
@@ -33,7 +33,7 @@ const encryptionKey = async (usage: KeyUsage[]) => {
     throw new Error('MAIL_TOKEN_ENCRYPTION_KEY must be a base64-encoded 32-byte key.');
   }
   if (rawKey.length !== 32) throw new Error('MAIL_TOKEN_ENCRYPTION_KEY must be a base64-encoded 32-byte key.');
-  return crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, usage);
+  return crypto.subtle.importKey('raw', new Uint8Array(rawKey), 'AES-GCM', false, usage);
 };
 
 export const encryptSecret = async (value: unknown) => {
@@ -73,7 +73,7 @@ export const clientsFor = async (request: Request) => {
 };
 
 export const recordEmailActivity = async (
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   actor: User | null,
   eventType: string,
   summary: string,
@@ -106,7 +106,7 @@ export const recordEmailActivity = async (
 };
 
 export const hasMailboxAccess = async (
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   user: User,
   mailboxId: string,
   requireSend = false,
@@ -139,7 +139,7 @@ type OAuthTokens = {
 };
 
 export const getAccessToken = async (
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   mailbox: Record<string, any>,
 ) => {
   if (mailbox.mailbox_type !== 'shared') throw new Error('Personal mailbox synchronization and delivery have been retired.');
@@ -275,7 +275,7 @@ const htmlToText = (html: string) => html
   .trim();
 
 const createAutomaticEmailSummaries = async (
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   mailbox: Record<string, any>,
   normalized: Record<string, unknown>[],
 ) => {
@@ -385,7 +385,7 @@ const classifyGmailFolder = (labels: string[] = []) => {
 };
 
 export const syncMailbox = async (
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   mailbox: Record<string, any>,
   messageIds?: string[],
   webhookHistoryId?: string,
@@ -400,7 +400,7 @@ export const syncMailbox = async (
   let normalized: Record<string, unknown>[] = [];
   let historyId: string | null = webhookHistoryId || null;
   if (mailbox.provider === 'google') {
-    const ids = messageIds || await (async () => {
+    const ids: string[] = messageIds || await (async () => {
       const listUrl = new URL('https://gmail.googleapis.com/gmail/v1/users/me/messages');
       listUrl.searchParams.set('maxResults', '100');
       listUrl.searchParams.set('q', `in:anywhere -in:spam newer_than:${retentionDays}d`);

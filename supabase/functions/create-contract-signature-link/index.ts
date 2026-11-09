@@ -132,7 +132,7 @@ serveWithCors(async (request: Request) => {
         p_resend_email_id: result.emailId || '',
       });
       if (markError) {
-        return json({ sent: false, requestId: preparedRequestId, error: 'Resend accepted the invitation, but its delivery status could not be saved. Retry safely; duplicate email is suppressed.' }, 503);
+        return json({ sent: false, requestId: preparedRequestId, error: 'Outlook accepted the invitation, but its delivery status could not be saved. Retry safely; duplicate email is suppressed.' }, 503);
       }
       return json({ sent: true, requestId: preparedRequestId, expiresAt });
     }

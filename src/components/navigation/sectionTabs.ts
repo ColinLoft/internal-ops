@@ -67,7 +67,6 @@ export const getSectionTabs = (activeTab: string, _routePath: string): SectionTa
         tab('Quotes & proposals', 'Quotes', FileText, '/wildfire/quotes', ['/wildfire/proposals']),
         tab('Deployments', 'Deployments', Truck, '/wildfire/deployments'),
         tab('Product catalog', 'Catalog', Package, '/wildfire/catalog'),
-        tab('Customer requests', 'Requests', Headset, '/wildfire/requests'),
         tab('System alerts', 'Alerts', Siren, '/wildfire/alerts'),
       ];
     default:

@@ -58,14 +58,11 @@ serveWithCors(async (request: Request) => {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail)) return jsonResponse({ error: 'Enter the shared mailbox email address.' }, 400);
     }
 
-    const clientId = provider === 'google' ? Deno.env.get('GOOGLE_MAIL_CLIENT_ID') : Deno.env.get('MICROSOFT_MAIL_CLIENT_ID');
-    const clientSecret = provider === 'google' ? Deno.env.get('GOOGLE_MAIL_CLIENT_SECRET') : Deno.env.get('MICROSOFT_MAIL_CLIENT_SECRET');
+    const clientId = Deno.env.get('MICROSOFT_MAIL_CLIENT_ID');
+    const clientSecret = Deno.env.get('MICROSOFT_MAIL_CLIENT_SECRET');
     const redirectUri = Deno.env.get('MAIL_REDIRECT_URI');
     if (!clientId || !clientSecret || !redirectUri) {
-      const providerSecrets = provider === 'google'
-        ? 'GOOGLE_MAIL_CLIENT_ID and GOOGLE_MAIL_CLIENT_SECRET'
-        : 'MICROSOFT_MAIL_CLIENT_ID and MICROSOFT_MAIL_CLIENT_SECRET';
-      return jsonResponse({ error: `Email OAuth is not configured yet. Set ${providerSecrets} and MAIL_REDIRECT_URI in Supabase Edge Function secrets.` }, 503);
+      return jsonResponse({ error: 'Email OAuth is not configured yet. Set MICROSOFT_MAIL_CLIENT_ID, MICROSOFT_MAIL_CLIENT_SECRET and MAIL_REDIRECT_URI in Supabase Edge Function secrets.' }, 503);
     }
 
     const { error: cleanupError } = await adminClient.from('email_oauth_states')
@@ -89,9 +86,7 @@ serveWithCors(async (request: Request) => {
     });
     if (stateError) return jsonResponse({ error: `Could not start mailbox authorization: ${stateError.message}` }, 500);
 
-    const scopes = provider === 'google'
-      ? ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/gmail.modify', 'https://www.googleapis.com/auth/gmail.send']
-      : [
+    const scopes = [
         'openid',
         'profile',
         'email',
@@ -102,9 +97,7 @@ serveWithCors(async (request: Request) => {
         'https://graph.microsoft.com/Mail.ReadWrite.Shared',
         'https://graph.microsoft.com/Mail.Send.Shared',
       ];
-    const authorizationUrl = provider === 'google'
-      ? new URL('https://accounts.google.com/o/oauth2/v2/auth')
-      : new URL(`https://login.microsoftonline.com/${encodeURIComponent(Deno.env.get('MICROSOFT_TENANT_ID') || 'organizations')}/oauth2/v2.0/authorize`);
+    const authorizationUrl = new URL(`https://login.microsoftonline.com/${encodeURIComponent(Deno.env.get('MICROSOFT_TENANT_ID') || 'organizations')}/oauth2/v2.0/authorize`);
     authorizationUrl.search = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
@@ -114,7 +107,6 @@ serveWithCors(async (request: Request) => {
       state,
       code_challenge: challenge,
       code_challenge_method: 'S256',
-      ...(provider === 'google' ? { access_type: 'offline', prompt: 'consent' } : {}),
     }).toString();
     return jsonResponse({ authorizationUrl: authorizationUrl.toString() });
   }
@@ -208,12 +200,18 @@ serveWithCors(async (request: Request) => {
 
   const { data: existingMailbox, error: existingMailboxError } = await adminClient
     .from('email_mailboxes')
-    .select('id')
+    .select('id,support_started_at')
     .eq('provider', provider)
     .eq('email', mailboxEmail)
     .eq('mailbox_type', mailboxType)
     .maybeSingle();
   if (existingMailboxError) return jsonResponse({ error: `Existing mailbox authorization could not be checked: ${existingMailboxError.message}` }, 500);
+  if (provider === 'microsoft') {
+    const probe = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailboxEmail)}/mailFolders/inbox?$select=id`, {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    });
+    if (!probe.ok) return jsonResponse({ error: 'Microsoft could not open this shared inbox. Give the connecting account Full Access and Send As permission, then reconnect.' }, 403);
+  }
   let refreshToken = typeof tokens.refresh_token === 'string' ? tokens.refresh_token : '';
   if (!refreshToken && existingMailbox) {
     const { data: previousToken, error: previousTokenError } = await adminClient.from('email_mailbox_tokens')
@@ -245,6 +243,7 @@ serveWithCors(async (request: Request) => {
       display_name: displayName,
       provider_user_id: providerUserId,
       connected_by: user.id,
+      ...(mailboxEmail === 'team@flown.org' ? { support_started_at: existingMailbox?.support_started_at || new Date().toISOString() } : {}),
     }, { onConflict: 'provider,email,mailbox_type' })
     .select('id')
     .single();
@@ -278,7 +277,11 @@ serveWithCors(async (request: Request) => {
       webhookWarning = error instanceof Error ? error.message : 'MAIL_WEBHOOK_URL is invalid.';
     }
   }
-  if (validatedWebhookUrl) {
+  if (provider === 'microsoft') {
+    // Shared delegated access is polled by mail-maintenance, not Graph subscriptions.
+    const { error } = await adminClient.from('email_mailboxes').update({ push_error: null }).eq('id', mailbox.id);
+    if (error) webhookWarning = `Mailbox connected, but sync status could not be saved: ${error.message}`;
+  } else if (validatedWebhookUrl) {
     try {
     if (provider === 'google') {
       const topicName = Deno.env.get('GOOGLE_PUBSUB_TOPIC');

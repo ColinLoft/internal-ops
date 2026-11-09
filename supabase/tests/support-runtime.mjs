@@ -163,7 +163,49 @@ try {
   assert.equal((await db.query('select has_function_privilege($1,$2,$3) as allowed', ['service_role', signature, 'execute'])).rows[0].allowed, true);
   assert.equal((await db.query("select has_table_privilege('authenticated','support_email_outbox','select') as allowed")).rows[0].allowed, false);
 
-  console.log('Support SQL passed: legacy ticket bridge, status/assignment sync, unassigned inbound, thread correlation, sender isolation, deduplication and service-only access.');
+  await db.exec(`
+    create table email_mailboxes(id uuid primary key default gen_random_uuid(), email text, provider text, mailbox_type text);
+    create table grants(id uuid primary key default gen_random_uuid());
+    insert into email_mailboxes(email,provider,mailbox_type) values
+      ('team@flown.org','microsoft','shared'), ('grants@flown.org','microsoft','shared');
+  `);
+  const outlookMigration = readMigration('20261116100000_outlook_support.sql');
+  await db.exec(outlookMigration); await db.exec(outlookMigration);
+  const mailboxId = (await db.query("update email_mailboxes set support_started_at='2026-11-09T12:00:00Z' where email='team@flown.org' returning id")).rows[0].id;
+  const otherMailbox = (await db.query("select id from email_mailboxes where email='grants@flown.org'")).rows[0].id;
+  const outlook = async (overrides = {}) => {
+    const args = {
+      mailbox: mailboxId, thread: 'thread-one', provider: 'outlook-message-one', message: 'outlook-one@example.org',
+      sender: 'outlook-person@example.org', senderName: 'Outlook person', subject: 'Outlook help', body: 'Please help',
+      replyTo: null, references: [], received: '2026-11-09T12:01:00Z', sent: false, attachments: [],
+      ...overrides,
+    };
+    return (await db.query('select support_ingest_outlook_email($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) as result', Object.values(args))).rows[0].result;
+  };
+  assert.equal((await outlook({ received: '2026-11-08T12:00:00Z' })).ignored, true, 'historical mail is not imported');
+  assert.equal((await outlook({ mailbox: otherMailbox })).ignored, true, 'grants intake is deferred');
+  const firstOutlook = await outlook();
+  assert.equal(new Date((await db.query('select last_message_at from support_conversations where id=$1', [firstOutlook.conversation_id])).rows[0].last_message_at).toISOString(), '2026-11-09T12:01:00.000Z', 'the first message uses its received time, not the polling time');
+  const outlookConversation = (await db.query('select assignee_id,status from support_conversations where id=$1', [firstOutlook.conversation_id])).rows[0];
+  assert.deepEqual(outlookConversation, { assignee_id: null, status: 'open' });
+  assert.equal((await outlook()).duplicate, true);
+  await outlook({ provider: 'outlook-message-two', message: 'outlook-two@example.org', body: 'Following up' });
+  assert.equal((await db.query('select count(*)::int as n from support_messages where conversation_id=$1', [firstOutlook.conversation_id])).rows[0].n, 2, 'same thread appends to one ticket');
+  await outlook({ provider: 'outlook-sent', message: 'outlook-sent@example.org', sender: 'team@flown.org', body: 'Reply from Outlook', sent: true });
+  assert.equal((await db.query("select count(*)::int as n from support_messages where conversation_id=$1 and sender_type='agent'", [firstOutlook.conversation_id])).rows[0].n, 1);
+  assert.equal((await outlook({ thread: 'unrelated', provider: 'contract-invite', message: 'contract@example.org', sent: true })).ignored, true);
+  await db.query("insert into operational_email_deliveries(idempotency_key,payload_hash,status,mailbox_id,draft_id) values ('reply-key','hash','sent',$1,'app-reply')", [mailboxId]);
+  assert.equal((await outlook({ provider: 'app-reply', message: 'app-reply@example.org', sent: true })).ignored, true, 'app replies are not duplicated by sent-item sync');
+  await outlook({ provider: 'newest-message', message: 'newest@example.org', body: 'Newest message', received: '2026-11-09T12:03:00Z' });
+  await outlook({ provider: 'older-message', message: 'older@example.org', body: 'Older message', received: '2026-11-09T12:02:00Z' });
+  const latest = (await db.query('select last_message_at,last_message_preview from support_conversations where id=$1', [firstOutlook.conversation_id])).rows[0];
+  assert.equal(latest.last_message_preview, 'Newest message', 'out-of-order pages do not replace the latest preview');
+  assert.equal(new Date(latest.last_message_at).toISOString(), '2026-11-09T12:03:00.000Z');
+  const outlookSignature = 'support_ingest_outlook_email(uuid,text,text,text,text,text,text,text,text,text[],timestamp with time zone,boolean,jsonb)';
+  for (const role of ['anon', 'authenticated']) {
+    assert.equal((await db.query('select has_function_privilege($1,$2,$3) as allowed', [role, outlookSignature, 'execute'])).rows[0].allowed, false);
+  }
+  console.log('Support SQL passed: legacy bridge, Outlook cutoff, team-only intake, threading, sent-item sync, deduplication and service-only access.');
 } finally {
   await db.close();
 }

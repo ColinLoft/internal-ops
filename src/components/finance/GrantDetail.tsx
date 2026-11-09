@@ -21,7 +21,7 @@ const EVENT_TYPES = ['note', 'email_sent', 'email_received', 'application', 'cal
 const eventLabel = (value: string) => value.replace(/_/g, ' ').replace(/^./, (char) => char.toUpperCase());
 const TABS = ['Overview', 'Updates', 'Funding & files'] as const;
 type Tab = typeof TABS[number];
-const label = 'text-xs font-semibold text-slate-500';
+const label = 'text-sm font-medium text-slate-600';
 const Fold: React.FC<{ title: string; open?: boolean; children: React.ReactNode }> = ({ title, open = false, children }) => {
   const [shown, setShown] = useState(open);
   return (
@@ -55,6 +55,8 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
       supabase.from('eng_projects').select('id,name').order('name'),
     ]);
     if (g.error) { setError(g.error.message); return; }
+    const relatedError = [e, p, r, t, pr].find((result) => result.error)?.error;
+    if (relatedError) { setError(relatedError.message); return; }
     if (!g.data) { setMissing(true); return; }
     setGrant(g.data as Grant);
     setEvents((e.data || []) as GrantEvent[]);
@@ -66,6 +68,7 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
   useEffect(() => { void load(); }, [load]);
 
   const patch = async (values: Partial<Grant>, activity?: string) => {
+    if ('name' in values && !values.name?.trim()) { setError('Enter a grant name.'); return; }
     const previousStage = grant?.stage;
     setGrant((current) => (current ? { ...current, ...values } : current));
     const { data, error: updateError } = await supabase.from('grants').update(values).eq('id', grantId).select('stage').single();
@@ -99,24 +102,20 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
     <label className={label}>{title}<input type="number" min="0" step="0.01" value={grant[key] ?? ''} onChange={(event) => setGrant({ ...grant, [key]: event.target.value === '' ? null : Number(event.target.value) })} onBlur={(event) => void patch({ [key]: event.target.value === '' ? null : Number(event.target.value) })} className={field} /></label>
   );
 
-  const received = payments.filter((row) => row.status === 'received').reduce((sum, row) => sum + Number(row.amount), 0);
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
       <header className="border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
         <button type="button" onClick={() => goTo('/company/grants')} className="mb-2 inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-brand-600"><ArrowLeft className="h-3.5 w-3.5" />Grants</button>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <input value={grant.name} onChange={(event) => setGrant({ ...grant, name: event.target.value })} onBlur={(event) => event.target.value.trim() && void patch({ name: event.target.value.trim() })} aria-label="Grant name" className="w-full rounded-lg border border-transparent bg-transparent px-1 text-xl font-bold text-slate-900 outline-none hover:border-slate-200 focus:border-brand-400" />
-            <p className="px-1 text-xs text-slate-500">{grant.funder_name || 'No funder set'} · Owner {userName(grant.owner_id)}</p>
+          <div className="min-w-0 basis-full sm:flex-1 sm:basis-auto">
+            <h1 className="text-xl font-semibold text-slate-900">{grant.name}</h1>
+            <p className="mt-1 text-sm text-slate-500">{grant.funder_name || 'No funder set'}</p>
           </div>
             <div className="flex items-center gap-2">
               <label className="sr-only" htmlFor="grant-stage">Grant stage</label>
               <CustomSelect id="grant-stage" value={grant.stage} onChange={(event) => void patch({ stage: event.target.value }, `moved stage to ${stageLabel(event.target.value)}`)} aria-label="Stage" className={`rounded-lg border border-slate-200 px-2 py-1.5 text-base font-semibold md:text-xs ${stageTone(grant.stage)}`}>{GRANT_STAGES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect>
               <button type="button" onClick={async () => { if (!await confirm({ title: `Delete “${grant.name}”?`, message: 'This will also remove its timeline and related records.', confirmLabel: 'Delete' })) return; const { error: deleteError } = await supabase.from('grants').delete().eq('id', grantId); if (deleteError) setError(deleteError.message); else goTo('/company/grants'); }} className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600"><Trash2 className="h-3.5 w-3.5" />Delete</button>
           </div>
-        </div>
-          <div className="mt-3 grid grid-cols-3 gap-3 text-xs sm:max-w-2xl">
-            {[['Requested', grant.grant_type === 'product' ? grant.in_kind_requested || '—' : money(grant.amount_requested)], ['Awarded', grant.grant_type === 'product' ? grant.in_kind_awarded || '—' : money(grant.amount_awarded)], ['Received', money(received)]].map(([title, value]) => <div key={title} className="min-w-0"><p className="text-slate-500">{title}</p><p className="truncate text-sm font-semibold tabular-nums text-slate-900">{value}</p></div>)}
         </div>
         <nav className="mt-3 flex gap-1 overflow-x-auto" aria-label="Grant sections">{TABS.map((name) => <button type="button" key={name} onClick={() => setTab(name)} className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold ${tab === name ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>{name}</button>)}</nav>
       </header>
@@ -125,15 +124,26 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
         {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{userFacingError(error)}</p>}
 
         {tab === 'Overview' && (
+          <section className={`${card} mb-4 space-y-4`}>
+            <h2 className="text-base font-semibold text-slate-900">Next step</h2>
+            <label className={`block ${label}`}>Next action<input maxLength={500} value={grant.next_action || ''} onChange={(event) => setGrant({ ...grant, next_action: event.target.value })} onBlur={(event) => void patch({ next_action: event.target.value.trim() || null })} className={field} /></label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {text('next_follow_up_at', 'Next date', 'date')}
+              <label className={label}>Owner<CustomSelect value={grant.owner_id || ''} onChange={(event) => void patch({ owner_id: event.target.value || null })} className={field}><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</CustomSelect></label>
+              {text('funder_name', 'Funder')}
+              {grant.grant_type === 'product' ? text('in_kind_requested', 'Product requested') : amount('amount_requested', 'Amount requested ($)')}
+            </div>
+          </section>
+        )}
+        {tab === 'Overview' && (
           <div className="grid gap-4 lg:grid-cols-2">
-            <section className={`${card} space-y-3`}>
-              <h3 className="text-sm font-bold text-slate-900">Funder & contact</h3>
+            <Fold title="Funder & contact details"><div className="space-y-3">
               {text('funder_name', 'Funder / organization')}
               <FunderPicker grant={grant} onLink={(values) => void patch(values, 'linked a CRM funder')} onError={setError} />
               <div className="grid gap-3 sm:grid-cols-2">{text('contact_name', 'Contact name')}{text('contact_email', 'Contact email', 'email')}{text('contact_phone', 'Contact phone')}{text('website_url', 'Website', 'url')}{text('portal_url', 'Funder portal', 'url')}{text('application_url', 'Application link', 'url')}</div>
               <label className={label}>Other funder email addresses (comma separated, used to match emails)<input value={grant.funder_emails.join(', ')} onChange={(event) => setGrant({ ...grant, funder_emails: event.target.value.split(',').map((item) => item.trim()) })} onBlur={() => void patch({ funder_emails: grant.funder_emails.filter(Boolean).map((item) => item.toLowerCase()) })} className={field} /></label>
               <div className="flex flex-wrap gap-3 text-xs font-semibold text-brand-600">{[['Website', grant.website_url], ['Portal', grant.portal_url], ['Application', grant.application_url]].map(([name, url]) => url && /^https?:\/\//i.test(url) ? <a key={name} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1"><ExternalLink className="h-3 w-3" />{name}</a> : null)}</div>
-            </section>
+            </div></Fold>
             <Fold title="Source & ownership"><div className="space-y-3">
               <label className={label}>Source<CustomSelect value={grant.source || ''} onChange={(event) => void patch({ source: event.target.value || null })} className={field}><option value="">Not recorded</option>{SOURCES.map((item) => <option key={item}>{item}</option>)}</CustomSelect></label>
               {area('source_detail', 'How we heard about it', 'Who told us, where we saw it, the story…')}
@@ -144,12 +154,12 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
               <label className={label}>Linked project<CustomSelect value={grant.project_id || ''} onChange={(event) => void patch({ project_id: event.target.value || null }, 'linked a project')} className={field}><option value="">None</option>{projects.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</CustomSelect></label>
               {grant.project_id && <button type="button" onClick={() => goTo(`/engineering/software`)} className="text-xs font-bold text-brand-600">Open project</button>}
             </div></Fold>
-            <section className={`${card} space-y-3`}>
-              <h3 className="text-sm font-bold text-slate-900">Application & award</h3>
+            <Fold title="Application & award details"><div className="space-y-3">
+              {text('name', 'Grant name')}
               <label className={label}>Grant type<CustomSelect value={grant.grant_type} onChange={(event) => void patch({ grant_type: event.target.value }, 'changed the grant type')} className={field}>{GRANT_TYPES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect></label>
               <div className="grid gap-3 sm:grid-cols-2">{grant.grant_type !== 'product' && amount('amount_requested', 'Cash requested ($)')}{grant.grant_type !== 'product' && amount('amount_awarded', 'Cash awarded ($)')}{grant.grant_type !== 'money' && text('in_kind_requested', 'Product requested')}{grant.grant_type !== 'money' && text('in_kind_awarded', 'Product awarded')}</div>
               <div className="grid gap-3 sm:grid-cols-2">{text('application_submitted_at', 'Application sent', 'date')}{text('decision_due_at', 'Decision expected', 'date')}{text('decision_at', 'Decision received', 'date')}{text('award_date', 'Award date', 'date')}{text('term_start', 'Term start', 'date')}{text('term_end', 'Term end', 'date')}{text('next_follow_up_at', 'Next follow-up', 'date')}</div>
-            </section>
+            </div></Fold>
             <Fold title="Terms & notes"><div className="space-y-3">
               {area('funder_response', 'Funder response', 'What the funder said about our application')}
               {area('decision_notes', 'Decision notes')}
@@ -164,7 +174,7 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
         {tab === 'Overview' && (
           <div className="space-y-4">
             <Fold title="People & contacts"><PeopleTab grant={grant} onError={setError} onGrantChange={(values) => setGrant((current) => (current ? { ...current, ...values } : current))} /></Fold>
-            <Fold title="Application requirements" open><RequirementsTab grantId={grantId} userName={userName} users={users} onError={setError} /></Fold>
+            <Fold title="Application requirements"><RequirementsTab grantId={grantId} userName={userName} users={users} onError={setError} /></Fold>
           </div>
         )}
         {tab === 'Updates' && (

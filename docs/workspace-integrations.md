@@ -71,7 +71,7 @@ Apply `supabase/migrations/20261110140000_retire_personal_email.sql` and deploy 
 - Shared mailbox sending remains available in Customers > Support. Select the shared sender before sending. Mailbox grants and send permissions are enforced by the backend. The operational-email access panel is removed from Settings; existing grants and retained mail are unchanged.
 - Company Automation and its shared-mailbox rule definitions/history are retired. Grant award checklists/reporting automations and customer-support AI remain in their existing workflows.
 - `mail-api` retains send, reply, scheduled-send, and operational mailbox actions. `mail-webhook`/`mail-sync` retain shared inbound synchronization; `mail-maintenance` retains shared scheduled delivery and subscription maintenance.
-- Current shared-mail integration still uses the existing provider adapter and configured credentials. Resend or another inbound/outbound API can replace that adapter later; a Resend shared inbox is **not** configured by this change. No provider secrets belong in the browser.
+- Shared operational mail uses Microsoft Outlook. Administrators connect team@flown.org in Settings > Email; support intake/replies and contract invitations/final copies use that mailbox. See [setup and scheduled sync](./support-queue.md). Grants mailbox automation is deferred. No provider secrets belong in the browser.
 - Missing provider configuration and failed delivery are shown as errors, not as successfully sent support messages.
 
 The old standalone-email rollout/setup guides are archived references, not current frontend instructions. Do not connect personal mailboxes using those guides.

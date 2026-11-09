@@ -72,7 +72,7 @@ const sendFinalCopy = async (
     html: `<p>Hello ${recipient},</p><p><strong>${contractName}</strong> has been signed by both parties.</p><p><a href="${escapedUrl}">Download the final signed PDF</a> (secure link available for seven days).</p>`,
     idempotencyKey: requestRow.confirmation_email_idempotency_key,
   };
-  if (Number(file.file_size) <= 15 * 1024 * 1024) {
+  if (Number(file.file_size) <= 2 * 1024 * 1024) {
     const { data: blob, error: downloadError } = await admin.storage.from('contracts-files').download(file.storage_path);
     if (!downloadError && blob) emailOptions.attachments = [{
       filename: file.file_name,
@@ -86,7 +86,7 @@ const sendFinalCopy = async (
   }).eq('id', requestRow.id);
   if (deliveryUpdate.error) {
     return { sent: false, error: result.sent
-      ? 'Resend accepted the signed-copy email, but its delivery status could not be saved. Retry safely; duplicate email is suppressed.'
+      ? 'Outlook accepted the signed-copy email, but its delivery status could not be saved. Retry safely; duplicate email is suppressed.'
       : `${result.error} The delivery result could not be saved; retry safely.` };
   }
   return result.sent

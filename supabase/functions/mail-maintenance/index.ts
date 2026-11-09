@@ -1,6 +1,7 @@
 import { serveWithCors } from '../_shared/cors.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { bytesToBase64Url, getAccessToken, recordEmailActivity, timingSafeEqual } from '../_shared/email.ts';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getAccessToken, recordEmailActivity, timingSafeEqual } from '../_shared/email.ts';
+import { syncOutlookSupport } from '../_shared/outlook-support.ts';
 
 const jsonResponse = (body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -8,34 +9,7 @@ const jsonResponse = (body: Record<string, unknown>, status = 200) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
-const graphExpiration = () => new Date(Date.now() + 4230 * 60_000).toISOString();
-
-const createGraphSubscription = async (
-  accessToken: string,
-  webhookUrl: string,
-  mailbox: Record<string, any>,
-  clientState: string,
-) => {
-  const targetPath = mailbox.mailbox_type === 'shared'
-    ? `users/${encodeURIComponent(mailbox.email)}`
-    : 'me';
-  const response = await fetch('https://graph.microsoft.com/v1.0/subscriptions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      changeType: 'created,updated',
-      notificationUrl: `${webhookUrl}?provider=microsoft`,
-      resource: `${targetPath}/mailFolders('inbox')/messages`,
-      expirationDateTime: graphExpiration(),
-      clientState,
-    }),
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error?.message || 'Microsoft Graph subscription creation failed.');
-  return result;
-};
-
-const processScheduledSends = async (adminClient: ReturnType<typeof createClient>) => {
+const processScheduledSends = async (adminClient: SupabaseClient) => {
   const staleBefore = new Date(Date.now() - 30 * 60_000).toISOString();
   const { error: resetError } = await adminClient.from('email_scheduled_sends')
     .update({ status: 'scheduled', processing_started_at: null })
@@ -191,7 +165,7 @@ serveWithCors(async (request: Request) => {
 
   const { data: mailboxes, error: mailboxError } = await adminClient
     .from('email_mailboxes')
-    .select('id, provider, mailbox_type, email, google_history_id, graph_subscription_id, graph_client_state, push_expires_at')
+    .select('id, provider, mailbox_type, email, google_history_id, graph_subscription_id, graph_client_state, push_expires_at, support_started_at')
     .eq('mailbox_type', 'shared');
   if (mailboxError) return jsonResponse({ error: `Mailboxes could not be loaded: ${mailboxError.message}` }, 500);
 
@@ -199,6 +173,24 @@ serveWithCors(async (request: Request) => {
   const failures: { mailboxId: string; error: string }[] = [];
   const renewBefore = Date.now() + 24 * 60 * 60 * 1000;
   for (const mailbox of mailboxes || []) {
+    if (mailbox.provider === 'microsoft') {
+      if (mailbox.email === 'team@flown.org' && mailbox.support_started_at) {
+        try {
+          const complete = await syncOutlookSupport(adminClient, mailbox);
+          if (!complete) continue;
+          const { error } = await adminClient.from('email_mailboxes')
+            .update({ support_last_synced_at: new Date().toISOString(), support_sync_error: null }).eq('id', mailbox.id);
+          if (error) throw new Error(`Support sync status could not be saved: ${error.message}`);
+        } catch (cause) {
+          const message = cause instanceof Error ? cause.message : 'Outlook support sync failed.';
+          failures.push({ mailboxId: mailbox.id, error: message });
+          const { error } = await adminClient.from('email_mailboxes').update({ support_sync_error: message }).eq('id', mailbox.id);
+          if (error) console.error('Support sync error could not be saved:', error.message);
+        }
+      }
+      // Delegated shared-mailbox permissions do not support Graph change subscriptions.
+      continue;
+    }
     if (mailbox.push_expires_at && Date.parse(mailbox.push_expires_at) > renewBefore) continue;
     try {
       const accessToken = await getAccessToken(adminClient, mailbox);
@@ -219,34 +211,6 @@ serveWithCors(async (request: Request) => {
         if (!mailbox.google_history_id && watch.historyId) update.google_history_id = String(watch.historyId);
         const { error: saveError } = await adminClient.from('email_mailboxes').update(update).eq('id', mailbox.id);
         if (saveError) throw new Error(`Gmail watch renewed but its status could not be stored: ${saveError.message}`);
-      } else {
-        const rawWebhookUrl = Deno.env.get('MAIL_WEBHOOK_URL');
-        if (!rawWebhookUrl) throw new Error('MAIL_WEBHOOK_URL is not configured.');
-        const parsedWebhookUrl = new URL(rawWebhookUrl);
-        if (parsedWebhookUrl.protocol !== 'https:') throw new Error('MAIL_WEBHOOK_URL must use HTTPS.');
-        const webhookUrl = parsedWebhookUrl.toString().replace(/\/$/, '');
-        const clientState = mailbox.graph_client_state || bytesToBase64Url(crypto.getRandomValues(new Uint8Array(32)));
-        let subscription: Record<string, any> | null = null;
-        if (mailbox.graph_subscription_id) {
-          const response = await fetch(`https://graph.microsoft.com/v1.0/subscriptions/${encodeURIComponent(mailbox.graph_subscription_id)}`, {
-            method: 'PATCH',
-            headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ expirationDateTime: graphExpiration() }),
-          });
-          if (response.ok) subscription = await response.json();
-          else if (response.status !== 404) {
-            const error = await response.json();
-            throw new Error(error.error?.message || 'Microsoft Graph subscription renewal failed.');
-          }
-        }
-        if (!subscription) subscription = await createGraphSubscription(accessToken, webhookUrl, mailbox, clientState);
-        const { error: saveError } = await adminClient.from('email_mailboxes').update({
-          graph_subscription_id: subscription.id,
-          graph_client_state: clientState,
-          push_expires_at: subscription.expirationDateTime,
-          push_error: null,
-        }).eq('id', mailbox.id);
-        if (saveError) throw new Error(`Microsoft subscription renewed but its status could not be stored: ${saveError.message}`);
       }
       renewed.push(mailbox.id);
     } catch (error) {

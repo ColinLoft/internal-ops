@@ -7,6 +7,13 @@ export type Grant = {
   match_required: string | null; restrictions: string | null; obligations: string | null; application_submitted_at: string | null; decision_due_at: string | null; decision_at: string | null;
   award_date: string | null; term_start: string | null; term_end: string | null; next_follow_up_at: string | null; funder_response: string | null; decision_notes: string | null; notes: string | null;
   project_id: string | null; grant_type: string; created_at: string; updated_at: string;
+  next_action: string | null;
+};
+
+export const nextGrantDate = (grant: Pick<Grant, 'stage' | 'next_follow_up_at' | 'decision_due_at' | 'term_end'>) => {
+  if (['closed', 'declined'].includes(grant.stage)) return null;
+  const dates = [grant.next_follow_up_at, grant.stage === 'applied' ? grant.decision_due_at : null, grant.stage === 'reporting' ? grant.term_end : null].filter((date): date is string => Boolean(date));
+  return dates.sort()[0] || null;
 };
 
 export const GRANT_TYPES = [['money', 'Money (cash)'], ['product', 'Product / in-kind'], ['both', 'Money + product']] as const;

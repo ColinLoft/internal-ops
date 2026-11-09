@@ -1,14 +1,15 @@
 import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Bell, Check, Download, KeyRound, Loader2, LogOut, Palette, Phone, Play, Save, ShieldCheck, SlidersHorizontal, Sparkles, UserRound, Users } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { RINGTONES, WorkspaceSettings } from '../../types';
 import { sounds } from '../../lib/sound';
 import { AdminPage } from '../admin/AdminPage';
+import { OutlookSettings } from './OutlookSettings';
 
-type Section = 'profile' | 'general' | 'appearance' | 'notifications' | 'calls' | 'ai' | 'security' | 'privacy' | 'admin';
+type Section = 'profile' | 'general' | 'appearance' | 'notifications' | 'calls' | 'ai' | 'security' | 'privacy' | 'admin' | 'email';
 
 const card = 'rounded-xl border border-slate-200 bg-white p-5';
 const input = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-brand-500';
@@ -26,7 +27,7 @@ const Toggle: React.FC<{ label: string; description: string; checked: boolean; o
 export const SettingsPage: React.FC = () => {
   const { currentUser, workspaceSettings, saveWorkspaceSettings, soundEnabled, toggleSound, setIsProfileSettingsOpen, logout } = useWorkspace();
   const isAdmin = currentUser.systemRole === 'admin';
-  const [section, setSection] = useState<Section>('profile');
+  const [section, setSection] = useState<Section>(() => isAdmin && (new URLSearchParams(window.location.search).get('section') === 'email' || new URLSearchParams(window.location.search).get('mail_oauth') === 'callback') ? 'email' : 'profile');
   const [draft, setDraft] = useState<WorkspaceSettings>(workspaceSettings);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceError, setDeviceError] = useState('');
@@ -37,8 +38,13 @@ export const SettingsPage: React.FC = () => {
   const [confirm, setConfirm] = useState('');
   const [secMsg, setSecMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [secBusy, setSecBusy] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => { setDraft(workspaceSettings); }, [workspaceSettings]);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (nav && nav.scrollWidth > nav.clientWidth) nav.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [section]);
 
   useEffect(() => {
     if (section !== 'calls') return;
@@ -101,20 +107,21 @@ export const SettingsPage: React.FC = () => {
     { id: 'security', label: 'Security', icon: ShieldCheck },
     { id: 'privacy', label: 'Privacy & data', icon: Download },
     ...(isAdmin ? [{ id: 'admin' as Section, label: 'Administration', icon: Users }] : []),
+    ...(isAdmin ? [{ id: 'email' as Section, label: 'Email', icon: SlidersHorizontal }] : []),
   ];
 
   const audioInputs = devices.filter((device) => device.kind === 'audioinput');
   const videoInputs = devices.filter((device) => device.kind === 'videoinput');
-  const prefsSection = section !== 'profile' && section !== 'security' && section !== 'privacy' && section !== 'admin';
+  const prefsSection = section !== 'profile' && section !== 'security' && section !== 'privacy' && section !== 'admin' && section !== 'email';
 
   return (
     <main data-onboarding-target="settings-workspace" className="flex-1 overflow-y-auto">
       <div className={`workspace-page-body mx-auto ${section === 'admin' ? 'max-w-6xl' : 'max-w-5xl'}`}>
         <h1 className="mb-6 text-xl font-semibold text-slate-900">Settings</h1>
         <div className="flex flex-col gap-6 md:flex-row">
-          <nav aria-label="Settings sections" className="flex shrink-0 gap-1 overflow-x-auto md:w-52 md:flex-col">
+          <nav ref={navRef} aria-label="Settings sections" className="flex shrink-0 gap-1 overflow-x-auto md:w-52 md:flex-col">
             {nav.map(({ id, label, icon: Icon }) => (
-              <button key={id} type="button" onClick={() => setSection(id)} className={`flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-colors ${section === id ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}>
+              <button key={id} type="button" aria-current={section === id ? 'page' : undefined} onClick={() => setSection(id)} className={`flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-colors ${section === id ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}>
                 <Icon className="h-4 w-4" />{label}
               </button>
             ))}
@@ -124,6 +131,7 @@ export const SettingsPage: React.FC = () => {
           </nav>
 
           <div className="min-w-0 flex-1 space-y-4">
+            {section === 'email' && isAdmin && <OutlookSettings />}
             {section === 'profile' && (
               <section className={card}>
                 <h2 className="text-lg font-bold text-slate-900">Your profile</h2>

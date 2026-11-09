@@ -1,5 +1,13 @@
 # Grant Finder and Marketing setup
 
+## Grant tracker
+
+The tracker opens to active grants in next-date order. Each row shows the funder, editable status, amount, next date and next action. Closed and declined records remain available through the status filter.
+
+Open a grant to update its next step, date, owner or amount. Contact, application and award metadata is kept in collapsed sections; the grant name can be changed under **Application & award details**. Updates and Funding & files remain separate tabs. Import, export and award-checklist actions are under **Tools**.
+
+Apply `20261116100000_outlook_support.sql` (also included in the workspace SQL bundle) before publishing this tracker; it adds the saved `grants.next_action` field.
+
 ## Grant Finder live search
 
 Grant Finder uses the deployed `grant-ai` Supabase Edge Function and the workspace's Azure OpenAI settings. Live search is provided by Tavily. The function sends generalized grant-search keywords to Tavily; it does not send the organization summary or saved grant-resource text to the search provider. Azure OpenAI uses the organization's permitted summary and the saved grant resources to assess fit and draft the results.

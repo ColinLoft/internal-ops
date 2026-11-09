@@ -1,5 +1,6 @@
 import { serveWithCors } from '../_shared/cors.ts';
 import { clientsFor, emailCorsHeaders, getAccessToken, jsonResponse, recordEmailActivity } from '../_shared/email.ts';
+import { syncOutlookSupport } from '../_shared/outlook-support.ts';
 
 serveWithCors(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: emailCorsHeaders });
@@ -21,7 +22,7 @@ serveWithCors(async (request: Request) => {
     if (action === 'list') {
       const [mailboxResult, userResult, settingResult] = await Promise.all([
         adminClient.from('email_mailboxes')
-          .select('id, provider, email, display_name, connected_by, last_synced_at, push_expires_at, push_error')
+          .select('id, provider, email, display_name, connected_by, last_synced_at, push_expires_at, push_error, support_started_at, support_last_synced_at, support_sync_error')
           .eq('mailbox_type', 'shared')
           .order('email'),
         adminClient.from('profiles').select('id, name, email, system_role, account_status').order('name'),
@@ -43,6 +44,32 @@ serveWithCors(async (request: Request) => {
         retentionDays: settingResult.data.retention_days,
         aiSummariesEnabled: settingResult.data.ai_summaries_enabled !== false,
       });
+    }
+
+    if (action === 'sync-support') {
+      const { data: mailbox, error } = await adminClient.from('email_mailboxes')
+        .select('id,email,provider,mailbox_type,support_started_at')
+        .eq('email', 'team@flown.org').eq('provider', 'microsoft').eq('mailbox_type', 'shared').single();
+      if (error || !mailbox) return jsonResponse({ error: 'Connect team@flown.org before syncing support.' }, 400);
+      if (!mailbox.support_started_at) {
+        const { error: startError } = await adminClient.from('email_mailboxes')
+          .update({ support_started_at: new Date().toISOString() }).eq('id', mailbox.id);
+        if (startError) return jsonResponse({ error: startError.message }, 500);
+        return jsonResponse({ success: true });
+      }
+      try {
+        const complete = await syncOutlookSupport(adminClient, mailbox);
+        if (!complete) return jsonResponse({ success: true, pending: true });
+        const { error: saveError } = await adminClient.from('email_mailboxes')
+          .update({ support_last_synced_at: new Date().toISOString(), support_sync_error: null }).eq('id', mailbox.id);
+        if (saveError) throw new Error(saveError.message);
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : 'Support sync failed.';
+        const { error: saveError } = await adminClient.from('email_mailboxes').update({ support_sync_error: message }).eq('id', mailbox.id);
+        if (saveError) console.error('Support sync error could not be saved:', saveError.message);
+        return jsonResponse({ error: message }, 502);
+      }
+      return jsonResponse({ success: true });
     }
 
     if (action === 'grant' || action === 'revoke') {
@@ -102,13 +129,7 @@ serveWithCors(async (request: Request) => {
       return jsonResponse({ success: true, activityLogWarning });
     }
 
-    if (action === 'retention') {
-      const retentionDays = Number(payload.retentionDays);
-      if (!Number.isInteger(retentionDays) || retentionDays < 30 || retentionDays > 3650) {
-        return jsonResponse({ error: 'Retention must be between 30 and 3650 days.' }, 400);
-      }
-
-      if (action === 'ai-summaries') {
+    if (action === 'ai-summaries') {
         const enabled = payload.enabled !== false;
         const { error } = await adminClient.from('email_settings').upsert({
           id: true,
@@ -118,6 +139,11 @@ serveWithCors(async (request: Request) => {
         }, { onConflict: 'id' });
         if (error) return jsonResponse({ error: error.message }, 400);
         return jsonResponse({ success: true, aiSummariesEnabled: enabled });
+    }
+    if (action === 'retention') {
+      const retentionDays = Number(payload.retentionDays);
+      if (!Number.isInteger(retentionDays) || retentionDays < 30 || retentionDays > 3650) {
+        return jsonResponse({ error: 'Retention must be between 30 and 3650 days.' }, 400);
       }
       const { error } = await adminClient.from('email_settings').upsert({
         id: true,

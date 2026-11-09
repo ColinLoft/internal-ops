@@ -24,18 +24,18 @@ manual-signing actions for an unknown request.
 
 Set these Supabase Edge Function secrets before using email delivery:
 
-- `RESEND_API_KEY`: Resend API key with permission to send from the Flown domain.
-- `RESEND_FROM_EMAIL`: verified sender, `Flown <team@flown.org>` (the address must be
-  `team@flown.org`).
+- Connect the Microsoft 365 `team@flown.org` shared mailbox in **Settings > Email**.
+  Configure OAuth credentials and shared-mailbox access as described in [Outlook setup](../support-queue.md).
 - `SITE_URL`: public application origin used to construct recipient links.
 
-The API key is read only by Edge Functions. An invitation is marked pending only after Resend
-accepts it. Resend requests use a persistent request-specific idempotency key so a retry after a
-network or database error does not send duplicate messages. Draft requests retain their fields and
+Microsoft credentials are read only by Edge Functions. An invitation is marked pending only after Outlook
+accepts it. A persistent request-specific delivery key suppresses duplicate sends; uncertain network
+or database outcomes block automatic retries until an administrator checks Sent Items. Draft requests retain their fields and
 request IDs so staff can retry after reload without exposing or storing the bearer token. Delivery
 failures leave the signature request unsent and are surfaced to staff.
 
-After countersigning, the final PDF is attached to the confirmation email when it is at most 15 MB;
+After countersigning, the final PDF is attached to the confirmation email when it is at most 2 MB
+(to stay below Graph's request-size limit after base64 encoding);
 larger PDFs are provided as a seven-day private download link. If confirmation delivery fails, the
 completed signature is retained and staff can retry delivery from the contract.
 
@@ -44,6 +44,7 @@ completed signature is retained and staff can retry delivery from the contract.
 Apply `20261115120000_contract_placement_and_countersigning.sql` and deploy the
 `create-contract-signature-link` and `sign-contract-public` Edge Functions together. The frontend
 PDF viewer requires `pdfjs-dist` (the dependency is managed separately from these function changes).
+The Outlook migration also requires `20261116100000_outlook_support.sql` and a connected team mailbox.
 
 The migration is also included in the generated [workspace SQL Editor bundle](../../supabase/flown_ops_update_all.sql).
 That bundle **permanently deletes Ideas data** and requires the complete workspace foundation.

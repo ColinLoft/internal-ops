@@ -80,7 +80,7 @@ const WorkspaceShell: React.FC = () => {
   } = useWorkspace();
   useOverlayA11y();
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
-  const activeTab = workspaceTabFromPath(routePath) ?? selectedTab;
+  const activeTab = new URLSearchParams(window.location.search).get('mail_oauth') === 'callback' ? 'settings' : workspaceTabFromPath(routePath) ?? selectedTab;
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [mobileChatPane, setMobileChatPane] = useState<'list' | 'feed'>('list');
 

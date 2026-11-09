@@ -9,6 +9,7 @@ const sources = [
   '20261115110000_retire_company_ideas.sql',
   '20261115120000_contract_placement_and_countersigning.sql',
   '20261115130000_support_email_queue.sql',
+  '20261116100000_outlook_support.sql',
 ];
 const header = `-- Flown Ops workspace update: run this entire file against an existing workspace.
 -- WARNING: permanently deletes all Ideas, votes and discussions. Back up first.

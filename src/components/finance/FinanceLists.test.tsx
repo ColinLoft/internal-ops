@@ -12,7 +12,7 @@ vi.mock('../../context/WorkspaceContext', () => ({ useWorkspace: () => ({ curren
 vi.mock('../../lib/supabase', () => ({
   supabase: { from: (table: string) => {
     const result = () => ({ data: mock.rows[table] ?? [], error: mock.error });
-    const q = { select: () => q, order: () => q, limit: () => q, in: () => q, not: () => q, maybeSingle: async () => ({ data: null, error: null }), then: (resolve: (value: unknown) => void) => resolve(result()) };
+    const q = { select: () => q, order: () => q, range: () => q, limit: () => q, in: () => q, not: () => q, maybeSingle: async () => ({ data: null, error: null }), then: (resolve: (value: unknown) => void) => resolve(result()) };
     return q;
   } },
 }));
@@ -72,8 +72,7 @@ describe('quieter funding lists', () => {
     expect(tools.parentElement?.textContent).toContain('Import grants');
     expect(tools.parentElement?.textContent).toContain('Export CSV');
     expect(tools.parentElement?.textContent).toContain('Award checklist');
-    const upcoming = [...container.querySelectorAll('summary')].find(item => item.textContent?.startsWith('Upcoming deadlines'))!;
-    expect(upcoming.parentElement?.hasAttribute('open')).toBe(false);
+    expect(container.textContent).not.toContain('Upcoming deadlines');
     expect(container.textContent).toContain('0 grants');
   });
 });

@@ -1,6 +1,7 @@
 import { serveWithCors } from '../_shared/cors.ts';
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { extractEmailAddresses } from '../_shared/support-email.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { deliverOperationalEmail, teamMailbox } from '../_shared/operational-mail.ts';
+import { extractMessageIds } from '../_shared/support-email.ts';
 
 type Json = Record<string, unknown>;
 const json = (body: Json, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -39,12 +40,9 @@ serveWithCors(async (request: Request) => {
   if (!uuidPattern.test(idempotencyKey)) return json({ error: 'A valid reply request ID is required. Try sending again.' }, 400);
   if (!body || body.length > 10_000) return json({ error: 'Write a reply of no more than 10,000 characters.' }, 400);
 
-  const apiKey = Deno.env.get('RESEND_API_KEY');
-  const from = Deno.env.get('RESEND_FROM_EMAIL')?.trim() || '';
-  const fromAddress = extractEmailAddresses(from)[0] || '';
-  if (!apiKey || !from || fromAddress.toLowerCase() !== 'team@flown.org') {
-    return json({ error: 'Resend is not configured. Set RESEND_API_KEY and RESEND_FROM_EMAIL to the verified team@flown.org sender.' }, 503);
-  }
+  let mailbox: Awaited<ReturnType<typeof teamMailbox>>;
+  try { mailbox = await teamMailbox(admin); }
+  catch (cause) { return json({ error: cause instanceof Error ? cause.message : 'Outlook mailbox could not be loaded.' }, 503); }
 
   const { data: conversation, error: conversationError } = await admin.from('support_conversations')
     .select('id,customer_id,subject,public_token,status')
@@ -58,7 +56,11 @@ serveWithCors(async (request: Request) => {
     .maybeSingle();
   if (customerError) return json({ error: 'The contact details could not be loaded.' }, 503);
   if (!customer?.email || !emailPattern.test(customer.email)) return json({ error: 'This contact does not have a valid email address.' }, 400);
-  if (!/^[a-f0-9]{32,96}$/i.test(conversation.public_token)) return json({ error: 'The request is missing its secure reply address.' }, 503);
+  const { data: replyTarget, error: replyError } = await admin.from('support_messages')
+    .select('outlook_message_id').eq('conversation_id', conversation.id)
+    .eq('outlook_mailbox_id', mailbox.id).eq('sender_type', 'customer')
+    .not('outlook_message_id', 'is', null).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (replyError) return json({ error: 'The Outlook reply target could not be loaded. Nothing was sent.' }, 503);
 
   const { data: unresolved, error: unresolvedError } = await admin.from('support_email_outbox')
     .select('id,status,body,sender_id')
@@ -105,7 +107,7 @@ serveWithCors(async (request: Request) => {
     outbox = existing;
     if (existing.status === 'sent') {
       const { data: saved } = await admin.from('support_messages').select('id').eq('support_outbox_id', existing.id).maybeSingle();
-      return saved ? json({ success: true, messageId: saved.id, duplicate: true }) : json({ error: 'Resend accepted this reply, but its saved thread record is incomplete. Do not retry; ask an administrator to reconcile it.' }, 503);
+      return saved ? json({ success: true, messageId: saved.id, duplicate: true }) : json({ error: 'Outlook accepted this reply, but its saved thread record is incomplete. Do not retry; ask an administrator to reconcile it.' }, 503);
     }
     if (existing.status === 'accepted_unrecorded' || existing.status === 'unknown') {
       return json({ error: 'The email provider may have accepted this reply, but its final state could not be confirmed. Do not retry; check the thread or ask an administrator.' }, 503);
@@ -130,47 +132,22 @@ serveWithCors(async (request: Request) => {
     return json({ error: 'The reply could not be recorded before sending. Nothing was sent.' }, 503);
   }
 
-  const replyTo = `team+${conversation.public_token}@flown.org`;
   const cleanSubject = String(conversation.subject || 'Support request').replace(/[\r\n]+/g, ' ').trim().slice(0, 200);
-  let providerResponse: Response;
-  try {
-    providerResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'Idempotency-Key': `flown-support-${outbox.id}`,
-      },
-      body: JSON.stringify({
-        from,
-        to: [customer.email],
-        reply_to: replyTo,
-        subject: /^re:\s/i.test(cleanSubject) ? cleanSubject : `Re: ${cleanSubject}`,
-        text: body,
-        headers: { 'X-Flown-Support-Conversation': conversation.id },
-      }),
-    });
-  } catch {
-    await admin.from('support_email_outbox').update({ status: 'unknown', last_error: 'The connection ended before Resend acceptance could be confirmed.' }).eq('id', outbox.id);
-    return json({ error: 'The connection ended before Resend acceptance could be confirmed. Do not retry until you check the thread or ask an administrator.' }, 502);
-  }
-
-  const result = await providerResponse.json().catch(() => ({})) as Json;
-  if (!providerResponse.ok && providerResponse.status < 500) {
-    const detail = typeof (result.error as Json | undefined)?.message === 'string' ? String((result.error as Json).message).slice(0, 500) : 'Resend did not accept the email.';
-    await admin.from('support_email_outbox').update({ status: 'failed', last_error: detail }).eq('id', outbox.id);
-    return json({ error: `Reply was not sent: ${detail}` }, 502);
-  }
-  if (!providerResponse.ok || typeof result.id !== 'string') {
-    await admin.from('support_email_outbox').update({
-      status: 'unknown',
-      last_error: 'Resend returned an incomplete or server-error response; acceptance is not confirmed.',
+  const result = await deliverOperationalEmail({
+    to: customer.email, subject: /^re:\s/i.test(cleanSubject) ? cleanSubject : `Re: ${cleanSubject}`,
+    text: body, idempotencyKey: `flown-support-${outbox.id}`,
+    replyMessageId: replyTarget?.outlook_message_id || undefined,
+    supportConversationId: conversation.id,
+  }, { admin });
+  if (!result.sent) {
+    const { error } = await admin.from('support_email_outbox').update({
+      status: result.uncertain ? 'unknown' : 'failed', last_error: result.error,
     }).eq('id', outbox.id);
-    return json({ error: 'Resend did not confirm whether it accepted this reply. Do not retry until the thread or delivery record is checked.' }, 502);
+    if (error) console.error('Support delivery failure could not be saved:', error.message);
+    return json({ error: result.error }, 502);
   }
 
-  const providerEmailId = result.id;
-  await admin.from('support_email_outbox').update({ provider_email_id: providerEmailId }).eq('id', outbox.id);
+  const providerEmailId = result.emailId;
   const { data: message, error: messageError } = await admin.from('support_messages').insert({
     conversation_id: conversation.id,
     sender_type: 'agent',
@@ -178,6 +155,9 @@ serveWithCors(async (request: Request) => {
     channel: 'email',
     body,
     email_provider_id: providerEmailId,
+    outlook_message_id: providerEmailId,
+    outlook_mailbox_id: result.mailboxId,
+    email_message_id: extractMessageIds(result.internetMessageId)[0] || null,
     support_outbox_id: outbox.id,
   }).select('id').single();
   if (messageError || !message) {
@@ -186,7 +166,7 @@ serveWithCors(async (request: Request) => {
       provider_email_id: providerEmailId,
       last_error: messageError?.message || 'Accepted by provider, but the message could not be saved.',
     }).eq('id', outbox.id);
-    return json({ error: 'Resend accepted the email, but it could not be saved in the thread. Do not retry; ask an administrator to reconcile it.' }, 503);
+    return json({ error: 'Outlook accepted the email, but it could not be saved in the thread. Do not retry; ask an administrator to reconcile it.' }, 503);
   }
 
   const { error: deliveredError } = await admin.from('support_email_outbox').update({
@@ -194,6 +174,6 @@ serveWithCors(async (request: Request) => {
     provider_email_id: providerEmailId,
     last_error: null,
   }).eq('id', outbox.id);
-  if (deliveredError) return json({ error: 'Resend accepted the reply and it is saved in the thread, but the delivery record needs reconciliation. Refresh before retrying.' }, 503);
+  if (deliveredError) return json({ error: 'Outlook accepted the reply and it is saved in the thread, but the delivery record needs reconciliation. Refresh before retrying.' }, 503);
   return json({ success: true, messageId: message.id });
 });

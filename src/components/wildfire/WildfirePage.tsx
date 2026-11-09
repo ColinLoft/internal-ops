@@ -19,7 +19,6 @@ const pages: Record<string, { title: string; description: string }> = {
   quotes: { title: 'Quotes and proposals', description: 'Price planned equipment, describe the scope, and send a customer acceptance link.' },
   deployments: { title: 'Deployments', description: 'Track delivery from accepted quote to customer handoff.' },
   catalog: { title: 'Product catalog', description: 'Manage Wildfire products, services, specifications, and pricing.' },
-  requests: { title: 'Customer requests', description: 'Wildfire customer requests in the existing support system.' },
   alerts: { title: 'System alerts', description: 'Equipment health and telemetry faults, separate from customer support.' },
 };
 export function wildfireRoute(path: string) {
@@ -41,7 +40,6 @@ export function WildfirePage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [plans, setPlans] = useState<SitePlan[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
-  const [requests, setRequests] = useState<{ id: string; ticket_number: number; subject: string; status: string; priority: string }[]>([]);
   const [alerts, setAlerts] = useState<{ id: string; severity: string; status: string; summary: string; last_detected_at: string }[]>([]);
   const [selectedOpportunityId, setSelectedOpportunityId] = useState('');
   const [selectedQuoteId, setSelectedQuoteId] = useState('');
@@ -65,7 +63,6 @@ export function WildfirePage() {
         ['site-planner', 'deployments'].includes(route) ? supabase.from('wildfire_properties').select('*').order('label') : skip(),
         route === 'site-planner' ? supabase.from('wildfire_site_plans').select('*').order('version', { ascending: false }) : skip(),
         route === 'site-planner' ? supabase.from('wildfire_site_placements').select('*').order('created_at') : skip(),
-        route === 'requests' ? supabase.from('support_tickets').select('id,ticket_number,subject,status,priority').not('wildfire_request_kind', 'is', null).order('created_at', { ascending: false }).limit(100) : skip(),
         route === 'alerts' ? supabase.from('wildfire_system_alerts').select('id,severity,status,summary,last_detected_at').not('status', 'in', '(resolved,closed)').order('last_detected_at', { ascending: false }).limit(100) : skip(),
       ]);
       const failed = results.find(result => result.error)?.error;
@@ -77,7 +74,7 @@ export function WildfirePage() {
       setProperties(results[3].data as Property[]);
       setPlans(results[4].data as SitePlan[]);
       setPlacements(results[5].data as Placement[]);
-      setRequests(results[6].data ?? []); setAlerts(results[7].data ?? []);
+      setAlerts(results[6].data ?? []);
       setError('');
     } catch (cause) { if (version === loadVersion.current) setError(userFacingError(cause, 'Wildfire could not be loaded. Refresh to retry.')); }
     finally { if (version === loadVersion.current) setLoading(false); }
@@ -107,7 +104,6 @@ export function WildfirePage() {
         {route === 'quotes' && <Quotes opportunities={opportunities} products={products} selectedId={selectedQuoteId} canEdit={level >= 2} supportingDataLoading={loading} />}
         {route === 'deployments' && <Deployments properties={properties} organizations={organizations} canEdit={level >= 2} onQuote={openQuote} supportingDataLoading={loading} />}
         {route === 'catalog' && <Catalog products={products} accessLevel={level} onRefresh={refresh} />}
-        {route === 'requests' && <section className={surface}><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold text-slate-900">Wildfire requests</h2><button type="button" className={secondary} onClick={() => navigate('/customers/support')}>Open support</button></div><ul className="mt-4 space-y-3">{requests.map(item => <li key={item.id} className="rounded-lg bg-slate-50 p-3"><p className="text-sm text-slate-900">FL-{item.ticket_number} · {item.subject}</p><p className="text-xs text-slate-500">{displayStage(item.status)} · {item.priority}</p></li>)}</ul>{!requests.length && <p className="mt-4 text-sm text-slate-500">No Wildfire customer requests.</p>}</section>}
         {route === 'alerts' && <section className={surface}><h2 className="text-lg font-semibold text-slate-900">Open system alerts</h2><p className="mt-2 text-sm text-slate-500">Device health faults are not fire detection. No telemetry source is fabricated.</p><ul className="mt-4 space-y-3">{alerts.map(item => <li key={item.id} className="rounded-lg bg-slate-50 p-3"><p className="text-sm text-slate-900">{item.summary}</p><p className="text-xs text-slate-500">{item.severity} · {displayStage(item.status)} · {new Date(item.last_detected_at).toLocaleString('en-US')}</p></li>)}</ul>{!alerts.length && <p className="mt-4 text-sm text-slate-500">No open equipment alerts.</p>}</section>}
       </>}
     </div>
