@@ -149,6 +149,76 @@ try {
   await identity('authenticated', editor);
   await rejected("select wildfire_create_site_plan($1,$2,'Inactive')", [property, opportunity], /Active Wildfire editor access required/);
   checks++;
+  await identity('postgres');
+  const responder = '55555555-5555-4555-8555-555555555555';
+  await db.exec(`
+    update profiles set account_status='active' where id='${editor}';
+    alter table profiles add column last_seen_at timestamptz;
+    create table auth.users(id uuid primary key,email text,deleted_at timestamptz);
+    insert into profiles values('${responder}','active','member','Responder',now());
+    insert into profiles values('ghost','active','member','Orphan profile',now());
+    insert into auth.users values('${editor}','editor@example.test',null),('${responder}','responder@example.test',null);
+    create table channels(id text primary key,name text,members text[]);
+    create table messages(id text primary key,conversation_id text,sender_id text,text text,
+      deleted_at timestamptz,reactions jsonb default '[]',seen_by text[] default '{}');
+    create table user_notifications(id uuid primary key default gen_random_uuid(),user_id text,type text,
+      title text,body text,link_tab text,target_id text,actor_id text,actor_name text);
+    create function can_access_conversation(conversation text,actor text) returns boolean
+      language sql stable security definer as
+      $$ select exists(select 1 from channels where id=conversation and actor=any(members)) $$;
+    alter table channels enable row level security;
+    alter table messages enable row level security;
+    create policy fixture_channel_read on channels for select to authenticated using(can_access_conversation(id,auth.uid()::text));
+    create policy fixture_message_read on messages for select to authenticated using(can_access_conversation(conversation_id,auth.uid()::text));
+    create policy fixture_message_update on messages for update to authenticated using(can_access_conversation(conversation_id,auth.uid()::text));
+    grant select on channels to authenticated;
+    grant select,update on messages to authenticated;
+    insert into channels values('public','General',array['${editor}','${responder}']),('private','Private',array['${editor}']);
+    insert into messages(id,conversation_id,sender_id,text) values
+      ('original','public','${editor}','Original post'),('private-post','private','${editor}','Private post');
+  `);
+  const round3 = readFileSync(new URL('../migrations/20261113130000_qa_round3_fixes.sql', import.meta.url), 'utf8');
+  await db.exec(round3);
+  await identity('authenticated', editor);
+  const customer = await scalar('select organization_id as value from wildfire_properties where id=$1', [property]);
+  const manual = await scalar("select wildfire_create_manual_deployment($1,$2,'Manual notes') as value", [property, customer]);
+  assert.equal(await scalar('select quote_id as value from wildfire_deployments where id=$1', [manual]), null);
+  assert.equal(await scalar('select status as value from wildfire_deployments where id=$1', [manual]), 'planning');
+  assert.equal(await scalar("select count(*)::int as value from wildfire_deployment_events where deployment_id=$1 and event_type='note'", [manual]), 1);
+  await rejected("update wildfire_deployments set customer_accepted_at=now() where id=$1", [manual], /immutable/);
+  await rejected("select wildfire_create_manual_deployment($1,gen_random_uuid(),'')", [property], /existing customer/);
+  assert.equal((await scalar('select active_staff_metrics() as value')).count, 2);
+  checks++;
+  await identity('authenticated', responder);
+  await rejected("select wildfire_create_manual_deployment($1,$2,'')", [property, customer], /Wildfire editor access required/);
+  const unread = (await db.query('select * from channel_unread_counts()')).rows;
+  assert.equal(unread.length, 1);
+  assert.equal(unread[0].channel_id, 'public');
+  assert.equal(Number(unread[0].unread_count), 1);
+  await db.query("update messages set reactions=$1::jsonb where id='original'", [JSON.stringify([{ emoji: 'like', users: [responder] }])]);
+  await identity('postgres');
+  assert.equal(await scalar('select count(*)::int as value from user_notifications'), 1);
+  assert.equal(await scalar('select user_id as value from user_notifications'), editor);
+  await identity('authenticated', responder);
+  await db.query("update messages set reactions='[]' where id='original'");
+  await db.query("update messages set seen_by=array[$1] where id='original'", [responder]);
+  assert.equal(Number((await db.query('select * from channel_unread_counts()')).rows[0].unread_count), 0);
+  await identity('authenticated', editor);
+  await db.query("update messages set reactions=$1::jsonb where id='original'", [JSON.stringify([{ emoji: 'like', users: [editor] }])]);
+  await identity('postgres');
+  assert.equal(await scalar('select count(*)::int as value from user_notifications'), 1);
+  await db.exec(round3);
+  assert.equal(await scalar('select count(*)::int as value from wildfire_quote_acceptances'), 1);
+  assert.equal(await scalar('select count(*)::int as value from wildfire_deployments'), 2);
+  await identity('authenticated', editor);
+  const nextQuote = await scalar('select wildfire_clone_quote($1) as value', [quote]);
+  await identity('service_role');
+  const nextTokenHash = 'b'.repeat(64);
+  await db.query("select wildfire_publish_quote($1,$2,$3,now()+interval '1 day')", [nextQuote, nextTokenHash, editor]);
+  const nextAcceptance = await scalar(acceptSql, [nextTokenHash, 'Jane Smith', 'jane@example.org', png, signatureHash, await scalar('select snapshot_sha256 as value from wildfire_quotes where id=$1', [nextQuote]), true, '{}']);
+  assert.equal(nextAcceptance.status, 'accepted');
+  assert.equal(await scalar('select count(*)::int as value from wildfire_deployments'), 3);
+  checks++;
   console.log(`PGlite PostgreSQL workflow passed: ${checks} checks, including real RLS, RPCs, signatures, immutable links, publication and idempotent acceptance.`);
 } finally {
   await db.close();

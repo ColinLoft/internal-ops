@@ -4,6 +4,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { EmptyState, ProvenanceBadge, Skeleton } from '../common/Feedback';
 import { parseTaskDate } from '../programs/taskFields';
+import { ACTIVE_TICKET_STATUSES } from '../../lib/supportMetrics';
 
 type MyTask = { id: string; title: string; status: string; priority: string; due_date: string | null; source: 'program' | 'operations' };
 type Activity = { id: string; entity_type: string; entity_id: string; action: string; detail: string | null; created_by: string | null; created_at: string; name?: string; path?: string };
@@ -93,7 +94,7 @@ export const HomePage: React.FC = () => {
         currentUser.id ? supabase.from('operation_tasks').select('id,title,status,priority,due_date').eq('assignee_id', currentUser.id).not('status', 'in', '(completed,cancelled)') : Promise.resolve({ data: [] }),
         supabase.from('entity_activity').select('id,entity_type,entity_id,action,detail,created_by,created_at').order('created_at', { ascending: false }).limit(8),
         supabase.from('grant_reports').select('id,title,due_date,status').in('status', ['upcoming', 'overdue']).order('due_date', { ascending: true }).limit(5),
-        supabase.from('support_conversations').select('id', { count: 'exact', head: true }).eq('status', 'open'),
+        supabase.from('support_tickets').select('id', { count: 'exact', head: true }).in('status', [...ACTIVE_TICKET_STATUSES]),
       ]);
       if (!active) return;
       setMyTasks([
@@ -103,11 +104,21 @@ export const HomePage: React.FC = () => {
       setActivity(await withActivityNames((feed.data || []) as Activity[]));
       if (!active) return;
       setDeadlines(((reports.data || []) as { id: string; title: string; due_date: string }[]).map((report) => ({ id: report.id, title: report.title, date: report.due_date, kind: 'Grants · Report', tab: 'company' as const })));
+      if (support.error) console.error('Home support ticket count could not be loaded:', support.error);
       setOpenSupport(support.error ? null : support.count ?? 0);
       setLoading(false);
     };
     void load();
-    return () => { active = false; };
+    const subscription = supabase.channel(`home-support:${currentUser.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => void load())
+      .subscribe();
+    const onVisible = () => { if (document.visibilityState === 'visible') void load(); };
+    window.addEventListener('focus', onVisible);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', onVisible);
+      void supabase.removeChannel(subscription);
+    };
   }, [currentUser.id]);
 
   const today = iso(new Date());
@@ -142,7 +153,7 @@ export const HomePage: React.FC = () => {
   const nextActions = useMemo(() => {
     const list: { id: string; text: string; action: string; go: () => void }[] = [];
     if (overdueTasks.length) list.push({ id: 'overdue', text: `${overdueTasks.length} of your tasks ${overdueTasks.length === 1 ? 'is' : 'are'} overdue.`, action: 'Review tasks', go: goTasks });
-    if (openSupport) list.push({ id: 'support', text: `${openSupport} open customer conversation${openSupport === 1 ? '' : 's'}.`, action: 'Open inbox', go: () => setActiveTab('customers') });
+    if (openSupport) list.push({ id: 'support', text: `${openSupport} active support ticket${openSupport === 1 ? '' : 's'}.`, action: 'Open support', go: () => { window.history.pushState({}, '', '/help'); setActiveTab('customers'); window.dispatchEvent(new PopStateEvent('popstate')); } });
     const unread = notifications.filter((notification) => !notification.isRead).length;
     if (unread > 3) list.push({ id: 'unread', text: `${unread} unread notifications.`, action: 'Catch up', go: () => setActiveTab('messages') });
     if (upcoming[0]?.date === today) list.push({ id: 'meeting', text: `Next meeting today: ${upcoming[0].title} at ${formatTime(upcoming[0].startTime)}.`, action: 'View calendar', go: () => setActiveTab('calendar') });
@@ -155,7 +166,7 @@ export const HomePage: React.FC = () => {
     { name: 'Overdue', value: overdueTasks.length, hint: 'Past due date', icon: AlertTriangle, text: overdueTasks.length ? 'text-rose-600' : 'text-brand-600', tint: overdueTasks.length ? 'bg-rose-50 text-rose-600' : 'bg-brand-50 text-brand-600', go: goTasks },
     { name: 'This week', value: upcoming.filter((event) => event.date <= weekEnd).length, hint: 'Meetings and events', icon: CalendarDays, text: 'text-brand-600', tint: 'bg-brand-50 text-brand-600', go: () => setActiveTab('calendar') },
     { name: 'Unread', value: unreadCount, hint: 'Notifications', icon: Mail, text: 'text-brand-600', tint: 'bg-brand-50 text-brand-600', go: () => setActiveTab('messages') },
-    { name: 'Open tickets', value: openSupport ?? '—', hint: 'Customer conversations', icon: Headset, text: 'text-brand-600', tint: 'bg-brand-50 text-brand-600', go: () => setActiveTab('customers') },
+    { name: 'Open tickets', value: openSupport ?? '—', hint: 'Active support tickets', icon: Headset, text: 'text-brand-600', tint: 'bg-brand-50 text-brand-600', go: () => { window.history.pushState({}, '', '/help'); setActiveTab('customers'); window.dispatchEvent(new PopStateEvent('popstate')); } },
   ];
 
   const heroBtn = 'inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100';

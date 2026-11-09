@@ -26,6 +26,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
     users,
     currentUser,
     messages,
+    notifications,
     togglePinConversation,
     setIsNewMessageOpen,
     setIsCreateChannelOpen,
@@ -162,6 +163,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
 
   const renderChannelItem = (channel: typeof channels[0]) => {
     const isActive = activeTab === 'channels' && channel.id === activeChannelId;
+    const mentions = notifications.filter(item => !item.isRead && item.type === 'mention' && item.targetId === channel.id).length;
     return (
       <button
         key={channel.id}
@@ -172,14 +174,14 @@ export const ConversationList: React.FC<ConversationListProps> = ({ onSelect }) 
           onSelect?.();
         }}
         className={`group flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-          isActive ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+          isActive ? 'bg-slate-100 text-slate-900 font-medium' : channel.unreadCount > 0 ? 'text-slate-900 font-semibold hover:bg-slate-100/80' : 'text-slate-500 hover:bg-slate-100/80 hover:text-slate-900'
         }`}
       >
         <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${isActive ? 'text-brand-700 bg-brand-100/60' : 'text-slate-400 group-hover:text-slate-600'}`}>
           {channel.isPrivate ? <Lock className="h-3.5 w-3.5" /> : <Hash className="h-3.5 w-3.5" />}
         </span>
         <span className="min-w-0 flex-1 truncate text-xs">{channel.name}</span>
-        {channel.unreadCount > 0 && <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[11px] font-bold text-white">{channel.unreadCount}</span>}
+        {mentions > 0 && <span aria-label={`${mentions} unread mentions`} className="rounded-full bg-rose-600 px-1.5 py-0.5 text-[11px] font-bold text-white">{mentions}</span>}
       </button>
     );
   };

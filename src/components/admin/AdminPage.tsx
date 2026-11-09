@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { PROFILE_BANNERS, SystemActivityLog, User, UserRole } from '../../types';
-import { EmailAdminPanel } from './EmailAdminPanel';
 import { useConfirm } from '../common/useConfirm';
 
 const roleLabels: Record<UserRole, string> = {
@@ -316,7 +315,6 @@ export const AdminPage: React.FC = () => {
             </div>
           </section>
 
-          <EmailAdminPanel />
 
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">

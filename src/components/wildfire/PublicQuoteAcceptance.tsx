@@ -22,6 +22,7 @@ function validDetails(value: unknown): value is Details {
       && ['quantity', 'unit_price', 'line_total'].every(key => typeof line[key] === 'number' && Number.isFinite(line[key]) && line[key] >= 0));
 }
 export function PublicQuoteAcceptance({ token }: { token: string }) {
+  const testMode = new URLSearchParams(window.location.search).get('test') === '1';
   const [details, setDetails] = useState<Details | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -62,6 +63,7 @@ export function PublicQuoteAcceptance({ token }: { token: string }) {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); setError('');
     if (!hasSignature || !acknowledged || !name.trim() || !email.trim()) { setError('Enter your name and email, draw a signature, and confirm acceptance of the quote and terms.'); return; }
+    if (testMode) { setAccepted(true); return; }
     setSaving(true);
     try {
       const { data, error: acceptError } = await supabase.functions.invoke('wildfire-quotes', { body: { action: 'accept', token, name: name.trim(), email: email.trim(), signaturePng: canvas.current?.toDataURL('image/png'), acknowledged: true } });
@@ -77,6 +79,7 @@ export function PublicQuoteAcceptance({ token }: { token: string }) {
   return <main className="min-h-dvh bg-slate-50 px-3 py-6 sm:px-6"><section className={`${surface} mx-auto max-w-3xl`}>
     <img src="/flown-logo.png" alt="Flown" className="mb-5 h-10 w-auto brightness-0 invert" />
     <h1 className="text-2xl font-semibold text-slate-900">Review your Wildfire quote</h1>
+    {testMode && <p role="status" className="mt-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-700">Test mode: try the signing form without recording a signature, accepting the quote or creating a deployment.</p>}
     {loading && <p role="status" className="mt-4 text-sm text-slate-500">Loading quote…</p>}
     {error && <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
     {quote && <>
@@ -87,7 +90,7 @@ export function PublicQuoteAcceptance({ token }: { token: string }) {
       <div className="mt-4 space-y-1 text-right text-sm text-slate-700"><p>Subtotal {money(Number(quote.subtotal), quote.currency)}</p><p>Discount −{money(Number(quote.discount), quote.currency)}</p><p>Tax {money(Number(quote.tax), quote.currency)}</p><p className="text-lg font-semibold text-slate-900">Total {money(Number(quote.total), quote.currency)}</p></div>
       <h2 className="mt-6 text-lg font-semibold text-slate-900">Proposal and scope</h2><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{quote.proposal || 'See quoted line items.'}</p>
       <h2 className="mt-6 text-lg font-semibold text-slate-900">Terms</h2><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{quote.terms}</p>
-      {accepted ? <p role="status" className="mt-6 rounded-lg bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">Your signed acceptance is recorded. Flown will coordinate deployment with you. No payment has been taken.</p>
+      {accepted ? <p role="status" className="mt-6 rounded-lg bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">{testMode ? 'Test complete. Nothing was saved and no deployment was created.' : 'Your signed acceptance is recorded. Flown will coordinate deployment with you. No payment has been taken.'}</p>
         : details.status === 'sent' || details.status === 'viewed' || details.status === 'pending' ? <form className="mt-6 space-y-4" onSubmit={event => void submit(event)}>
           <label className="block text-sm text-slate-700">Full legal name<input required autoComplete="name" maxLength={200} value={name} onChange={event => setName(event.target.value)} className={control} /></label>
           <label className="block text-sm text-slate-700">Email<input required type="email" autoComplete="email" maxLength={254} value={email} onChange={event => setEmail(event.target.value)} className={control} /></label>

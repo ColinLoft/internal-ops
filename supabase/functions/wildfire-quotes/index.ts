@@ -23,7 +23,7 @@ serveWithCors(async (request: Request) => {
         callerClient.from('profiles').select('account_status').eq('id', user.id).maybeSingle(),
         callerClient.rpc('has_app_access', { p_app: 'wildfire', p_min: 'edit' }),
       ]);
-      if (profile.error || profile.data?.account_status !== 'active' || access.error || access.data !== true) return jsonResponse({ error: 'Active Wildfire editor access required.' }, 403);
+      if (profile.error || !profile.data || (profile.data.account_status ?? 'active') !== 'active' || access.error || access.data !== true) return jsonResponse({ error: 'Active Wildfire editor access required.' }, 403);
       const quoteId = typeof body.quoteId === 'string' ? body.quoteId : '';
       if (!/^[a-f0-9-]{36}$/i.test(quoteId)) return jsonResponse({ error: 'Invalid quote ID.' }, 400);
       if (body.action === 'revoke') {

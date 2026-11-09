@@ -30,7 +30,7 @@ import {
 } from '../data/initialData';
 import { sounds } from '../lib/sound';
 import { supabase, testSupabaseConnection } from '../lib/supabase';
-import { resetAppAccessCache } from '../lib/useAppAccess';
+import { preloadAppAccess, resetAppAccessCache } from '../lib/useAppAccess';
 
 interface WorkspaceContextType {
   // Auth state
@@ -512,8 +512,7 @@ const loadSupabaseWorkspaceData = async (userIds: string[]) => {
     const threadReplies: Record<string, Message[]> = {};
     const repliesByParent = new Map<string, Message[]>();
 
-    for (const row of messageResult.data) {
-      const message = await mapSupabaseMessage(row);
+    for (const message of await Promise.all(messageResult.data.map((row) => mapSupabaseMessage(row)))) {
       if (message.parentId) {
         const replies = repliesByParent.get(message.parentId) || [];
         replies.push(message);
@@ -991,6 +990,57 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
   }, [activeTab, activeChannelId, activeConversationId, currentUser.id, isAuthenticated]);
 
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser.id) return;
+    let active = true;
+    let running = false;
+    let queued = false;
+    let reportedIssue = false;
+    const refreshUnread = async () => {
+      if (!active || document.visibilityState === 'hidden') return;
+      if (running) { queued = true; return; }
+      running = true;
+      try {
+        const { data, error } = await supabase.rpc('channel_unread_counts');
+        if (error) {
+          if (!reportedIssue) {
+            console.error('Channel unread counts could not be loaded:', error);
+            setBackendIssue(error.code === 'PGRST202'
+              ? 'Channel unread indicators are unavailable. Apply the round 3 database update, then reload.'
+              : 'Channel unread indicators could not be refreshed. Check your connection and reload.');
+            reportedIssue = true;
+          }
+          return;
+        }
+        reportedIssue = false;
+        if (!active) return;
+        if (!Array.isArray(data)) {
+          console.error('Channel unread counts returned an invalid response.');
+          setBackendIssue('Channel unread indicators returned an invalid response. Reload and check the database update.');
+          return;
+        }
+        const counts = new Map(data.map((row: { channel_id: string; unread_count: number }) => [row.channel_id, Number(row.unread_count)]));
+        setChannels(previous => previous.map(channel => ({ ...channel, unreadCount: counts.get(channel.id) ?? 0 })));
+      } finally {
+        running = false;
+        if (queued) { queued = false; void refreshUnread(); }
+      }
+    };
+    void refreshUnread();
+    const subscription = supabase.channel(`channel-unread:${currentUser.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => void refreshUnread())
+      .subscribe();
+    const timer = window.setInterval(() => void refreshUnread(), 15000);
+    const onVisible = () => void refreshUnread();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      void supabase.removeChannel(subscription);
+    };
+  }, [isAuthenticated, currentUser.id]);
+
   // Call timer
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
@@ -1032,6 +1082,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       }
 
       try {
+        void preloadAppAccess().catch((error) => console.error('Access preloading failed:', error));
         const profileData = await loadSupabaseProfiles(session.user);
         const workspaceData = await loadSupabaseWorkspaceData(profileData.users.map((user) => user.id));
         if (active) {
@@ -1102,6 +1153,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
 
     try {
+      resetAppAccessCache();
+      void preloadAppAccess().catch((error) => console.error('Access preloading failed:', error));
       const profileData = await loadSupabaseProfiles(data.user);
       const workspaceData = await loadSupabaseWorkspaceData(profileData.users.map((user) => user.id));
       setUsers(profileData.users);
@@ -1112,7 +1165,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       setThreadReplies(workspaceData.threadReplies);
       if (workspaceData.calendarEvents) setCalendarEvents(workspaceData.calendarEvents);
       setConversations(withPins(workspaceData.conversations.map((conversation) => hydrateConversation(conversation, profileData.currentUser.id, profileData.users)), profileData.settings.pinnedConversations));
-      resetAppAccessCache();
       setIsAuthenticated(true);
       setRequiresPasswordSetup(needsPasswordSetup(data.user));
       setRequiresOnboarding(needsOnboarding(data.user));
@@ -1655,7 +1707,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   // Messaging
   const persistAttachments = async (conversationId: string, messageId: string, attachments: Attachment[] = []) => {
-    return Promise.all(attachments.map(async (attachment) => {
+    const persisted = await Promise.all(attachments.map(async (attachment) => {
       if (attachment.storagePath || !attachment.url.startsWith('blob:') || attachment.type === 'location') {
         return attachment;
       }
@@ -1663,7 +1715,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       if (!response.ok) throw new Error(`Attachment "${attachment.name}" could not be read.`);
       const blob = await response.blob();
       const safeName = attachment.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const storagePath = `${currentUser.id}/${conversationId}/${messageId}/${safeName}`;
+      const storagePath = `${currentUser.id}/${conversationId}/${messageId}/${attachment.id.replace(/[^a-zA-Z0-9_-]/g, '_')}-${safeName}`;
       const { error } = await supabase.storage.from('message-attachments').upload(storagePath, blob, {
         contentType: blob.type || 'application/octet-stream',
         upsert: true,
@@ -1673,9 +1725,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         .from('message-attachments')
         .createSignedUrl(storagePath, 60 * 60);
       if (signedUrlError) throw new Error(`Attachment "${attachment.name}" could not be opened: ${signedUrlError.message}`);
-      URL.revokeObjectURL(attachment.url);
       return { ...attachment, url: signedUrl.signedUrl, storagePath, storageBucket: 'message-attachments' };
     }));
+    // Keep every source blob available if any file in the batch fails, so Retry works.
+    attachments.forEach((attachment, index) => {
+      if (attachment.url.startsWith('blob:') && persisted[index].storagePath) URL.revokeObjectURL(attachment.url);
+    });
+    return persisted;
   };
 
   const sendMessage = async (text: string, attachments?: Attachment[], poll?: Poll, targetConversationId?: string) => {
@@ -1845,15 +1901,16 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const markMessagesSeen = useCallback(async (conversationId: string) => {
     if (!currentUser.id || !conversationId) return;
-    const unseen = messages[conversationId]?.some((message) =>
+    const unseen = [...(messages[conversationId] ?? []), ...Object.values(threadReplies).flat().filter(message => message.conversationId === conversationId)].some((message) =>
       message.senderId !== currentUser.id && !message.seenBy.includes(currentUser.id)
     );
-    if (!unseen) return;
+    if (!unseen && !(channels.find(channel => channel.id === conversationId)?.unreadCount)) return;
     const { error } = await supabase.rpc('mark_messages_seen', { p_conversation_id: conversationId });
     if (error) {
       console.error('Unable to mark messages as seen:', error);
       return;
     }
+    setChannels(previous => previous.map(channel => channel.id === conversationId ? { ...channel, unreadCount: 0 } : channel));
     setMessages((previous) => ({
       ...previous,
       [conversationId]: (previous[conversationId] || []).map((message) =>
@@ -1865,12 +1922,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     setThreadReplies((previous) => Object.fromEntries(
       Object.entries(previous).map(([parentId, replies]) => [
         parentId,
-        replies.map((message) => message.senderId !== currentUser.id
+        replies.map((message) => message.conversationId === conversationId && message.senderId !== currentUser.id
           ? { ...message, seenBy: message.seenBy.includes(currentUser.id) ? message.seenBy : [...message.seenBy, currentUser.id] }
           : message),
       ])
     ));
-  }, [currentUser.id, messages]);
+  }, [currentUser.id, messages, threadReplies, channels]);
 
   const postChannelMessage = async (channelId: string, text: string, attachments: Attachment[] = []) => {
     const channel = channels.find((item) => item.id === channelId);

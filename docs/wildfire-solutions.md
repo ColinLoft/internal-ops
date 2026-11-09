@@ -1,6 +1,6 @@
-# Wildfire Solutions workspace
+# Wildfire workspace
 
-The internal Wildfire workspace is available under **Wildfire Solutions** in the sidebar. This upgrade requires the existing Flown workspace and Wildfire baseline, including `supabase/migrations/20261107130000_wildfire_solutions_foundation.sql`, profiles, CRM, support, contracts, grant resources/settings, and workspace-role tables. See **Database rollout** below for either source migrations or the single SQL Editor bundle.
+The internal Wildfire workspace is available under **Wildfire** in the sidebar. This upgrade requires the existing Flown workspace and Wildfire baseline, including `supabase/migrations/20261107130000_wildfire_solutions_foundation.sql`, profiles, CRM, support, contracts, grant resources/settings, and workspace-role tables. See **Database rollout** below for either source migrations or the single SQL Editor bundle.
 
 ## Access
 
@@ -10,9 +10,9 @@ The migration adds a **Wildfire Solutions team** role with edit access. Assign s
 
 - **Prospects/opportunities:** research and save standalone prospects; linking an existing CRM company/contact is optional. New CRM records are not created until quote acceptance.
 - **Product catalog:** maintain products, specifications, configurations, list prices, and warranty/install details.
-- **Site planner:** create properties without a CRM company, link an opportunity, create atomic numbered plans, and place equipment using latitude/longitude coordinates.
+- **Site planner:** create properties without a CRM company or prospect, link a draft plan later with its dedicated prospect selector, create atomic numbered plans, and place equipment using latitude/longitude coordinates. Linking does not change the site filter or hide the standalone site.
 - **Quotes and proposals:** create draft quotes from placements, edit line items and proposal narrative together, publish an immutable customer snapshot, or clone a quote to a new draft version.
-- **Deployments:** acceptance creates exactly one deployment per quote and records its initial acceptance event; staff can track status, append notes, and manage tasks.
+- **Deployments:** acceptance creates exactly one deployment per quote and records its initial acceptance event. Editors may also add a manual deployment for an existing site and customer; it starts in planning and records no acceptance or signature. A site already assigned to a different customer cannot be used. Source links and acceptance timestamps remain immutable. Staff can track status, append notes, and manage tasks.
 - **Requests and alerts:** view Wildfire-tagged support tickets and open system alerts.
 
 The workflow intentionally has no payment collection, automatic outreach, or telemetry ingestion.
@@ -30,7 +30,21 @@ supabase functions deploy wildfire-quotes --no-verify-jwt
 
 `wildfire-quotes` validates JWTs and active Wildfire edit access itself for publish/revoke. Anonymous details/accept actions require a valid capability token, not an anonymous table policy. Preserve `--no-verify-jwt` when deploying this function.
 
-For the optional browser map, set `VITE_GOOGLE_MAPS_API_KEY` in the frontend deployment environment and enable the Google Maps JavaScript API. This browser key is public by design: restrict it to the application’s HTTP referrers and only required Maps APIs, configure billing/quotas, and restart/rebuild Vite after changing it. Never use a server/service credential here. Coordinate entry remains possible when Maps is not configured.
+For the optional browser map, set `VITE_GOOGLE_MAPS_API_KEY` in the frontend deployment environment and enable the Google Maps JavaScript API and Geocoding API. This browser key is public by design: restrict it to the application's HTTP referrers (including `https://ops.flown.org/*`) and only required Maps APIs, configure billing/quotas, and restart/rebuild Vite after changing it. Never use a server/service credential here. When Maps is not configured, address entry is disabled with an explanation and coordinate entry is selected instead; no address lookup fails silently.
+
+The signing-link button reports empty-quote and backend failures explicitly and
+shows progress while publishing. After publishing, use **Test signing without accepting**
+to open a `?test=1` customer preview. Completing that form never calls acceptance,
+saves a signature, or creates a deployment; the test flag is a client preview,
+not a server permission. Real acceptance remains available only through the normal
+published bearer link. Keep both links private. Catalog lines prefill the saved
+product list price; custom lines remain manually priced.
+
+For the round 3 correction, apply [flown_qa_round3_update_all.sql](../supabase/flown_qa_round3_update_all.sql)
+after round 2 and redeploy `wildfire-quotes`. This is separate from the older
+workflow/retirement bundle below. Permission results are preloaded and reused on
+revisits, and each Wildfire page fetches only its required data; database latency
+still determines actual live load times.
 
 ## Frontend/backend contracts
 
@@ -42,6 +56,8 @@ All staff RPCs require an authenticated, active Wildfire editor. Each returns a 
 | `wildfire_create_quote_from_plan` | `p_site_plan_id uuid` (plan must have an opportunity) |
 | `wildfire_save_quote` | `p_quote_id uuid`, `p_currency text`, `p_discount numeric`, `p_tax numeric`, `p_expires_at date` (nullable), `p_terms text`, `p_proposal text`, `p_lines jsonb` |
 | `wildfire_clone_quote` | `p_quote_id uuid` |
+| `wildfire_link_site_plan` | `p_site_plan_id uuid`, `p_opportunity_id uuid` |
+| `wildfire_create_manual_deployment` | `p_property_id uuid`, `p_organization_id uuid`, `p_notes text` |
 
 Plan version allocation locks the property; quote version allocation locks the opportunity. Saving replaces draft lines atomically. A quote created from a plan groups non-coverage placements by product, using one unit per placement and the product's current list price. Placements without a product do not create a priced line; add services/custom charges manually. Both recurring and one-time lines are included in the displayed total; recurring billing is only a line label, not a payment/subscription action.
 
@@ -114,4 +130,4 @@ The workflow migration itself deletes only legacy site-survey rows. The source m
 
 Local backend validation: `npm test -- supabase/tests/wildfire-workflow.test.ts`. This exercises pure Edge validators and SQL structure/safety contracts without Docker/Deno; it does not replace database-backed migration/concurrency tests in a staging environment.
 
-Optional real PostgreSQL fixture: `PGLITE_MODULE=/absolute/path/to/pglite/dist/index.js node supabase/tests/wildfire-runtime.mjs` (or omit the variable if PGlite is already externally available). This adds no project dependency and uses an isolated in-memory database, creating auth roles and fixture prerequisites before executing the actual CRM/foundation/workflow migrations. It verifies actual RLS/RPC signatures, standalone planning, quote saving/publishing, immutable snapshots and accepted source links, token expiry/revocation, hash tampering, service-only acceptance, CRM creation only on acceptance, repeated acceptance returning exactly one deployment, and migration re-execution preserving accepted records. PGlite has one connection, so queued simultaneous calls exercise idempotency but do not prove independent PostgreSQL sessions' concurrent row-lock behavior. Edge HTTP serving still requires Deno/Supabase deployment or emulation; these fixtures do not call a hosted provider.
+Optional real PostgreSQL fixture: `PGLITE_MODULE=/absolute/path/to/pglite/dist/index.js node supabase/tests/wildfire-runtime.mjs` (or omit the variable if PGlite is already externally available). This adds no project dependency and uses an isolated in-memory database, creating auth roles and fixture prerequisites before executing the actual CRM/foundation/workflow migrations. It verifies actual RLS/RPC signatures, standalone planning, quote saving/publishing, immutable snapshots and accepted source links, token expiry/revocation, hash tampering, service-only acceptance, CRM creation only on acceptance, repeated acceptance returning exactly one deployment, and migration re-execution preserving accepted records. The round 3 migration is also executed: manual creation/access restrictions, preserved real acceptance, reaction addition/removal/self exclusions, unread counts under fixture channel RLS, and exclusion of orphan profiles are checked. The fixture does not recreate the entire hosted Storage policy environment. PGlite has one connection, so queued simultaneous calls exercise idempotency but do not prove independent PostgreSQL sessions' concurrent row-lock behavior. Edge HTTP serving still requires Deno/Supabase deployment or emulation; these fixtures do not call a hosted provider.

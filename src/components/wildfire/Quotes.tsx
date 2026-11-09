@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useLiveRefresh } from '../../hooks/useLiveRefresh';
 import { control, displayStage, functionError, money, primary, secondary, surface, type Opportunity, type Product } from './model';
@@ -15,6 +15,7 @@ export function Quotes({ opportunities, products, selectedId, canEdit }: { oppor
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState('');
   const [notice, setNotice] = useState('');
+  useEffect(() => { if (selectedId) { setActiveId(selectedId); setDraft(null); setLink(''); } }, [selectedId]);
   const load = useCallback(async () => {
     const [quoteResult, lineResult] = await Promise.all([
       supabase.from('wildfire_quotes').select('id,opportunity_id,site_plan_id,version,status,currency,discount,tax,expires_at,terms,proposal,snapshot').order('created_at', { ascending: false }),
@@ -36,7 +37,9 @@ export function Quotes({ opportunities, products, selectedId, canEdit }: { oppor
   };
   const changeLine = (index: number, change: Partial<QuoteLine>) => setDraftLines(current => current.map((line, position) => position === index ? { ...line, ...change } : line));
   const publish = () => void run(async () => {
-    if (!selected) return;
+    if (!selected) throw new Error('Select a saved quote before creating a signing link.');
+    if (!activeLines.length) throw new Error('Add at least one priced line and save the quote before creating a signing link.');
+    setNotice('Creating customer signing link…');
     const { data, error: publishError } = await supabase.functions.invoke('wildfire-quotes', { body: { action: 'publish', quoteId: selected.id } });
     if (publishError) throw new Error(await functionError(publishError));
     if (data?.error) throw new Error(data.error);
@@ -63,7 +66,7 @@ export function Quotes({ opportunities, products, selectedId, canEdit }: { oppor
             if (cloneError) throw new Error(cloneError.message);
             setActiveId(data); setLink(''); await load();
           })}>New version</button>
-          {active.status === 'draft' && <button type="button" className={primary} disabled={busy || !activeLines.length} onClick={publish}>Create customer signing link</button>}
+          {active.status === 'draft' && <button type="button" className={primary} disabled={busy} onClick={publish}>{busy ? 'Creating signing link…' : 'Create customer signing link'}</button>}
           {['sent', 'viewed', 'approved'].includes(active.status) && <button type="button" className={secondary} disabled={busy} onClick={() => void run(async () => {
             const { data, error: revokeError } = await supabase.functions.invoke('wildfire-quotes', { body: { action: 'revoke', quoteId: active.id } });
             if (revokeError) throw new Error(await functionError(revokeError));
@@ -104,7 +107,7 @@ export function Quotes({ opportunities, products, selectedId, canEdit }: { oppor
         {draft && <div className="mt-4 flex gap-2"><button disabled={busy} className={primary}>Save quote</button><button type="button" className={secondary} onClick={() => setDraft(null)}>Cancel edits</button></div>}
       </form>
       {notice && <p role="status" className="mt-3 text-sm text-slate-500">{notice}</p>}
-      {link && <div className="mt-4"><label className="text-sm text-slate-700">Customer signing link<input readOnly value={link} onFocus={event => event.target.select()} className={control} /></label><a className="mt-2 inline-block text-sm text-brand-600 underline" href={link} target="_blank" rel="noreferrer">Open customer preview</a><p className="mt-1 text-xs text-slate-500">This link grants access to the quote. Share only with the intended recipient. Copy it now; the raw token is not stored.</p></div>}
+      {link && <div className="mt-4"><label className="text-sm text-slate-700">Customer signing link<input readOnly value={link} onFocus={event => event.target.select()} className={control} /></label><div className="mt-2 flex flex-wrap gap-4"><a className="text-sm text-brand-600 underline" href={link} target="_blank" rel="noreferrer">Open customer signing page</a><a className="text-sm text-brand-600 underline" href={(() => { const url = new URL(link); url.searchParams.set('test', '1'); return url.href; })()} target="_blank" rel="noreferrer">Test signing without accepting</a></div><p className="mt-1 text-xs text-slate-500">This link grants access to the quote. Share only with the intended recipient. Copy it now; the raw token is not stored.</p></div>}
     </section>}
   </div>;
 }

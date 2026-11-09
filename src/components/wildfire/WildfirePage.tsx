@@ -31,7 +31,7 @@ const navigate = (path: string) => {
 };
 export function WildfirePage() {
   const { currentUser } = useWorkspace();
-  const { level, loaded } = useAppAccess('wildfire');
+  const { level, loaded, error: accessError, retry: retryAccess } = useAppAccess('wildfire');
   const [route, setRoute] = useState(() => wildfireRoute(window.location.pathname));
   const [products, setProducts] = useState<Product[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -53,15 +53,16 @@ export function WildfirePage() {
   const refresh = useCallback(async () => {
     if (!loaded || level < 1) return;
     try {
+      const skip = () => Promise.resolve({ data: [], error: null });
       const results = await Promise.all([
-        supabase.from('wildfire_products').select('*').order('name'),
-        supabase.from('wildfire_opportunities').select('*').order('updated_at', { ascending: false }),
-        supabase.from('crm_organizations').select('id,name,category').order('name'),
-        supabase.from('wildfire_properties').select('*').order('label'),
-        supabase.from('wildfire_site_plans').select('*').order('version', { ascending: false }),
-        supabase.from('wildfire_site_placements').select('*').order('created_at'),
-        supabase.from('support_tickets').select('id,ticket_number,subject,status,priority').not('wildfire_request_kind', 'is', null).order('created_at', { ascending: false }).limit(100),
-        supabase.from('wildfire_system_alerts').select('id,severity,status,summary,last_detected_at').not('status', 'in', '(resolved,closed)').order('last_detected_at', { ascending: false }).limit(100),
+        ['catalog', 'quotes', 'site-planner'].includes(route) ? supabase.from('wildfire_products').select('*').order('name') : skip(),
+        ['opportunities', 'quotes', 'site-planner'].includes(route) ? supabase.from('wildfire_opportunities').select('*').order('updated_at', { ascending: false }) : skip(),
+        ['opportunities', 'deployments'].includes(route) ? supabase.from('crm_organizations').select('id,name,category').order('name') : skip(),
+        ['site-planner', 'deployments'].includes(route) ? supabase.from('wildfire_properties').select('*').order('label') : skip(),
+        route === 'site-planner' ? supabase.from('wildfire_site_plans').select('*').order('version', { ascending: false }) : skip(),
+        route === 'site-planner' ? supabase.from('wildfire_site_placements').select('*').order('created_at') : skip(),
+        route === 'requests' ? supabase.from('support_tickets').select('id,ticket_number,subject,status,priority').not('wildfire_request_kind', 'is', null).order('created_at', { ascending: false }).limit(100) : skip(),
+        route === 'alerts' ? supabase.from('wildfire_system_alerts').select('id,severity,status,summary,last_detected_at').not('status', 'in', '(resolved,closed)').order('last_detected_at', { ascending: false }).limit(100) : skip(),
       ]);
       const failed = results.find(result => result.error)?.error;
       if (failed) throw new Error(`Wildfire data could not be loaded: ${failed.message}`);
@@ -75,14 +76,16 @@ export function WildfirePage() {
       setError('');
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Wildfire could not be loaded.'); }
     finally { setLoading(false); }
-  }, [loaded, level]);
-  useLiveRefresh(refresh, ['wildfire_products', 'wildfire_opportunities', 'wildfire_properties', 'wildfire_site_plans', 'wildfire_site_placements']);
+  }, [loaded, level, route]);
+  useEffect(() => { setLoading(true); }, [route]);
+  useLiveRefresh(refresh, ['wildfire_products', 'wildfire_opportunities', 'wildfire_properties', 'wildfire_site_plans', 'wildfire_site_placements', 'support_tickets', 'wildfire_system_alerts']);
   const saveProspect = async (values: ProspectValues, id?: string) => {
     const result = id ? await supabase.from('wildfire_opportunities').update(values).eq('id', id) : await supabase.from('wildfire_opportunities').insert({ ...values, created_by: currentUser.id, owner_id: currentUser.id });
     if (result.error) throw new Error(result.error.message);
     await refresh();
   };
   const openQuote = (id: string) => { setSelectedQuoteId(id); navigate('/wildfire/quotes'); };
+  if (accessError) return <main className="min-w-0 flex-1 p-6"><p role="alert">{accessError}</p><button type="button" className={secondary} onClick={retryAccess}>Retry access check</button></main>;
   if (!loaded) return <main className="min-w-0 flex-1 p-6 text-slate-500">Checking Wildfire access…</main>;
   if (level < 1) return <main className="min-w-0 flex-1 p-6"><h1 className="text-xl font-semibold text-slate-900">Wildfire</h1><p className="mt-2 text-sm text-slate-500">Ask an administrator for Wildfire access in Settings.</p></main>;
   const page = pages[route];

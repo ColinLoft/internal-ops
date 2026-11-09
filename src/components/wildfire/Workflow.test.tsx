@@ -30,7 +30,7 @@ vi.mock('../../lib/supabase', () => ({
 vi.mock('./SiteMap', () => ({
   SiteMap: ({ onPoint }: { onPoint: (point: { lat: number; lng: number }) => void }) => { mock.point = onPoint; return <div>Satellite map</div>; },
 }));
-vi.mock('./googleMaps', () => ({ geocodeAddress: async () => ({ position: { lat: 37, lng: -122 }, address: 'Resolved address' }) }));
+vi.mock('./googleMaps', () => ({ googleMapsConfigured: true, geocodeAddress: async () => ({ position: { lat: 37, lng: -122 }, address: 'Resolved address' }) }));
 import { Planner } from './Planner';
 import { Prospects } from './Prospects';
 import { wildfireRoute } from './WildfirePage';
@@ -99,6 +99,13 @@ describe('Wildfire acquisition workflow', () => {
     await click('Create quote from this plan');
     expect(mock.rpc).toHaveBeenCalledWith('wildfire_create_quote_from_plan', { p_site_plan_id: 'plan' });
     expect(mock.quote).toHaveBeenCalledWith('saved-id');
+  });
+  it('links standalone sites using a dedicated selector without changing the site filter', async () => {
+    await act(async () => root.render(<Planner opportunities={[opportunity]} properties={[{ ...property, opportunity_id: null }]} plans={[{ ...plan, opportunity_id: null }]} placements={[]} products={[product]} canEdit selectedOpportunityId="" onRefresh={mock.refresh} onQuote={mock.quote} />));
+    await setValue('[aria-label="Prospect for this site"]', 'prospect');
+    await click('Link to prospect');
+    expect(mock.rpc).toHaveBeenCalledWith('wildfire_link_site_plan', { p_site_plan_id: 'plan', p_opportunity_id: 'prospect' });
+    expect(mock.refresh).toHaveBeenCalled();
   });
   it('requires review before saving AI search results and does not auto-create CRM records', async () => {
     mock.invoke.mockResolvedValue({ data: { results: [{ name: 'Potential customer', website: 'https://example.com', email: '', phone: '', location: 'California', summary: 'Public customer information', fit_reason: 'Potential fit', source_urls: ['https://example.com'] }] }, error: null });

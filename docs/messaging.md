@@ -27,7 +27,31 @@ Use Jump to latest to return to the conversation's end.
 
 The conversation list is narrower on desktop; phones retain the list/feed toggle.
 Switching conversations resets the composer so a draft is not accidentally sent
-to another recipient. No messaging database migration is required.
+to another recipient.
+
+Senders can delete their own messages; the sender and timestamp remain with
+"This message was deleted" instead of the original content. If deletion reports
+that `public.delete_own_message(p_message_id)` is missing from the schema cache,
+run the entire [standalone repair](../supabase/migrations/20261113110000_fix_message_deletion.sql)
+in the Supabase SQL Editor for the project used by Flown Ops. It installs the
+function, restricts execution to authenticated users, reloads the API schema
+cache and returns `message_deletion_installed = true`. It is safe to re-run and
+does not depend on the Wildfire bundle. Refresh the app afterward.
+
+Pinned conversations and channels are saved in profile preferences and survive
+reloads. Opening a conversation marks its message/mention/reaction notifications
+read. Unread channel posts brighten the channel name; ordinary posts do not create
+notifications. Only unread mentions add the red channel badge. Unread counts are
+loaded from the database, refreshed by Realtime, and polled as a fallback, including
+thread replies. Full staff-name mentions (including spaces) are blue and clickable
+to open that person's profile.
+
+Reacting to someone else's undeleted message notifies its original sender.
+Removing a reaction or reacting to your own message does not. Reaction alerts use
+the existing message notification preferences; no reaction email is sent.
+Apply the complete [round 3 update](../supabase/flown_qa_round3_update_all.sql)
+after round 2 for the reaction trigger, unread-count RPC, deletion repair and
+member attachment policies. It does not delete messages or files.
 
 The upper plus button opens channel creation: name/description, public or private
 visibility (and selected people), then posting permissions. Admin/coordinator-only

@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAppAccess } from '../../lib/useAppAccess';
 import { SupportInbox } from './SupportInbox';
+import { isActiveTicket } from '../../lib/supportMetrics';
 
 type Status = 'new' | 'open' | 'in_progress' | 'waiting' | 'resolved' | 'closed';
 type Priority = 'low' | 'normal' | 'high' | 'urgent';
@@ -116,7 +117,7 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
     const result: Record<string, number> = { active: 0 };
     for (const ticket of tickets) {
       result[ticket.status] = (result[ticket.status] ?? 0) + 1;
-      if (ticket.status !== 'closed' && ticket.status !== 'resolved') result.active += 1;
+      if (isActiveTicket(ticket.status)) result.active += 1;
     }
     return result;
   }, [tickets]);
@@ -124,7 +125,7 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return tickets.filter((ticket) => {
-      if (statusFilter === 'active' ? ['resolved', 'closed'].includes(ticket.status) : ticket.status !== statusFilter) return false;
+      if (statusFilter === 'active' ? !isActiveTicket(ticket.status) : ticket.status !== statusFilter) return false;
       if (scope === 'mine' && ticket.requester_id !== currentUser.id) return false;
       if (scope === 'assigned' && ticket.assignee_id !== currentUser.id) return false;
       if (!needle) return true;
@@ -208,7 +209,7 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Support</h1>
-            <p className="mt-1 text-sm text-slate-500">{counts.active} active tickets · assign, respond, and resolve in one workspace.</p>
+            <p className="mt-1 text-sm text-slate-500">{counts.active} active {counts.active === 1 ? 'ticket' : 'tickets'} · assign, respond, and resolve in one workspace.</p>
           </div>
           <div className="flex items-center gap-2">
             <button type="button" onClick={onOpenMessages} className="min-h-10 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Mail className="mr-1 inline h-3.5 w-3.5" />Customer messages</button>

@@ -22,11 +22,12 @@ export type GoogleMaps = {
 };
 declare global { interface Window { google?: { maps: GoogleMaps } } }
 let loaded: Promise<GoogleMaps> | null = null;
+export const googleMapsConfigured = Boolean(import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim());
 export function loadGoogleMaps(): Promise<GoogleMaps> {
   if (window.google?.maps) return Promise.resolve(window.google.maps);
   if (loaded) return loaded;
   const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  if (!key) return Promise.reject(new Error('Google Maps is not configured. Set VITE_GOOGLE_MAPS_API_KEY, enable Maps JavaScript API and Geocoding API, restrict the key to your site, and rebuild.'));
+  if (!key) return Promise.reject(new Error('Map and address lookup are unavailable. Ask an administrator to configure Google Maps; coordinates can still be saved.'));
   loaded = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     const timer = window.setTimeout(() => { loaded = null; script.remove(); reject(new Error('Google Maps loading timed out. Check your network and API configuration.')); }, 20000);

@@ -54,6 +54,7 @@ beforeEach(() => {
     currentUser: { id: 'staff', name: 'Morgan', systemRole: 'member' },
     users: [{ id: 'staff', name: 'Morgan', avatar: '', status: 'online' }, { id: 'other', name: 'Riley', avatar: '', status: 'online' }],
     messages: { direct: [message, { ...message, id: 'continuation', text: 'Second line', createdAt: new Date(2026, 10, 7, 9, 1).toISOString() }, { ...message, id: 'reply', senderId: 'other', senderName: 'Riley', text: 'Thanks!' }], channel: [message] },
+    notifications: [],
     sendMessage: mock.send, markMessagesSeen: mock.seen, startCall: mock.call, openUserProfile: mock.profile, toggleReaction: mock.reaction,
     openThread: mock.thread, retryMessage: mock.retry, votePoll: mock.poll, toggleRightDrawer: vi.fn(), setIsNewMessageOpen: vi.fn(), setIsCreatePollOpen: vi.fn(), setIsCreateChannelOpen: vi.fn(), togglePinConversation: vi.fn(),
   };
@@ -64,6 +65,35 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('compact messaging feed', () => {
+  it('renders full multi-word mentions as clickable profiles without consuming surrounding text', async () => {
+    const profile = vi.fn();
+    await act(async () => root.render(<MessageText text="Hello @Colin Loftus, and @Colin Loftusson." users={[{ id: 'colin', name: 'Colin Loftus' }]} onMention={profile} />));
+    const mentions = container.querySelectorAll('button');
+    expect(mentions).toHaveLength(1);
+    expect(mentions[0].textContent).toBe('@Colin Loftus');
+    await act(async () => mentions[0].click());
+    expect(profile).toHaveBeenCalledWith('colin');
+    expect(container.textContent).toContain('@Colin Loftusson.');
+  });
+  it('highlights unread channels but shows a red count only for mentions', async () => {
+    mock.workspace.channels = [{ id: 'channel', name: 'photos', unreadCount: 2, members: [], postingRoles: [], isPrivate: false }];
+    await act(async () => root.render(<ConversationList />));
+    const row = [...container.querySelectorAll('button')].find(button => button.textContent === 'photos')!;
+    expect(row.className).toContain('font-semibold');
+    expect(container.querySelector('[aria-label="1 unread mentions"]')).toBeNull();
+    mock.workspace.notifications = [{ id: 'mention', targetId: 'channel', type: 'mention', isRead: false }];
+    await act(async () => root.render(<ConversationList />));
+    expect(container.querySelector('[aria-label="1 unread mentions"]')?.className).toContain('bg-rose-600');
+  });
+  it('matches escaped, case-insensitive full names while leaving code and URLs alone', async () => {
+    const profile = vi.fn();
+    await act(async () => root.render(<MessageText text="**@a. member (ops)** and @A. Member; `@A. Member (Ops)` https://example.test/@A.Member" users={[{ id: 'short', name: 'A. Member' }, { id: 'long', name: 'A. Member (Ops)' }]} onMention={profile} />));
+    const mentions = container.querySelectorAll('button');
+    expect([...mentions].map(button => button.textContent)).toEqual(['@a. member (ops)', '@A. Member']);
+    expect(container.querySelector('code')?.textContent).toBe('@A. Member (Ops)');
+    await act(async () => mentions[0].click());
+    expect(profile).toHaveBeenCalledWith('long');
+  });
   it('aligns everyone left and groups consecutive messages, preserving calls and threads', async () => {
     await act(async () => root.render(<ChatFeed />));
     const rows = container.querySelectorAll('[data-message-id]');

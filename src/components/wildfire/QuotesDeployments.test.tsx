@@ -35,6 +35,22 @@ describe('quote and deployment controls', () => {
     mock.rpc.mockResolvedValue({ data: 'new-version', error: null });
     container = document.createElement('div'); document.body.append(container); root = createRoot(container);
   });
+  it('reports empty quotes instead of rendering a dead disabled signing button', async () => {
+    mock.rows.wildfire_quote_lines = [];
+    await renderQuotes();
+    await click('Create customer signing link');
+    expect(mock.invoke).not.toHaveBeenCalled();
+    expect(container.querySelector('[role=alert]')?.textContent).toContain('at least one priced line');
+  });
+  it('prefills catalog product price when adding a line', async () => {
+    await act(async () => root.render(<Quotes opportunities={[]} products={[{ id: 'sensor', name: 'Sensor', status: 'active', list_price: 499 } as import('./model').Product]} selectedId="quote" canEdit />));
+    await click('Edit draft');
+    await act(async () => {
+      const select = container.querySelector<HTMLSelectElement>('[aria-label="Add catalog product"]')!;
+      select.value = 'sensor'; select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(container.querySelector<HTMLInputElement>('[aria-label="Unit price 2"]')?.value).toBe('499');
+  });
   afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
   const renderQuotes = async (canEdit = true) => { await act(async () => root.render(<Quotes opportunities={[]} products={[]} selectedId="quote" canEdit={canEdit} />)); };
   it('saves proposal, terms and all line values through the atomic quote RPC', async () => {
@@ -50,6 +66,7 @@ describe('quote and deployment controls', () => {
     await click('Create customer signing link');
     expect(mock.invoke).toHaveBeenCalledWith('wildfire-quotes', { body: { action: 'publish', quoteId: 'quote' } });
     expect(container.textContent).toContain('Share it directly with the intended customer.');
+    expect(container.querySelector('a[href*="test=1"]')).not.toBeNull();
     expect([...container.querySelectorAll('button')].some(button => /mark accepted/i.test(button.textContent || ''))).toBe(false);
   });
   it('creates revised versions without editing a published contract', async () => {
@@ -79,13 +96,23 @@ describe('quote and deployment controls', () => {
     expect(onQuote).toHaveBeenCalledWith('accepted-quote');
     expect([...container.querySelectorAll('button')].some(button => /create deployment/i.test(button.textContent || ''))).toBe(false);
   });
+  it('creates a manual deployment through its validated RPC without claiming quote acceptance', async () => {
+    await act(async () => root.render(<Deployments properties={[{ id: 'site', label: 'Site', organization_id: 'company' } as import('./model').Property]} organizations={[{ id: 'company', name: 'Customer', category: 'business' }]} canEdit onQuote={vi.fn()} />));
+    const form = container.querySelector('details form')!;
+    await act(async () => {
+      const select = form.querySelector('select')!;
+      select.value = 'site'; select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await act(async () => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+    expect(mock.rpc).toHaveBeenCalledWith('wildfire_create_manual_deployment', { p_property_id: 'site', p_organization_id: 'company', p_notes: '' });
+  });
   it.each([true, false])('celebrates deployment completion only with confirmed persistence (success=%s)', async (success) => {
     mock.rows.wildfire_deployments = [{ id: 'deployment', quote_id: 'accepted-quote', organization_id: 'company', property_id: 'site', status: 'handoff', scheduled_at: null, completed_at: null, notes: '' }];
     let finish!: (result: unknown) => void;
     mock.save.mockReturnValue(new Promise(resolve => { finish = resolve; }));
     await act(async () => root.render(<Deployments properties={[]} organizations={[]} canEdit onQuote={vi.fn()} />));
     expect(mock.celebrate).not.toHaveBeenCalled();
-    const stage = container.querySelectorAll('select')[1];
+    const stage = [...container.querySelectorAll('select')].find(select => [...select.options].some(option => option.value === 'handoff'))!;
     await act(async () => {
       stage.value = 'completed';
       stage.dispatchEvent(new Event('change', { bubbles: true }));

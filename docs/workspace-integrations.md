@@ -21,6 +21,42 @@ Upload attachments directly to tasks, projects, and grants using their existing 
 
 Contracts and staff policies use uploaded PDFs rather than a document editor. Originals and signed PDFs are retained as immutable versions with hashes and audit history. Apply `20261107151000_pdf_contracts_and_document_signing.sql`, configure `SITE_URL`, and deploy `sign-organization-document`, `create-contract-signature-link`, and `sign-contract-public` (the public function requires `--no-verify-jwt`). Customer signing links open without a staff login; share them manually, since automatic signature-email delivery is not configured. Renewal and ending controls remain. See [PDF signing](./pdf-contract-signing.md) for rollout details.
 
+## Member storage access correction
+
+For QA round 3, use the complete [flown_qa_round3_update_all.sql](../supabase/flown_qa_round3_update_all.sql)
+in Supabase SQL Editor after the already-applied round 2 update. This single
+re-runnable file includes message deletion, the storage correction below, manual
+Wildfire deployment creation, reaction notifications, channel unread counts and
+authenticated-account staff metrics. It does not include the old retirement
+bundle or delete QA records. Its three constituent migrations each run in a
+transaction; if a later section fails, correct it and rerun the complete file.
+Do not rerun older bundles afterward, since they can restore earlier policies
+and deployment restrictions. Refresh Flown Ops after applying it.
+
+Home and Support now both count active `support_tickets` (`new`, `open`,
+`in_progress`, `waiting`), rather than mixing ticket and conversation counts.
+Home refreshes on ticket changes and window focus. Insights counts active
+profiles with a non-deleted Auth account instead of orphan profile rows; only an
+Insights-authorized user may request the aggregate. A backend failure displays an
+unavailable value, not a false zero.
+
+Apply [20261113120000_member_storage_access.sql](../supabase/migrations/20261113120000_member_storage_access.sql) **after** the QA round 2 migrations. Older manual update bundles do not contain this correction; rerunning them afterward can restore older policies. The migration is transactional and re-runnable, changes no file bytes, and grants no new table privileges.
+
+| Bucket | Browser access after correction |
+| --- | --- |
+| `message-attachments` | Active members upload/replace their own `user/conversation/message/file` paths only where they can post. Authors can sign uploads before the message row exists; other readers need a visible message referencing the file. Private-channel membership/DM participation is still enforced, including on authors' reads. Workspace-manager read access follows existing messaging rules. |
+| `channel-attachments` | Existing `channel/...` files remain readable to authorized channel readers; legacy browser uploads are disabled. Current messaging uploads use `message-attachments`. |
+| `work-files` | Active members upload their own `user/project-or-task-or-grant/entity/file` paths, subject to entity access. Other readers need a visible attachment record; uploaders can read/delete their own files. |
+| `engineering-files` | Active engineering viewers read files; active editors upload under their own user prefix. Existing uploader/engineering-admin deletion rules remain. |
+| `contracts-files` | Active customer viewers read PDFs; editors append PDFs under their own user prefix. No browser replacement/deletion of retained originals or signed files. |
+| `organization-documents` | Only active admins append PDFs under `policies/user/...`. Members read accessible published policy/version/legacy records and their own signed PDFs. Signing services write `signatures/...`; browser policies do not. |
+| `avatars` | Public reads remain intentional; only active members write/replace/delete their own `user/...` photos. |
+| `drive-files` | Retained owner/shared-file downloads only. Browser uploads/deletions remain unavailable for this retired surface. |
+
+A missing profile, suspended/inactive account, or another user's upload prefix is not authorized. A null profile status is treated as active, matching QA round 2. No retired bug-report/screenshot permissions are restored. PDF MIME/size restrictions and trusted signing endpoints remain in force.
+
+The messaging correction addresses both missing Storage `UPDATE` permission for retry/upsert and missing uploader `SELECT` permission for signing **before** the message insert. Client retries must also retain readable attachment blobs until the complete upload batch succeeds. SQL alone cannot recover a revoked browser blob. Contract insertion failures cannot clean up immutable PDFs with browser `remove`; use a trusted service cleanup process rather than granting general deletion. Applying the migration does not revoke already-issued signed URLs; they remain usable until expiry. Live policy drift, bucket existence, and actual upload/download behavior must be checked on the deployed project.
+
 ## Forms
 
 Apply `20261107150000_company_forms.sql` before using Company > Forms. It copies legacy forms, collaborator access, and responses without deleting the originals. The standalone builder supports typed questions, ordering, validation, conditional visibility, previews, publication, staff/public sharing, and response export. Each published link uses an immutable schema version; answers are validated on the server. See [Company Forms](./forms.md) for capabilities and rollout details.
@@ -32,7 +68,7 @@ Old `/forms/:id` editor links redirect to the migrated form. Share public respon
 Apply `supabase/migrations/20261110140000_retire_personal_email.sql` and deploy the updated `mail-connect`, `mail-api`, `mail-sync`, `mail-webhook`, `mail-maintenance`, `mail-ai`, and `workspace-ai` functions. The shared helper is deployed with each function.
 
 - Personal mailbox connections, synchronization, and delivery are rejected by the API. Existing personal records are retained but are not accessible as workspace mailboxes. Pending personal sends are cancelled with an explanation; they are not silently sent.
-- Shared mailbox sending remains available in Customers > Support. Select the shared sender before sending. Mailbox grants and send permissions are enforced by the backend. Access and retention remain under administrator settings.
+- Shared mailbox sending remains available in Customers > Support. Select the shared sender before sending. Mailbox grants and send permissions are enforced by the backend. The operational-email access panel is removed from Settings; existing grants and retained mail are unchanged.
 - Company Automation and its shared-mailbox rule definitions/history are retired. Grant award checklists/reporting automations and customer-support AI remain in their existing workflows.
 - `mail-api` retains send, reply, scheduled-send, and operational mailbox actions. `mail-webhook`/`mail-sync` retain shared inbound synchronization; `mail-maintenance` retains shared scheduled delivery and subscription maintenance.
 - Current shared-mail integration still uses the existing provider adapter and configured credentials. Resend or another inbound/outbound API can replace that adapter later; a Resend shared inbox is **not** configured by this change. No provider secrets belong in the browser.

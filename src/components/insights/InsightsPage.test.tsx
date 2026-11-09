@@ -6,10 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mock = vi.hoisted(() => ({
   rows: {} as Record<string, Array<Record<string, unknown>>>,
   failures: [] as string[],
+  rpc: vi.fn(),
 }));
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
+    rpc: mock.rpc,
     from: (table: string) => {
       const query = {
         select: () => query,
@@ -33,6 +35,7 @@ describe('Insights workspace', () => {
   beforeEach(() => {
     mock.rows = {};
     mock.failures = [];
+    mock.rpc.mockResolvedValue({ data: { count: 4, online: 1 }, error: null });
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     container = document.createElement('div');
     document.body.append(container);
@@ -63,6 +66,8 @@ describe('Insights workspace', () => {
     expect(container.querySelectorAll('.sr-only td.text-right.tabular-nums')).toHaveLength(48);
     expect([...container.querySelectorAll('svg title')].some((title) => title.textContent?.includes('2 records'))).toBe(true);
     expect(container.textContent).toContain('1 active');
+    expect(mock.rpc).toHaveBeenCalledWith('active_staff_metrics');
+    expect(container.querySelector('[aria-label="Key metrics"]')?.textContent).toContain('Staff4');
   });
 
   it('labels failed sources as unavailable rather than showing false zeroes', async () => {

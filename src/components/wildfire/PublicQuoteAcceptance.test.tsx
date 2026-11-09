@@ -18,6 +18,7 @@ const fill = async (selector: string, value: string) => {
 };
 describe('public quote acceptance', () => {
   beforeEach(() => {
+    window.history.replaceState({}, '', '/');
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     mock.invoke.mockReset();
     mock.celebrate.mockReset();
@@ -66,6 +67,20 @@ describe('public quote acceptance', () => {
     expect(container.querySelector('form')).toBeNull();
     expect(container.textContent).toContain('Your signed acceptance is recorded.');
     expect(mock.celebrate).toHaveBeenCalledExactlyOnceWith('quote', 'quote', 'sent', 'accepted');
+  });
+  it('test mode exercises the form without writing acceptance or creating a deployment', async () => {
+    window.history.replaceState({}, '', '/?test=1');
+    await render();
+    await fill('input[autocomplete=name]', 'Customer name');
+    await fill('input[type=email]', 'customer@example.com');
+    await act(async () => {
+      container.querySelector('canvas')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      container.querySelector<HTMLInputElement>('input[type=checkbox]')!.click();
+    });
+    await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+    expect(mock.invoke).toHaveBeenCalledTimes(1);
+    expect(mock.celebrate).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Nothing was saved and no deployment was created.');
   });
   it.each([
     { data: { status: 'accepted' }, error: null },

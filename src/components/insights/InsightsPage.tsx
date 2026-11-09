@@ -59,9 +59,11 @@ export const InsightsPage: React.FC = () => {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportSelection, setExportSelection] = useState<string[] | null>(null);
+  const [staffMetrics, setStaffMetrics] = useState<{ count: number; online: number } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    const staffPromise = supabase.rpc('active_staff_metrics');
     const entries = await Promise.all(Object.entries(sources).map(async ([key, source]) => {
       try {
         return [key, await loadRows(source.table, source.columns)] as const;
@@ -69,6 +71,16 @@ export const InsightsPage: React.FC = () => {
         return [key, null] as const;
       }
     }));
+    const staffResult = await staffPromise;
+    if (staffResult.error) {
+      console.error('Active staff metrics could not be loaded:', staffResult.error);
+      setStaffMetrics(null);
+    } else if (typeof staffResult.data?.count === 'number' && typeof staffResult.data?.online === 'number') {
+      setStaffMetrics(staffResult.data);
+    } else {
+      console.error('Active staff metrics returned an invalid response.');
+      setStaffMetrics(null);
+    }
     setData(Object.fromEntries(entries.map(([key, rows]) => [key, rows ?? []])));
     setFailed(entries.filter(([, rows]) => rows === null).map(([key]) => sources[key].table));
     setHasLoaded(true);
@@ -88,9 +100,7 @@ export const InsightsPage: React.FC = () => {
     const totalTasks = rows('tasks').length;
     const awardedStages = grantStage(['awarded', 'reporting', 'closed']);
     const decidedStages = grantStage(['awarded', 'reporting', 'closed', 'declined']);
-    const staff = rows('profiles').filter((profile) => (profile.account_status ?? 'active') === 'active' && typeof profile.email === 'string' && profile.email.includes('@'));
     const declined = grantStage(['declined']).length;
-    const online = staff.filter((profile) => profile.last_seen_at && Date.now() - new Date(profile.last_seen_at).getTime() < 4 * 60000).length;
     return [
       { area: 'Work', label: 'Engineering projects', value: rows('projects').length, detail: `${rows('projects').filter((project) => project.status === 'active').length} active`, sources: ['projects'] },
       { area: 'Work', label: 'Projects past target date', value: rows('projects').filter((project) => project.target_date && String(project.target_date) < today && !['completed', 'archived'].includes(String(project.status))).length, sources: ['projects'] },
@@ -114,9 +124,9 @@ export const InsightsPage: React.FC = () => {
       { area: 'Activity', label: 'Messages sent', value: rows('messages').length, sources: ['messages'] },
       { area: 'Activity', label: 'Calendar events created', value: rows('events').length, sources: ['events'] },
       { area: 'Activity', label: 'Audit log events', value: rows('audit').length, sources: ['audit'] },
-      { area: 'People', label: 'Staff', value: staff.length, detail: `${online} online now`, sources: ['profiles'] },
+      { area: 'People', label: 'Staff', value: staffMetrics?.count ?? '—', detail: staffMetrics ? `${staffMetrics.online} online now` : 'Staff count unavailable', sources: ['profiles'] },
     ];
-  }, [data]);
+  }, [data, staffMetrics]);
 
   const metricId = (metric: Metric) => `${metric.area}::${metric.label}`;
   const selectedIds = exportSelection ?? metrics.map(metricId);

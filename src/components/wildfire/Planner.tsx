@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { geocodeAddress } from './googleMaps';
+import { geocodeAddress, googleMapsConfigured } from './googleMaps';
 import { SiteMap } from './SiteMap';
 import { control, parseCoordinates, primary, secondary, surface, type Coordinates, type Opportunity, type Placement, type Product, type Property, type SitePlan } from './model';
 
@@ -15,7 +15,8 @@ export function Planner({ opportunities, properties, plans, placements, products
   const [opportunityId, setOpportunityId] = useState(selectedOpportunityId);
   const [propertyId, setPropertyId] = useState('');
   const [planId, setPlanId] = useState('');
-  const [mode, setMode] = useState<'address' | 'coordinates'>('address');
+  const [mode, setMode] = useState<'address' | 'coordinates'>(googleMapsConfigured ? 'address' : 'coordinates');
+  const [linkOpportunityId, setLinkOpportunityId] = useState('');
   const [location, setLocation] = useState('');
   const [siteName, setSiteName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -102,30 +103,36 @@ export function Planner({ opportunities, properties, plans, placements, products
       </div>
       {canEdit && <details className="mt-4" open={!property}><summary className="cursor-pointer text-sm font-semibold text-brand-600">Add a site by address or coordinates</summary><form onSubmit={event => void createSite(event)} className="mt-3 grid gap-3 sm:grid-cols-2">
         <input aria-label="Site name" required maxLength={200} value={siteName} onChange={event => setSiteName(event.target.value)} placeholder="Site name" className={control} />
-        <select aria-label="Location format" value={mode} onChange={event => { setMode(event.target.value === 'address' ? 'address' : 'coordinates'); setLocation(''); }} className={control}><option value="address">Street address</option><option value="coordinates">Latitude, longitude</option></select>
+        <select aria-label="Location format" value={mode} onChange={event => { setMode(event.target.value === 'address' ? 'address' : 'coordinates'); setLocation(''); }} className={control}><option value="address" disabled={!googleMapsConfigured} title={!googleMapsConfigured ? 'Address lookup is unavailable until Google Maps is configured.' : undefined}>Street address{!googleMapsConfigured ? ' (unavailable)' : ''}</option><option value="coordinates">Latitude, longitude</option></select>
         <input aria-label={mode === 'address' ? 'Site address' : 'Latitude, longitude'} required value={location} onChange={event => setLocation(event.target.value)} placeholder={mode === 'address' ? 'Street address, city, region' : '37.7749, -122.4194'} className={control} />
         <button disabled={busy} className={primary}>{busy ? 'Saving…' : 'Save site and design'}</button>
         <p className="text-xs text-slate-500 sm:col-span-2">{mode === 'coordinates' ? 'Latitude first (-90 to 90), longitude second (-180 to 180). Western longitudes are negative. Google satellite maps still require a configured key.' : 'Address lookup uses Google Geocoding. Coordinate entry works without geocoding.'}</p>
       </form></details>}
+      {!googleMapsConfigured && <p role="alert" className="mt-3 text-sm text-slate-500">Map and address lookup are unavailable because Google Maps has not been configured. You can still save sites using coordinates. Ask an administrator to enable Google Maps.</p>}
     </section>
     {property && <section className={surface}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="text-lg font-semibold text-slate-900">{property.label}</h2><p className="text-sm text-slate-500">{property.address || `${property.latitude}, ${property.longitude}`}</p>{plan && <p className="mt-1 text-xs text-slate-500">{linkedOpportunity ? `For ${linkedOpportunity.prospect_name || linkedOpportunity.name}` : 'Not linked to a prospect yet'}</p>}</div>
         <div className="flex flex-wrap gap-2">{canEdit && <button type="button" disabled={busy} className={secondary} onClick={newVersion}>New design version</button>}{plan && canEdit && <button type="button" disabled={busy} className={primary} onClick={() => void mutate(async () => {
           if (!plan.opportunity_id) {
-            if (!opportunityId) throw new Error('Choose the prospect this quote is for in the Opportunity menu above, then create the quote.');
-            const { error: linkError } = await supabase.rpc('wildfire_link_site_plan', { p_site_plan_id: plan.id, p_opportunity_id: opportunityId });
+            if (!linkOpportunityId) throw new Error('Choose a prospect in "Link this site to a prospect" before creating a quote.');
+            const { error: linkError } = await supabase.rpc('wildfire_link_site_plan', { p_site_plan_id: plan.id, p_opportunity_id: linkOpportunityId });
             if (linkError) throw new Error(linkError.message);
           }
           const { data, error: quoteError } = await supabase.rpc('wildfire_create_quote_from_plan', { p_site_plan_id: plan.id });
           if (quoteError) throw new Error(quoteError.message);
           onQuote(data);
-        })}>Create quote from this plan</button>}{plan && canEdit && !plan.opportunity_id && opportunityId && <button type="button" disabled={busy} className={secondary} onClick={() => void mutate(async () => {
-          const { error: linkError } = await supabase.rpc('wildfire_link_site_plan', { p_site_plan_id: plan.id, p_opportunity_id: opportunityId });
+        })}>Create quote from this plan</button>}</div>
+      </div>
+      {plan && canEdit && !plan.opportunity_id && <div className="mb-4 flex flex-wrap items-end gap-2">
+        <label className="min-w-0 flex-1 text-sm text-slate-700">Link this site to a prospect<select aria-label="Prospect for this site" value={linkOpportunityId} onChange={event => setLinkOpportunityId(event.target.value)} className={control}><option value="">Choose prospect</option>{opportunities.map(item => <option key={item.id} value={item.id}>{item.prospect_name || item.name}</option>)}</select></label>
+        <button type="button" disabled={busy || !linkOpportunityId} className={secondary} onClick={() => void mutate(async () => {
+          const { error: linkError } = await supabase.rpc('wildfire_link_site_plan', { p_site_plan_id: plan.id, p_opportunity_id: linkOpportunityId });
           if (linkError) throw new Error(linkError.message);
           await onRefresh();
-        })}>Link to selected prospect</button>}</div>
-      </div>
+          setLinkOpportunityId('');
+        })}>Link to prospect</button>
+      </div>}
       {property.latitude !== null && property.longitude !== null && plan ? <>
         {editable && <div className="mb-3 flex flex-wrap items-center gap-2">
           <button type="button" className={drawingBoundary ? primary : secondary} onClick={() => { setDrawingBoundary(value => !value); setPoint(null); }}>Draw site boundary</button>

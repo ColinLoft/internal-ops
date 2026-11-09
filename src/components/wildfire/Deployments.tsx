@@ -20,6 +20,9 @@ export function Deployments({ properties, organizations, canEdit, onQuote }: { p
   const [dueDate, setDueDate] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [newPropertyId, setNewPropertyId] = useState('');
+  const [newOrganizationId, setNewOrganizationId] = useState('');
+  const [newNotes, setNewNotes] = useState('');
   const load = useCallback(async () => {
     const [deployments, taskResult, eventResult] = await Promise.all([
       supabase.from('wildfire_deployments').select('id,quote_id,organization_id,property_id,status,scheduled_at,completed_at,notes').order('updated_at', { ascending: false }),
@@ -40,15 +43,28 @@ export function Deployments({ properties, organizations, canEdit, onQuote }: { p
   };
   return <div className="space-y-5">
     {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-    <section className={surface}><h2 className="text-lg font-semibold text-slate-900">Deployment delivery</h2><p className="mt-2 text-sm text-slate-500">Created automatically when a customer signs and accepts a quote. Track scheduling, procurement, installation, commissioning, handoff, tasks, and updates here.</p>
+    <section className={surface}><h2 className="text-lg font-semibold text-slate-900">Deployment delivery</h2><p className="mt-2 text-sm text-slate-500">Created automatically when a customer accepts a quote, or added manually for existing customer work. Track delivery tasks and updates here.</p>
+      {canEdit && <details className="mt-4"><summary className="cursor-pointer text-sm font-semibold text-brand-400">Add deployment manually</summary>
+        <form className="mt-3 grid gap-3 sm:grid-cols-2" onSubmit={event => { event.preventDefault(); void mutate(async () => {
+          const { data, error: createError } = await supabase.rpc('wildfire_create_manual_deployment', { p_property_id: newPropertyId, p_organization_id: newOrganizationId, p_notes: newNotes.trim() });
+          if (createError) throw new Error(createError.message);
+          setActiveId(data); setNewNotes(''); setNewPropertyId(''); setNewOrganizationId('');
+        }); }}>
+          <label className="text-sm text-slate-700">Site<select required value={newPropertyId} onChange={event => { setNewPropertyId(event.target.value); setNewOrganizationId(properties.find(property => property.id === event.target.value)?.organization_id || ''); }} className={control}><option value="">Choose site</option>{properties.map(property => <option key={property.id} value={property.id}>{property.label}</option>)}</select></label>
+          <label className="text-sm text-slate-700">Customer<select required value={newOrganizationId} onChange={event => setNewOrganizationId(event.target.value)} className={control}><option value="">Choose customer</option>{organizations.map(organization => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select></label>
+          <label className="text-sm text-slate-700 sm:col-span-2">Deployment notes<textarea value={newNotes} maxLength={10000} onChange={event => setNewNotes(event.target.value)} className={control} /></label>
+          <p className="text-xs text-slate-500 sm:col-span-2">Manual deployments start in planning and do not imply a signed quote or customer acceptance.</p>
+          <button disabled={busy} className={primary}>Create deployment</button>
+        </form>
+      </details>}
       <select aria-label="Select deployment" value={active?.id ?? ''} onChange={event => { setActiveId(event.target.value); setNote(''); }} className={`${control} mt-4`}>
-        {!items.length && <option value="">No accepted quotes yet</option>}
+        {!items.length && <option value="">No deployments yet</option>}
         {items.map(item => <option key={item.id} value={item.id}>{properties.find(property => property.id === item.property_id)?.label || item.id.slice(0, 8)} · {displayStage(item.status)}</option>)}
       </select>
     </section>
     {active && <section className={surface}>
       <h2 className="text-lg font-semibold text-slate-900">{properties.find(property => property.id === active.property_id)?.label || 'Deployment'}</h2>
-      <p className="mt-1 text-sm text-slate-500">{organizations.find(organization => organization.id === active.organization_id)?.name} · Quote {active.quote_id?.slice(0, 8) || 'Legacy deployment'}</p>
+      <p className="mt-1 text-sm text-slate-500">{organizations.find(organization => organization.id === active.organization_id)?.name} · {active.quote_id ? `Quote ${active.quote_id.slice(0, 8)}` : 'Manual deployment'}</p>
       {active.quote_id && <button type="button" className={`${secondary} mt-3`} onClick={() => active.quote_id && onQuote(active.quote_id)}>View accepted quote and proposal</button>}
       <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-sm text-slate-700">Delivery stage<select disabled={!canEdit || busy} value={active.status} className={control} onChange={event => { const status = event.target.value; void mutate(async () => { const { data, error: updateError } = await supabase.from('wildfire_deployments').update({ status, completed_at: status === 'completed' ? new Date().toISOString() : null }).eq('id', active.id).select('status').single(); if (updateError) throw new Error(updateError.message); if (data) celebrateMilestone('deployment', active.id, active.status, data.status); }); }}>
         {stages.map(stage => <option key={stage} value={stage}>{displayStage(stage)}</option>)}
