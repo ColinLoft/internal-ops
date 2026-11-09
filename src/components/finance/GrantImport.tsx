@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useMemo, useState } from 'react';
 import { Upload, X } from 'lucide-react';
@@ -124,7 +125,7 @@ export const GrantImport: React.FC<{ userId: string; existing: Grant[]; onClose:
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-label="Import grants">
       <div className="max-h-[92vh] w-full max-w-2xl space-y-3 overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
         <div className="flex items-center justify-between"><h2 className="text-base font-bold text-slate-900">Import existing grants</h2><button type="button" aria-label="Close" onClick={onClose}><X className="h-4 w-4" /></button></div>
-        {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+        {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{userFacingError(error)}</p>}
         {!table.length ? (
           <>
             <p className="text-xs text-slate-500">In Google Sheets use File → Download → CSV and upload it, or copy the cells and paste them below. The first row must be column headers; columns are matched automatically.</p>

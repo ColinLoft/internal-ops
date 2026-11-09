@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Save, User as UserIcon, Upload, Loader2 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -151,7 +152,7 @@ export const EditProfileModal: React.FC = () => {
               <p className="mt-1.5 text-xs text-slate-500">Choose an image file from your device.</p>
             </div>
           </div>
-          {uploadError && <p role="alert" className="text-xs text-rose-600">{uploadError}</p>}
+          {uploadError && <p role="alert" className="text-xs text-rose-600">{userFacingError(uploadError)}</p>}
 
           {/* Name & Phone */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -244,8 +245,8 @@ export const EditProfileModal: React.FC = () => {
           {/* Actions */}
           <div className="pt-4 flex items-center justify-end border-t border-slate-100">
             <div className="flex items-center gap-2">
-              {uploadError && <p role="alert" className="max-w-64 text-xs text-rose-600">{uploadError}</p>}
-              {saveError && <p role="alert" className="max-w-64 text-xs text-rose-600">{saveError}</p>}
+              {uploadError && <p role="alert" className="max-w-64 text-xs text-rose-600">{userFacingError(uploadError)}</p>}
+              {saveError && <p role="alert" className="max-w-64 text-xs text-rose-600">{userFacingError(saveError)}</p>}
               <button
                 type="button"
                 onClick={() => setIsProfileSettingsOpen(false)}

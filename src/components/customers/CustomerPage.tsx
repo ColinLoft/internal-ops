@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Plus, Search, Trash2, X, Clock3, MessageSquare } from 'lucide-react';
@@ -159,7 +160,7 @@ export const CustomerPage: React.FC = () => {
     return (
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[#f7f9fc]">
         {tabNav}
-        {error && <p role="alert" className="m-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</p>}
+        {error && <p role="alert" className="m-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{userFacingError(error)}</p>}
         {loading ? <div className="p-5"><CardSkeleton lines={5} /></div> : view === 'organizations' ? (
           <CustomerWorkspace orgs={orgs} contacts={contacts} items={items} selectedId={selectedOrg} onSelect={setSelectedOrg} canEdit={canEdit} canManage={canManage} userName={userName} onAdd={(kind, orgId) => setDialog({ kind: kind === 'org' ? 'org' : kind, orgId })} onMutate={run} />
         ) : (
@@ -185,7 +186,7 @@ export const CustomerPage: React.FC = () => {
         </header>
         {tabNav}
         <div className="mx-auto max-w-7xl space-y-5 p-5 sm:p-8">
-          {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</p>}
+          {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{userFacingError(error)}</p>}
           {loading ? <p className="text-xs text-slate-400">Loading…</p> : !canView && orgs.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-6 text-xs text-slate-500">You don't have access to Customers. Ask an admin to assign the Customers team role.</p> : <>
             {view === 'overview' && <>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -242,7 +243,7 @@ export const CustomerPage: React.FC = () => {
                         {contact.notes && <section className="mt-5"><h3 className="text-xs font-semibold text-slate-500">Internal notes</h3><p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{contact.notes}</p></section>}
                         <section className="mt-6 min-h-0 flex-1">
                           <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-slate-900">History</h3><span className="text-xs text-slate-400">{timeline.length} records</span></div>
-                          {contactHistoryError && <p role="alert" className="mt-2 text-xs text-rose-600">{contactHistoryError}</p>}
+                          {contactHistoryError && <p role="alert" className="mt-2 text-xs text-rose-600">{userFacingError(contactHistoryError)}</p>}
                           {contactHistoryLoading ? <p className="mt-4 text-sm text-slate-400">Loading history…</p> : timeline.length ? <ol className="mt-3 space-y-3">{timeline.map((item) => <li key={item.id} className="border-l-2 border-slate-200 pl-3"><p className="text-sm font-medium text-slate-800">{item.title}</p><p className="mt-0.5 whitespace-pre-wrap text-xs text-slate-600">{item.detail}</p><p className="mt-1 text-xs text-slate-400">{fmt(item.date)}{item.status ? ` · ${item.status}` : ''}</p></li>)}</ol> : <p className="mt-3 text-sm text-slate-400">No history has been recorded for this contact.</p>}
                         </section>
                       </>

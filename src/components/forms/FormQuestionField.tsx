@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React from 'react';
 import { isFormQuestionVisible } from './formsModel';
 import type { FormAnswers, FormQuestion } from './formsModel';
@@ -131,7 +132,7 @@ export const FormQuestionField: React.FC<Props> = ({ formId, question, value, on
   const isChoiceGroup = question.type === 'multiple_choice' || question.type === 'checkbox' || question.type === 'scale';
   const label = <>{question.label}{question.required && <span className="ml-1 text-rose-700" aria-label="required">*</span>}</>;
   const description = question.description && <p className="mb-2 whitespace-pre-wrap text-sm text-slate-600">{question.description}</p>;
-  const errorMessage = error && <p id={`${question.id}-error`} className="mt-1.5 text-sm text-rose-700" role="alert">{error}</p>;
+  const errorMessage = error && <p id={`${question.id}-error`} className="mt-1.5 text-sm text-rose-700" role="alert">{userFacingError(error)}</p>;
 
   if (isChoiceGroup) {
     return (

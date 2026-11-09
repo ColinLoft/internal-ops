@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -386,7 +387,7 @@ export const FirstLoginOnboarding: React.FC = () => {
                 />
               </label>
 
-              {error && <p role="alert" className="text-xs font-semibold text-rose-700">{error}</p>}
+              {error && <p role="alert" className="text-xs font-semibold text-rose-700">{userFacingError(error)}</p>}
             </div>
 
             <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/70 px-6 py-4 sm:px-8">
@@ -426,7 +427,7 @@ export const FirstLoginOnboarding: React.FC = () => {
               ))}
             </div>
 
-            {error && <p role="alert" className="mx-6 mb-4 text-xs font-semibold text-rose-700 sm:mx-8">{error}</p>}
+            {error && <p role="alert" className="mx-6 mb-4 text-xs font-semibold text-rose-700 sm:mx-8">{userFacingError(error)}</p>}
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/70 px-6 py-4 sm:px-8">
               <button

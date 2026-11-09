@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Headset, Send } from 'lucide-react';
 
@@ -102,7 +103,7 @@ export const PublicChatPage: React.FC = () => {
             <label className="text-xs font-medium text-slate-600">Email<input required type="email" maxLength={320} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={`${inputClass} mt-1`} /></label>
             <label className="text-xs font-medium text-slate-600">How can we help?<textarea required rows={5} maxLength={4000} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} className={`${inputClass} mt-1 resize-none`} /></label>
             <input tabIndex={-1} autoComplete="off" aria-hidden="true" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} className="hidden" />
-            {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
+            {error && <p role="alert" className="text-xs text-rose-600">{userFacingError(error)}</p>}
             <button type="submit" disabled={busy} className="mt-auto rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60">{busy ? 'Sending…' : 'Start chat'}</button>
           </form>
         ) : (
@@ -119,7 +120,7 @@ export const PublicChatPage: React.FC = () => {
               <div ref={bottomRef} />
             </div>
             <form onSubmit={send} className="border-t border-slate-200 p-3">
-              {error && <p role="alert" className="pb-2 text-xs text-rose-600">{error}</p>}
+              {error && <p role="alert" className="pb-2 text-xs text-rose-600">{userFacingError(error)}</p>}
               <div className="flex gap-2">
                 <input value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={4000} placeholder="Type a message…" aria-label="Message" className={inputClass} />
                 <button type="submit" disabled={busy || !draft.trim()} aria-label="Send" className="rounded-lg bg-brand-600 px-3 text-white hover:bg-brand-700 disabled:opacity-50"><Send className="h-4 w-4" /></button>

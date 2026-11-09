@@ -17,3 +17,15 @@ export const legacyWorkspaceRedirect = (pathname: string, search = ''): string |
   if (path === '/wildfire' || path === '/wildfire/overview') return '/wildfire/opportunities';
   return null;
 };
+export type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'admin' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs' | 'wildfire' | 'systems';
+
+export function workspaceTabFromPath(pathname: string): WorkspaceTab | null {
+  const canonical = legacyWorkspaceRedirect(pathname)?.split('?')[0] ?? pathname;
+  const segment = canonical.replace(/^\/+|\/+$/g, '').split('/')[0];
+  if (!segment || ['home', 'operations', 'organization', 'email', 'inbox', 'notifications', 'drive', 'docs', 'slides', 'sheets'].includes(segment)) return 'home';
+  if (segment === 'help') return 'customers';
+  if (['company', 'finance', 'legal', 'gtm', 'forms'].includes(segment)) return 'company';
+  if (segment === 'admin') return 'settings';
+  if (['customers', 'engineering', 'wildfire', 'insights', 'programs', 'messages', 'channels', 'calendar', 'systems', 'settings'].includes(segment)) return segment as WorkspaceTab;
+  return null;
+}

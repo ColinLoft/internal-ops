@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ExternalLink, Plus, RefreshCw } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
@@ -159,8 +160,8 @@ export const SystemsPage: React.FC = () => {
             <button className={primary} onClick={() => setEditor({ kind: 'system' })} disabled={busy || loading}><Plus size={16} />Add system</button>
           </div>}
         </header>
-        {error && <div role="alert" className="rounded-lg border border-slate-200 bg-white p-4 text-sm">{error}</div>}
-        {loadError && <div role="alert" className="rounded-lg border border-slate-200 bg-white p-4 text-sm">{loadError} <button className="ml-2 underline" onClick={() => void load()}>Retry</button></div>}
+        {error && <div role="alert" className="rounded-lg border border-slate-200 bg-white p-4 text-sm">{userFacingError(error)}</div>}
+        {loadError && <div role="alert" className="rounded-lg border border-slate-200 bg-white p-4 text-sm">{userFacingError(loadError)} <button className="ml-2 underline" onClick={() => void load()}>Retry</button></div>}
         {notice && <p role="status" className="text-sm text-slate-600">{notice}</p>}
         {loading && hasLoaded && <p role="status" className="text-sm text-slate-600">Refreshing systems… last successful load {date(refreshedAt)}.</p>}
         {loading && !hasLoaded ? <p role="status" className="py-6 text-sm text-slate-600">Loading systems and measured check history…</p>

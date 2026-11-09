@@ -77,7 +77,7 @@ describe('channel creation walkthrough', () => {
     mock.create.mockRejectedValue(new Error('Permission denied'));
     await act(async () => root.render(<CreateChannelModal />));
     await input('input', 'team'); await submit(); await submit(); await submit();
-    expect(container.querySelector('[role=alert]')?.textContent).toContain('Permission denied');
+    expect(container.querySelector('[role=alert]')?.textContent).toContain('Ask an administrator');
     expect(mock.close).not.toHaveBeenCalled();
     expect(container.textContent).toContain('team');
   });

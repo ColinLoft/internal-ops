@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowDownToLine, ArrowLeft, CalendarClock, Check, ChevronRight, Clock3, Copy, FilePlus2, FileText, Link, Plus, RefreshCw, Search, Send, Upload, X } from 'lucide-react';
@@ -327,7 +328,7 @@ export const ContractSuite: React.FC = () => {
       </header>
 
       <div className="mx-auto w-full max-w-[1600px] flex-1 p-4 sm:p-6 lg:p-8">
-        {error && <p role="alert" className="mb-4 rounded-lg border border-rose-900 bg-rose-950/60 px-4 py-3 text-sm text-rose-200">{error}</p>}
+        {error && <p role="alert" className="mb-4 rounded-lg border border-rose-900 bg-rose-950/60 px-4 py-3 text-sm text-rose-200">{userFacingError(error)}</p>}
 
         <section aria-label="Contract summary" className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[['All contracts', contracts.length], ['Active', active], ['Awaiting signature', pending], ['Renewal in 45 days', renewalsSoon]].map(([title, count]) => (
@@ -491,7 +492,7 @@ const ContractForm: React.FC<{
           <label className="flex items-center gap-2 self-end rounded-lg bg-slate-900 px-3 py-3 text-sm text-slate-300"><input type="checkbox" checked={form.auto_renew} onChange={(event) => set('auto_renew', event.target.checked)} className="h-4 w-4 accent-sky-500" />Automatically renews</label>
           <Field label="Internal notes (not contract text)" wide><textarea rows={4} value={form.description} onChange={(event) => set('description', event.target.value)} className={input} /></Field>
         </div>
-        {formError && <p role="alert" className="mt-4 text-sm text-rose-300">{formError}</p>}
+        {formError && <p role="alert" className="mt-4 text-sm text-rose-300">{userFacingError(formError)}</p>}
         <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">Cancel</button><button type="submit" disabled={busy || !form.name.trim()} className={button}>{busy ? 'Saving…' : initial ? 'Save changes' : 'Create contract'}</button></div>
       </form>
     </div>

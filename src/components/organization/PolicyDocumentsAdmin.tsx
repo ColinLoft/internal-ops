@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useCallback, useEffect, useState } from 'react';
 import { FileText, Plus, RefreshCw, Upload } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -177,7 +178,7 @@ export const PolicyDocumentsAdmin: React.FC = () => {
       <div><h2 className="text-sm font-bold text-slate-900">Policies & resources</h2><p className="mt-1 text-xs text-slate-500">Publish uploaded PDFs; every replacement is retained as an immutable version.</p></div>
       {isAdmin && <button type="button" onClick={() => setShowForm((value) => !value)} className={button}><Plus className="h-4 w-4" />Add policy PDF</button>}
     </div>
-    {error && <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-xs text-rose-700">{error}</p>}
+    {error && <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-xs text-rose-700">{userFacingError(error)}</p>}
     {showForm && <form className="mt-5 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2" onSubmit={(event) => {
       event.preventDefault();
       const file = (event.currentTarget.elements.namedItem('policy-pdf') as HTMLInputElement).files?.[0];

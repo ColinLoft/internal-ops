@@ -67,7 +67,7 @@ describe('persisted grant and project milestones', () => {
     if (success) expect(mock.celebrate).toHaveBeenCalledExactlyOnceWith(kind, 'record', before, final);
     else {
       expect(mock.celebrate).not.toHaveBeenCalled();
-      expect(container.querySelector('[role=alert]')?.textContent).toContain('Permission denied');
+      expect(container.querySelector('[role=alert]')?.textContent).toContain('Ask an administrator');
     }
   });
 });

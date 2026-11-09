@@ -16,7 +16,6 @@ import { FirstLoginOnboarding } from './components/auth/FirstLoginOnboarding';
 import { ProfileModal } from './components/profile/ProfileModal';
 import { EditProfileModal } from './components/profile/EditProfileModal';
 import { ShortcutsHelp } from './components/common/ShortcutsHelp';
-import { SettingsPage } from './components/settings/SettingsPage';
 import { CreateChannelModal } from './components/modals/CreateChannelModal';
 import { CreatePollModal } from './components/modals/CreatePollModal';
 import { NewMessageModal } from './components/modals/NewMessageModal';
@@ -25,20 +24,23 @@ import { AddTeammateModal } from './components/modals/AddTeammateModal';
 import { InviteReadyModal } from './components/modals/InviteReadyModal';
 import { isRetiredWorkspacePath, RetiredWorkspacePage } from './components/RetiredWorkspacePage';
 import { AccessGate } from './components/common/AccessGate';
-import { CustomerPage } from './components/customers/CustomerPage';
-import { CompanyPage } from './components/company/CompanyPage';
 import { HomePage } from './components/home/HomePage';
 import { NotFoundPage } from './components/NotFoundPage';
 import { NotificationsPage } from './components/notifications/NotificationsPage';
-import { InsightsPage } from './components/insights/InsightsPage';
-import { ProgramsPage } from './components/programs/ProgramsPage';
-import { EngineeringPage } from './components/engineering/EngineeringPage';
 import { PendingDocumentPrompt } from './components/organization/PolicySigning';
-import { WildfirePage } from './components/wildfire/WildfirePage';
-import { SystemsPage } from './components/systems';
-import { isKnownWorkspacePath, legacyWorkspaceRedirect } from './lib/workspaceRoutes';
+import { isKnownWorkspacePath, legacyWorkspaceRedirect, workspaceTabFromPath } from './lib/workspaceRoutes';
+import { TableSkeleton } from './components/common/Feedback';
 import { MotionEffects } from './components/common/MotionEffects';
 import { BackendStatusBanner } from './components/common/BackendStatusBanner';
+
+const SettingsPage = lazy(() => import('./components/settings/SettingsPage').then(module => ({ default: module.SettingsPage })));
+const CustomerPage = lazy(() => import('./components/customers/CustomerPage').then(module => ({ default: module.CustomerPage })));
+const CompanyPage = lazy(() => import('./components/company/CompanyPage').then(module => ({ default: module.CompanyPage })));
+const InsightsPage = lazy(() => import('./components/insights/InsightsPage').then(module => ({ default: module.InsightsPage })));
+const ProgramsPage = lazy(() => import('./components/programs/ProgramsPage').then(module => ({ default: module.ProgramsPage })));
+const EngineeringPage = lazy(() => import('./components/engineering/EngineeringPage').then(module => ({ default: module.EngineeringPage })));
+const WildfirePage = lazy(() => import('./components/wildfire/WildfirePage').then(module => ({ default: module.WildfirePage })));
+const SystemsPage = lazy(() => import('./components/systems').then(module => ({ default: module.SystemsPage })));
 
 const PublicChatPage = lazy(async () => ({
   default: (await import('./components/support/PublicChatPage')).PublicChatPage,
@@ -60,9 +62,11 @@ const WorkspaceShell: React.FC = () => {
   const {
     isAuthenticated,
     isAuthLoading,
+    isWorkspaceLoading,
+    workspaceLoadError,
     requiresPasswordSetup,
     requiresOnboarding,
-    activeTab,
+    activeTab: selectedTab,
     currentUser,
     callSession,
     incomingCall,
@@ -76,6 +80,7 @@ const WorkspaceShell: React.FC = () => {
   } = useWorkspace();
   useOverlayA11y();
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
+  const activeTab = workspaceTabFromPath(routePath) ?? selectedTab;
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [mobileChatPane, setMobileChatPane] = useState<'list' | 'feed'>('list');
 
@@ -126,7 +131,7 @@ const WorkspaceShell: React.FC = () => {
 
   // If not authenticated, render the Auth Portal
   if (isAuthLoading) {
-    return <div className="min-h-screen bg-black" aria-label="Loading session" />;
+    return <div className="min-h-screen bg-black p-6 text-white"><p role="status" className="mb-5 text-sm text-slate-400">Opening your workspace...</p><TableSkeleton /></div>;
   }
 
   if (!isAuthenticated) {
@@ -154,6 +159,7 @@ const WorkspaceShell: React.FC = () => {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-black">
           <BackendStatusBanner />
           <div data-workspace-content className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
+          <Suspense fallback={<div className="flex-1 bg-black p-6"><TableSkeleton /></div>}>
           {isUnknownPath ? (
             <NotFoundPage
               onGoHome={() => {
@@ -171,7 +177,8 @@ const WorkspaceShell: React.FC = () => {
           {activeTab === 'systems' && <SystemsPage />}
           {activeTab === 'engineering' && <EngineeringPage />}
           {activeTab === 'wildfire' && <WildfirePage />}
-          {activeTab === 'messages' && (
+          {(['messages', 'channels', 'calendar'].includes(activeTab)) && (workspaceLoadError ? <section className="flex-1 p-6"><p role="alert" className="text-sm text-slate-400">{workspaceLoadError}</p><button type="button" className="mt-4 text-brand-500 underline" onClick={() => window.location.reload()}>Reload messages and calendar</button></section> : isWorkspaceLoading ? <div className="flex-1 p-6"><TableSkeleton /></div> : null)}
+          {activeTab === 'messages' && !isWorkspaceLoading && !workspaceLoadError && (
             <>
               {/* Combined channels and direct messages sidebar */}
               <div className={`${mobileChatPane === 'list' ? 'flex' : 'hidden'} w-full md:w-auto md:flex`}>
@@ -187,7 +194,7 @@ const WorkspaceShell: React.FC = () => {
             </>
           )}
 
-          {activeTab === 'channels' && (
+          {activeTab === 'channels' && !isWorkspaceLoading && !workspaceLoadError && (
             <>
               {/* Combined channels and direct messages sidebar */}
               <div className={`${mobileChatPane === 'list' ? 'flex' : 'hidden'} w-full md:w-auto md:flex`}>
@@ -203,8 +210,9 @@ const WorkspaceShell: React.FC = () => {
             </>
           )}
 
-          {activeTab === 'calendar' && <CalendarView />}
+          {activeTab === 'calendar' && !isWorkspaceLoading && !workspaceLoadError && <CalendarView />}
           </>}
+          </Suspense>
           </div>
         </div>
       </div>

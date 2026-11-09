@@ -64,10 +64,23 @@ describe('quote and deployment controls', () => {
     mock.invoke.mockResolvedValue({ data: { url: 'https://flown.test/wildfire-quote?token=secret', expiresAt: '2027-01-01' }, error: null });
     await renderQuotes();
     await click('Create customer signing link');
-    expect(mock.invoke).toHaveBeenCalledWith('wildfire-quotes', { body: { action: 'publish', quoteId: 'quote' } });
+    expect(mock.invoke).toHaveBeenCalledWith('wildfire-quotes', { body: { action: 'publish', quoteId: 'quote' }, timeout: 20000 });
     expect(container.textContent).toContain('Share it directly with the intended customer.');
     expect(container.querySelector('a[href*="test=1"]')).not.toBeNull();
     expect([...container.querySelectorAll('button')].some(button => /mark accepted/i.test(button.textContent || ''))).toBe(false);
+  });
+  it('opens the signing dialog before the request resolves, and displays recoverable failures there', async () => {
+    let finish!: (value: unknown) => void;
+    mock.invoke.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    await renderQuotes();
+    await click('Create customer signing link');
+    const dialog = container.querySelector('[role=dialog]')!;
+    expect(dialog).not.toBeNull();
+    expect(dialog.querySelector('[role=status]')?.textContent).toContain('Creating your secure link');
+    await act(async () => finish({ error: new Error('Failed to send a request to the Edge Function'), data: null }));
+    expect(dialog.querySelector('[role=alert]')?.textContent).toContain('Check your connection');
+    expect(dialog.textContent).not.toContain('Edge Function');
+    expect([...dialog.querySelectorAll('button')].map(button => button.textContent)).toContain('Retry signing link');
   });
   it('creates revised versions without editing a published contract', async () => {
     mock.rows.wildfire_quotes = [{ ...mock.rows.wildfire_quotes[0] as object, status: 'sent' }];
@@ -123,7 +136,7 @@ describe('quote and deployment controls', () => {
     if (success) expect(mock.celebrate).toHaveBeenCalledExactlyOnceWith('deployment', 'deployment', 'handoff', 'completed');
     else {
       expect(mock.celebrate).not.toHaveBeenCalled();
-      expect(container.querySelector('[role=alert]')?.textContent).toContain('Permission denied');
+      expect(container.querySelector('[role=alert]')?.textContent).toContain('Ask an administrator');
     }
   });
 });

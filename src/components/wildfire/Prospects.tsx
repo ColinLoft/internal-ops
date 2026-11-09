@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useState } from 'react';
 import { Search, Sparkles } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -64,7 +65,7 @@ export function Prospects({ opportunities, organizations, canEdit, onSave, onSta
         <button type="button" className={`${secondary} mt-3`} onClick={() => { setEditingId(undefined); setDraft({ ...blank(), name: item.name, prospect_name: item.name, prospect_website: item.website, prospect_email: item.email, prospect_phone: item.phone, prospect_location: item.location, research_notes: `${item.summary}\n\n${item.fit_reason}`, source_urls: item.source_urls }); }}>Review and save prospect</button>
       </li>)}</ul>}
     </section>
-    {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+    {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{userFacingError(error)}</p>}
     <section className={surface}>
       <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold text-slate-900">Outreach opportunities</h2>{canEdit && <button type="button" className={primary} onClick={() => { setEditingId(undefined); setDraft(blank()); }}>Add prospect</button>}</div>
       <label className="mt-4 flex items-center gap-2"><Search className="h-4 w-4 text-slate-500" /><input aria-label="Filter saved prospects" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search saved prospects" className={control} /></label>
@@ -93,7 +94,7 @@ export function Prospects({ opportunities, organizations, canEdit, onSave, onSta
         </div>
         <label className="block text-sm text-slate-700">Research and outreach notes<textarea rows={5} value={draft.research_notes} onChange={event => setDraft({ ...draft, research_notes: event.target.value })} className={control} /></label>
         <p className="text-xs text-slate-500">This saves a Wildfire prospect, not a CRM record. CRM linking happens when the customer accepts a quote.</p>
-        {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
+        {error && <p role="alert" className="text-sm text-rose-700">{userFacingError(error)}</p>}
         <div className="flex justify-end gap-2"><button type="button" onClick={() => setDraft(null)} className={secondary}>Cancel</button><button disabled={busy} className={primary}>{busy ? 'Saving…' : 'Save prospect'}</button></div>
       </form>
     </section></div>}

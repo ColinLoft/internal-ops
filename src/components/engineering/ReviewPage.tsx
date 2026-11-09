@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, Download, FileSearch, UserPlus, X } from 'lucide-react';
@@ -59,7 +60,7 @@ const ReviewQueue: React.FC = () => {
           <div><h1 className="text-xl font-bold text-slate-900">Review</h1><p className="mt-0.5 text-xs text-slate-500">Work submitted for review. {awaiting ? `${awaiting} waiting for your input.` : 'Nothing is waiting for you.'}</p></div></div>
       </header>
       <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-8">
-        {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
+        {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{userFacingError(error)}</div>}
         <ReviewTeam team={team} isAdmin={isAdmin} users={users} onChanged={load} onError={setError} />
         <div className="flex flex-wrap items-center gap-2">
           <Dropdown<Filter> value={filter} onChange={setFilter} ariaLabel="Filter reviews" className="min-w-36" options={[{ id: 'open', label: 'Open reviews' }, { id: 'decided', label: 'Decided' }, { id: 'all', label: 'All reviews' }]} />
@@ -206,7 +207,7 @@ const ReviewDetail: React.FC<{ reviewId: string }> = ({ reviewId }) => {
       </header>
       <div className="mx-auto grid max-w-6xl gap-4 p-4 sm:p-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-4">
-          {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
+          {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{userFacingError(error)}</div>}
           <section className="rounded-2xl border border-slate-200 bg-white p-4">
             <h2 className="text-sm font-bold text-slate-900">Submission</h2>
             <dl className="mt-2 grid gap-2 text-xs sm:grid-cols-2">

@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, Search } from 'lucide-react';
@@ -54,7 +55,7 @@ export const ProjectList: React.FC<{ discipline: Discipline }> = ({ discipline }
         <button type="button" onClick={() => setCreating(true)} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white hover:bg-brand-700 md:min-h-0 md:py-2"><Plus className="h-3.5 w-3.5" />New project</button>
       </header>
       <div className="mx-auto max-w-7xl space-y-4 p-4 sm:p-8">
-        {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
+        {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{userFacingError(error)}</div>}
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects" className={`${inputClass} pl-9`} /></div>
           <Dropdown value={status} onChange={setStatus} ariaLabel="Filter by status" className="min-w-40" options={[{ id: 'all', label: 'All statuses' }, ...Object.entries(PROJECT_STATUS).map(([id, label]) => ({ id, label }))]} />
@@ -98,7 +99,7 @@ const NewProject: React.FC<{ discipline: Discipline; onClose: () => void; onCrea
   };
   return (
     <Modal title={`New ${disciplineOf(discipline).label.toLowerCase()} project`} onClose={onClose}>
-      {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+      {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{userFacingError(error)}</p>}
       <input autoFocus value={form.name} onChange={set('name')} placeholder="Project name" className={inputClass} />
       <textarea value={form.description} onChange={set('description')} placeholder="Goal and scope" className={`${inputClass} min-h-20`} />
       <div className="grid gap-3 sm:grid-cols-3">

@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useState } from 'react';
 import { X, UserPlus } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -95,7 +96,7 @@ export const AddTeammateModal: React.FC<{ isOpen: boolean; onClose: () => void }
           <p className="text-xs text-slate-500">The new staff member will set up their profile during onboarding. A one-time password will be shown after account creation; share it through a secure channel.</p>
 
           {/* Submit */}
-          {error && <p role="alert" className="text-xs font-semibold text-rose-700">{error}</p>}
+          {error && <p role="alert" className="text-xs font-semibold text-rose-700">{userFacingError(error)}</p>}
           <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
             <button
               type="button"

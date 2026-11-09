@@ -1,10 +1,13 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React from 'react';
 import { Lock } from 'lucide-react';
 import { useAppAccess } from '../../lib/useAppAccess';
+import { TableSkeleton } from './Feedback';
 
 export const AccessGate: React.FC<{ app: string; name: string; children: React.ReactNode }> = ({ app, name, children }) => {
-  const { loaded, canView } = useAppAccess(app);
-  if (!loaded) return <main className="flex-1" />;
+  const { loaded, canView, error, retry } = useAppAccess(app);
+  if (error) return <main className="flex-1 bg-black p-6"><p role="alert" className="text-sm text-slate-400">{userFacingError(error)}</p><button type="button" onClick={retry} className="mt-3 text-brand-500 underline">Retry access check</button></main>;
+  if (!loaded) return <main className="flex-1 bg-black p-6"><TableSkeleton /></main>;
   if (canView) return <>{children}</>;
   return (
     <main className="flex flex-1 items-center justify-center bg-black p-8">

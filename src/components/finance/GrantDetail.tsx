@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ExternalLink, Link2, Mail, Plus, Search, Trash2 } from 'lucide-react';
@@ -121,7 +122,7 @@ export const GrantDetail: React.FC<{ grantId: string }> = ({ grantId }) => {
       </header>
 
       <div className="space-y-4 p-5 sm:p-8">
-        {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</p>}
+        {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{userFacingError(error)}</p>}
 
         {tab === 'Overview' && (
           <div className="grid gap-4 lg:grid-cols-2">

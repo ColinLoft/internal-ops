@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { isKnownWorkspacePath, legacyWorkspaceRedirect } from './workspaceRoutes';
+import { isKnownWorkspacePath, legacyWorkspaceRedirect, workspaceTabFromPath } from './workspaceRoutes';
 
 describe('workspace detail routes', () => {
+  it.each(['/tasks', '/tasks/task-id', '/programs', '/programs/tasks', '/programs/task/task-id', '/programs/tasks/'])('resolves %s to Tasks before any navigation event', path => {
+    expect(workspaceTabFromPath(path)).toBe('programs');
+  });
+  it('resolves moved calendar routes and engineering aliases on a cold load', () => {
+    expect(workspaceTabFromPath('/programs/calendar')).toBe('calendar');
+    expect(workspaceTabFromPath('/products/software')).toBe('engineering');
+  });
   it('accepts project, review, large task, and grant detail links', () => {
     for (const path of [
       '/engineering/software/project-id', '/engineering/mechanical/project-id',

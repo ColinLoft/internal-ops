@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useState } from 'react';
 import { ArrowLeft, Download, FileUp, Plus, Send, Trash2 } from 'lucide-react';
@@ -124,7 +125,7 @@ export const ProjectDetail: React.FC<{ projectId: string }> = ({ projectId }) =>
       </header>
 
       <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-8">
-        {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
+        {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{userFacingError(error)}</div>}
         <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-slate-200">
           {tabs.map((item) => <button key={item.id} type="button" role="tab" aria-selected={tab === item.id} onClick={() => setTab(item.id)} className={`-mb-px shrink-0 border-b-2 px-3 py-2 text-sm font-medium ${tab === item.id ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>{item.label} <span className="text-xs text-slate-400">{item.count}</span></button>)}
         </div>
@@ -304,7 +305,7 @@ const RequestReview: React.FC<{ project: EngProject; files: EngFile[]; initialFi
   };
   return (
     <Modal title="Request a review" onClose={onClose}>
-      {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+      {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{userFacingError(error)}</p>}
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-xs font-semibold text-slate-600">Review type<CustomSelect value={form.review_type} onChange={(event) => changeType(event.target.value as ReviewType)} className={`${inputClass} mt-1`}>{Object.entries(REVIEW_TYPES).map(([id, item]) => <option key={id} value={id}>{item.label}</option>)}</CustomSelect></label>
         <label className="text-xs font-semibold text-slate-600">What do you need it for?<CustomSelect value={form.requested_action} onChange={(event) => setForm((value) => ({ ...value, requested_action: event.target.value }))} className={`${inputClass} mt-1`}>{REVIEW_TYPES[form.review_type].actions.map((action) => <option key={action} value={action}>{action}</option>)}</CustomSelect></label>

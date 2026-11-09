@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { geocodeAddress, googleMapsConfigured } from './googleMaps';
+import { geocodeAddress } from './terrainMap';
+import { userFacingError } from '../../lib/userFacingError';
 import { SiteMap } from './SiteMap';
 import { control, parseCoordinates, primary, secondary, surface, type Coordinates, type Opportunity, type Placement, type Product, type Property, type SitePlan } from './model';
 
@@ -15,7 +16,7 @@ export function Planner({ opportunities, properties, plans, placements, products
   const [opportunityId, setOpportunityId] = useState(selectedOpportunityId);
   const [propertyId, setPropertyId] = useState('');
   const [planId, setPlanId] = useState('');
-  const [mode, setMode] = useState<'address' | 'coordinates'>(googleMapsConfigured ? 'address' : 'coordinates');
+  const [mode, setMode] = useState<'address' | 'coordinates'>('coordinates');
   const [linkOpportunityId, setLinkOpportunityId] = useState('');
   const [location, setLocation] = useState('');
   const [siteName, setSiteName] = useState('');
@@ -40,7 +41,7 @@ export function Planner({ opportunities, properties, plans, placements, products
   const mutate = async (action: () => Promise<void>) => {
     setBusy(true); setError('');
     try { await action(); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Site planner update failed.'); }
+    catch (cause) { setError(userFacingError(cause, 'The site could not be updated. Retry, or ask an administrator to check the site and prospect.')); }
     finally { setBusy(false); }
   };
   const createSite = async (event: React.FormEvent) => {
@@ -58,7 +59,8 @@ export function Planner({ opportunities, properties, plans, placements, products
       const { data: newPlanId, error: planError } = await supabase.rpc('wildfire_create_site_plan', { p_property_id: data.id, p_opportunity_id: opportunityId || null, p_name: 'Site design' });
       if (planError) {
         await onRefresh();
-        throw new Error(`Site saved, but the design could not be created: ${planError.message}. Use New design to retry.`);
+        console.error('Site design creation failed:', planError);
+        throw new Error('Site saved, but the design could not be created. Use New design version to retry.');
       }
       setPlanId(newPlanId);
       setSiteName(''); setLocation('');
@@ -103,16 +105,15 @@ export function Planner({ opportunities, properties, plans, placements, products
       </div>
       {canEdit && <details className="mt-4" open={!property}><summary className="cursor-pointer text-sm font-semibold text-brand-600">Add a site by address or coordinates</summary><form onSubmit={event => void createSite(event)} className="mt-3 grid gap-3 sm:grid-cols-2">
         <input aria-label="Site name" required maxLength={200} value={siteName} onChange={event => setSiteName(event.target.value)} placeholder="Site name" className={control} />
-        <select aria-label="Location format" value={mode} onChange={event => { setMode(event.target.value === 'address' ? 'address' : 'coordinates'); setLocation(''); }} className={control}><option value="address" disabled={!googleMapsConfigured} title={!googleMapsConfigured ? 'Address lookup is unavailable until Google Maps is configured.' : undefined}>Street address{!googleMapsConfigured ? ' (unavailable)' : ''}</option><option value="coordinates">Latitude, longitude</option></select>
+        <select aria-label="Location format" value={mode} onChange={event => { setMode(event.target.value === 'address' ? 'address' : 'coordinates'); setLocation(''); }} className={control}><option value="address">Street address</option><option value="coordinates">Latitude, longitude</option></select>
         <input aria-label={mode === 'address' ? 'Site address' : 'Latitude, longitude'} required value={location} onChange={event => setLocation(event.target.value)} placeholder={mode === 'address' ? 'Street address, city, region' : '37.7749, -122.4194'} className={control} />
         <button disabled={busy} className={primary}>{busy ? 'Saving…' : 'Save site and design'}</button>
-        <p className="text-xs text-slate-500 sm:col-span-2">{mode === 'coordinates' ? 'Latitude first (-90 to 90), longitude second (-180 to 180). Western longitudes are negative. Google satellite maps still require a configured key.' : 'Address lookup uses Google Geocoding. Coordinate entry works without geocoding.'}</p>
+        <p className="text-xs text-slate-500 sm:col-span-2">{mode === 'coordinates' ? 'Latitude first (-90 to 90), longitude second (-180 to 180). Western longitudes are negative. No map API key is needed.' : 'Saving sends only the address to Photon / OpenStreetMap for lookup. Use coordinates if you prefer not to share the address. Check the returned location on the map.'}</p>
       </form></details>}
-      {!googleMapsConfigured && <p role="alert" className="mt-3 text-sm text-slate-500">Map and address lookup are unavailable because Google Maps has not been configured. You can still save sites using coordinates. Ask an administrator to enable Google Maps.</p>}
     </section>
     {property && <section className={surface}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="text-lg font-semibold text-slate-900">{property.label}</h2><p className="text-sm text-slate-500">{property.address || `${property.latitude}, ${property.longitude}`}</p>{plan && <p className="mt-1 text-xs text-slate-500">{linkedOpportunity ? `For ${linkedOpportunity.prospect_name || linkedOpportunity.name}` : 'Not linked to a prospect yet'}</p>}</div>
+        <div><h2 className="text-lg font-semibold text-slate-900">{property.label}</h2><p className="text-sm text-slate-500">{property.address || `${property.latitude}, ${property.longitude}`}</p><p className="mt-1 text-xs text-slate-500">{linkedOpportunity ? `For ${linkedOpportunity.prospect_name || linkedOpportunity.name}` : canEdit ? 'Choose a prospect below to link this site.' : 'Not linked to a prospect. Ask a Wildfire editor to link this site.'}</p></div>
         <div className="flex flex-wrap gap-2">{canEdit && <button type="button" disabled={busy} className={secondary} onClick={newVersion}>New design version</button>}{plan && canEdit && <button type="button" disabled={busy} className={primary} onClick={() => void mutate(async () => {
           if (!plan.opportunity_id) {
             if (!linkOpportunityId) throw new Error('Choose a prospect in "Link this site to a prospect" before creating a quote.');
@@ -124,10 +125,17 @@ export function Planner({ opportunities, properties, plans, placements, products
           onQuote(data);
         })}>Create quote from this plan</button>}</div>
       </div>
-      {plan && canEdit && !plan.opportunity_id && <div className="mb-4 flex flex-wrap items-end gap-2">
+      {canEdit && !plan?.opportunity_id && <div className="mb-4 grid gap-2 sm:flex sm:flex-wrap sm:items-end">
         <label className="min-w-0 flex-1 text-sm text-slate-700">Link this site to a prospect<select aria-label="Prospect for this site" value={linkOpportunityId} onChange={event => setLinkOpportunityId(event.target.value)} className={control}><option value="">Choose prospect</option>{opportunities.map(item => <option key={item.id} value={item.id}>{item.prospect_name || item.name}</option>)}</select></label>
         <button type="button" disabled={busy || !linkOpportunityId} className={secondary} onClick={() => void mutate(async () => {
-          const { error: linkError } = await supabase.rpc('wildfire_link_site_plan', { p_site_plan_id: plan.id, p_opportunity_id: linkOpportunityId });
+          let targetPlanId = plan?.id;
+          if (!plan || plan.status !== 'draft') {
+            const { data, error: createError } = await supabase.rpc('wildfire_create_site_plan', { p_property_id: property.id, p_opportunity_id: linkOpportunityId, p_name: plan?.name || 'Site design' });
+            if (createError) throw createError;
+            targetPlanId = data;
+            setPlanId(data);
+          }
+          const { error: linkError } = await supabase.rpc('wildfire_link_site_plan', { p_site_plan_id: targetPlanId, p_opportunity_id: linkOpportunityId });
           if (linkError) throw new Error(linkError.message);
           await onRefresh();
           setLinkOpportunityId('');
@@ -144,7 +152,7 @@ export function Planner({ opportunities, properties, plans, placements, products
           if (moveError) throw new Error(`Position could not be saved: ${moveError.message}`);
           await onRefresh();
         }} />
-        <p className="mt-3 text-xs text-slate-500">Satellite imagery, boundaries, camera headings and field of view are planning aids, not validated terrain visibility or guaranteed fire-detection coverage.</p>
+        <p className="mt-3 text-xs text-slate-500">Terrain tiles, boundaries, camera headings and field of view are planning aids, not validated line of sight or guaranteed fire-detection coverage. Terrain detail ends at zoom 17; closer zoom enlarges the same tiles.</p>
       </> : <p className="text-sm text-slate-500">{plan ? 'This legacy site has no coordinates. Add a geocoded site to use the interactive map.' : 'Create a design version to plan equipment.'}</p>}
       {point && editable && <form onSubmit={event => void savePlacement(event)} className="mt-4 grid gap-3 rounded-lg bg-slate-50 p-4 sm:grid-cols-2">
         <h3 className="font-semibold text-slate-900 sm:col-span-2">Place equipment at {point.lat.toFixed(6)}, {point.lng.toFixed(6)}</h3>

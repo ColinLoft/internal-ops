@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useEffect, useState } from 'react';
 import { Bell, Check, Download, KeyRound, Loader2, LogOut, Palette, Phone, Play, Save, ShieldCheck, SlidersHorizontal, Sparkles, UserRound, Users } from 'lucide-react';
@@ -223,7 +224,7 @@ export const SettingsPage: React.FC = () => {
                     </CustomSelect>
                   </label>
                 </div>
-                {deviceError && <p role="alert" className="mt-3 text-xs text-brand-700">{deviceError}</p>}
+                {deviceError && <p role="alert" className="mt-3 text-xs text-brand-700">{userFacingError(deviceError)}</p>}
                 <div className="mt-2 divide-y divide-slate-100">
                   <Toggle label="Show my camera preview" description="Show your own video tile during video calls." checked={draft.showCameraPreview} onChange={(value) => update('showCameraPreview', value)} />
                   <Toggle label="Noise suppression" description="Request browser noise suppression for your microphone; support varies." checked={draft.noiseSuppression} onChange={(value) => update('noiseSuppression', value)} />
@@ -273,7 +274,7 @@ export const SettingsPage: React.FC = () => {
 
             {prefsSection && (
               <div className="flex items-center justify-end gap-3">
-                {saveError && <p role="alert" className="mr-auto text-xs text-rose-600">{saveError}</p>}
+                {saveError && <p role="alert" className="mr-auto text-xs text-rose-600">{userFacingError(saveError)}</p>}
                 {saved && !dirty && <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600"><Check className="h-3.5 w-3.5" />Saved</span>}
                 <button type="button" disabled={!dirty} onClick={() => setDraft(workspaceSettings)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-white/60 disabled:opacity-40">Reset</button>
                 <button type="button" disabled={!dirty || saving} onClick={() => void save()} className="flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">

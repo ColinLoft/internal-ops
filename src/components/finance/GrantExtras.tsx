@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useState } from 'react';
 import { Check, Copy, Plus, Sparkles, Star, Trash2 } from 'lucide-react';
@@ -133,7 +134,7 @@ export const AiTab: React.FC<{ grantId: string; onSaveDraft: (title: string, bod
         <label className={label}>Instructions (optional)<input value={instructions} onChange={(event) => setInstructions(event.target.value)} placeholder="Tone, points to mention…" className={field} /></label>
       </div>
       <div className="flex flex-wrap gap-2"><button type="button" disabled={Boolean(busy)} onClick={() => void run('draft')} className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-60">{busy === 'draft' ? 'Drafting…' : 'Draft'}</button><button type="button" disabled={Boolean(busy)} onClick={() => void run('summarize')} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-60">{busy === 'summarize' ? 'Summarizing…' : 'Summarize this grant'}</button></div>
-      {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+      {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{userFacingError(error)}</p>}
       {output && <><textarea value={output} onChange={(event) => setOutput(event.target.value)} rows={12} className={field} aria-label="AI output" /><div className="flex gap-3 text-xs font-bold"><button type="button" onClick={async () => { await navigator.clipboard.writeText(output); setCopied(true); setTimeout(() => setCopied(false), 1500); }} className="inline-flex items-center gap-1 text-slate-600"><Copy className="h-3 w-3" />{copied ? 'Copied' : 'Copy'}</button><button type="button" onClick={() => void onSaveDraft(DRAFTS.find(([value]) => value === kind)?.[1] || 'AI draft', output)} className="text-brand-600">Save to timeline</button></div></>}
     </section>
   );

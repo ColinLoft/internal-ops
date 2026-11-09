@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useState } from 'react';
 import { Check, Copy, KeyRound, Link as LinkIcon, Mail, UserCheck, X } from 'lucide-react';
 
@@ -107,7 +108,7 @@ export const InviteReadyModal: React.FC<InviteReadyModalProps> = ({
             </div>
 
           </div>
-          {copyError && <p role="alert" className="text-xs font-semibold text-rose-700">{copyError}</p>}
+          {copyError && <p role="alert" className="text-xs font-semibold text-rose-700">{userFacingError(copyError)}</p>}
 
           <div className="flex items-center gap-2 pt-2">
             <button

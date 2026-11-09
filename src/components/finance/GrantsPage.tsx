@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, Plus, Search, Upload, Settings2, Trash2, X } from 'lucide-react';
@@ -50,7 +51,7 @@ export const GrantsPage: React.FC = () => {
         </div>
       </header>
       <div className="space-y-4 p-5 sm:p-8">
-        {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</p>}
+        {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{userFacingError(error)}</p>}
         <div className="grid gap-3 sm:grid-cols-3">{[['Open opportunities', String(totals.open)], ['Requested in pipeline', money(totals.pipeline)], ['Total awarded', money(totals.awarded)]].map(([title, value]) => <div key={title} className={card}><p className="text-xs text-slate-500">{title}</p><p className="text-xl font-bold text-slate-900">{value}</p></div>)}</div>
         <UpcomingDates grants={grants} />
         <div className="flex flex-wrap items-center gap-2">
@@ -96,7 +97,7 @@ const NewGrantModal: React.FC<{ userId: string; onClose: () => void; onCreated: 
   return (
     <Modal title="New grant" onClose={onClose}>
       <div className="space-y-2">
-        {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+        {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{userFacingError(error)}</p>}
         <input autoFocus value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Grant name" className={field} />
         <input value={form.funder_name} onChange={(event) => setForm({ ...form, funder_name: event.target.value })} placeholder="Funder" className={field} />
         <CustomSelect value={form.grant_type} onChange={(event) => setForm({ ...form, grant_type: event.target.value })} aria-label="Grant type" className={field}>{GRANT_TYPES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect>
@@ -132,7 +133,7 @@ export const TemplatesModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
   return (
     <Modal title="Award checklist" onClose={onClose}>
       <p className="mb-3 text-xs text-slate-500">These tasks are created automatically the first time a grant moves to Awarded. Due dates count from the award day.</p>
-      {error && <p role="alert" className="mb-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+      {error && <p role="alert" className="mb-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{userFacingError(error)}</p>}
       <ul className="space-y-2">{rows.map((row) => (
         <li key={row.id} className="space-y-1 rounded-xl border border-slate-200 p-3">
           <div className="flex items-center gap-2"><input type="checkbox" checked={row.enabled} onChange={(event) => void update(row.id, { enabled: event.target.checked })} aria-label="Enabled" className="h-4 w-4" /><input value={row.title} onChange={(event) => setRows((current) => current.map((item) => (item.id === row.id ? { ...item, title: event.target.value } : item)))} onBlur={(event) => event.target.value.trim() && void update(row.id, { title: event.target.value.trim() })} aria-label="Task title" className={field} /><button type="button" aria-label="Delete task template" onClick={() => void supabase.from('grant_task_templates').delete().eq('id', row.id).then(() => load())} className="text-slate-300 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button></div>

@@ -7,8 +7,22 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const session = vi.hoisted(() => ({ isAuthenticated: false, isAuthLoading: true }));
 vi.mock('./context/WorkspaceContext', () => ({
   WorkspaceProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  useWorkspace: () => ({ ...session, activeTab: 'home' }),
+  useWorkspace: () => ({ ...session, activeTab: 'home', currentUser: { id: 'staff' }, callSession: { active: false } }),
 }));
+vi.mock('./components/navigation/Sidebar', () => ({ Sidebar: () => null }));
+vi.mock('./components/navigation/MobileTabBar', () => ({ MobileTabBar: () => null }));
+vi.mock('./components/home/HomePage', () => ({ HomePage: () => <main>Home dashboard</main> }));
+vi.mock('./components/programs/ProgramsPage', () => ({ ProgramsPage: () => <main>Tasks list</main> }));
+vi.mock('./components/profile/ProfileModal', () => ({ ProfileModal: () => null }));
+vi.mock('./components/profile/EditProfileModal', () => ({ EditProfileModal: () => null }));
+vi.mock('./components/common/ShortcutsHelp', () => ({ ShortcutsHelp: () => null }));
+vi.mock('./components/modals/CreateChannelModal', () => ({ CreateChannelModal: () => null }));
+vi.mock('./components/modals/CreatePollModal', () => ({ CreatePollModal: () => null }));
+vi.mock('./components/modals/NewMessageModal', () => ({ NewMessageModal: () => null }));
+vi.mock('./components/modals/AddEventModal', () => ({ AddEventModal: () => null }));
+vi.mock('./components/modals/AddTeammateModal', () => ({ AddTeammateModal: () => null }));
+vi.mock('./components/modals/InviteReadyModal', () => ({ InviteReadyModal: () => null }));
+vi.mock('./components/organization/PolicySigning', () => ({ PendingDocumentPrompt: () => null }));
 vi.mock('./hooks/useOverlayA11y', () => ({ useOverlayA11y: () => undefined }));
 vi.mock('./components/forms/PublicFormPage', () => ({
   PublicFormPage: ({ token }: { token: string }) => <main>Public form: {token}</main>,
@@ -43,6 +57,15 @@ describe('public workspace routes', () => {
       },
     };
   }
+  it.each(['/tasks', '/programs/tasks'])('hard-loading %s renders Tasks even when context initially says Home', async (path) => {
+    session.isAuthenticated = true;
+    session.isAuthLoading = false;
+    const view = await renderAt(path);
+    expect(view.container.textContent).toContain('Tasks list');
+    expect(view.container.textContent).not.toContain('Home dashboard');
+    expect(window.location.pathname).toBe('/programs/tasks');
+    await view.cleanup();
+  });
 
   it('opens public forms before session loading and authentication', async () => {
     const view = await renderAt('/company/forms/respond/random-public-token');

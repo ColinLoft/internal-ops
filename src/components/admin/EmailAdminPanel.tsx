@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useState } from 'react';
 import { Mail, RefreshCw, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
@@ -122,7 +123,7 @@ export const EmailAdminPanel: React.FC = () => {
         </button>
       </div>
 
-      {error && <p role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-xs text-rose-700">{error}</p>}
+      {error && <p role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-xs text-rose-700">{userFacingError(error)}</p>}
       {notice && <p role="status" className="border-b border-brand-100 bg-brand-50 px-4 py-3 text-xs text-brand-700">{notice}</p>}
       <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-4 py-3">
         <div>

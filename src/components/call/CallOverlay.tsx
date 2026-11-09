@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ConnectionState,
@@ -344,7 +345,7 @@ export const CallOverlay: React.FC = () => {
     <>
       {callError && (!callSession.active || connectionState === ConnectionState.Connected) && (
         <div role="alert" className="fixed left-3 right-3 top-20 z-[70] flex max-w-md md:left-auto md:right-5 items-start gap-3 rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm text-rose-700 shadow-xl">
-          <p className="flex-1">{callError}</p>
+          <p className="flex-1">{userFacingError(callError)}</p>
           <button type="button" onClick={() => setCallError('')} aria-label="Dismiss call error"><X className="h-4 w-4" /></button>
         </div>
       )}
@@ -432,7 +433,7 @@ export const CallOverlay: React.FC = () => {
               <section className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto bg-[#0b0c0e] p-4 sm:p-6">
                 {microphoneError && (
                   <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#513637] bg-[#211719] px-4 py-3">
-                    <span className="text-sm text-[#f0c5c6]">Microphone unavailable: {microphoneError}</span>
+                    <span className="text-sm text-[#f0c5c6]">Microphone unavailable: {userFacingError(microphoneError)}</span>
                     <button type="button" onClick={() => void enableMicrophone()} disabled={isMicrophoneBusy} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#5b4143] px-3 text-sm font-semibold text-white hover:bg-[#342326] disabled:opacity-60">
                       {isMicrophoneBusy && <LoaderCircle className="h-4 w-4 animate-spin" />}
                       Try microphone again

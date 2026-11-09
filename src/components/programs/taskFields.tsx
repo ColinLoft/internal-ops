@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
@@ -64,6 +65,6 @@ export const TaskDateField: React.FC<{ value: string | null; onChange: (value: s
   const formatted = value ? `${value.slice(5, 7)}/${value.slice(8, 10)}/${value.slice(0, 4)}` : '';
   return <label className="block text-xs font-semibold text-slate-500">{label}
     <input aria-label={label} placeholder="MM/DD/YYYY" value={draft ?? formatted} onChange={(event) => setDraft(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700" />
-    {error && <span role="alert" className="mt-1 block text-rose-600">{error}</span>}
+    {error && <span role="alert" className="mt-1 block text-rose-600">{userFacingError(error)}</span>}
   </label>;
 };

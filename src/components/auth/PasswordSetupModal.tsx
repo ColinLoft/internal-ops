@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useState } from 'react';
 import { KeyRound, Lock, ShieldCheck, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -72,7 +73,7 @@ export const PasswordSetupModal: React.FC = () => {
           />
         </label>
 
-        {error && <p role="alert" className="text-xs font-semibold text-rose-700">{error}</p>}
+        {error && <p role="alert" className="text-xs font-semibold text-rose-700">{userFacingError(error)}</p>}
 
         <button
           type="submit"

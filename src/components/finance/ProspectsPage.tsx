@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ExternalLink, Plus, Search, Sparkles, Trash2, X } from 'lucide-react';
@@ -51,7 +52,7 @@ export const ProspectsPage: React.FC = () => {
         </div>
       </header>
       <div className="space-y-4 p-5 sm:p-8">
-        {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</p>}
+        {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{userFacingError(error)}</p>}
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search opportunities" className={`${field} pl-9`} /></div>
           <CustomSelect value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filter" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="open">Open</option><option value="all">All</option>{STATUSES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</CustomSelect>
@@ -116,7 +117,7 @@ const ProspectModal: React.FC<{ prospect: Prospect | null; userId: string; users
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-label="Opportunity">
       <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
         <div className="mb-3 flex items-center justify-between"><h2 className="text-base font-bold text-slate-900">{prospect ? 'Opportunity' : 'Add opportunity'}</h2><button type="button" aria-label="Close" onClick={onClose}><X className="h-4 w-4" /></button></div>
-        {error && <p role="alert" className="mb-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+        {error && <p role="alert" className="mb-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{userFacingError(error)}</p>}
         {!prospect && <div className="mb-3 rounded-xl border border-dashed border-brand-300 bg-brand-50/40 p-3"><p className="mb-1 text-xs font-bold text-slate-700">Paste a funding announcement and let AI fill the form</p><textarea value={paste} onChange={(event) => setPaste(event.target.value)} rows={3} placeholder="Paste the opportunity text here…" className={field} /><button type="button" disabled={!paste.trim() || busy === 'extract'} onClick={() => void extract()} className="mt-2 inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"><Sparkles className="h-3.5 w-3.5" />{busy === 'extract' ? 'Reading…' : 'Fill with AI'}</button></div>}
         <div className="grid gap-2 sm:grid-cols-2">
           <label className={`${l} sm:col-span-2`}>Name<input value={form.name} onChange={set('name')} className={field} /></label>
@@ -183,7 +184,7 @@ const ResearchModal: React.FC<{ userId: string; onClose: () => void; onAdded: ()
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-300 border-t-brand-700" />
           <div><p className="text-sm font-semibold text-slate-800">Searching current funding opportunities</p><p className="mt-1 text-xs text-slate-600">Checking public program pages, application links, eligibility and deadlines against your saved grant resources.</p></div>
         </div>}
-        {error && <p role="alert" className="mt-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+        {error && <p role="alert" className="mt-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{userFacingError(error)}</p>}
         {searched && !items.length && <p className="mt-3 text-xs text-slate-500">No new suggestions. Try a different focus.</p>}
         {items.length > 0 && <>
           <p className="mt-4 text-xs text-slate-500">{items.length} opportunities found. Open each result to verify and edit the details before saving.</p>
@@ -245,7 +246,7 @@ const ReviewSuggestion: React.FC<{ suggestion: Suggestion; grantType: string; us
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Review grant opportunity">
       <div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-5 shadow-xl sm:p-6">
         <div className="mb-4 flex items-start justify-between gap-4"><div><h3 className="text-lg font-bold text-slate-900">Review opportunity</h3><p className="mt-1 text-xs text-slate-500">Check and edit the researched details before adding this lead.</p></div><button type="button" aria-label="Close review" onClick={onClose}><X className="h-4 w-4" /></button></div>
-        {error && <p role="alert" className="mb-3 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+        {error && <p role="alert" className="mb-3 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{userFacingError(error)}</p>}
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 p-3">
           <span className={`rounded-full px-2 py-1 text-xs font-bold ${scoreTone(suggestion.fit_score)}`}>{suggestion.fit_score}% fit</span>
           <p className="min-w-0 flex-1 text-sm text-slate-700">{suggestion.why_fit}</p>

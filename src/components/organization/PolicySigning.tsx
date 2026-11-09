@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, Eraser, PenLine } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -137,7 +138,7 @@ export const DocumentSigningDialog: React.FC<{
         {document.requires_acknowledgement && <label className="mt-4 flex items-start gap-2 text-xs text-slate-600"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} className="mt-0.5" /><span>I have read, understood, and agree to follow this PDF.</span></label>}
         <p className="mt-3 text-[11px] leading-5 text-slate-500">The workspace creates an immutable signed PDF and audit record. This local signature is not a third-party certificate or identity-verification service.</p>
       </>}
-      {error && <p className="mt-3 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+      {error && <p className="mt-3 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{userFacingError(error)}</p>}
       {signedPdfUrl ? <div className="mt-5 flex flex-wrap items-center gap-3"><a href={signedPdfUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold text-brand-700 underline">Download signed PDF</a><button type="button" onClick={onComplete} className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white min-h-11 md:min-h-0"><Check className="h-3.5 w-3.5" />Continue</button></div>
         : <button type="button" disabled={saving || !document.storage_path} onClick={() => void submit()} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50 min-h-11 md:min-h-0"><Check className="h-3.5 w-3.5" />{saving ? 'Creating signed PDF...' : 'Sign and save PDF'}</button>}
     </div>

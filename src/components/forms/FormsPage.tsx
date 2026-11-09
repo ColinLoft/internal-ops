@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowDown,
@@ -429,7 +430,7 @@ export const FormsPage: React.FC = () => {
         </button>
       </header>
 
-      {error && <div role="alert" className="mx-5 mt-4 flex items-start justify-between gap-3 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 sm:mx-8"><span>{error}</span><button type="button" onClick={() => setError('')} aria-label="Dismiss error" className="font-semibold">Dismiss</button></div>}
+      {error && <div role="alert" className="mx-5 mt-4 flex items-start justify-between gap-3 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 sm:mx-8"><span>{userFacingError(error)}</span><button type="button" onClick={() => setError('')} aria-label="Dismiss error" className="font-semibold">Dismiss</button></div>}
       {notice && <p role="status" className="mx-5 mt-3 text-sm text-emerald-800 sm:mx-8">{notice}</p>}
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 sm:p-6 lg:grid-cols-[270px_minmax(0,1fr)]">

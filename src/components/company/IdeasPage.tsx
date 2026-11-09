@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useMemo, useState } from 'react';
 import { ChevronUp, Lightbulb, MessageCircle, Plus, Search, Send, Trash2, X } from 'lucide-react';
@@ -159,7 +160,7 @@ export const IdeasPage: React.FC = () => {
         <button type="button" onClick={() => setCreating(true)} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700 md:min-h-0"><Plus className="h-3.5 w-3.5" />New idea</button>
       </header>
       <div className="mx-auto max-w-5xl space-y-4 p-5 sm:p-8">
-        {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
+        {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{userFacingError(error)}</div>}
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-full sm:w-64"><Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search ideas" aria-label="Search ideas" className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-base outline-none focus:border-brand-400 md:text-xs" /></div>
           <CustomSelect value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Category" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-base md:text-xs"><option value="all">All categories</option>{Object.entries(CATEGORIES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</CustomSelect>

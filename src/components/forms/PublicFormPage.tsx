@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, Send } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -106,7 +107,7 @@ export const PublicFormPage: React.FC<PublicFormPageProps> = ({ token }) => {
     <main className="min-h-full flex-1 overflow-y-auto bg-[#f7f9fc] px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-2xl space-y-4">
         {isLoading ? <div className={`${panelClass} py-12 text-center text-sm text-slate-600`}><Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />Loading form…</div>
-          : error && !sharedForm ? <div role="alert" className={`${panelClass} text-sm text-rose-800`}>{error}</div>
+          : error && !sharedForm ? <div role="alert" className={`${panelClass} text-sm text-rose-800`}>{userFacingError(error)}</div>
             : submitted ? <section role="status" className={`${panelClass} py-10 text-center`}>
               <h1 className="text-xl font-semibold text-slate-900">Response received</h1>
               <p className="mt-2 text-sm text-slate-600">Thank you. Your answers have been submitted.</p>
@@ -140,7 +141,7 @@ export const PublicFormPage: React.FC<PublicFormPageProps> = ({ token }) => {
                       <label className="block text-sm font-medium text-slate-800">Email (optional)<input type="email" maxLength={254} value={respondentEmail} onChange={(event) => setRespondentEmail(event.target.value)} className={`${inputClass} mt-2`} /></label>
                     </section>
                   )}
-                  {error && <p role="alert" className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p>}
+                  {error && <p role="alert" className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{userFacingError(error)}</p>}
                   {sharedForm.accepting && <button type="submit" disabled={isSubmitting} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60">
                     {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{isSubmitting ? 'Submitting…' : 'Submit response'}
                   </button>}

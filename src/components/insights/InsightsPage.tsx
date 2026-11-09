@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, Loader2, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useActiveTicketCount } from '../../lib/useActiveTicketCount';
 import { countBy, percentage, weeklyCounts, type WeeklyCount } from './insightsModel';
 
 type Row = {
@@ -53,6 +54,7 @@ async function loadRows(table: string, columns: string): Promise<Row[]> {
 }
 
 export const InsightsPage: React.FC = () => {
+  const { count: activeTicketCount, error: ticketCountError } = useActiveTicketCount();
   const [data, setData] = useState<Record<string, Row[]>>({});
   const [failed, setFailed] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,13 +122,13 @@ export const InsightsPage: React.FC = () => {
       { area: 'Engineering', label: 'Engineering records', value: rows('engineering').length, detail: `${isOpen(rows('engineering')).length} open`, sources: ['engineering'] },
       { area: 'Operations', label: 'Operation tasks', value: rows('opsTasks').length, detail: `${overdue(rows('opsTasks')).length} overdue`, sources: ['opsTasks'] },
       { area: 'Operations', label: 'Pending approvals', value: rows('approvals').filter((approval) => approval.status === 'pending').length, sources: ['approvals'] },
-      { area: 'Operations', label: 'Support tickets', value: rows('tickets').length, detail: `${rows('tickets').filter((ticket) => ['new', 'open', 'in_progress', 'waiting'].includes(ticket.status ?? '')).length} unresolved`, sources: ['tickets'] },
+      { area: 'Operations', label: 'Active tickets', value: activeTicketCount ?? '—', detail: ticketCountError || 'All active tickets you can access', sources: ['tickets'] },
       { area: 'Activity', label: 'Messages sent', value: rows('messages').length, sources: ['messages'] },
       { area: 'Activity', label: 'Calendar events created', value: rows('events').length, sources: ['events'] },
       { area: 'Activity', label: 'Audit log events', value: rows('audit').length, sources: ['audit'] },
-      { area: 'People', label: 'Staff', value: staffMetrics?.count ?? '—', detail: staffMetrics ? `${staffMetrics.online} online now` : 'Staff count unavailable', sources: ['profiles'] },
+      { area: 'People', label: 'Staff', value: staffMetrics?.count ?? '—', detail: staffMetrics ? `${staffMetrics.online} online now · active accounts that have signed in` : 'Staff count unavailable', sources: ['profiles'] },
     ];
-  }, [data, staffMetrics]);
+  }, [data, staffMetrics, activeTicketCount, ticketCountError]);
 
   const metricId = (metric: Metric) => `${metric.area}::${metric.label}`;
   const selectedIds = exportSelection ?? metrics.map(metricId);
@@ -145,7 +147,7 @@ export const InsightsPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const headline = ['Engineering projects', 'Task completion rate', 'Overdue tasks', 'Grants tracked', 'Awarded', 'Contacts added', 'Support tickets', 'Staff'];
+  const headline = ['Engineering projects', 'Task completion rate', 'Overdue tasks', 'Grants tracked', 'Awarded', 'Contacts added', 'Active tickets', 'Staff'];
   const cards = metrics.filter((metric) => headline.includes(metric.label));
   const grouped = metrics.reduce<Record<string, Metric[]>>((groups, metric) => { (groups[metric.area] ||= []).push(metric); return groups; }, {});
   const chartSeries = [
@@ -174,7 +176,7 @@ export const InsightsPage: React.FC = () => {
         </div>
       </header>
       <div className="space-y-6 p-5 sm:p-8">
-        {failed.length > 0 && <p role="status" className="rounded-md border border-[#554316] bg-[#211b0d] px-4 py-3 text-sm text-[#f0d48b]">Some sources could not be loaded. Their values are shown as unavailable: {failed.join(', ')}.</p>}
+        {failed.length > 0 && <p role="status" className="rounded-md border border-[#554316] bg-[#211b0d] px-4 py-3 text-sm text-[#f0d48b]">Some metrics could not be loaded: {Object.entries(sources).filter(([, source]) => failed.includes(source.table)).map(([key]) => displayLabel(key)).join(', ')}. Refresh to retry; contact an administrator if this continues.</p>}
         {exportOpen && !loading && (
           <section aria-label="Choose export metrics" className="rounded-lg border border-[#303030] bg-[#151515] p-5">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">

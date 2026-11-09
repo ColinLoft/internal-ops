@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useState } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
@@ -63,7 +64,7 @@ export const TaskDetail: React.FC<{ task: TaskRow; allTasks: TaskRow[]; onClose:
           <input defaultValue={full.title} maxLength={200} onBlur={(e) => e.target.value.trim() && e.target.value !== full.title && patch({ title: e.target.value.trim() })} className="flex-1 border-b border-transparent text-base font-bold text-slate-900 outline-none focus:border-brand-400" />
           <button type="button" aria-label="Close" onClick={onClose}><X className="h-4 w-4 text-slate-400" /></button>
         </div>
-        {error && <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
+        {error && <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{userFacingError(error)}</p>}
         {blocked && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">Waiting on {blockers.filter((t) => t.status !== 'completed').length} unfinished dependenc{blockers.filter((t) => t.status !== 'completed').length === 1 ? 'y' : 'ies'}.</p>}
 
         <div className="grid grid-cols-2 gap-3 text-xs text-slate-500">

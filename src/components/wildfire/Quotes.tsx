@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { userFacingError } from '../../lib/userFacingError';
+import { TableSkeleton } from '../common/Feedback';
 import { useLiveRefresh } from '../../hooks/useLiveRefresh';
 import { control, displayStage, functionError, money, primary, secondary, surface, type Opportunity, type Product } from './model';
 
 export type QuoteLine = { id?: string; product_id: string | null; description: string; quantity: number; unit_price: number; recurring?: boolean };
 export type Quote = { id: string; opportunity_id: string; site_plan_id: string | null; version: number; status: string; currency: string; discount: number; tax: number; expires_at: string | null; terms: string; proposal: string; snapshot: Record<string, unknown> | null };
-export function Quotes({ opportunities, products, selectedId, canEdit }: { opportunities: Opportunity[]; products: Product[]; selectedId: string; canEdit: boolean }) {
+export function Quotes({ opportunities, products, selectedId, canEdit, supportingDataLoading = false }: { opportunities: Opportunity[]; products: Product[]; selectedId: string; canEdit: boolean; supportingDataLoading?: boolean }) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [lines, setLines] = useState<(QuoteLine & { quote_id: string })[]>([]);
   const [activeId, setActiveId] = useState(selectedId);
@@ -15,13 +17,16 @@ export function Quotes({ opportunities, products, selectedId, canEdit }: { oppor
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState('');
   const [notice, setNotice] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [signingOpen, setSigningOpen] = useState(false);
   useEffect(() => { if (selectedId) { setActiveId(selectedId); setDraft(null); setLink(''); } }, [selectedId]);
   const load = useCallback(async () => {
     const [quoteResult, lineResult] = await Promise.all([
       supabase.from('wildfire_quotes').select('id,opportunity_id,site_plan_id,version,status,currency,discount,tax,expires_at,terms,proposal,snapshot').order('created_at', { ascending: false }),
       supabase.from('wildfire_quote_lines').select('id,quote_id,product_id,description,quantity,unit_price,recurring'),
     ]);
-    if (quoteResult.error || lineResult.error) { setError(quoteResult.error?.message || lineResult.error?.message || 'Quotes could not be loaded.'); return; }
+    setLoading(false);
+    if (quoteResult.error || lineResult.error) { setError(userFacingError(quoteResult.error || lineResult.error, 'Quotes could not be loaded. Refresh to retry.')); return; }
     setQuotes(quoteResult.data ?? []); setLines(lineResult.data ?? []);
   }, []);
   useLiveRefresh(load, ['wildfire_quotes', 'wildfire_quote_lines']);
@@ -32,27 +37,44 @@ export function Quotes({ opportunities, products, selectedId, canEdit }: { oppor
   const total = active ? subtotal - Number(active.discount) + Number(active.tax) : 0;
   const run = async (action: () => Promise<void>) => {
     setBusy(true); setError(''); setNotice('');
-    try { await action(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Quote action failed.'); }
+    try { await action(); } catch (cause) { setError(userFacingError(cause, 'The quote action could not be completed. Retry, or ask an administrator to check the signing service.')); }
     finally { setBusy(false); }
   };
   const changeLine = (index: number, change: Partial<QuoteLine>) => setDraftLines(current => current.map((line, position) => position === index ? { ...line, ...change } : line));
-  const publish = () => void run(async () => {
+  const publish = () => {
+    setSigningOpen(true);
+    setLink('');
+    void run(async () => {
     if (!selected) throw new Error('Select a saved quote before creating a signing link.');
     if (!activeLines.length) throw new Error('Add at least one priced line and save the quote before creating a signing link.');
     setNotice('Creating customer signing link…');
-    const { data, error: publishError } = await supabase.functions.invoke('wildfire-quotes', { body: { action: 'publish', quoteId: selected.id } });
+    const { data, error: publishError } = await supabase.functions.invoke('wildfire-quotes', { body: { action: 'publish', quoteId: selected.id }, timeout: 20000 });
     if (publishError) throw new Error(await functionError(publishError));
     if (data?.error) throw new Error(data.error);
     if (typeof data?.url !== 'string') throw new Error('The signing link could not be created.');
-    setLink(data.url); setNotice(`Link created. Expires ${new Date(data.expiresAt).toLocaleString()}. Share it directly with the intended customer.`);
+    const signingUrl = new URL(data.url);
+    if (!['https:', 'http:'].includes(signingUrl.protocol)) throw new Error('The signing service returned an invalid link.');
+    const expires = new Date(data.expiresAt);
+    if (!Number.isFinite(expires.getTime())) throw new Error('The signing service returned an invalid expiry.');
+    setLink(signingUrl.href); setNotice(`Link created. Expires ${expires.toLocaleString()}. Share it directly with the intended customer.`);
     await load();
-  });
+    });
+  };
+  if (loading || supportingDataLoading) return <TableSkeleton />;
   return <div className="space-y-5">
+    {signingOpen && <div role="dialog" aria-modal="true" aria-labelledby="signing-title" className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
+      <section className="max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-xl bg-[#151515] p-6 text-white">
+        <div className="flex items-start justify-between gap-4"><h2 id="signing-title" className="text-lg font-semibold">Customer signing link</h2><button type="button" aria-label="Close signing dialog" className={secondary} onClick={() => setSigningOpen(false)}>Close</button></div>
+        {busy && <p role="status" className="mt-4">Creating your secure link...</p>}
+        {!busy && error && <div className="mt-4"><p role="alert" className="text-sm text-rose-300">{error}</p><button type="button" className={`${primary} mt-4`} onClick={publish}>Retry signing link</button></div>}
+        {link && <div className="mt-4"><label className="text-sm">Copy customer signing link<input aria-label="Customer signing link" readOnly value={link} onFocus={event => event.target.select()} className={control} /></label><p className="mt-3 text-sm text-slate-400">{notice}</p><div className="mt-4 flex flex-wrap gap-4"><a className="text-sm text-brand-400 underline" href={link} target="_blank" rel="noreferrer">Open signing page</a><a className="text-sm text-brand-400 underline" href={(() => { const url = new URL(link); url.searchParams.set('test', '1'); return url.href; })()} target="_blank" rel="noreferrer">Test without accepting</a></div><p className="mt-3 text-xs text-slate-400">Copy this private link now. The raw token is not stored. Only share it with the intended customer.</p></div>}
+      </section>
+    </div>}
     {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
     <section className={surface}>
       <h2 className="text-lg font-semibold text-slate-900">Quotes and proposals</h2>
       <p className="mt-2 text-sm text-slate-500">Create a quote from a site plan. Pricing and proposal text live in one versioned record. Customer signature and acceptance create the CRM records and exactly one deployment.</p>
-      <select aria-label="Select quote" value={selected?.id ?? ''} onChange={event => { setActiveId(event.target.value); setDraft(null); setLink(''); }} className={`${control} mt-4`}>
+      <select aria-label="Select quote" disabled={busy} value={selected?.id ?? ''} onChange={event => { setActiveId(event.target.value); setDraft(null); setLink(''); setSigningOpen(false); setNotice(''); }} className={`${control} mt-4`}>
         {!quotes.length && <option value="">No quotes yet; create one from Site planner</option>}
         {quotes.map(item => <option key={item.id} value={item.id}>{opportunities.find(opportunity => opportunity.id === item.opportunity_id)?.name || item.id.slice(0, 8)} · v{item.version} · {displayStage(item.status)}</option>)}
       </select>
@@ -60,7 +82,7 @@ export function Quotes({ opportunities, products, selectedId, canEdit }: { oppor
     {active && <section className={surface}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold text-slate-900">Version {active.version} · {displayStage(active.status)}</h2>
         {!draft && canEdit && <div className="flex flex-wrap gap-2">
-          {active.status === 'draft' && <button type="button" className={secondary} onClick={() => { setDraft({ ...active }); setDraftLines(activeLines.map(line => ({ ...line, quantity: Number(line.quantity), unit_price: Number(line.unit_price) }))); setLink(''); }}>Edit draft</button>}
+          {active.status === 'draft' && <button type="button" disabled={busy} className={secondary} onClick={() => { setDraft({ ...active }); setDraftLines(activeLines.map(line => ({ ...line, quantity: Number(line.quantity), unit_price: Number(line.unit_price) }))); setLink(''); }}>Edit draft</button>}
           <button type="button" disabled={busy} className={secondary} onClick={() => void run(async () => {
             const { data, error: cloneError } = await supabase.rpc('wildfire_clone_quote', { p_quote_id: active.id });
             if (cloneError) throw new Error(cloneError.message);

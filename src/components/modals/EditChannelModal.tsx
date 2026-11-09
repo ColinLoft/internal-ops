@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, Hash, Lock, Megaphone, Trash2, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -93,7 +94,7 @@ export const EditChannelModal: React.FC<Props> = ({ channel, onClose }) => {
           <button type="button" onClick={onClose} aria-label="Close" className="-m-1.5 rounded-full p-2.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-600 md:m-0 md:p-1"><X className="h-5 w-5" /></button>
         </div>
         <form onSubmit={submit} className="space-y-4 p-6">
-          {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
+          {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{userFacingError(error)}</p>}
           {!canEdit && <p className="text-xs text-slate-500">Only the channel creator or workspace managers can change these settings.</p>}
           <fieldset disabled={!canEdit || saving} className="space-y-4">
           <div className="flex items-center gap-4">

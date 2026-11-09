@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Clock, ExternalLink, FileText, Link2, Loader2, Paperclip, Play, Plus, Square, Trash2 } from 'lucide-react';
@@ -73,7 +74,7 @@ export const ActivityPanel: React.FC<Props> = ({ entityType, entityId }) => {
   return (
     <section className={card}>
       <Title icon={Clock}>Activity log</Title>
-      {error && <p className="mb-2 text-xs text-rose-700">{error}</p>}
+      {error && <p className="mb-2 text-xs text-rose-700">{userFacingError(error)}</p>}
       <ul className="space-y-2">
         {rows.map((row) => (
           <li key={row.id} className="flex gap-2 text-xs"><span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" /><div><p className="text-slate-700"><span className="font-bold">{users.find((user) => user.id === row.created_by)?.name || 'System'}</span> {row.action}{row.detail ? <span className="text-slate-500"> — {row.detail}</span> : null}</p><p className="text-slate-400">{formatDateTime(row.created_at)}</p></div></li>
@@ -318,7 +319,7 @@ export const ChecklistPanel: React.FC<Props> = ({ entityType, entityId }) => {
   return (
     <section className={card}>
       <Title icon={Check} right={<span className="text-xs text-slate-500">{done}/{rows.length}</span>}>Checklist</Title>
-      {error && <p className="mb-2 text-xs text-rose-700">{error}</p>}
+      {error && <p className="mb-2 text-xs text-rose-700">{userFacingError(error)}</p>}
       <ul className="space-y-1">
         {rows.map((row) => (
           <li key={row.id} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={row.done} onChange={() => void supabase.from('entity_checklist').update({ done: !row.done }).eq('id', row.id).then(() => load())} className="h-4 w-4" /><span className={row.done ? 'text-slate-400 line-through' : 'text-slate-700'}>{row.text}</span><button type="button" aria-label="Remove item" onClick={() => void supabase.from('entity_checklist').delete().eq('id', row.id).then(() => load())} className="ml-auto text-slate-300 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button></li>

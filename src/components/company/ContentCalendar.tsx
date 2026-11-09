@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChevronLeft, ChevronRight, MessageSquareWarning, Plus, Send, Trash2, X } from 'lucide-react';
@@ -76,7 +77,7 @@ export const ContentCalendar: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</p>}
+      {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{userFacingError(error)}</p>}
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" aria-label="Previous month" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="rounded-lg border border-slate-200 bg-white p-1.5"><ChevronLeft className="h-4 w-4" /></button>
         <h2 className="min-w-[9rem] text-center text-sm font-bold text-slate-900">{month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</h2>
@@ -212,7 +213,7 @@ const PostDialog: React.FC<{
         </div>
         <label className="block text-xs text-slate-500">Publish date<input disabled={!editable} type="datetime-local" value={f.scheduled_for} onChange={set('scheduled_for')} className={`${field} mt-1`} /></label>
         {post?.status === 'published' && <fieldset className="grid grid-cols-3 gap-2"><legend className="mb-1 text-xs font-semibold text-slate-500">Performance (enter verified platform metrics)</legend>{(['reach', 'engagements', 'link_clicks'] as const).map((key) => <label key={key} className="text-xs capitalize text-slate-500">{key.replace('_', ' ')}<input disabled={!editable} type="number" min="0" value={f[key]} onChange={set(key)} className={`${field} mt-1`} /></label>)}</fieldset>}
-        {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
+        {error && <p role="alert" className="text-xs text-rose-600">{userFacingError(error)}</p>}
 
         {isReviewable && (
           <div className="space-y-2 rounded-xl border border-slate-200 p-3">
@@ -269,7 +270,7 @@ const CampaignDialog: React.FC<{ campaign: Campaign | null; userId: string; onCl
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-label="Marketing campaign">
       <div className="max-h-[90vh] w-full max-w-xl space-y-3 overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
         <div className="flex items-center justify-between"><h2 className="text-base font-bold text-slate-900">{campaign ? 'Edit campaign' : 'New campaign'}</h2><button type="button" aria-label="Close" onClick={onClose}><X className="h-4 w-4" /></button></div>
-        {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+        {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{userFacingError(error)}</p>}
         <input autoFocus maxLength={200} value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Campaign name" className={field} />
         <textarea rows={3} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="Campaign overview" className={field} />
         <textarea rows={2} value={form.objective} onChange={(event) => setForm((current) => ({ ...current, objective: event.target.value }))} placeholder="Objective and success measure" className={field} />

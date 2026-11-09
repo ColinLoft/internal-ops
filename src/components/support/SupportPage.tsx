@@ -6,6 +6,10 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAppAccess } from '../../lib/useAppAccess';
 import { SupportInbox } from './SupportInbox';
 import { isActiveTicket } from '../../lib/supportMetrics';
+import { useActiveTicketCount } from '../../lib/useActiveTicketCount';
+import { useLiveRefresh } from '../../hooks/useLiveRefresh';
+import { userFacingError } from '../../lib/userFacingError';
+import { TableSkeleton } from '../common/Feedback';
 
 type Status = 'new' | 'open' | 'in_progress' | 'waiting' | 'resolved' | 'closed';
 type Priority = 'low' | 'normal' | 'high' | 'urgent';
@@ -69,6 +73,7 @@ const ticketColumns = 'id,ticket_number,subject,description,category,priority,st
 export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMessages }) => {
   const { currentUser, users } = useWorkspace();
   const { canEdit: isAgent } = useAppAccess('support');
+  const { count: activeTicketCount, error: countError, refresh: refreshTicketCount } = useActiveTicketCount();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('ticket'));
@@ -88,10 +93,17 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
   const userName = useCallback((id: string | null) => users.find((user) => user.id === id)?.name ?? (id ? 'Unknown user' : 'Unassigned'), [users]);
 
   const loadTickets = useCallback(async () => {
-    const { data, error: loadError } = await supabase.from('support_tickets').select(ticketColumns).order('created_at', { ascending: false }).limit(500);
-    if (loadError) setError(loadError.message);
-    else setTickets((data ?? []) as Ticket[]);
-    setLoading(false);
+    try {
+      const rows: Ticket[] = [];
+      for (let offset = 0; ; offset += 1000) {
+        const { data, error: loadError } = await supabase.from('support_tickets').select(ticketColumns).order('created_at', { ascending: false }).order('id').range(offset, offset + 999);
+        if (loadError) throw loadError;
+        rows.push(...(data ?? []) as Ticket[]);
+        if (!data || data.length < 1000) break;
+      }
+      setTickets(rows);
+    } catch (cause) { setError(userFacingError(cause, 'Tickets could not be loaded. Refresh to retry.')); }
+    finally { setLoading(false); }
   }, []);
 
   const loadComments = useCallback(async (ticketId: string) => {
@@ -105,7 +117,7 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
   }, []);
   const selected = tickets.find((ticket) => ticket.id === selectedId) ?? null;
 
-  useEffect(() => { void loadTickets(); }, [loadTickets]);
+  useLiveRefresh(loadTickets, ['support_tickets']);
   useEffect(() => {
     setComments([]);
     setAiSummary([]);
@@ -152,6 +164,7 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
       return;
     }
     setTickets((current) => [data as Ticket, ...current]);
+    void refreshTicketCount();
     setSelectedId((data as Ticket).id);
     setShowForm(false);
     setForm({ subject: '', description: '', category: 'general', priority: 'normal', organization_name: '' });
@@ -166,6 +179,7 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
       return;
     }
     setTickets((current) => current.map((ticket) => (ticket.id === selected.id ? (data as Ticket) : ticket)));
+    void refreshTicketCount();
   };
 
   const sendReply = async () => {
@@ -209,16 +223,15 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Support</h1>
-            <p className="mt-1 text-sm text-slate-500">{counts.active} active {counts.active === 1 ? 'ticket' : 'tickets'} · assign, respond, and resolve in one workspace.</p>
+            <p className="mt-1 text-sm text-slate-500">Assign, respond, and resolve in one workspace. Totals include tickets you can access.</p>
           </div>
           <div className="flex items-center gap-2">
             <button type="button" onClick={onOpenMessages} className="min-h-10 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Mail className="mr-1 inline h-3.5 w-3.5" />Customer messages</button>
             <button type="button" onClick={() => setShowForm(true)} className="min-h-10 rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white"><Plus className="mr-1 inline h-3.5 w-3.5" /> New ticket</button>
           </div>
         </div>
-        <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <dl className="mt-4 grid grid-cols-3 gap-3">
           {[
-            ['Open tickets', counts.active],
             ['Urgent', tickets.filter((ticket) => ticket.priority === 'urgent' && !['resolved', 'closed'].includes(ticket.status)).length],
             ['Unassigned', tickets.filter((ticket) => !ticket.assignee_id && !['resolved', 'closed'].includes(ticket.status)).length],
             ['Overdue', tickets.filter((ticket) => overdue(ticket)).length],
@@ -226,14 +239,14 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
         </dl>
       </header>
 
-      {error && <div role="alert" className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 sm:mx-8">{error}</div>}
+      {(error || countError) && <div role="alert" className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 sm:mx-8">{userFacingError(error || countError)}</div>}
 
       {!selected ? (
         <section className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto">
-              {([{ id: 'active', label: 'Open' }, ...statuses] as { id: 'active' | Status; label: string }[]).map((item) => (
-                <button key={item.id} type="button" onClick={() => setStatusFilter(item.id)} className={`min-h-9 rounded-md px-3 text-xs font-semibold ${statusFilter === item.id ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}>{item.label}<span className="ml-1.5 tabular-nums opacity-70">{counts[item.id] ?? 0}</span></button>
+              {([{ id: 'active', label: 'Active' }, ...statuses] as { id: 'active' | Status; label: string }[]).map((item) => (
+                <button key={item.id} type="button" onClick={() => setStatusFilter(item.id)} className={`min-h-9 rounded-md px-3 text-xs font-semibold ${statusFilter === item.id ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}>{item.label}<span className="ml-1.5 tabular-nums opacity-70">{item.id === 'active' ? activeTicketCount ?? '—' : loading ? '—' : counts[item.id] ?? 0}</span></button>
               ))}
               <span className="mx-1 h-5 w-px bg-slate-200" />
               {([['all', 'All'], ['mine', 'My requests'], ['assigned', 'Assigned to me']] as const).map(([id, label]) => (
@@ -259,7 +272,7 @@ export const TicketsView: React.FC<{ onOpenMessages: () => void }> = ({ onOpenMe
                 </li>
               ))}
               {!loading && visible.length === 0 && <li className="px-4 py-12 text-center text-sm text-slate-400">No tickets match these filters.</li>}
-              {loading && <li className="px-4 py-12 text-center text-sm text-slate-400">Loading tickets…</li>}
+              {loading && <li className="p-4"><TableSkeleton /></li>}
             </ul>
           </div>
         </section>

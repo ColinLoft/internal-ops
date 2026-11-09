@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { celebrateMilestone } from '../../lib/milestones';
@@ -81,7 +82,7 @@ export function PublicQuoteAcceptance({ token }: { token: string }) {
     <h1 className="text-2xl font-semibold text-slate-900">Review your Wildfire quote</h1>
     {testMode && <p role="status" className="mt-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-700">Test mode: try the signing form without recording a signature, accepting the quote or creating a deployment.</p>}
     {loading && <p role="status" className="mt-4 text-sm text-slate-500">Loading quote…</p>}
-    {error && <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+    {error && <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{userFacingError(error)}</p>}
     {quote && <>
       <h2 className="mt-5 text-lg font-semibold text-slate-900">{quote.prospect?.name || 'Customer quote'} · Version {quote.version}</h2>
       <p className="mt-1 text-sm text-slate-500">{quote.property?.label}{quote.property?.address ? ` · ${quote.property.address}` : ''}</p>

@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, Search, X } from 'lucide-react';
@@ -100,7 +101,7 @@ const TasksList: React.FC = () => {
       </header>
 
       <div className="min-w-0 space-y-4 p-4 sm:p-8">
-        {error && <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</div>}
+        {error && <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{userFacingError(error)}</div>}
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search tasks" className={`${input} pl-9`} /></div>
           <Dropdown value={statusFilter} onChange={setStatusFilter} ariaLabel="Filter by status" className="min-w-36" options={[{ id: 'all', label: 'All statuses' }, ...Object.entries(TASK_STATUS).map(([id, label]) => ({ id, label }))]} />
@@ -130,7 +131,7 @@ const TaskModal: React.FC<{ projects: EngProject[]; initialTitle?: string; onClo
   };
   return (
     <Modal title="New task" onClose={onClose}>
-      {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{error}</p>}
+      {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{userFacingError(error)}</p>}
       <input autoFocus value={form.title} onChange={set('title')} placeholder="Task title" className={input} />
       <div className="grid gap-3 sm:grid-cols-2">
         <CustomSelect value={form.eng_project_id} onChange={set('eng_project_id')} className={input} aria-label="Project"><option value="">No project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</CustomSelect>

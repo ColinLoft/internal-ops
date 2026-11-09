@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Hash, Lock, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -56,7 +57,7 @@ export const CreateChannelModal: React.FC<{ onCreated?: () => void }> = ({ onCre
       </div>
       <div className="mb-5 flex gap-1.5" aria-label={`Step ${step + 1} of 3`}>{[0, 1, 2].map(index => <span key={index} className={`h-1 flex-1 rounded-full ${index <= step ? 'bg-brand-600' : 'bg-slate-200'}`} />)}</div>
       <form onSubmit={submit}>
-        {error && <p role="alert" className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+        {error && <p role="alert" className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{userFacingError(error)}</p>}
         <fieldset disabled={saving} className="space-y-4">
           {step === 0 && <>
             <label className="block text-sm font-medium text-slate-700">Channel name<input className={field} value={name} onChange={event => setName(event.target.value)} required maxLength={80} placeholder="e.g. flight-operations" /></label>

@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Mic,
@@ -270,7 +271,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     <div className="relative rounded-lg border border-slate-600 bg-white p-1.5 focus-within:border-slate-400">
       {sendError && (
         <p role="alert" className="mb-2 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">
-          {sendError}
+          {userFacingError(sendError)}
         </p>
       )}
       <AnimatePresence initial={false}>

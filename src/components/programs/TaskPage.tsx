@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
@@ -145,7 +146,7 @@ export const TaskPage: React.FC<{ taskId: string }> = ({ taskId }) => {
 
       <div className="grid gap-4 p-5 sm:p-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
         <div className="min-w-0 space-y-4">
-          {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{error}</p>}
+          {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{userFacingError(error)}</p>}
           <section className={card}>
             <h3 className="mb-2 text-sm font-bold text-slate-900">Description</h3>
             <textarea ref={descriptionInput} defaultValue={task.description || ''} onBlur={(event) => void patch({ description: event.target.value.trim() || null })} rows={3} placeholder="What needs to be done?" className={field} />

@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useCallback, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -43,7 +44,7 @@ export function Catalog({ products, accessLevel, onRefresh }: { products: Produc
   return <section className={surface}>
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold text-slate-900">Product catalog</h2>{accessLevel >= 2 && <button type="button" className={primary} onClick={() => open()}>Add product</button>}</div>
     <input aria-label="Search catalog" className={`${control} mt-4`} value={query} onChange={event => setQuery(event.target.value)} placeholder="Search products or SKU" />
-    {error && !draft && <p role="alert" className="mt-3 text-sm text-rose-700">{error}</p>}
+    {error && !draft && <p role="alert" className="mt-3 text-sm text-rose-700">{userFacingError(error)}</p>}
     <ul className="mt-4 space-y-3">{products.filter(item => `${item.name} ${item.sku} ${item.description}`.toLowerCase().includes(query.toLowerCase())).map(item => <li key={item.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg bg-slate-50 p-4">
       <div><h3 className="font-semibold text-slate-900">{item.name}</h3><p className="text-sm text-slate-500">{item.sku} · {item.category} · {item.status}</p><p className="mt-1 text-sm text-slate-700">{item.description}</p><p className="mt-2 text-sm text-slate-900">{money(Number(item.list_price))}{accessLevel >= 3 && item.id in costs ? ` · Internal cost ${money(costs[item.id])}` : ''}</p></div>
       {accessLevel >= 2 && <button type="button" className={secondary} onClick={() => open(item)}>Edit</button>}
@@ -61,7 +62,7 @@ export function Catalog({ products, accessLevel, onRefresh }: { products: Produc
         <label className="block text-sm text-slate-700">Warranty<textarea value={draft.warranty} onChange={event => setDraft({ ...draft, warranty: event.target.value })} className={control} /></label>
         <label className="block text-sm text-slate-700">Installation requirements<textarea value={draft.installation_requirements} onChange={event => setDraft({ ...draft, installation_requirements: event.target.value })} className={control} /></label>
         <label className="block text-sm text-slate-700">Specifications (JSON)<textarea rows={4} value={specifications} onChange={event => setSpecifications(event.target.value)} className={control} /></label>
-        {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
+        {error && <p role="alert" className="text-sm text-rose-700">{userFacingError(error)}</p>}
         <div className="flex justify-end gap-2"><button type="button" className={secondary} onClick={() => setDraft(null)}>Cancel</button><button disabled={busy} className={primary}>Save product</button></div>
       </form>
     </section></div>}

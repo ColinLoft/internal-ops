@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useState } from 'react';
 import { X, ListChecks, Plus, Trash2 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -95,7 +96,7 @@ export const CreatePollModal: React.FC = () => {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {saveError && (
             <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-              Poll was not saved: {saveError}
+              Poll was not saved: {userFacingError(saveError)}
             </p>
           )}
           <div>

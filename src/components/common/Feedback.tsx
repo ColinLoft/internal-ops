@@ -2,17 +2,17 @@ import React from 'react';
 import { ArrowUpRight } from 'lucide-react';
 
 export const Skeleton: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <div aria-hidden className={`animate-pulse rounded-md bg-slate-200/70 ${className}`} />
+  <div aria-hidden className={`animate-pulse motion-reduce:animate-none rounded-md bg-white/10 ${className}`} />
 );
 
 export const TableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) => (
-  <div role="status" aria-label="Loading" className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+  <div role="status" aria-label="Loading" className="space-y-2 rounded-xl bg-black p-3">
     {Array.from({ length: rows }, (_, index) => <Skeleton key={index} className="h-8 w-full" />)}
   </div>
 );
 
 export const CardSkeleton: React.FC<{ lines?: number }> = ({ lines = 3 }) => (
-  <div role="status" aria-label="Loading" className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
+  <div role="status" aria-label="Loading" className="space-y-2 rounded-xl bg-black p-4">
     <Skeleton className="h-4 w-1/3" />
     {Array.from({ length: lines }, (_, index) => <Skeleton key={index} className="h-3 w-full" />)}
   </div>

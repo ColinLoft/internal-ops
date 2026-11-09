@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, CalendarPlus, CheckCircle2, Clock3, Headset, ListTodo, Mail, MessageSquare, Phone, Plus, Search, StickyNote, Trash2, X, Flame } from 'lucide-react';
@@ -190,7 +191,7 @@ export const CustomerWorkspace: React.FC<Props> = ({ orgs, contacts, items, sele
 
       {wildfireAccess >= 1 && <section>
         <div className="mb-1.5 flex items-center justify-between gap-2"><h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400"><Flame className="h-3.5 w-3.5" />Wildfire</h4><button type="button" onClick={() => go('/wildfire/opportunities')} className="text-xs font-semibold text-brand-700 hover:underline">Open workspace</button></div>
-        {wildfireLoading ? <p className="text-xs text-slate-500">Loading linked records…</p> : wildfireError ? <p role="alert" className="text-xs text-rose-700">{wildfireError}</p> : (
+        {wildfireLoading ? <p className="text-xs text-slate-500">Loading linked records…</p> : wildfireError ? <p role="alert" className="text-xs text-rose-700">{userFacingError(wildfireError)}</p> : (
           <div className="space-y-2">
             <div className="rounded-lg border border-slate-200 bg-white p-2.5">
               <p className="text-xs font-semibold text-slate-700">Properties <span className="font-normal text-slate-500">{wildfireData.properties.length}</span></p>

@@ -30,7 +30,7 @@ vi.mock('../../lib/supabase', () => ({
 vi.mock('./SiteMap', () => ({
   SiteMap: ({ onPoint }: { onPoint: (point: { lat: number; lng: number }) => void }) => { mock.point = onPoint; return <div>Satellite map</div>; },
 }));
-vi.mock('./googleMaps', () => ({ googleMapsConfigured: true, geocodeAddress: async () => ({ position: { lat: 37, lng: -122 }, address: 'Resolved address' }) }));
+vi.mock('./terrainMap', () => ({ geocodeAddress: async () => ({ position: { lat: 37, lng: -122 }, address: 'Resolved address' }) }));
 import { Planner } from './Planner';
 import { Prospects } from './Prospects';
 import { wildfireRoute } from './WildfirePage';
@@ -90,6 +90,7 @@ describe('Wildfire acquisition workflow', () => {
   it('uses geocoding for address sites and does not send an address as coordinates', async () => {
     await renderPlanner();
     await setValue('[aria-label="Site name"]', 'Prospect site');
+    await setValue('[aria-label="Location format"]', 'address');
     await setValue('[aria-label="Site address"]', '123 Example Street');
     await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
     expect(mock.insert).toHaveBeenCalledWith(expect.objectContaining({ address: 'Resolved address', latitude: 37, longitude: -122 }));
@@ -106,6 +107,18 @@ describe('Wildfire acquisition workflow', () => {
     await click('Link to prospect');
     expect(mock.rpc).toHaveBeenCalledWith('wildfire_link_site_plan', { p_site_plan_id: 'plan', p_opportunity_id: 'prospect' });
     expect(mock.refresh).toHaveBeenCalled();
+  });
+  it('can link a standalone site with no design, creating the missing design first', async () => {
+    await act(async () => root.render(<Planner opportunities={[opportunity]} properties={[{ ...property, opportunity_id: null }]} plans={[]} placements={[]} products={[]} canEdit selectedOpportunityId="" onRefresh={mock.refresh} onQuote={mock.quote} />));
+    await setValue('[aria-label="Prospect for this site"]', 'prospect');
+    await click('Link to prospect');
+    expect(mock.rpc).toHaveBeenNthCalledWith(1, 'wildfire_create_site_plan', { p_property_id: 'property', p_opportunity_id: 'prospect', p_name: 'Site design' });
+    expect(mock.rpc).toHaveBeenNthCalledWith(2, 'wildfire_link_site_plan', { p_site_plan_id: 'saved-id', p_opportunity_id: 'prospect' });
+  });
+  it('does not offer linking controls to a read-only user', async () => {
+    await act(async () => root.render(<Planner opportunities={[opportunity]} properties={[{ ...property, opportunity_id: null }]} plans={[]} placements={[]} products={[]} canEdit={false} selectedOpportunityId="" onRefresh={mock.refresh} onQuote={mock.quote} />));
+    expect(container.querySelector('[aria-label="Prospect for this site"]')).toBeNull();
+    expect(container.textContent).toContain('Ask a Wildfire editor');
   });
   it('requires review before saving AI search results and does not auto-create CRM records', async () => {
     mock.invoke.mockResolvedValue({ data: { results: [{ name: 'Potential customer', website: 'https://example.com', email: '', phone: '', location: 'California', summary: 'Public customer information', fit_reason: 'Potential fit', source_urls: ['https://example.com'] }] }, error: null });

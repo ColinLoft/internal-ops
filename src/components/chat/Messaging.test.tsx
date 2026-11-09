@@ -218,7 +218,7 @@ describe('voice message recording', () => {
     await act(async () => root.render(<MessageComposer onSendMessage={mock.send} />));
     await setText('Keep this');
     await click('Record a voice message');
-    expect(container.querySelector('[role=alert]')?.textContent).toContain('Permission denied');
+    expect(container.querySelector('[role=alert]')?.textContent).toContain('Allow microphone access');
     expect(container.querySelector('textarea')?.value).toBe('Keep this');
   });
   it('does not turn a failed recording into a successful audio attachment', async () => {

@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Headset, Mail, MessageSquare, Plus, Search, Send, Sparkles, StickyNote, X, Wand2, Clock3, Copy } from 'lucide-react';
@@ -390,7 +391,7 @@ export const SupportInbox: React.FC = () => {
 
             {isAgent && (
               <footer className="border-t border-slate-200 bg-white/80 p-3">
-                {error && <p role="alert" className="pb-2 text-xs text-rose-600">{error}</p>}
+                {error && <p role="alert" className="pb-2 text-xs text-rose-600">{userFacingError(error)}</p>}
                 <div className="mb-2 flex flex-wrap items-center gap-1.5">
                   {([['chat', 'Chat reply', MessageSquare], ['email', 'Email', Mail], ['note', 'Internal note', StickyNote]] as const).map(([id, label, Icon]) => (
                     <button key={id} type="button" onClick={() => setMode(id)} className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${mode === id ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}><Icon className="h-3 w-3" />{label}</button>
@@ -439,7 +440,7 @@ export const SupportInbox: React.FC = () => {
             <input type="email" placeholder="Email (optional)" value={newForm.email} onChange={(e) => setNewForm({ ...newForm, email: e.target.value })} className={inputClass} />
             <input placeholder="Subject" value={newForm.subject} onChange={(e) => setNewForm({ ...newForm, subject: e.target.value })} className={inputClass} />
             <textarea rows={4} placeholder="What did they say or ask?" value={newForm.message} onChange={(e) => setNewForm({ ...newForm, message: e.target.value })} className={`${inputClass} resize-none`} />
-            {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
+            {error && <p role="alert" className="text-xs text-rose-600">{userFacingError(error)}</p>}
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setShowNew(false)} className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Cancel</button>
               <button type="submit" disabled={busy === 'create'} className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-60">Create</button>

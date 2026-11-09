@@ -10,7 +10,7 @@ The migration adds a **Wildfire Solutions team** role with edit access. Assign s
 
 - **Prospects/opportunities:** research and save standalone prospects; linking an existing CRM company/contact is optional. New CRM records are not created until quote acceptance.
 - **Product catalog:** maintain products, specifications, configurations, list prices, and warranty/install details.
-- **Site planner:** create properties without a CRM company or prospect, link a draft plan later with its dedicated prospect selector, create atomic numbered plans, and place equipment using latitude/longitude coordinates. Linking does not change the site filter or hide the standalone site.
+- **Site planner:** create properties without a CRM company or prospect, then use **Link this site to a prospect** on the site itself. This control also works when design creation previously failed: it creates a design before linking. Read-only staff see who to contact instead. Linking does not change the site filter or hide the standalone site.
 - **Quotes and proposals:** create draft quotes from placements, edit line items and proposal narrative together, publish an immutable customer snapshot, or clone a quote to a new draft version.
 - **Deployments:** acceptance creates exactly one deployment per quote and records its initial acceptance event. Editors may also add a manual deployment for an existing site and customer; it starts in planning and records no acceptance or signature. A site already assigned to a different customer cannot be used. Source links and acceptance timestamps remain immutable. Staff can track status, append notes, and manage tasks.
 - **Requests and alerts:** view Wildfire-tagged support tickets and open system alerts.
@@ -30,10 +30,15 @@ supabase functions deploy wildfire-quotes --no-verify-jwt
 
 `wildfire-quotes` validates JWTs and active Wildfire edit access itself for publish/revoke. Anonymous details/accept actions require a valid capability token, not an anonymous table policy. Preserve `--no-verify-jwt` when deploying this function.
 
-For the optional browser map, set `VITE_GOOGLE_MAPS_API_KEY` in the frontend deployment environment and enable the Google Maps JavaScript API and Geocoding API. This browser key is public by design: restrict it to the application's HTTP referrers (including `https://ops.flown.org/*`) and only required Maps APIs, configure billing/quotas, and restart/rebuild Vite after changing it. Never use a server/service credential here. When Maps is not configured, address entry is disabled with an explanation and coordinate entry is selected instead; no address lookup fails silently.
+The map uses Leaflet with free [OpenTopoMap terrain tiles](https://opentopomap.org/about) and an optional OpenStreetMap Streets layer. No Google Maps key, billing account, or new frontend environment variable is needed. Keep the visible OpenStreetMap/SRTM/OpenTopoMap attribution. Terrain detail ends at zoom 17; higher zoom enlarges existing tiles rather than claiming extra detail. These community tile services have no availability guarantee: the map reports tile failures, and coordinate entry remains usable. Do not bulk download/prefetch tiles or promise unlimited capacity.
 
-The signing-link button reports empty-quote and backend failures explicitly and
-shows progress while publishing. After publishing, use **Test signing without accepting**
+Address lookup uses the [Photon public service](https://github.com/komoot/photon) only when a user explicitly submits the address form; there is no autocomplete. The form explains that the address is sent to Photon. Only the address is sent, without site labels, prospect data, cookies, or referrers. Prefer coordinates for private locations. Lookups have a 12-second timeout, browser-local throttling and a bounded in-memory cache. Public services permit reasonable use, not guaranteed production capacity; use a self-hosted service before scaling substantially.
+
+The signing-link button opens an immediate, closable dialog with progress, a
+20-second request limit, actionable failures/retry, and the resulting private link.
+After a timeout, check whether the quote was published before retrying; published
+quotes remain immutable, so use **New version** if its link was lost.
+After publishing, use **Test without accepting**
 to open a `?test=1` customer preview. Completing that form never calls acceptance,
 saves a signature, or creates a deployment; the test flag is a client preview,
 not a server permission. Real acceptance remains available only through the normal
@@ -45,6 +50,25 @@ after round 2 and redeploy `wildfire-quotes`. This is separate from the older
 workflow/retirement bundle below. Permission results are preloaded and reused on
 revisits, and each Wildfire page fetches only its required data; database latency
 still determines actual live load times.
+
+The follow-up frontend loads quote/deployment data concurrently with the parent
+page's supporting lists, rather than waiting for those lists first. Loading and
+access checks use black-background skeletons. Staff session restoration no longer
+waits for message history, and major workspace screens are loaded on demand.
+These changes remove client-side waterfalls, but do not guarantee a particular
+live response time or fix a slow backend by hiding its loading state.
+
+Apply [the active-staff count update](../supabase/migrations/20261114100000_active_staff_counts.sql)
+after the round 3 update, then release the new frontend. Insights counts actual
+nondeleted, nonbanned Auth accounts that have signed in and have an active
+profile (including an expired suspension). Pending invitations and orphan
+profiles are excluded; real duplicate accounts are not deleted or silently merged.
+Home, Support and Insights use one exact active-ticket count query against
+`support_tickets`, scoped by the current user's access. Active includes New,
+Open, In progress and Waiting. Support shows one **Active** aggregate filter,
+separate from the single **Open** status filter, without a duplicate KPI.
+UI errors are translated into next actions rather than exposing database
+table/function names, policy text, or backend exception details.
 
 ## Frontend/backend contracts
 

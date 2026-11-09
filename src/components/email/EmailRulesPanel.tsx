@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useState } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
@@ -128,7 +129,7 @@ export const EmailRulesPanel: React.FC<Props> = ({ mailboxId, userId, onActivity
           <button type="button" onClick={onClose} aria-label="Close inbox rules" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 md:min-h-0 md:min-w-0 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
         </header>
 
-        {error && <p role="alert" className="border-b border-rose-100 bg-rose-50 px-5 py-3 text-xs text-rose-700">{error}</p>}
+        {error && <p role="alert" className="border-b border-rose-100 bg-rose-50 px-5 py-3 text-xs text-rose-700">{userFacingError(error)}</p>}
 
         <div className="space-y-5 p-5">
           <form onSubmit={(event) => void createRule(event)} className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">

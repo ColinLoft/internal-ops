@@ -31,11 +31,15 @@ import {
 import { sounds } from '../lib/sound';
 import { supabase, testSupabaseConnection } from '../lib/supabase';
 import { preloadAppAccess, resetAppAccessCache } from '../lib/useAppAccess';
+import { workspaceTabFromPath as tabFromPath, type WorkspaceTab } from '../lib/workspaceRoutes';
+import { userFacingError } from '../lib/userFacingError';
 
 interface WorkspaceContextType {
   // Auth state
   isAuthenticated: boolean;
   isAuthLoading: boolean;
+  isWorkspaceLoading: boolean;
+  workspaceLoadError: string;
   requiresPasswordSetup: boolean;
   requiresOnboarding: boolean;
   backendIssue: string;
@@ -187,32 +191,6 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const STORAGE_PREFIX = 'flown_ops_v3_';
-type WorkspaceTab = 'home' | 'messages' | 'channels' | 'calendar' | 'admin' | 'customers' | 'company' | 'engineering' | 'settings' | 'insights' | 'programs' | 'wildfire' | 'systems';
-
-const tabFromPath = (pathname: string): WorkspaceTab | null => {
-  const segment = pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
-  if (segment === 'home') return 'home';
-  if (segment === 'customers') return 'customers';
-  if (segment === 'company' || segment === 'finance' || segment === 'legal' || segment === 'gtm') return 'company';
-  if (segment === 'operations' || segment === 'organization') return 'home';
-  if (segment === 'engineering') return 'engineering';
-  if (segment === 'wildfire') return 'wildfire';
-  if (segment === 'help') return 'customers';
-  if (segment === 'insights') return 'insights';
-  if (segment === 'programs') return 'programs';
-  if (segment === 'messages') return 'messages';
-  if (segment === 'channels') return 'channels';
-  if (segment === 'calendar') return 'calendar';
-  if (segment === 'email' || segment === 'inbox') return 'home';
-  if (segment === 'admin') return 'settings';
-  if (segment === 'systems') return 'systems';
-  if (segment === 'notifications') return 'home';
-  if (segment === 'settings') return 'settings';
-  if (segment === 'drive' || segment === 'docs' || segment === 'slides' || segment === 'sheets') return 'home';
-  if (segment === 'forms') return 'company';
-  return null;
-};
-
 const pathForTab = (tab: WorkspaceTab) => ({
   home: '/home',
   customers: '/customers/organizations',
@@ -416,11 +394,10 @@ const stringList = (value: unknown): string[] => Array.isArray(value) ? value.fi
 const withPins = <T extends { id: string; isPinned?: boolean }>(items: T[], pinned: string[]) => items.map((item) => ({ ...item, isPinned: pinned.includes(item.id) }));
 
 const loadSupabaseProfiles = async (authUser: SupabaseAuthUser) => {
-  const { data: existingProfile, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', authUser.id)
-    .maybeSingle();
+  const [{ data: existingProfile, error: profileError }, { data: profileRows, error: rosterError }] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle(),
+    supabase.from('profiles').select('*'),
+  ]);
 
   if (profileError) throw profileError;
 
@@ -437,11 +414,10 @@ const loadSupabaseProfiles = async (authUser: SupabaseAuthUser) => {
     profile = data;
   }
 
-  const { data: profileRows, error: rosterError } = await supabase.from('profiles').select('*');
   if (rosterError) throw rosterError;
 
   return {
-    users: profileRows.map((row) => mapSupabaseProfile(row, authUser.id)),
+    users: [...profileRows.filter(row => row.id !== profile.id), profile].map((row) => mapSupabaseProfile(row, authUser.id)),
     currentUser: mapSupabaseProfile(profile, authUser.id),
     settings: mapWorkspaceSettings(profile),
   };
@@ -456,7 +432,15 @@ const hydrateConversation = (conversation: Conversation, currentUserId: string, 
 };
 
 const loadSupabaseWorkspaceData = async (userIds: string[]) => {
-    let channelResult = await supabase.from('channels').select('*').order('created_at', { ascending: true });
+    const [initialChannelResult, memberResult, messageResult, eventResult, conversationResult, metaResult] = await Promise.all([
+      supabase.from('channels').select('*').order('created_at', { ascending: true }),
+      supabase.from('channel_members').select('channel_id, user_id'),
+      supabase.from('messages').select('*').order('created_at', { ascending: true }),
+      supabase.from('calendar_events').select('*').order('date', { ascending: true }),
+      supabase.from('conversation_participants').select('conversation_id, user_id'),
+      supabase.from('conversations').select('id, type, name'),
+    ]);
+    let channelResult = initialChannelResult;
     if (channelResult.error) throw channelResult.error;
 
     if (channelResult.data.length === 0) {
@@ -476,11 +460,6 @@ const loadSupabaseWorkspaceData = async (userIds: string[]) => {
       channelResult = await supabase.from('channels').select('*').order('created_at', { ascending: true });
       if (channelResult.error) throw channelResult.error;
     }
-
-    const [memberResult, messageResult] = await Promise.all([
-      supabase.from('channel_members').select('channel_id, user_id'),
-      supabase.from('messages').select('*').order('created_at', { ascending: true }),
-    ]);
 
     if (memberResult.error) throw memberResult.error;
     if (messageResult.error) throw messageResult.error;
@@ -536,7 +515,6 @@ const loadSupabaseWorkspaceData = async (userIds: string[]) => {
       }
     }
 
-  const eventResult = await supabase.from('calendar_events').select('*').order('date', { ascending: true });
   if (eventResult.error) console.error('Unable to load calendar events:', eventResult.error);
   const calendarEvents: CalendarEvent[] | null = eventResult.error ? null : eventResult.data.map((row) => ({
     id: row.id,
@@ -556,9 +534,8 @@ const loadSupabaseWorkspaceData = async (userIds: string[]) => {
     createdBy: row.created_by,
   }));
 
-  const conversationResult = await supabase.from('conversation_participants').select('conversation_id, user_id');
   if (conversationResult.error) throw conversationResult.error;
-  const metaResult = await supabase.from('conversations').select('id, type, name');
+  if (metaResult.error) throw metaResult.error;
   const conversationMeta = new Map<string, { type?: string; name?: string }>((metaResult.error ? [] : metaResult.data).map((row) => [row.id, row]));
   const participantsByConversation = new Map<string, string[]>();
   for (const row of conversationResult.data) {
@@ -586,6 +563,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isWorkspaceLoading, setIsWorkspaceLoading] = useState(true);
+  const [workspaceLoadError, setWorkspaceLoadError] = useState('');
   const [requiresPasswordSetup, setRequiresPasswordSetup] = useState(false);
   const [requiresOnboarding, setRequiresOnboarding] = useState(false);
   const [backendIssue, setBackendIssue] = useState('');
@@ -1065,9 +1044,20 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     let active = true;
     let authEventSeen = false;
+    let restoredUserId = '';
+    let restoration = 0;
 
-    const applySession = async (session: { user: SupabaseAuthUser } | null) => {
+    const applySession = async (session: { user: SupabaseAuthUser } | null, signedIn = false) => {
+      if (session && restoredUserId === session.user.id) {
+        if (active) {
+          setRequiresPasswordSetup(needsPasswordSetup(session.user));
+          setRequiresOnboarding(needsOnboarding(session.user));
+        }
+        return;
+      }
+      const request = ++restoration;
       if (!session) {
+        restoredUserId = '';
         if (active) {
           setIsAuthenticated(false);
           setRequiresPasswordSetup(false);
@@ -1082,27 +1072,54 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       }
 
       try {
+        setIsAuthLoading(true);
         void preloadAppAccess().catch((error) => console.error('Access preloading failed:', error));
         const profileData = await loadSupabaseProfiles(session.user);
-        const workspaceData = await loadSupabaseWorkspaceData(profileData.users.map((user) => user.id));
-        if (active) {
-          setUsers(profileData.users);
-          setCurrentUser(profileData.currentUser);
-          setWorkspaceSettings(profileData.settings);
+        if (!active || request !== restoration) return;
+        restoredUserId = session.user.id;
+        setIsWorkspaceLoading(true);
+        setWorkspaceLoadError('');
+        setUsers(profileData.users);
+        setCurrentUser(profileData.currentUser);
+        setWorkspaceSettings(profileData.settings);
+        setIsAuthenticated(true);
+        setRequiresPasswordSetup(needsPasswordSetup(session.user));
+        setRequiresOnboarding(needsOnboarding(session.user));
+        setIsAuthLoading(false);
+        if (signedIn) {
+          void recordSystemActivity({
+            eventType: 'user_signed_in', summary: 'Signed in to the workspace.',
+            targetType: 'user', targetId: profileData.currentUser.id, targetName: profileData.currentUser.name,
+          }, profileData.currentUser).catch(error => console.error('Sign-in activity could not be recorded:', error));
+          sounds.playNotification();
+        }
+        let workspaceData: Awaited<ReturnType<typeof loadSupabaseWorkspaceData>>;
+        try {
+          workspaceData = await loadSupabaseWorkspaceData(profileData.users.map((user) => user.id));
+        } catch (error) {
+          console.error('Workspace hydration failed:', error);
+          if (active && request === restoration) {
+            setWorkspaceLoadError(userFacingError(error, 'Messages and calendar could not be loaded. Reload to retry; other pages are still available.'));
+            setIsWorkspaceLoading(false);
+          }
+          return;
+        }
+        if (active && request === restoration) {
           setChannels(withPins(workspaceData.channels, profileData.settings.pinnedChannels));
           setMessages(workspaceData.messages);
           setThreadReplies(workspaceData.threadReplies);
           if (workspaceData.calendarEvents) setCalendarEvents(workspaceData.calendarEvents);
           setConversations(withPins(workspaceData.conversations.map((conversation) => hydrateConversation(conversation, profileData.currentUser.id, profileData.users)), profileData.settings.pinnedConversations));
-          setIsAuthenticated(true);
-          setRequiresPasswordSetup(needsPasswordSetup(session.user));
-          setRequiresOnboarding(needsOnboarding(session.user));
+          setIsWorkspaceLoading(false);
         }
       } catch (error) {
         console.error('Unable to load Supabase workspace data:', error);
-        if (active) setIsAuthenticated(false);
+        if (active && request === restoration) {
+          setBackendIssue(userFacingError(error, 'Your staff profile could not be loaded. Retry signing in, or ask an administrator to check your account.'));
+          setIsAuthenticated(false);
+        }
       } finally {
-        if (active) setIsAuthLoading(false);
+        if (active && request === restoration) setIsAuthLoading(false);
       }
     };
 
@@ -1114,10 +1131,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       if (active) setIsAuthLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       authEventSeen = true;
       window.setTimeout(() => {
-        if (active) void applySession(session);
+        if (active) void applySession(session, event === 'SIGNED_IN');
       }, 0);
     });
 
@@ -1143,6 +1160,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   // Login handler
   const login = async (email: string, pass: string): Promise<{ success: boolean; message?: string }> => {
+    setBackendIssue('');
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password: pass,
@@ -1152,48 +1170,9 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       return { success: false, message: error?.message || 'Unable to sign in.' };
     }
 
-    try {
-      resetAppAccessCache();
-      void preloadAppAccess().catch((error) => console.error('Access preloading failed:', error));
-      const profileData = await loadSupabaseProfiles(data.user);
-      const workspaceData = await loadSupabaseWorkspaceData(profileData.users.map((user) => user.id));
-      setUsers(profileData.users);
-      setCurrentUser(profileData.currentUser);
-      setWorkspaceSettings(profileData.settings);
-      setChannels(withPins(workspaceData.channels, profileData.settings.pinnedChannels));
-      setMessages(workspaceData.messages);
-      setThreadReplies(workspaceData.threadReplies);
-      if (workspaceData.calendarEvents) setCalendarEvents(workspaceData.calendarEvents);
-      setConversations(withPins(workspaceData.conversations.map((conversation) => hydrateConversation(conversation, profileData.currentUser.id, profileData.users)), profileData.settings.pinnedConversations));
-      setIsAuthenticated(true);
-      setRequiresPasswordSetup(needsPasswordSetup(data.user));
-      setRequiresOnboarding(needsOnboarding(data.user));
-      await recordSystemActivity({
-        eventType: 'user_signed_in',
-        summary: 'Signed in to the workspace.',
-        targetType: 'user',
-        targetId: profileData.currentUser.id,
-        targetName: profileData.currentUser.name,
-      }, profileData.currentUser);
-      sounds.playNotification();
-      return { success: true };
-    } catch (profileError) {
-      await supabase.auth.signOut();
-      const errorMessage = profileError instanceof Error ? profileError.message : 'Unknown error';
-      if (errorMessage.includes("Could not find the table 'public.profiles'")) {
-        return {
-          success: false,
-          message: 'The staff profiles table is missing from Supabase. Run supabase_schema.sql in the Supabase SQL Editor, then try signing in again.',
-        };
-      }
-      if (["public.channels", "public.channel_members", "public.messages"].some((table) => errorMessage.includes(`'${table}'`))) {
-        return {
-          success: false,
-          message: `Workspace tables are missing from Supabase. Apply the channels, channel_members, and messages table definitions and policies from supabase_schema.sql, then try signing in again. Details: ${errorMessage}`,
-        };
-      }
-      return { success: false, message: `Signed in, but workspace data could not be loaded: ${errorMessage}` };
-    }
+    // The auth subscription restores profiles/history once, for both login and refresh.
+    resetAppAccessCache();
+    return { success: true };
   };
 
   const logout = () => {
@@ -2810,6 +2789,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       value={{
         isAuthenticated,
         isAuthLoading,
+        isWorkspaceLoading,
+        workspaceLoadError,
         requiresPasswordSetup,
         requiresOnboarding,
         backendIssue,

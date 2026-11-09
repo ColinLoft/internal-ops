@@ -1,5 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { userFacingError } from '../../lib/userFacingError';
+import { TableSkeleton } from '../common/Feedback';
 import { celebrateMilestone } from '../../lib/milestones';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useLiveRefresh } from '../../hooks/useLiveRefresh';
@@ -8,7 +10,7 @@ type Deployment = { id: string; quote_id: string | null; organization_id: string
 type Task = { id: string; deployment_id: string; title: string; status: string; assigned_to: string | null; due_at: string | null; notes: string };
 type Event = { id: string; deployment_id: string; event_type: string; body: string; created_at: string };
 const stages = ['contract_executed', 'planning', 'procurement', 'preparation', 'scheduled', 'installation', 'commissioning', 'handoff', 'completed', 'cancelled'];
-export function Deployments({ properties, organizations, canEdit, onQuote }: { properties: Property[]; organizations: Organization[]; canEdit: boolean; onQuote: (id: string) => void }) {
+export function Deployments({ properties, organizations, canEdit, onQuote, supportingDataLoading = false }: { properties: Property[]; organizations: Organization[]; canEdit: boolean; onQuote: (id: string) => void; supportingDataLoading?: boolean }) {
   const { currentUser, users } = useWorkspace();
   const [items, setItems] = useState<Deployment[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -20,6 +22,7 @@ export function Deployments({ properties, organizations, canEdit, onQuote }: { p
   const [dueDate, setDueDate] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
   const [newPropertyId, setNewPropertyId] = useState('');
   const [newOrganizationId, setNewOrganizationId] = useState('');
   const [newNotes, setNewNotes] = useState('');
@@ -30,7 +33,9 @@ export function Deployments({ properties, organizations, canEdit, onQuote }: { p
       supabase.from('wildfire_deployment_events').select('id,deployment_id,event_type,body,created_at').order('created_at', { ascending: false }).limit(1000),
     ]);
     const failed = deployments.error || taskResult.error || eventResult.error;
-    if (failed) { setError(failed.message); return; }
+    setLoading(false);
+    if (failed) { setError(userFacingError(failed, 'Deployments could not be loaded. Refresh to retry.')); return; }
+    setError('');
     setItems(deployments.data ?? []); setTasks(taskResult.data ?? []); setEvents(eventResult.data ?? []);
   }, []);
   useLiveRefresh(load, ['wildfire_deployments', 'wildfire_deployment_tasks', 'wildfire_deployment_events']);
@@ -38,9 +43,10 @@ export function Deployments({ properties, organizations, canEdit, onQuote }: { p
   const mutate = async (action: () => Promise<void>) => {
     setBusy(true); setError('');
     try { await action(); await load(); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Deployment update failed.'); }
+    catch (cause) { setError(userFacingError(cause, 'The deployment could not be updated. Retry, or ask an administrator for help.')); }
     finally { setBusy(false); }
   };
+  if (loading || supportingDataLoading) return <TableSkeleton />;
   return <div className="space-y-5">
     {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
     <section className={surface}><h2 className="text-lg font-semibold text-slate-900">Deployment delivery</h2><p className="mt-2 text-sm text-slate-500">Created automatically when a customer accepts a quote, or added manually for existing customer work. Track delivery tasks and updates here.</p>

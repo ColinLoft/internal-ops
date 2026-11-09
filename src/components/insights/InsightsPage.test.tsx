@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import React, { act } from 'react';
+import React, { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -16,6 +16,7 @@ vi.mock('../../lib/supabase', () => ({
       const query = {
         select: () => query,
         order: () => query,
+        in: async (_field: string, statuses: string[]) => ({ count: (mock.rows[table] ?? []).filter(row => statuses.includes(String(row.status))).length, error: null }),
         range: async (start: number) => ({
           data: mock.failures.includes(table) ? null : start === 0 ? mock.rows[table] ?? [] : [],
           error: mock.failures.includes(table) ? { message: 'unavailable' } : null,
@@ -25,6 +26,7 @@ vi.mock('../../lib/supabase', () => ({
     },
   },
 }));
+vi.mock('../../hooks/useLiveRefresh', () => ({ useLiveRefresh(load: () => Promise<void>) { useEffect(() => { void load(); }, [load]); } }));
 
 import { InsightsPage } from './InsightsPage';
 
@@ -68,6 +70,7 @@ describe('Insights workspace', () => {
     expect(container.textContent).toContain('1 active');
     expect(mock.rpc).toHaveBeenCalledWith('active_staff_metrics');
     expect(container.querySelector('[aria-label="Key metrics"]')?.textContent).toContain('Staff4');
+    expect(container.querySelector('[aria-label="Key metrics"]')?.textContent).toContain('Active tickets1');
   });
 
   it('labels failed sources as unavailable rather than showing false zeroes', async () => {
@@ -75,7 +78,8 @@ describe('Insights workspace', () => {
 
     await act(async () => root.render(<InsightsPage />));
 
-    expect(container.textContent).toContain('program_tasks');
+    expect(container.textContent).toContain('Tasks');
+    expect(container.querySelector('[role=status]')?.textContent).not.toContain('program_tasks');
     expect(container.textContent).toContain('Could not load this source');
     expect(container.textContent).toContain('Source unavailable');
     const taskBreakdown = [...container.querySelectorAll('article')].find((article) => article.querySelector('h3')?.textContent === 'Tasks');

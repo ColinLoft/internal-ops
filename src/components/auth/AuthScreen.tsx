@@ -1,3 +1,4 @@
+import { userFacingError } from '../../lib/userFacingError';
 import React, { useState } from 'react';
 import {
   Mail,
@@ -8,7 +9,7 @@ import {
 import { useWorkspace } from '../../context/WorkspaceContext';
 
 export const AuthScreen: React.FC = () => {
-  const { login } = useWorkspace();
+  const { login, backendIssue } = useWorkspace();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,10 +52,10 @@ export const AuthScreen: React.FC = () => {
             </p>
           </div>
 
-          {error && (
+          {(error || backendIssue) && (
             <div className="p-3 mb-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-xs font-semibold flex items-center gap-2 animate-in fade-in">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{error}</span>
+              <span>{userFacingError(error || backendIssue)}</span>
             </div>
           )}
 
