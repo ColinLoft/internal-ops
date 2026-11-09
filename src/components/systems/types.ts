@@ -35,6 +35,7 @@ export interface MonitorSummary {
 export interface SystemIncident {
   id: string;
   system_id: string;
+  system_ids?: string[];
   title: string;
   notes: string;
   severity: 'minor' | 'major' | 'critical';
@@ -45,6 +46,7 @@ export interface SystemIncident {
 export interface SystemMaintenance {
   id: string;
   system_id: string;
+  system_ids?: string[];
   title: string;
   notes: string;
   starts_at: string;

@@ -19,7 +19,7 @@ const overviewItems: NavItem[] = [
   { id: 'programs', label: 'Tasks', icon: FolderKanban },
   { id: 'calendar', label: 'Calendar', icon: CalendarIcon },
   { id: 'insights', label: 'Insights', icon: Lightbulb },
-  { id: 'systems', label: 'Flown Systems', icon: Network },
+  { id: 'systems', label: 'Systems', icon: Network },
 ];
 const appDropdowns: NavItem[] = [
   { id: 'engineering', label: 'Products', icon: Code2 },
@@ -138,7 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onOpenMo
           title="Flown home"
           className="flex h-14 min-w-0 flex-1 items-center justify-start rounded-lg hover:bg-white/10 transition-colors"
         >
-          <img src="/flown-logo.png" alt="Flown" className="h-14 w-full max-w-full object-contain object-left brightness-0 invert opacity-95" />
+          <img src="/flown-logo.png" alt="Flown" className="h-11 w-auto max-w-full object-contain object-left brightness-0 invert opacity-95" />
         </button>
       </div>
 

@@ -45,7 +45,7 @@ export const ProspectsPage: React.FC = () => {
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
-        <div><h1 className="text-xl font-bold text-slate-900">Possible grants</h1><p className="mt-1 text-xs text-slate-500">Research opportunities, score the fit, and move the best ones into the tracker.</p></div>
+        <div><h1 className="text-xl font-bold text-slate-900">Possible grants</h1></div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => setResearching(true)} className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-brand-300 bg-white px-3 text-xs font-bold text-brand-700 md:min-h-0 md:py-2"><Sparkles className="h-3.5 w-3.5" />Research with AI</button>
           <button type="button" onClick={() => setOpen('new')} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white md:min-h-0 md:py-2"><Plus className="h-3.5 w-3.5" />Add opportunity</button>

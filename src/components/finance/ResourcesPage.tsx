@@ -84,7 +84,7 @@ export const ResourcesPage: React.FC = () => {
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
-        <div><h1 className="text-xl font-bold text-slate-900">Grant Resources</h1><p className="mt-1 text-xs text-slate-500">Reusable narratives, templates, guides and reference documents. Saved resources inform grant search, fit scoring and drafting.</p></div>
+        <div><h1 className="text-xl font-bold text-slate-900">Grant Resources</h1></div>
         <button type="button" onClick={() => setEditing('new')} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white md:min-h-0 md:py-2"><Plus className="h-3.5 w-3.5" />Add resource</button>
       </header>
       <div className="space-y-4 p-5 sm:p-8">

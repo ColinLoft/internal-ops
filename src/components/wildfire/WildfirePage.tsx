@@ -96,7 +96,7 @@ export function WildfirePage() {
   const page = pages[route];
   return <main className="min-w-0 flex-1 overflow-y-auto bg-black">
     <header className="flex flex-wrap items-start justify-between gap-3 px-4 py-5 sm:px-6">
-      <div><div className="flex items-center gap-2"><Flame className="h-5 w-5 text-brand-600" /><h1 className="text-xl font-semibold text-slate-900">{page.title}</h1></div><p className="mt-2 max-w-3xl text-sm text-slate-500">{page.description}</p></div>
+      <div><div className="flex items-center gap-2"><Flame className="h-5 w-5 text-brand-600" /><h1 className="text-xl font-semibold text-slate-900">{page.title}</h1></div></div>
       <button type="button" className={secondary} onClick={() => void refresh()}>Refresh</button>
     </header>
     <div className="space-y-5 px-4 pb-6 sm:px-6">

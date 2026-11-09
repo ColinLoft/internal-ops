@@ -78,6 +78,20 @@ components:
 
 ## Overview
 
+### Workspace consistency
+
+Workspace pages share tokens in `src/index.css`: 24px page padding on desktop
+(16px on mobile), 20px panel padding (16px on mobile), 12px panel corners, and
+8px control corners. Primary header and toolbar controls are 40px tall on
+desktop and 44px on mobile. Use `workspace-page-header`, `workspace-page-body`,
+`workspace-panel`, `workspace-toolbar`, and `workspace-control` for new surfaces.
+Scoped legacy utility rules keep existing screens aligned; circular avatars and
+pill controls retain their shape.
+
+Page headers use a concise title, not instructional or marketing subtitles.
+Keep record metadata, validation guidance, loading/errors, and necessary metric
+timeframes visible; detailed explanations belong in documentation or disclosures.
+
 **Creative North Star: "The Glass Workbench"**
 
 Flown is a workspace you work *on*: a dark slate rail anchors the left edge while pale, frosted surfaces float over a soft slate canvas. Depth comes from translucency and blur rather than hard borders, and a single blue accent marks what is active or actionable. A touch of the "tidy studio" lives in the generously rounded corners and compact, friendly controls, but the glass layering leads.

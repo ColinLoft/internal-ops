@@ -42,7 +42,7 @@ export const GrantsPage: React.FC = () => {
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
-        <div><h1 className="text-xl font-bold text-slate-900">Grants</h1><p className="mt-1 text-xs text-slate-500">Track every funder from first idea through award, reporting and follow-up.</p></div>
+        <div><h1 className="text-xl font-bold text-slate-900">Grants</h1></div>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => setImporting(true)} className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 md:min-h-0 md:py-2"><Upload className="h-3.5 w-3.5" />Import</button>
           <button type="button" onClick={exportCsv} className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 md:min-h-0 md:py-2"><Download className="h-3.5 w-3.5" />Export</button>

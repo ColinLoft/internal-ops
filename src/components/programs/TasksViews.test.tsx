@@ -59,11 +59,11 @@ describe('shared tasks', () => {
   };
   const column = (label: string) => container.querySelector(`[aria-label="${label}"]`)!;
 
-  it('defaults old list preferences to Board and shows only Board and Calendar', async () => {
-    localStorage.setItem('flown-tasks-mode', 'list');
+  it('always shows the board, without calendar controls or legacy view preferences', async () => {
+    localStorage.setItem('flown-tasks-mode', 'calendar');
     await render();
-    expect([...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent)).toEqual(['Board', 'Calendar']);
-    expect(container.querySelector('[aria-selected="true"]')?.textContent).toBe('Board');
+    expect(container.querySelector('[role="tablist"]')).toBeNull();
+    expect(column('Not started').textContent).toContain(task.title);
     expect(container.textContent).toContain('Nov 20, 2026');
     expect(container.textContent).toContain('Claim task');
   });

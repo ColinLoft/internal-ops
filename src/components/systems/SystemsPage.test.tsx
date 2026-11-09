@@ -2,11 +2,13 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FlownSystem, MonitorSummary } from './types';
+import type { FlownSystem, MonitorSummary, SystemIncident, SystemMaintenance } from './types';
 
 const mock = vi.hoisted(() => ({
   systems: [] as FlownSystem[],
   summaries: [] as MonitorSummary[],
+  incidents: [] as SystemIncident[],
+  maintenance: [] as SystemMaintenance[],
   active: true,
   save: vi.fn(),
   load: undefined as undefined | (() => Promise<void>),
@@ -30,13 +32,14 @@ vi.mock('../../lib/supabase', () => ({
       const chain = {
         select: () => chain, eq: () => chain, order: () => chain,
         insert: (values: Record<string, unknown>) => { inserting = values; return chain; },
-        range: async () => ({ data: table === 'flown_systems' ? mock.systems : [], error: null }),
+        update: (values: Record<string, unknown>) => { inserting = values; return chain; },
+        range: async () => ({ data: table === 'flown_systems' ? mock.systems : table === 'flown_system_incidents' ? mock.incidents : table === 'flown_system_maintenance' ? mock.maintenance : [], error: null }),
         limit: async () => ({ data: table === 'profiles' ? [{ id: 'staff-test', name: 'Test staff', account_status: 'active' }] : [], error: null }),
         maybeSingle: async () => ({ data: { account_status: mock.active ? 'active' : 'suspended' }, error: null }),
         single: async () => {
           if (inserting) {
             mock.save(inserting);
-            mock.systems.push({ id: 'system-test', ...inserting } as unknown as FlownSystem);
+            if (table === 'flown_systems') mock.systems.push({ id: 'system-test', ...inserting } as unknown as FlownSystem);
           }
           return { data: { id: 'system-test' }, error: null };
         },
@@ -56,7 +59,7 @@ const click = async (text: string) => {
 };
 describe('systems staff workspace', () => {
   beforeEach(() => {
-    mock.systems = []; mock.summaries = []; mock.active = true; mock.save.mockClear();
+    mock.systems = []; mock.summaries = []; mock.incidents = []; mock.maintenance = []; mock.active = true; mock.save.mockClear();
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     container = document.createElement('div'); document.body.append(container); root = createRoot(container);
   });
@@ -108,5 +111,37 @@ describe('systems staff workspace', () => {
     expect(container.textContent).toContain('Needs attention1');
     expect(container.textContent).toContain('Awaiting checks1');
     expect(container.textContent).toContain('Not monitored1');
+  });
+
+  it.each(['Incidents', 'Maintenance'])('saves %s as one record affecting multiple systems', async (title) => {
+    mock.systems = ['one', 'two'].map((id) => ({ id, name: `System ${id}`, description: '', category: 'application', environment: 'production' } as FlownSystem));
+    await act(async () => root.render(<SystemsPage />));
+    const headings = [...container.querySelectorAll('h2')].map((heading) => heading.textContent);
+    expect(headings.slice(0, 2)).toEqual(['Incidents', 'Maintenance']);
+    expect(container.textContent).not.toContain('Staff-owned inventory');
+    expect(container.textContent).not.toContain('Inventory refreshed');
+    const section = [...container.querySelectorAll('section')].find((section) => section.querySelector('h2')?.textContent === title)!;
+    await act(async () => section.querySelector('button')!.click());
+    const inputs = container.querySelectorAll<HTMLInputElement>('fieldset input[type="checkbox"]');
+    expect(inputs).toHaveLength(2);
+    await act(async () => { inputs[0].click(); inputs[1].click(); });
+    const field = container.querySelector<HTMLInputElement>('input[type="text"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, 'Shared operation');
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+    expect(mock.save).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ title: 'Shared operation', system_id: 'one', system_ids: ['one', 'two'] }));
+  });
+
+  it('shows and edits shared incidents on a secondary affected system', async () => {
+    mock.systems = ['one', 'two'].map((id) => ({ id, name: `System ${id}`, description: '', category: 'application', environment: 'production' } as FlownSystem));
+    mock.incidents = [{ id: 'incident', system_id: 'one', system_ids: ['one', 'two'], title: 'Shared outage', notes: '', severity: 'major', status: 'investigating', started_at: new Date().toISOString(), resolved_at: null }];
+    await act(async () => root.render(<SystemsPage />));
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent?.startsWith('System two'))!.click());
+    expect(container.textContent).toContain('Shared outage');
+    expect(container.textContent).toContain('System one, System two');
+    await click('Edit / update');
+    expect([...container.querySelectorAll<HTMLInputElement>('fieldset input')].every((input) => input.checked)).toBe(true);
   });
 });

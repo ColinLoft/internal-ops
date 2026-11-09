@@ -129,7 +129,6 @@ export const WebsitePage: React.FC = () => {
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 bg-[#0d1016] px-5 py-5 sm:px-8">
         <div>
           <h1 className="text-xl font-semibold text-white">Website</h1>
-          <p className="mt-1 text-sm text-slate-400">Manage public-site content and connect its analytics.</p>
         </div>
         {tab !== 'analytics' && canEdit && (
           <button type="button" className={button} onClick={() => setEditing(null)}>

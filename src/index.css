@@ -2,6 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
+[data-workspace-content] {
+  --workspace-page-padding: 24px;
+  --workspace-panel-padding: 20px;
+  --workspace-radius-panel: 12px;
+  --workspace-radius-control: 8px;
+  --workspace-control-height: 40px;
+}
+
+[data-workspace-content] .workspace-page-header,
+[data-workspace-content] main > header:has(h1) {
+  padding: 20px var(--workspace-page-padding);
+}
+
+[data-workspace-content] .workspace-page-body,
+[data-workspace-content] main > header:has(h1) + div {
+  padding: var(--workspace-page-padding);
+}
+
+[data-workspace-content] .workspace-panel {
+  padding: var(--workspace-panel-padding);
+}
+
+[data-workspace-content] :where(.rounded-lg, .rounded-xl, .rounded-2xl) {
+  border-radius: var(--workspace-radius-panel);
+}
+
+[data-workspace-content] :where(button, input:not([type='checkbox']):not([type='radio']), textarea, select):not(.rounded-full) {
+  border-radius: var(--workspace-radius-control);
+}
+
+[data-workspace-content] .workspace-control,
+[data-workspace-content] .workspace-page-header button,
+[data-workspace-content] main > header:has(h1) button,
+[data-workspace-content] .workspace-toolbar :where(input, button, [role='combobox']) {
+  min-height: var(--workspace-control-height);
+  border-radius: var(--workspace-radius-control);
+}
+
+@media (max-width: 767px) {
+  [data-workspace-content] {
+    --workspace-page-padding: 16px;
+    --workspace-panel-padding: 16px;
+    --workspace-control-height: 44px;
+  }
+}
+
 :root {
   --motion-quick: 140ms;
   --motion-enter: 180ms;

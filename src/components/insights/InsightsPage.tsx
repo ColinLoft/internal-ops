@@ -165,17 +165,16 @@ export const InsightsPage: React.FC = () => {
 
   return (
     <main data-onboarding-target="insights-workspace" className="min-w-0 flex-1 overflow-y-auto bg-black text-[#f5f5f5]">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[#292929] bg-black px-5 py-5 sm:px-8">
+      <header className="workspace-page-header flex flex-wrap items-center justify-between gap-4 border-b border-[#292929] bg-black">
         <div>
           <h1 className="text-xl font-semibold text-white">Insights</h1>
-          <p className="mt-1 text-sm text-[#b3b3b3]">Organization-wide activity, delivery, funding, and operations.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => void load()} disabled={loading} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#3b3b3b] px-3 text-sm font-medium text-[#e1e1e1] hover:bg-[#202020] disabled:opacity-50"><RefreshCw size={15} />Refresh</button>
           <button type="button" onClick={() => setExportOpen((open) => !open)} disabled={loading} aria-expanded={exportOpen} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"><Download size={15} />Export metrics</button>
         </div>
       </header>
-      <div className="space-y-6 p-5 sm:p-8">
+      <div className="workspace-page-body space-y-6">
         {failed.length > 0 && <p role="status" className="rounded-md border border-[#554316] bg-[#211b0d] px-4 py-3 text-sm text-[#f0d48b]">Some metrics could not be loaded: {Object.entries(sources).filter(([, source]) => failed.includes(source.table)).map(([key]) => displayLabel(key)).join(', ')}. Refresh to retry; contact an administrator if this continues.</p>}
         {exportOpen && !loading && (
           <section aria-label="Choose export metrics" className="rounded-lg border border-[#303030] bg-[#151515] p-5">
@@ -205,20 +204,20 @@ export const InsightsPage: React.FC = () => {
               {cards.map((metric) => <div key={metric.label} className="min-w-0 rounded-lg bg-[#151515] p-3 sm:p-4">
                 <p className="text-sm text-[#b7b7b7]">{metric.label}</p>
                 <p className="mt-2 text-2xl font-semibold tabular-nums text-white">{unavailable(metric) ? '—' : metric.value}</p>
-                {metric.detail && <p className="mt-1 text-sm text-[#929292]">{unavailable(metric) ? 'Source unavailable' : metric.detail}</p>}
+                {unavailable(metric) && <p className="mt-1 text-sm text-[#929292]">Source unavailable</p>}
+                {!unavailable(metric) && metric.label === 'Staff' && staffMetrics && <p className="mt-1 text-sm text-[#929292]">{staffMetrics.online} online</p>}
               </div>)}
             </section>
             <section aria-labelledby="trends-heading">
               <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
                 <div><h2 id="trends-heading" className="text-lg font-semibold text-white">Record activity</h2><p className="mt-1 text-sm text-[#9f9f9f]">Weekly records created · last 12 weeks, current week to date</p></div>
-                <p className="text-xs text-[#858585]">Counted from stored creation dates</p>
               </div>
               <div className="grid items-start gap-3 lg:grid-cols-2">
                 {chartSeries.map((series) => <TrendChart key={series.key} title={series.title} rows={data[series.key] ?? []} weeks={weeklyCounts(data[series.key] ?? [])} color={series.color} error={failed.includes(sources[series.key].table)} />)}
               </div>
             </section>
             <section aria-labelledby="status-heading">
-              <div className="mb-3"><h2 id="status-heading" className="text-lg font-semibold text-white">Current work by status</h2><p className="mt-1 text-sm text-[#9f9f9f]">Counts use the records currently stored in each source.</p></div>
+              <div className="mb-3"><h2 id="status-heading" className="text-lg font-semibold text-white">Current work by status</h2></div>
               <div className="grid items-start gap-3 lg:grid-cols-2">
                 <StatusBreakdown title="Tasks" rows={data.tasks ?? []} field="status" error={failed.includes(sources.tasks.table)} />
                 <StatusBreakdown title="Engineering projects" rows={data.projects ?? []} field="status" error={failed.includes(sources.projects.table)} />

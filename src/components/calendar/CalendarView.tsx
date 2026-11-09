@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { CalendarEvent } from '../../types';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -14,12 +13,17 @@ import {
   Repeat,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { supabase } from '../../lib/supabase';
+import { userFacingError } from '../../lib/userFacingError';
+import { navigate } from '../../lib/navigate';
+import { useLiveRefresh } from '../../hooks/useLiveRefresh';
+import { taskCalendarEntries, type CalendarEntry, type TaskDeadline } from './taskEvents';
 
 const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 const EVERYONE_COLOR = '#2563EB';
 const PERSONAL_COLOR = '#8B5CF6';
-const eventGroup = (evt: CalendarEvent) => evt.scope === 'personal'
+const eventGroup = (evt: CalendarEntry) => evt.taskId ? { key: 'task', label: 'Task due', color: EVERYONE_COLOR } : evt.scope === 'personal'
   ? { key: 'personal', label: 'Only me', color: PERSONAL_COLOR }
   : { key: 'everyone', label: 'Everyone', color: EVERYONE_COLOR };
 
@@ -35,7 +39,34 @@ export const CalendarView: React.FC = () => {
 
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEntry | null>(null);
+  const [taskEvents, setTaskEvents] = useState<CalendarEntry[]>([]);
+  const [taskError, setTaskError] = useState('');
+  const generation = useRef(0);
+  const loadTasks = useCallback(async () => {
+    const run = ++generation.current;
+    try {
+      const tasks: TaskDeadline[] = [];
+      for (let offset = 0; ; offset += 500) {
+        const { data, error } = await supabase.from('program_tasks')
+          .select('id,title,due_date,notes,assigned_ids,assignee_id')
+          .not('due_date', 'is', null).order('id').range(offset, offset + 499);
+        if (error) throw error;
+        tasks.push(...(data || []) as TaskDeadline[]);
+        if (!data || data.length < 500) break;
+      }
+      if (run !== generation.current) return;
+      setTaskEvents(taskCalendarEntries(tasks));
+      setTaskError('');
+    } catch (error) {
+      if (run === generation.current) setTaskError(`Task deadlines could not be loaded. ${userFacingError(error)}`);
+    }
+  }, []);
+  useLiveRefresh(loadTasks, ['program_tasks']);
+  useEffect(() => () => { generation.current++; }, []);
+  useEffect(() => {
+    setSelectedEvent((event) => event?.taskId ? taskEvents.find((task) => task.id === event.id) || null : event);
+  }, [taskEvents]);
   const [search] = useState('');
 
   const formatTime = (time: string) => {
@@ -50,7 +81,7 @@ export const CalendarView: React.FC = () => {
   const todayStr = toLocalDateStr(new Date());
 
   // Filter events
-  const filteredEvents = calendarEvents.filter((evt) => {
+  const filteredEvents = [...calendarEvents, ...taskEvents].filter((evt) => {
     const matchesSearch =
       evt.title.toLowerCase().includes(search.toLowerCase()) ||
       (evt.description && evt.description.toLowerCase().includes(search.toLowerCase()));
@@ -89,6 +120,8 @@ export const CalendarView: React.FC = () => {
     setCurrentDate(new Date());
   };
 
+  const eventTime = (event: CalendarEntry) => event.isAllDay ? 'All day' : `${formatTime(event.startTime)} – ${formatTime(event.endTime)}`;
+
   // Month Grid
   const renderMonthGrid = () => {
     const year = currentDate.getFullYear();
@@ -119,7 +152,7 @@ export const CalendarView: React.FC = () => {
     }
 
     // Next month days
-    const totalRemaining = 35 - cells.length;
+    const totalRemaining = Math.ceil(cells.length / 7) * 7 - cells.length;
     for (let i = 1; i <= totalRemaining; i++) {
       const nextMonth = month + 2 > 12 ? 1 : month + 2;
       const nextYear = month + 2 > 12 ? year + 1 : year;
@@ -128,7 +161,7 @@ export const CalendarView: React.FC = () => {
     }
 
     return (
-      <div className="flex-1 grid grid-cols-7 grid-rows-5 min-h-[480px] md:min-h-0 border-t border-l border-slate-200/80 bg-white/70 backdrop-blur-md rounded-2xl overflow-hidden shadow-xs">
+      <div className="flex-1 grid grid-cols-7 min-h-[480px] md:min-h-0 border-t border-l border-slate-200/80 bg-white/70 backdrop-blur-md rounded-2xl overflow-hidden shadow-xs">
         {cells.map((cell, idx) => {
           const dayEvents = filteredEvents.filter((e) => e.date === cell.dateStr);
           const isToday = cell.dateStr === todayStr;
@@ -171,14 +204,14 @@ export const CalendarView: React.FC = () => {
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
                         <span className="truncate">{evt.title}</span>
                       </span>
-                      <span className="text-xs font-medium opacity-70 whitespace-nowrap">{formatTime(evt.startTime)}</span>
+                      <span className="text-xs font-medium opacity-70 whitespace-nowrap">{evt.isAllDay ? 'All day' : formatTime(evt.startTime)}</span>
                     </button>
                   );
                 })}
                 {dayEvents.length > 2 && (
-                  <div className="text-xs text-slate-500 font-semibold px-1">
-                    + {dayEvents.length - 2} more...
-                  </div>
+                  <button type="button" onClick={() => { setCurrentDate(new Date(`${cell.dateStr}T12:00:00`)); setViewMode('day'); }} className="min-h-8 px-1 text-xs font-semibold text-slate-500 hover:text-slate-900">
+                    + {dayEvents.length - 2} more
+                  </button>
                 )}
               </div>
             </div>
@@ -217,6 +250,12 @@ export const CalendarView: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto">
+          <div className="grid grid-cols-8 border-b border-slate-100">
+            <div className="p-2 text-xs text-slate-500">All day</div>
+            {weekDays.map((day) => <div key={day.date} className="space-y-1 border-r border-slate-100 p-1">
+              {filteredEvents.filter((event) => event.date === day.date && event.isAllDay).map((event) => <button type="button" key={event.id} onClick={() => setSelectedEvent(event)} className="w-full rounded-lg bg-brand-50 p-2 text-left text-xs font-semibold text-slate-800">{event.title}</button>)}
+            </div>)}
+          </div>
           {hours.map((hr, idx) => (
             <div key={idx} className="grid grid-cols-8 min-h-[58px] border-b border-slate-100">
               <div className="text-center text-xs text-slate-400 font-semibold py-2 border-r border-slate-100">
@@ -224,7 +263,7 @@ export const CalendarView: React.FC = () => {
               </div>
               {weekDays.map((day, dIdx) => {
                 const hourEvents = filteredEvents.filter(
-                  (e) => e.date === day.date && e.startTime.startsWith(hr.slice(0, 2))
+                  (e) => e.date === day.date && !e.isAllDay && e.startTime.startsWith(hr.slice(0, 2))
                 );
 
                 return (
@@ -240,7 +279,7 @@ export const CalendarView: React.FC = () => {
                           className="w-full p-1.5 rounded-xl border text-left text-xs font-semibold leading-tight text-slate-800 hover:brightness-95"
                         >
                           <p className="truncate font-bold">{evt.title}</p>
-                          <p className="text-xs opacity-75">{formatTime(evt.startTime)} - {formatTime(evt.endTime)}</p>
+                          <p className="text-xs opacity-75">{eventTime(evt)}</p>
                         </button>
                       );
                     })}
@@ -266,7 +305,7 @@ export const CalendarView: React.FC = () => {
             <h3 className="text-base font-bold text-slate-900">
               {currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </h3>
-            <p className="text-xs text-slate-500">{todayEvents.length} sessions scheduled</p>
+            <p className="text-xs text-slate-500">{todayEvents.length} events</p>
           </div>
           <button
             onClick={() => setIsAddEventOpen(true)}
@@ -282,7 +321,6 @@ export const CalendarView: React.FC = () => {
               <CalendarIcon className="w-6 h-6" />
             </div>
             <h4 className="text-sm font-bold text-slate-800">No events for this date</h4>
-            <p className="text-xs text-slate-400 mt-1 mb-4">Click below to schedule a team or personal session.</p>
             <button
               onClick={() => setIsAddEventOpen(true)}
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-sm"
@@ -307,7 +345,7 @@ export const CalendarView: React.FC = () => {
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: group.color }}>{group.label}</span>
-                      <span className="text-xs font-bold text-slate-500">{formatTime(evt.startTime)} - {formatTime(evt.endTime)}</span>
+                      <span className="text-xs font-bold text-slate-500">{eventTime(evt)}</span>
                     </div>
                     <h4 className="text-sm font-bold text-slate-900">{evt.title}</h4>
                     {evt.description && <p className="text-xs text-slate-600 line-clamp-2">{evt.description}</p>}
@@ -361,7 +399,7 @@ export const CalendarView: React.FC = () => {
                       <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: group.color }}>
                         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: group.color }} />{group.label}
                       </span>
-                      <span className="text-xs text-slate-400 font-medium">{formatTime(evt.startTime)}</span>
+                      <span className="text-xs text-slate-400 font-medium">{evt.isAllDay ? 'All day' : formatTime(evt.startTime)}</span>
                     </div>
                     <h5 className="text-xs font-bold text-slate-800 truncate">{evt.title}</h5>
                     <p className="text-xs text-slate-400 truncate">{new Date(`${evt.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</p>
@@ -374,7 +412,8 @@ export const CalendarView: React.FC = () => {
       </div>
 
       {/* Main Calendar Area */}
-      <div className="order-1 md:order-2 flex-1 flex flex-col p-3 md:p-6 md:overflow-hidden min-w-0">
+      <div className="workspace-page-body order-1 md:order-2 flex-1 flex flex-col md:overflow-hidden min-w-0">
+        {taskError && <p role="alert" className="mb-4 text-sm text-rose-600">{taskError} <button type="button" onClick={() => void loadTasks()} className="underline">Retry</button></p>}
         <div data-onboarding-target="calendar-controls" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
           <div className="flex flex-wrap items-center gap-3">
             <div>
@@ -472,7 +511,7 @@ export const CalendarView: React.FC = () => {
         const group = eventGroup(evt);
         const creator = users.find((user) => user.id === evt.createdBy);
         const attendees = (evt.attendees || []).map((id) => users.find((user) => user.id === id)).filter(Boolean);
-        const canDelete = evt.createdBy === currentUser.id || currentUser.systemRole === 'admin' || currentUser.systemRole === 'coordinator';
+        const canDelete = !evt.taskId && (evt.createdBy === currentUser.id || currentUser.systemRole === 'admin' || currentUser.systemRole === 'coordinator');
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-2 backdrop-blur-sm md:p-4" onClick={() => setSelectedEvent(null)}>
             <div role="dialog" aria-label="Event details" onClick={(e) => e.stopPropagation()} className="max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto rounded-3xl border border-slate-200/80 bg-white shadow-2xl">
@@ -486,7 +525,7 @@ export const CalendarView: React.FC = () => {
                   <button type="button" onClick={() => setSelectedEvent(null)} aria-label="Close" className="-m-1.5 rounded-full p-2.5 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button>
                 </div>
                 <dl className="space-y-2.5 text-xs text-slate-600">
-                  <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-brand-600" />{new Date(`${evt.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · {formatTime(evt.startTime)} – {formatTime(evt.endTime)}</div>
+                  <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-brand-600" />{new Date(`${evt.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · {eventTime(evt)}</div>
                   {evt.location && <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-brand-600" />{evt.location}</div>}
                   {evt.isCall && <div className="flex items-center gap-2"><Video className="h-4 w-4 text-brand-600" />Scheduled as a call</div>}
                   {evt.recurrenceId && <div className="flex items-center gap-2"><Repeat className="h-4 w-4 text-brand-600" />Part of a recurring series</div>}
@@ -496,13 +535,14 @@ export const CalendarView: React.FC = () => {
                 {evt.description && <p className="whitespace-pre-wrap rounded-2xl bg-slate-50 p-3 text-xs text-slate-700">{evt.description}</p>}
                 {attendees.length > 0 && evt.scope !== 'personal' && (
                   <div>
-                    <p className="mb-1.5 text-xs font-bold text-slate-700">Invited ({attendees.length})</p>
+                    <p className="mb-1.5 text-xs font-bold text-slate-700">{evt.taskId ? 'Assigned' : 'Invited'} ({attendees.length})</p>
                     <div className="flex flex-wrap gap-1.5">
                       {attendees.map((user) => user && <span key={user.id} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 py-0.5 pl-0.5 pr-2 text-xs text-slate-700"><img src={user.avatar} alt="" className="h-5 w-5 rounded-full object-cover" />{user.name}</span>)}
                     </div>
                   </div>
                 )}
                 <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                  {evt.taskId && <button type="button" onClick={() => navigate(`/programs/task/${evt.taskId}`)} className="workspace-control bg-brand-600 px-4 text-sm font-semibold text-white">Open task</button>}
                   {canDelete ? (
                     <button type="button" onClick={() => { void deleteCalendarEvent(evt.id); setSelectedEvent(null); }} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-rose-600 hover:bg-rose-50 md:min-h-0 md:py-2"><Trash2 className="h-4 w-4" />Delete</button>
                   ) : <span />}

@@ -1,4 +1,4 @@
-# Flown Systems
+# Systems
 
 `SystemsPage` is a named export from `src/components/systems` (also from
 `SystemsPage.tsx`), has no props, and obtains its authenticated session directly
@@ -7,7 +7,9 @@ legacy administration settings route.
 
 ## Inventory overview and browser fixtures
 
-The inventory view starts with **Health overview** and **System inventory**.
+The inventory view starts with **Incidents** and **Maintenance**, followed by
+**Health overview** and **System inventory**. Open operations appear before closed
+history, so they remain visible as the inventory grows.
 The overview counts each registered system once in one of four states:
 Operational, Needs attention, Awaiting checks, or Not monitored. “Needs
 attention” means the newest matching-endpoint check is down or blocked, or is
@@ -63,6 +65,20 @@ For add/edit browser actions, mock `insert(values)` or `update(values).eq(id)`,
 then `select('id').single()` with `{ data: { id }, error: null }`. Deletion uses
 `delete().eq('id', id).select('id')` and requires a returned id row.
 
+Both operation tables also have `system_ids` (UUID array). The editor selects
+multiple affected systems and saves one shared record; updates and resolution
+therefore apply to all of them. `system_id` is maintained as the first affected
+system for compatibility. Existing single-system records are backfilled by
+`20261114110000_multi_system_operations.sql`, included in the manual update
+bundle. Apply that migration before deploying the updated editor. Deleting one
+system detaches it from shared operations; the record is deleted only when its
+last affected system is removed.
+
+Run the database regression with
+`PGLITE_MODULE=/path/to/@electric-sql/pglite/dist/index.js node supabase/tests/systems-runtime.mjs`.
+Like the other runtime checks, PGlite is an optional local test tool, not an
+application dependency.
+
 ## Database and authorization
 
 For the SQL editor, run the entire [Flown Ops update bundle](../supabase/flown_ops_update_all.sql)
@@ -79,7 +95,8 @@ all inventory, incidents and maintenance, regardless of owner or system role.
 Check history is readable by active staff but writable only by service role.
 Lease storage and claim/due-check RPCs are service-only. Owners are optional
 profile references; ownership is accountability, not a permissions boundary.
-Deleting inventory cascades its operational history.
+Deleting inventory removes its check history and single-system operations;
+shared operations remain associated with their other affected systems.
 
 Applying the manual bundle does not register CLI migration history. Before
 switching an existing project back to CLI migrations, reconcile its migration

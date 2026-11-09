@@ -125,3 +125,13 @@ Verified: **58 actual PostgreSQL checks** covering active owner create/read/edit
 ## Deployment verification
 
 Apply pending migrations in order and deploy the new/changed Edge Functions before deploying the frontend. Validate on a staging project: form publication/submission permissions, PDF version and signature persistence, shared-email delivery and failed-send handling, grant automations, and calendar events. Local tests do not replace a hosted multi-user/provider check.
+# Task deadlines in Calendar
+
+Tasks always use the board on the Tasks page. Calendar reads due-dated
+`program_tasks` through the existing staff permissions, with realtime refresh
+and polling. Each task appears once as an all-day entry in month, week, and day
+views, including subtasks. Saved date/title/assignment changes update the entry;
+clearing the due date or deleting the task removes it. Completed tasks retain
+their deadline. **Open task** manages the original record; a task deadline cannot
+be deleted independently as a calendar event. No duplicated `calendar_events`
+rows or additional migration are needed for task deadlines.

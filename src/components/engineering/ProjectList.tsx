@@ -42,15 +42,13 @@ export const ProjectList: React.FC<{ discipline: Discipline }> = ({ discipline }
   };
   const shown = useMemo(() => projects.filter((project) => (status === 'all' || project.status === status) && `${project.name} ${project.description || ''}`.toLowerCase().includes(query.toLowerCase())), [projects, status, query]);
   const Icon = def.icon;
-  const active = projects.filter((project) => ['planning', 'active', 'in_review'].includes(project.status)).length;
-  const late = projects.filter((project) => project.target_date && project.target_date < today() && !['completed', 'archived'].includes(project.status)).length;
 
   return (
     <main data-onboarding-target="product-projects" className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8 sm:py-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600"><Icon className="h-5 w-5" /></span>
-          <div className="min-w-0"><h1 className="text-xl font-bold text-slate-900">{def.label}</h1><p className="mt-0.5 text-xs text-slate-500">{def.blurb} {projects.length} projects · {active} open · {late} past target.</p></div>
+          <div className="min-w-0"><h1 className="text-xl font-bold text-slate-900">{def.label}</h1></div>
         </div>
         <button type="button" onClick={() => setCreating(true)} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white hover:bg-brand-700 md:min-h-0 md:py-2"><Plus className="h-3.5 w-3.5" />New project</button>
       </header>

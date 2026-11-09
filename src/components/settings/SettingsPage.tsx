@@ -109,9 +109,8 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <main data-onboarding-target="settings-workspace" className="flex-1 overflow-y-auto">
-      <div className={`mx-auto p-5 sm:p-8 lg:p-10 ${section === 'admin' ? 'max-w-6xl' : 'max-w-5xl'}`}>
-        <h1 className="mb-2 text-2xl font-bold text-slate-900">Settings</h1>
-        <p className="mb-6 text-sm text-slate-500">Your Flown Ops account and preferences.</p>
+      <div className={`workspace-page-body mx-auto ${section === 'admin' ? 'max-w-6xl' : 'max-w-5xl'}`}>
+        <h1 className="mb-6 text-xl font-semibold text-slate-900">Settings</h1>
         <div className="flex flex-col gap-6 md:flex-row">
           <nav aria-label="Settings sections" className="flex shrink-0 gap-1 overflow-x-auto md:w-52 md:flex-col">
             {nav.map(({ id, label, icon: Icon }) => (

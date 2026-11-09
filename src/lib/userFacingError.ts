@@ -2,7 +2,7 @@ export function userFacingError(error: unknown, fallback = 'This action could no
   const message = error instanceof Error ? error.message : typeof error === 'string' ? error
     : error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' ? error.message : '';
   if (/Could not record audio/i.test(message)) return 'Could not record audio. Allow microphone access in your browser settings, then try again.';
-  if (/Flown Systems is available to active staff only/i.test(message)) return 'Flown Systems is available to active staff only. Ask an administrator to check your account.';
+  if (/(?:Flown )?Systems is available to active staff only/i.test(message)) return 'Systems is available to active staff only. Ask an administrator to check your account.';
   if (/row.level security|permission denied|not authorized|access denied|access required|insufficient privilege/i.test(message)) {
     return 'You do not have permission to make this change. Ask an administrator to check your access.';
   }

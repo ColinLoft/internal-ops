@@ -155,7 +155,6 @@ export const IdeasPage: React.FC = () => {
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-5 sm:px-8">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Ideas</h1>
-          <p className="mt-1 text-xs text-slate-500">Company-wide ideas for brand, grants, product, marketing and everything else. Upvote what matters.</p>
         </div>
         <button type="button" onClick={() => setCreating(true)} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700 md:min-h-0"><Plus className="h-3.5 w-3.5" />New idea</button>
       </header>

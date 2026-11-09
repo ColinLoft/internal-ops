@@ -1,7 +1,7 @@
 import { userFacingError } from '../../lib/userFacingError';
 import { CustomSelect } from "../common/CustomSelect";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, X } from 'lucide-react';
+import { Plus, Search, UserRound, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { supabase } from '../../lib/supabase';
 import { TaskPage } from './TaskPage';
@@ -17,7 +17,6 @@ const TASK_STATUS: Record<string, string> = { not_started: 'Not started', in_pro
 const input = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-base outline-none focus:border-brand-400 md:text-xs';
 
 const taskIdFromPath = (path: string) => { const [, , kind, id] = path.split('/'); return kind === 'task' && id ? id : null; };
-const today = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; };
 
 const Modal: React.FC<{ title: string; onClose: () => void; children: React.ReactNode }> = ({ title, onClose, children }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-3" onClick={onClose}>
@@ -86,27 +85,25 @@ const TasksList: React.FC = () => {
   const topTasks = useMemo(() => tasks.filter((task) => !task.parent_task_id), [tasks]);
   const needle = query.trim().toLowerCase();
   const shownTasks = topTasks.filter((task) => (statusFilter === 'all' || task.status === statusFilter) && (projectFilter === 'all' || (projectFilter === 'none' ? !task.eng_project_id : task.eng_project_id === projectFilter)) && (!mineOnly || assignedIds(task).includes(currentUser.id)) && task.title.toLowerCase().includes(needle));
-  const overdue = (task: Task) => Boolean(task.due_date) && task.status !== 'completed' && (task.due_date as string) < today();
 
   return (
     <main data-onboarding-target="tasks-workspace" className="min-w-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
-      <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-8 sm:py-5">
+      <header className="workspace-page-header border-b border-slate-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Tasks</h1>
-            <p className="mt-1 text-xs text-slate-500">{topTasks.length} tasks · {topTasks.filter((t) => t.status !== 'completed').length} open · {topTasks.filter(overdue).length} overdue. Includes tasks from Software, Mechanical, Electrical and Systems projects.</p>
           </div>
-          <button type="button" onClick={() => setTaskModal({})} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white hover:bg-brand-700 md:min-h-0 md:py-2"><Plus className="h-3.5 w-3.5" />New task</button>
+          <button type="button" onClick={() => setTaskModal({})} className="workspace-control inline-flex items-center gap-2 bg-brand-600 px-3 text-sm font-semibold text-white hover:bg-brand-700"><Plus className="h-4 w-4" />New task</button>
         </div>
       </header>
 
-      <div className="min-w-0 space-y-4 p-4 sm:p-8">
+      <div className="workspace-page-body min-w-0 space-y-4">
         {error && <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{userFacingError(error)}</div>}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="workspace-toolbar flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search tasks" className={`${input} pl-9`} /></div>
           <Dropdown value={statusFilter} onChange={setStatusFilter} ariaLabel="Filter by status" className="min-w-36" options={[{ id: 'all', label: 'All statuses' }, ...Object.entries(TASK_STATUS).map(([id, label]) => ({ id, label }))]} />
           <Dropdown value={projectFilter} onChange={setProjectFilter} ariaLabel="Filter by project" className="min-w-40" options={[{ id: 'all', label: 'All projects' }, { id: 'none', label: 'No project' }, ...projects.map((project) => ({ id: project.id, label: `${project.name} (${project.discipline})` }))]} />
-          <label className="inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-slate-600 md:min-h-0"><input type="checkbox" checked={mineOnly} onChange={(event) => setMineOnly(event.target.checked)} />Assigned to me</label>
+          <button type="button" aria-pressed={mineOnly} onClick={() => setMineOnly((value) => !value)} className={`workspace-control inline-flex items-center gap-2 border px-3 text-sm font-medium ${mineOnly ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}><UserRound className="h-4 w-4" />Assigned to me</button>
         </div>
         {loading ? <TableSkeleton rows={6} /> : <TasksViews tasks={shownTasks} allTasks={tasks} projects={projects} loading={false} onChanged={load} onError={setError} onPatched={(ids, changes) => setTasks((current) => current.map((task) => ids.includes(task.id) ? { ...task, ...changes } : task))} />}
       </div>

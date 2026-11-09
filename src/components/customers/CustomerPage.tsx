@@ -175,7 +175,7 @@ export const CustomerPage: React.FC = () => {
   return (
     <main data-onboarding-target="customers-workspace" className="flex min-w-0 flex-1 overflow-hidden bg-[#f7f9fc]">
       <section className="min-w-0 flex-1 overflow-y-auto">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
+        <header className="workspace-page-header flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white">
           <div>
             <h1 className="mt-1 text-xl font-bold text-slate-900">{tabs.find((t) => t[0] === view)?.[1]}</h1>
           </div>
@@ -185,7 +185,7 @@ export const CustomerPage: React.FC = () => {
           </div>
         </header>
         {tabNav}
-        <div className="mx-auto max-w-7xl space-y-5 p-5 sm:p-8">
+        <div className="workspace-page-body mx-auto max-w-7xl space-y-5">
           {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{userFacingError(error)}</p>}
           {loading ? <p className="text-xs text-slate-400">Loading…</p> : !canView && orgs.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-6 text-xs text-slate-500">You don't have access to Customers. Ask an admin to assign the Customers team role.</p> : <>
             {view === 'overview' && <>

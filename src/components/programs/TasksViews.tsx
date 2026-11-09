@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CalendarDays, ExternalLink, KanbanSquare, X } from 'lucide-react';
+import { ExternalLink, X } from 'lucide-react';
 import { CustomSelect } from '../common/CustomSelect';
 import { supabase } from '../../lib/supabase';
 import { celebrateMilestone } from '../../lib/milestones';
@@ -17,7 +17,6 @@ export type TaskRow = {
 };
 export const TASK_STATUS: Record<string, string> = { not_started: 'Not started', in_progress: 'In progress', blocked: 'Blocked', completed: 'Completed' };
 const statusDot: Record<string, string> = { not_started: 'bg-slate-300', in_progress: 'bg-brand-500', blocked: 'bg-rose-500', completed: 'bg-emerald-500' };
-const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const field = 'mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs';
 
 interface Props {
@@ -28,13 +27,10 @@ interface Props {
 
 export const TasksViews: React.FC<Props> = ({ tasks, projects, loading, onChanged, onError, onPatched }) => {
   const { users, currentUser } = useWorkspace();
-  const [mode, setMode] = useState<'board' | 'calendar'>(() => localStorage.getItem('flown-tasks-mode') === 'calendar' ? 'calendar' : 'board');
   const [openId, setOpenId] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Record<string, Partial<TaskRow>>>({});
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [wide, setWide] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
-  const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  useEffect(() => { localStorage.setItem('flown-tasks-mode', mode); }, [mode]);
   useEffect(() => {
     const media = window.matchMedia('(min-width: 1024px)');
     const update = () => setWide(media.matches);
@@ -89,20 +85,6 @@ export const TasksViews: React.FC<Props> = ({ tasks, projects, loading, onChange
       </section>;
     })}
   </div>;
-  const first = new Date(month.getFullYear(), month.getMonth(), 1);
-  const cells = Array.from({ length: 42 }, (_, index) => new Date(first.getFullYear(), first.getMonth(), 1 - first.getDay() + index));
-  const calendar = <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-    <div className="flex items-center justify-between p-3">
-      <button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="text-xs">Previous</button>
-      <h2 className="text-sm font-semibold">{month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h2>
-      <button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="text-xs">Next</button>
-    </div>
-    <div className="grid min-w-[560px] grid-cols-7 text-center text-xs text-slate-500">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <div key={day} className="p-2">{day}</div>)}</div>
-    <div className="grid min-w-[560px] grid-cols-7">{cells.map((date) => <div key={iso(date)} className={`min-h-24 border-t border-l border-slate-100 p-1 ${date.getMonth() !== month.getMonth() ? 'bg-slate-50' : ''}`}>
-      <span className={`text-xs ${iso(date) === iso(new Date()) ? 'font-bold text-brand-600' : 'text-slate-500'}`}>{date.getDate()}</span>
-      {visibleTasks.filter((task) => task.due_date === iso(date)).map((task) => <button key={task.id} type="button" onClick={() => setOpenId(task.id)} className="mt-1 block w-full rounded bg-slate-100 p-1 text-left text-xs text-slate-700">{task.title}</button>)}
-    </div>)}</div>
-  </div>;
   const project = projects.find((item) => item.id === open?.eng_project_id);
   const panel = open ? <aside className="h-full overflow-y-auto border-l border-slate-200 bg-white p-4">
     <div className="flex items-start justify-between gap-3"><h2 className="text-sm font-semibold text-slate-900">{open.title}</h2><button type="button" onClick={() => setOpenId(null)} aria-label="Close panel"><X className="h-4 w-4" /></button></div>
@@ -120,8 +102,7 @@ export const TasksViews: React.FC<Props> = ({ tasks, projects, loading, onChange
     {project && <button type="button" onClick={() => navigate(`/engineering/${project.discipline || 'software'}/${project.id}`)} className="mt-4 flex items-center gap-2 text-xs font-semibold text-brand-600"><ExternalLink className="h-4 w-4" />Open {project.name}</button>}
   </aside> : undefined;
   return <div className="space-y-3">
-    <div className="flex gap-2" role="tablist" aria-label="Task view">{(['board', 'calendar'] as const).map((value) => <button key={value} type="button" role="tab" aria-selected={mode === value} onClick={() => setMode(value)} className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold ${mode === value ? 'bg-brand-600 text-white' : 'bg-white text-slate-600'}`}>{value === 'board' ? <KanbanSquare className="h-4 w-4" /> : <CalendarDays className="h-4 w-4" />}{value === 'board' ? 'Board' : 'Calendar'}</button>)}</div>
-    <div className="flex min-h-[420px] overflow-hidden rounded-xl"><PanelLayout storageKey="tasks" rightLabel="task details" rightWidth={360} right={wide ? panel : undefined}><div className="min-w-0 flex-1 overflow-auto pr-1">{loading ? <TableSkeleton rows={6} /> : mode === 'calendar' ? calendar : visibleTasks.length ? board : <p className="p-10 text-center text-sm text-slate-500">No tasks match these filters.</p>}</div></PanelLayout></div>
+    <div className="flex min-h-[420px] overflow-hidden rounded-xl"><PanelLayout storageKey="tasks" rightLabel="task details" rightWidth={360} right={wide ? panel : undefined}><div className="min-w-0 flex-1 overflow-auto pr-1">{loading ? <TableSkeleton rows={6} /> : visibleTasks.length ? board : <p className="p-10 text-center text-sm text-slate-500">No tasks match these filters.</p>}</div></PanelLayout></div>
     {!wide && panel && <div role="dialog" aria-modal="true" aria-label="Task details" className="fixed inset-0 z-50 bg-white">{panel}</div>}
   </div>;
 };

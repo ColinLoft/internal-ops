@@ -81,7 +81,8 @@ describe('permanent desktop navigation rail', () => {
     expect(container.querySelector('[data-onboarding-target="bug-report-button"]')).toBeNull();
     expect(container.textContent).not.toContain('Bug report');
     const logo = container.querySelector('img[alt="Flown"]')!;
-    expect(logo.classList.contains('h-14')).toBe(true);
+    expect(logo.classList.contains('h-11')).toBe(true);
+    expect(container.textContent).not.toContain('Flown Systems');
     expect(logo.parentElement?.textContent).not.toContain('Ops');
   });
 
