@@ -82,6 +82,9 @@ describe('permanent desktop navigation rail', () => {
     expect(container.textContent).not.toContain('Bug report');
     const logo = container.querySelector('img[alt="Flown"]')!;
     expect(logo.classList.contains('h-11')).toBe(true);
+    expect(logo.getAttribute('src')).toBe('/flown-logo.png');
+    expect(logo.classList.contains('brightness-0')).toBe(false);
+    expect(logo.classList.contains('invert')).toBe(false);
     expect(container.textContent).not.toContain('Flown Systems');
     expect(logo.parentElement?.textContent).not.toContain('Ops');
   });

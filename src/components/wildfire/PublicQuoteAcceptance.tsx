@@ -78,7 +78,7 @@ export function PublicQuoteAcceptance({ token }: { token: string }) {
   };
   const quote = details?.snapshot;
   return <main className="min-h-dvh bg-slate-50 px-3 py-6 sm:px-6"><section className={`${surface} mx-auto max-w-3xl`}>
-    <img src="/flown-logo.png" alt="Flown" className="mb-5 h-10 w-auto brightness-0 invert" />
+    <img src="/flown-logo.png" alt="Flown" className="mb-5 h-10 w-auto" />
     <h1 className="text-2xl font-semibold text-slate-900">Review your Wildfire quote</h1>
     {testMode && <p role="status" className="mt-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-700">Test mode: try the signing form without recording a signature, accepting the quote or creating a deployment.</p>}
     {loading && <p role="status" className="mt-4 text-sm text-slate-500">Loading quote…</p>}
