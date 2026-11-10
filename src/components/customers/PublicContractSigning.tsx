@@ -1,6 +1,6 @@
 import { userFacingError } from '../../lib/userFacingError';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Download, Eraser, FileText, PenLine } from 'lucide-react';
+import { Check, Download, Eraser, PenLine } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { ContractFieldEditor } from './ContractFieldEditor';
 import type { ContractField, ContractSigningStatus } from './contractSigning';
@@ -154,8 +154,8 @@ export const PublicContractSigning: React.FC<{ token: string }> = ({ token }) =>
 
   return <main className="min-h-screen bg-slate-950 px-3 py-6 text-slate-900 sm:px-6">
     <section className="mx-auto w-full max-w-5xl overflow-hidden rounded-xl bg-white shadow-2xl">
-      <header className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 sm:px-8">
-        <span className="rounded-lg bg-brand-50 p-2 text-brand-700"><FileText className="h-5 w-5" /></span>
+      <header className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-5 py-4 sm:px-8">
+        <span className="rounded-lg bg-black px-3 py-2"><img src="/flown-logo.png" alt="Flown" className="h-9 w-auto brightness-0 invert" /></span>
         <div><h1 className="text-lg font-bold">Review and sign agreement</h1><p className="text-xs text-slate-500">Secure Flown contract signing</p></div>
       </header>
       <div className="p-5 sm:p-8">

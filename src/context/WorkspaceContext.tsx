@@ -20,14 +20,6 @@ import {
   SystemActivityInput,
   SystemActivityLog,
 } from '../types';
-import {
-  initialConversations,
-  initialChannels,
-  initialMessages,
-  initialThreadReplies,
-  initialCalendarEvents,
-  initialNotifications,
-} from '../data/initialData';
 import { sounds } from '../lib/sound';
 import { supabase, testSupabaseConnection } from '../lib/supabase';
 import { preloadAppAccess, resetAppAccessCache } from '../lib/useAppAccess';
@@ -318,7 +310,7 @@ const mapSupabaseMessage = async (row: Record<string, unknown>, existing?: Messa
 };
 
 // Presence is automatic: a recent heartbeat means online; otherwise offline with a last-seen time.
-const derivePresence = (row: Record<string, any>): { status: UserStatus; lastSeen?: string } => {
+const derivePresence = (row: { last_seen_at?: unknown }): { status: UserStatus; lastSeen?: string } => {
   const seenAt = typeof row.last_seen_at === 'string' ? row.last_seen_at : null;
   if (!seenAt) return { status: 'offline' };
   const timestamp = Date.parse(seenAt);
@@ -328,7 +320,23 @@ const derivePresence = (row: Record<string, any>): { status: UserStatus; lastSee
   return { status: 'offline', lastSeen: formatLastSeen(seenAt) };
 };
 
-const mapSupabaseProfile = (row: Record<string, any>, currentUserId: string): User => {
+type ProfileRow = {
+  id: string;
+  email: string;
+  name?: string | null;
+  phone?: string | null;
+  avatar_url?: string | null;
+  last_seen_at?: string | null;
+  account_status?: AccountStatus | null;
+  suspended_until?: string | null;
+  system_role?: UserRole | null;
+  bio?: string | null;
+  location?: string | null;
+  banner?: User['banner'] | null;
+  preferences?: unknown;
+};
+
+const mapSupabaseProfile = (row: ProfileRow, currentUserId: string): User => {
   const suspendedUntil = typeof row.suspended_until === 'string' ? row.suspended_until : null;
   const suspensionExpired = suspendedUntil !== null && Date.parse(suspendedUntil) <= Date.now();
 
@@ -342,7 +350,7 @@ const mapSupabaseProfile = (row: Record<string, any>, currentUserId: string): Us
     phone: row.phone || '',
     avatar: row.avatar_url || '',
     ...derivePresence(row),
-    accountStatus: suspensionExpired ? 'active' : (row.account_status as AccountStatus) || 'active',
+    accountStatus: suspensionExpired ? 'active' : row.account_status || 'active',
     suspendedUntil,
     systemRole: row.system_role || 'member',
     bio: row.bio || '',
@@ -353,9 +361,9 @@ const mapSupabaseProfile = (row: Record<string, any>, currentUserId: string): Us
   };
 };
 
-const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
-  const preferences = row.preferences && typeof row.preferences === 'object' && !Array.isArray(row.preferences)
-    ? row.preferences
+const mapWorkspaceSettings = (row: { preferences?: unknown }): WorkspaceSettings => {
+  const preferences: Record<string, unknown> = row.preferences && typeof row.preferences === 'object' && !Array.isArray(row.preferences)
+    ? Object.fromEntries(Object.entries(row.preferences))
     : {};
 
   return {
@@ -364,7 +372,7 @@ const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
     accentColor: DEFAULT_WORKSPACE_SETTINGS.accentColor,
     microphoneDeviceId: typeof preferences.microphoneDeviceId === 'string' ? preferences.microphoneDeviceId : '',
     cameraDeviceId: typeof preferences.cameraDeviceId === 'string' ? preferences.cameraDeviceId : '',
-    ringtone: ['classic', 'chime', 'pulse', 'soft'].includes(preferences.ringtone)
+    ringtone: typeof preferences.ringtone === 'string' && ['classic', 'chime', 'pulse', 'soft'].includes(preferences.ringtone)
       ? preferences.ringtone as Ringtone
       : DEFAULT_WORKSPACE_SETTINGS.ringtone,
     showCameraPreview: typeof preferences.showCameraPreview === 'boolean'
@@ -376,7 +384,7 @@ const mapWorkspaceSettings = (row: Record<string, any>): WorkspaceSettings => {
     aiSuggestedReplies: typeof preferences.aiSuggestedReplies === 'boolean'
       ? preferences.aiSuggestedReplies
       : DEFAULT_WORKSPACE_SETTINGS.aiSuggestedReplies,
-    fontSize: ['small', 'default', 'large'].includes(preferences.fontSize) ? preferences.fontSize as WorkspaceSettings['fontSize'] : 'default',
+    fontSize: typeof preferences.fontSize === 'string' && ['small', 'default', 'large'].includes(preferences.fontSize) ? preferences.fontSize as WorkspaceSettings['fontSize'] : 'default',
     reduceMotion: preferences.reduceMotion === true,
     keyboardShortcuts: preferences.keyboardShortcuts !== false,
     notifyMessages: preferences.notifyMessages !== false,
@@ -440,26 +448,8 @@ const loadSupabaseWorkspaceData = async (userIds: string[]) => {
       supabase.from('conversation_participants').select('conversation_id, user_id'),
       supabase.from('conversations').select('id, type, name'),
     ]);
-    let channelResult = initialChannelResult;
+    const channelResult = initialChannelResult;
     if (channelResult.error) throw channelResult.error;
-
-    if (channelResult.data.length === 0) {
-      const { error: seedError } = await supabase.from('channels').upsert(
-        initialChannels.map((channel) => ({
-          id: channel.id,
-          name: channel.name,
-          description: channel.description,
-          type: channel.type,
-          is_private: channel.isPrivate,
-          posting_roles: channel.postingRoles,
-          category: channel.category,
-        })),
-        { onConflict: 'id', ignoreDuplicates: true }
-      );
-      if (seedError) throw seedError;
-      channelResult = await supabase.from('channels').select('*').order('created_at', { ascending: true });
-      if (channelResult.error) throw channelResult.error;
-    }
 
     if (memberResult.error) throw memberResult.error;
     if (messageResult.error) throw messageResult.error;
@@ -602,19 +592,19 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [isRightDrawerOpen, setIsRightDrawerOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
 
-  const [channels, setChannels] = useState<Channel[]>(initialChannels);
+  const [channels, setChannels] = useState<Channel[]>([]);
 
-  const [messages, setMessages] = useState<Record<string, Message[]>>(initialMessages);
+  const [messages, setMessages] = useState<Record<string, Message[]>>({});
 
-  const [threadReplies, setThreadReplies] = useState<Record<string, Message[]>>(initialThreadReplies);
+  const [threadReplies, setThreadReplies] = useState<Record<string, Message[]>>({});
   const messageCacheRef = React.useRef({ messages, threadReplies });
   messageCacheRef.current = { messages, threadReplies };
 
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(initialCalendarEvents);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() =>
     localStorage.getItem(`${STORAGE_PREFIX}sound_enabled`) !== 'false'

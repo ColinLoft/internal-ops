@@ -7,6 +7,8 @@ const mock = vi.hoisted(() => ({
   messages: undefined as undefined | Promise<{ data: unknown[]; error: null }>,
   authChange: undefined as undefined | ((event: string, session: unknown) => void),
   queried: [] as string[],
+  channels: [{ id: 'chan-announcements', name: 'Announcements', type: 'announcement' }] as unknown[],
+  preferences: {} as unknown,
   session: { user: { id: 'staff', email: 'staff@example.test', app_metadata: {}, user_metadata: { name: 'Staff', onboarding_completed: true } } },
 }));
 vi.mock('../lib/sound', () => ({ sounds: { setRingtone: vi.fn(), setSoundEnabled: vi.fn(), stopAll: vi.fn(), playNotification: vi.fn() } }));
@@ -23,10 +25,10 @@ vi.mock('../lib/supabase', () => ({
     removeChannel: vi.fn(async () => {}),
     from: (table: string) => {
       mock.queried.push(table);
-      const profile = { id: 'staff', name: 'Staff', email: 'staff@example.test', account_status: 'active', preferences: {}, last_seen_at: new Date().toISOString() };
+      const profile = { id: 'staff', name: 'Staff', email: 'staff@example.test', account_status: 'active', preferences: mock.preferences, last_seen_at: new Date().toISOString() };
       let single = false;
       const result = () => table === 'messages' ? mock.messages! : Promise.resolve({
-        data: table === 'profiles' ? single ? profile : [profile] : table === 'channels' ? [{ id: 'chan-announcements', name: 'Announcements', type: 'announcement' }] : [],
+        data: table === 'profiles' ? single ? profile : [profile] : table === 'channels' ? mock.channels : [],
         error: null,
       });
       const query = {
@@ -45,6 +47,8 @@ describe('workspace session loading', () => {
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     mock.queried = [];
+    mock.channels = [{ id: 'chan-announcements', name: 'Announcements', type: 'announcement' }];
+    mock.preferences = {};
     localStorage.clear();
     window.history.replaceState({}, '', '/programs/tasks');
   });
@@ -72,5 +76,23 @@ describe('workspace session loading', () => {
       expect(mock.queried.filter(table => table === 'channels')).toHaveLength(requests);
       expect(snapshot.workspaceLoadError).toBe('');
     } finally { await act(async () => root.unmount()); container.remove(); window.history.replaceState({}, '', '/'); }
+  });
+  it.each([null, [], 'invalid', { ringtone: 'chime', fontSize: 'large' }])('loads an empty workspace without seeding channels, with preferences %j', async (preferences) => {
+    mock.channels = [];
+    mock.preferences = preferences;
+    mock.messages = Promise.resolve({ data: [], error: null });
+    let snapshot!: ReturnType<typeof useWorkspace>;
+    function Probe() { snapshot = useWorkspace(); return null; }
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(<WorkspaceProvider><Probe /></WorkspaceProvider>));
+      expect(snapshot.isWorkspaceLoading).toBe(false);
+      expect(snapshot.workspaceLoadError).toBe('');
+      expect(snapshot.channels).toEqual([]);
+      expect(mock.queried.filter(table => table === 'channels')).toHaveLength(1);
+      expect(snapshot.workspaceSettings.ringtone).toBe(preferences && !Array.isArray(preferences) && typeof preferences === 'object' ? 'chime' : 'classic');
+      expect(snapshot.workspaceSettings.fontSize).toBe(preferences && !Array.isArray(preferences) && typeof preferences === 'object' ? 'large' : 'default');
+    } finally { await act(async () => root.unmount()); }
   });
 });

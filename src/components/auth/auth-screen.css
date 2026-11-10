@@ -20,8 +20,9 @@
 
 .auth-logo {
   display: block;
-  width: 80px;
+  width: 120px;
   height: auto;
+  filter: brightness(0) invert(1);
 }
 
 .auth-form-wrap {

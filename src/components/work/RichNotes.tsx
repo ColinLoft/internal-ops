@@ -20,7 +20,6 @@ export const RichNotes: React.FC<{ value: string; onSave: (html: string) => Prom
   useEffect(() => {
     if (ref.current && !dirty) ref.current.innerHTML = sanitizeEmailHtml(value || '');
     // Only reset the editor when the saved value changes and there are no unsaved edits.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   const run = (command: string, arg?: string) => {

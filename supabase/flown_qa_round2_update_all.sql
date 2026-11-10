@@ -1,5 +1,5 @@
 -- Flown Ops QA round 2 bundle. Paste this whole file into the Supabase SQL editor and run it once.
--- Safe to re-run. Replaces flown_wildfire_update_all.sql (do not run that one).
+-- Supersedes the retired Wildfire update bundle; source migrations are retained.
 -- Part 1 of 2: migrations/20261111100000_wildfire_workflow.sql
 
 -- Re-runnable workflow upgrade. Only legacy site-survey rows are intentionally removed.

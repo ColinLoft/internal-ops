@@ -4,7 +4,7 @@
 -- Originals remain in migrations/ for CLI history. This manual bundle does not
 -- update Supabase CLI migration tracking. Do not put it in migrations/.
 -- Existing records are preserved. Can be rerun after these migrations were applied.
--- SQL alone does not deploy Edge Functions; see ../docs/workspace-integrations.md.
+-- SQL alone does not deploy Edge Functions or configure provider secrets.
 
 begin;
 
