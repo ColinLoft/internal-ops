@@ -42,8 +42,8 @@ const decodeSignatureSet = (
   return signatures;
 };
 
-const createSignedPdfUrl = async (admin: SupabaseClient, storagePath: string) => {
-  const { data, error } = await admin.storage.from('contracts-files').createSignedUrl(storagePath, 7 * 24 * 60 * 60);
+const createSignedPdfUrl = async (admin: SupabaseClient, storagePath: string, lifetime = 7 * 24 * 60 * 60) => {
+  const { data, error } = await admin.storage.from('contracts-files').createSignedUrl(storagePath, lifetime);
   if (error || !data?.signedUrl) throw new Error('The signed agreement download link could not be created.');
   return data.signedUrl;
 };
@@ -252,11 +252,23 @@ serveWithCors(async (request: Request) => {
       .eq('token_hash', tokenHash).maybeSingle();
     if (requestError || !signingRequest) return json({ error: 'This signing link is invalid or has expired.' }, 404);
 
+    const expiresAt = new Date(signingRequest.expires_at).getTime();
+    const remainingSeconds = Math.floor((expiresAt - Date.now()) / 1000);
+    if (!Number.isFinite(expiresAt) || remainingSeconds < 1
+      || !['pending', 'recipient_signed', 'completed'].includes(signingRequest.status)) {
+      return json({ error: signingRequest.status === 'revoked' ? 'This signing link has been replaced.' : 'This signing link is no longer active.' }, 410);
+    }
+    const publicPdfLifetime = () => {
+      const seconds = Math.floor((expiresAt - Date.now()) / 1000);
+      if (seconds < 1) throw new Error('This signing link is no longer active.');
+      return Math.min(60 * 60, seconds);
+    };
+
     if (signingRequest.status === 'completed' && signingRequest.signed_file_id) {
       const { data: signedFile } = await admin.from('customer_contract_files')
         .select('storage_path').eq('id', signingRequest.signed_file_id).maybeSingle();
       if (!signedFile) return json({ error: 'The signed agreement could not be loaded.' }, 404);
-      const signedPdfUrl = await createSignedPdfUrl(admin, signedFile.storage_path);
+      const signedPdfUrl = await createSignedPdfUrl(admin, signedFile.storage_path, publicPdfLifetime());
       return json({ status: 'completed', flowVersion: signingRequest.flow_version, signedPdfUrl });
     }
     if (signingRequest.status === 'recipient_signed' && signingRequest.flow_version === 2) {
@@ -264,7 +276,7 @@ serveWithCors(async (request: Request) => {
       const { data: original } = await admin.from('customer_contract_files').select('file_name,storage_path')
         .eq('id', signingRequest.source_file_id).maybeSingle();
       if (!contract || !original) return json({ error: 'The agreement could not be loaded.' }, 404);
-      const { data: originalUrl } = await admin.storage.from('contracts-files').createSignedUrl(original.storage_path, 60 * 60);
+      const { data: originalUrl } = await admin.storage.from('contracts-files').createSignedUrl(original.storage_path, publicPdfLifetime());
       return json({
         status: 'recipient_signed',
         flowVersion: 2,
@@ -275,8 +287,7 @@ serveWithCors(async (request: Request) => {
       });
     }
 
-    const expiresAt = new Date(signingRequest.expires_at).getTime();
-    if (signingRequest.status !== 'pending' || expiresAt <= Date.now()) {
+    if (signingRequest.status !== 'pending') {
       return json({ error: signingRequest.status === 'revoked' ? 'This signing link has been replaced.' : 'This signing link is no longer active.' }, 410);
     }
     const { data: contract, error: contractError } = await admin.from('customer_contracts')
@@ -299,7 +310,7 @@ serveWithCors(async (request: Request) => {
 
     if (body.action === 'details') {
       const { data: originalUrl, error: linkError } = await admin.storage
-        .from('contracts-files').createSignedUrl(originalFile.storage_path, 60 * 60);
+        .from('contracts-files').createSignedUrl(originalFile.storage_path, publicPdfLifetime());
       if (linkError || !originalUrl) return json({ error: 'The agreement PDF could not be opened.' }, 404);
       if (signingRequest.flow_version === 2) {
         return json({
@@ -417,8 +428,8 @@ serveWithCors(async (request: Request) => {
     });
     if (recordError) throw recordError;
 
-    const { data: signedUrl } = await admin.storage.from('contracts-files').createSignedUrl(signedPath, 60 * 60);
     uploadedPath = null;
+    const { data: signedUrl } = await admin.storage.from('contracts-files').createSignedUrl(signedPath, publicPdfLifetime());
     return json({
       status: 'completed',
       flowVersion: 1,

@@ -16,6 +16,10 @@ supabase functions deploy sign-contract-public --no-verify-jwt
 
 The app router must handle `/contract-signature` before authenticated workspace routes, read the `token` query parameter, and render `PublicContractSigning` from `src/components/customers/PublicContractSigning.tsx`. Keep this route unauthenticated; the function validates the bearer token and does not expose contract data for invalid, expired, or revoked links.
 
+Expiry and revocation are checked before every public status response, including recipient-signed and completed agreements. Public PDF URLs last at most one hour and never longer than the signing link's remaining lifetime. Staff-authorized access and the separately emailed final-copy download link retain their existing lifetimes. Already issued storage URLs remain usable until their own expiry; revoking a signing link cannot retract a PDF already downloaded.
+
+Deploy the updated `sign-contract-public` function to apply this check; SQL alone does not update the endpoint. Regression coverage: `npm test -- supabase/functions/sign-contract-public/index.test.ts`.
+
 The app no longer calls `docs-ai`. Once the Drive retirement is deployed and any remaining hosted callers are removed, delete its hosted Edge Function with `supabase functions delete docs-ai --project-ref <project-ref>`. This does not affect the PDF signing function or shared operational email.
 
 ## Contract PDFs

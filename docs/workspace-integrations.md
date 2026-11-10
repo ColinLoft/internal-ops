@@ -135,3 +135,14 @@ clearing the due date or deleting the task removes it. Completed tasks retain
 their deadline. **Open task** manages the original record; a task deadline cannot
 be deleted independently as a calendar event. No duplicated `calendar_events`
 rows or additional migration are needed for task deadlines.
+## Security access-boundary update
+
+Apply [20261117100000_security_access_boundaries.sql](../supabase/migrations/20261117100000_security_access_boundaries.sql) after the existing workspace migrations. It is also included in the generated [workspace update bundle](../supabase/flown_ops_update_all.sql); that larger bundle includes destructive Ideas retirement, so use the standalone security migration for an otherwise up-to-date workspace.
+
+The current model is unchanged: active members edit shared apps; Organization administration remains restricted. The later QA migration already makes `app_access_level` return zero for suspended or missing profiles; the old role-only definition is not the effective policy. The security update adds restrictive task/GTM/Engineering policies so permissive owner, administrator and `FOR ALL` policies cannot bypass that app-access check. It also checks account status in legacy administrator helpers and restores task-edit validation, including multi-assignees. Engineering ownership and reviewer requirements remain in place.
+
+This update neither changes role assignments nor deletes records. Suspended users with an unexpired JWT are denied these protected table operations. It is not a claim that every unrelated legacy table or previously issued storage URL is immediately revoked.
+
+Run `node supabase/tests/security-access-runtime.mjs` for actual PostgreSQL regression coverage, including reproduction of the legacy bypasses before the fix, suspended/missing subjects, active-member behavior and future app-access revocation. The fixture uses optional `@electric-sql/pglite` and never connects to a hosted database.
+
+Public contract expiry also requires deploying the updated `sign-contract-public` Edge Function; see [PDF signing](./pdf-contract-signing.md).
